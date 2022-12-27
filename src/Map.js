@@ -7,6 +7,7 @@ import {
   Marker,
   Popup,
 } from "react-leaflet";
+import LocationMarker from "./LocationMarker";
 
 export default function Map() {
   return (
@@ -25,6 +26,7 @@ export default function Map() {
           A pretty CSS3 popup. <br /> Easily customizable.
         </Popup>
       </Marker>
+      <LocationMarker />
     </MapContainer>
   );
 }

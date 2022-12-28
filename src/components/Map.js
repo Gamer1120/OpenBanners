@@ -1,12 +1,4 @@
-import { useState, useEffect } from "react";
-import {
-  L,
-  useMap,
-  MapContainer,
-  TileLayer,
-  Marker,
-  Popup,
-} from "react-leaflet";
+import { MapContainer, TileLayer, Marker, Popup } from "react-leaflet";
 import LocationMarker from "./LocationMarker";
 import BannerMarkers from "./BannerMarkers";
 
@@ -15,8 +7,8 @@ export default function Map() {
     <MapContainer
       id="map"
       center={[52.0, 6.7]}
-      zoom={13}
-      scrollWheelZoom={false}
+      zoom={14}
+      scrollWheelZoom={true}
     >
       <TileLayer
         attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'

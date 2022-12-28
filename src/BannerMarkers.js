@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { Popup, Marker, useMap } from "react-leaflet";
 
-const BannerMarkers = () => {
+export default function BannerMarkers() {
   // https://api.bannergress.com/bnrs/second-sunday-eibergen-ladybugs-a2c0
   const [error, setError] = useState(null);
   const [isLoaded, setIsLoaded] = useState(false);
@@ -31,25 +31,30 @@ const BannerMarkers = () => {
   }, []);
 
   if (error) {
+    console.log(error);
     return;
   } else if (!isLoaded) {
+    console.log("not loaded");
     return;
   } else {
-    for (const missionKey in items.missions) {
-      const mission = items.missions[missionKey];
-      for (const stepKey in mission.steps) {
-        const step = mission.steps[stepKey];
-        return (
-          <Marker position={[step.poi.latitude, step.poi.longitude]}>
-            <Popup>
-              A pretty CSS3 popup. <br /> Easily customizable.
-            </Popup>
-          </Marker>
-        );
-      }
-    }
-    return;
+    console.log("loaded");
+    // console.log(items.missions);
+    return (
+      <div>
+        {Object.values(items.missions).map((mission) => {
+          Object.values(mission.steps).map((step) => {
+            console.log(step);
+            return (
+              <Marker position={[step.poi.latitude, step.poi.longitude]}>
+                <Popup>
+                  A pretty CSS3 popup. <br /> Easily customizable.
+                </Popup>
+              </Marker>
+            );
+          });
+        })}
+      </div>
+    );
   }
-};
-
-export default BannerMarkers;
+  return;
+}

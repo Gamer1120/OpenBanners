@@ -41,12 +41,10 @@ export default function BannerMarkers() {
     console.log("loaded");
     return (
       <div>
-        <h1>Yep it works or something</h1>
         {Object.values(items.missions).map((mission) => {
           return Object.values(mission.steps).map((step) => {
             return (
               <div>
-                <h2>Yep it works or something</h2>
                 <Marker position={[step.poi.latitude, step.poi.longitude]}>
                   <Popup>
                     A pretty CSS3 popup. <br /> Easily customizable.

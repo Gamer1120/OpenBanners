@@ -3,7 +3,7 @@ import React, { useState, useEffect } from "react";
 import "leaflet-easybutton/src/easy-button.js";
 import "leaflet-easybutton/src/easy-button.css";
 import "font-awesome/css/font-awesome.min.css";
-import { locationIcon } from "../constants";
+import icon, { locationIcon } from "../constants";
 
 export default function LocationMarker() {
   const [position, setPosition] = useState(null);
@@ -11,6 +11,8 @@ export default function LocationMarker() {
   const map = useMap();
 
   const [time, setTime] = useState(Date.now());
+
+  const [direction, setDirection] = useState(null);
 
   function angleFromCoordinate(lat1, lon1, lat2, lon2) {
     var p1 = {
@@ -27,6 +29,7 @@ export default function LocationMarker() {
 
   useEffect(() => {
     let previousPosition = null;
+
     map.locate().on("locationfound", function (e) {
       if (
         previousPosition == null ||
@@ -52,6 +55,14 @@ export default function LocationMarker() {
                 e.latlng.lng
               )
           );
+          setDirection(
+            angleFromCoordinate(
+              previousPosition.lat,
+              previousPosition.lng,
+              e.latlng.lat,
+              e.latlng.lng
+            )
+          );
         }
 
         previousPosition = e.latlng;
@@ -65,8 +76,11 @@ export default function LocationMarker() {
       clearInterval(interval);
     };
   }, [map]);
-
+  console.log(direction);
   return position === null ? null : (
-    <Marker position={position} icon={locationIcon} />
+    <Marker
+      position={position}
+      icon={direction ? locationIcon(direction) : icon}
+    />
   );
 }

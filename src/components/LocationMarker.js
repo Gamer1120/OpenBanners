@@ -1,9 +1,9 @@
-import { Popup, Marker, useMap } from "react-leaflet";
+import { Marker, useMap } from "react-leaflet";
 import React, { useState, useEffect } from "react";
 import "leaflet-easybutton/src/easy-button.js";
 import "leaflet-easybutton/src/easy-button.css";
 import "font-awesome/css/font-awesome.min.css";
-import icon, { locationIcon } from "../constants";
+import { locationIcon } from "../constants";
 
 export default function LocationMarker() {
   const [position, setPosition] = useState(null);
@@ -22,12 +22,7 @@ export default function LocationMarker() {
       x: lat2,
       y: lon2,
     };
-    // angle in radians
-    var angleRadians = Math.atan2(p2.y - p1.y, p2.x - p1.x);
-    // angle in degrees
-    var angleDeg = (Math.atan2(p2.y - p1.y, p2.x - p1.x) * 180) / Math.PI;
-    console.log(angleDeg);
-    return angleDeg;
+    return (Math.atan2(p2.y - p1.y, p2.x - p1.x) * 180) / Math.PI;
   }
 
   useEffect(() => {
@@ -47,11 +42,6 @@ export default function LocationMarker() {
           (previousPosition.lat !== e.latlng.lat ||
             previousPosition.lng !== e.latlng.lng)
         ) {
-          console.log(previousPosition.lat);
-          console.log(previousPosition.lng);
-          console.log();
-          console.log(e.latlng.lat);
-          console.log(e.latlng.lng);
           // show user direction
           console.log(
             "direction is " +

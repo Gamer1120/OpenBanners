@@ -11,13 +11,29 @@ export default function LocationMarker() {
 
   const map = useMap();
 
-  useEffect(() => {
-    map.locate().on("locationfound", function (e) {
-      setPosition(e.latlng);
-      map.flyTo(e.latlng, map.getZoom());
-      // setBbox(e.bounds.toBBoxString().split(","));
-    });
-  }, [map, position]);
+  const [time, setTime] = useState(Date.now());
+
+  useEffect (() => {
+    console.log('runnin')
+    const interval = setInterval(() => {setTime(Date.now())
+      map.locate().on("locationfound", function (e) {
+        console.log('location found!')
+        setPosition(e.latlng);
+        map.flyTo(e.latlng, map.getZoom());
+        // setBbox(e.bounds.toBBoxString().split(","));
+      })}, 250);
+    return () => {
+      clearInterval(interval);
+    };
+  }, [])
+
+  // useEffect(() => {
+  //   map.locate().on("locationfound", function (e) {
+  //     setPosition(e.latlng);
+  //     map.flyTo(e.latlng, map.getZoom());
+  //     // setBbox(e.bounds.toBBoxString().split(","));
+  //   });
+  // }, [map, position]);
 
   return position === null ? null : (
     <Marker position={position} icon={locationIcon}>

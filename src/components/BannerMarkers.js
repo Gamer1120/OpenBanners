@@ -9,7 +9,7 @@ export default function BannerMarkers() {
 
   useEffect(() => {
     fetch(
-      "https://api.bannergress.com/bnrs/second-sunday-eibergen-ladybugs-a2c0"
+      "https://api.bannergress.com/bnrs/christmas-gnomes-2dbe"
     )
       .then((res) => res.json())
       .then(

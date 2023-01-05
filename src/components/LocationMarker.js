@@ -3,7 +3,7 @@ import React, { useState, useEffect } from "react";
 import "leaflet-easybutton/src/easy-button.js";
 import "leaflet-easybutton/src/easy-button.css";
 import "font-awesome/css/font-awesome.min.css";
-import icon from "../constants";
+import icon, { locationIcon } from "../constants";
 
 export default function LocationMarker() {
   const [position, setPosition] = useState(null);
@@ -15,20 +15,20 @@ export default function LocationMarker() {
     map.locate().on("locationfound", function (e) {
       setPosition(e.latlng);
       map.flyTo(e.latlng, map.getZoom());
-      setBbox(e.bounds.toBBoxString().split(","));
+      // setBbox(e.bounds.toBBoxString().split(","));
     });
-  }, [map]);
+  }, [map, position]);
 
   return position === null ? null : (
-    <Marker position={position} icon={icon}>
-      <Popup>
+    <Marker position={position} icon={locationIcon}>
+      {/* <Popup>
         You are here. <br />
         Map bbox: <br />
         <b>Southwest lng</b>: {bbox[0]} <br />
         <b>Southwest lat</b>: {bbox[1]} <br />
         <b>Northeast lng</b>: {bbox[2]} <br />
         <b>Northeast lat</b>: {bbox[3]}
-      </Popup>
+      </Popup> */}
     </Marker>
   );
 }

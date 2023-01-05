@@ -35,11 +35,36 @@ export default function LocationMarker() {
     map.locate().on("locationfound", function (e) {
       if (
         previousPosition == null ||
-        (previousPosition.lat !== e.lat && previousPosition.lng !== e.lng)
+        previousPosition.lat !== e.latlng.lat ||
+        previousPosition.lng !== e.latlng.lng
       ) {
-        previousPosition = e.latlng;
         setPosition(e.latlng);
         map.flyTo(e.latlng, map.getZoom());
+
+        if (
+          previousPosition !== null &&
+          e.latlng !== null &&
+          (previousPosition.lat !== e.latlng.lat ||
+            previousPosition.lng !== e.latlng.lng)
+        ) {
+          console.log(previousPosition.lat);
+          console.log(previousPosition.lng);
+          console.log();
+          console.log(e.latlng.lat);
+          console.log(e.latlng.lng);
+          // show user direction
+          console.log(
+            "direction is " +
+              angleFromCoordinate(
+                previousPosition.lat,
+                previousPosition.lng,
+                e.latlng.lat,
+                e.latlng.lng
+              )
+          );
+        }
+
+        previousPosition = e.latlng;
       }
     });
     const interval = setInterval(() => {
@@ -49,7 +74,7 @@ export default function LocationMarker() {
     return () => {
       clearInterval(interval);
     };
-  }, []);
+  }, [map]);
 
   return position === null ? null : (
     <Marker position={position} icon={locationIcon} />

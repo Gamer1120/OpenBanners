@@ -88,3 +88,7 @@
   border-radius: 0; /* Square corners */
   cursor: pointer;
 }
+
+.disable-click {
+  cursor: not-allowed;
+}

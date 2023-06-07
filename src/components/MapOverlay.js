@@ -6,10 +6,8 @@ export default function MapOverlay({ missions }) {
   const overlayRef = useRef(null);
 
   const handleDecrement = () => {
-    if (currentMission === 1) {
-      setCurrentMission("-");
-    } else if (currentMission !== "-" && currentMission > 0) {
-      setCurrentMission((prevMission) => prevMission - 1);
+    if (currentMission > 0) {
+      setCurrentMission(currentMission - 1);
     }
   };
 
@@ -93,18 +91,38 @@ export default function MapOverlay({ missions }) {
   return (
     <div ref={overlayRef} className="overlay">
       <div className="overlay-controls">
-        <button className="overlay-button-minus">-</button>
+        <button
+          className={`overlay-button-minus ${
+            currentMission === 0 ? "disable-click" : ""
+          }`}
+          onClick={handleDecrement}
+          disabled={currentMission === 0}
+        >
+          -
+        </button>
         <p>
           {currentMission !== 0
             ? `${currentMission}/${missionCount}`
             : `-/${missionCount}`}
         </p>
-        <button className="overlay-button-plus" onClick={handleIncrement}>
+        <button
+          className={`overlay-button-plus ${
+            currentMission === missionCount ? "disable-click" : ""
+          }`}
+          onClick={handleIncrement}
+          disabled={currentMission === missionCount}
+        >
           +
         </button>
       </div>
-      <button className="start-button" onClick={handleStart}>
-        START
+      <button
+        className={`start-button ${
+          currentMission === missionCount ? "disable-click" : ""
+        }`}
+        onClick={handleStart}
+        disabled={currentMission === missionCount}
+      >
+        {currentMission === missionCount ? "🎉🎉🎉" : "NEXT"}
       </button>
     </div>
   );

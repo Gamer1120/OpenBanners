@@ -1,19 +1,21 @@
 import { useState, useEffect } from "react";
 import React from "react";
 import Mission from "./Mission";
+import { useParams } from "react-router-dom";
 
-export default function BannerMarkers() {
+export default function BannerMarkers({ bannerId }) {
   const [error, setError] = useState(null);
   const [isLoaded, setIsLoaded] = useState(false);
   const [items, setItems] = useState([]);
 
   useEffect(() => {
-    fetch(
-      "https://api.bannergress.com/bnrs/christmas-gnomes-2dbe"
-    )
+    console.log(`Fetching data for bannerId: ${bannerId}`);
+    fetch(`https://api.bannergress.com/bnrs/${bannerId}`)
       .then((res) => res.json())
       .then(
         (result) => {
+          console.log("Result from Bannergress API:");
+          console.log(result);
           setIsLoaded(true);
           setItems(result);
         },
@@ -22,7 +24,7 @@ export default function BannerMarkers() {
           setError(error);
         }
       );
-  }, []);
+  }, [bannerId]);
 
   if (error) {
     console.log(error);

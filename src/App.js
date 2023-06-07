@@ -9,7 +9,7 @@ function App() {
       <Router>
         <Routes>
           <Route path="/" element={<Home />} />
-          <Route path="/banner" element={<Map />} />
+          <Route path="/banner/:bannerId" element={<Map />} />
         </Routes>
       </Router>
     </div>

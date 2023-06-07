@@ -9,10 +9,7 @@ export default function MissionStepMarker({
   color,
   isFirst,
 }) {
-  let icon;
-
   const iconContentClass = isFirst ? "first-icon" : "";
-
   const iconHtml = `<div class="icon-content ${iconContentClass}" style="height: ${
     isFirst ? "24px" : "12px"
   }; width: ${isFirst ? "24px" : "12px"}; border-radius: ${
@@ -21,7 +18,7 @@ export default function MissionStepMarker({
     isFirst ? missionNumber : ""
   }</div>`;
 
-  icon = L.divIcon({
+  const icon = L.divIcon({
     className: "custom-icon",
     html: iconHtml,
     iconAnchor: [12, 12], // Adjust the icon anchor to center the icon

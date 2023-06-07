@@ -29,10 +29,10 @@ export default function BannerMarkers({ bannerId }) {
 
   if (error) {
     console.log(error);
-    return;
+    return null;
   } else if (!isLoaded) {
     console.log("not loaded");
-    return;
+    return null;
   } else {
     console.log("loaded");
     const numMissions = Object.values(items.missions).length;

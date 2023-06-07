@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import React from "react";
 import Mission from "./Mission";
 import { useParams } from "react-router-dom";
+import MapOverlay from "./MapOverlay";
 
 export default function BannerMarkers({ bannerId }) {
   const [error, setError] = useState(null);
@@ -35,10 +36,14 @@ export default function BannerMarkers({ bannerId }) {
   } else {
     console.log("loaded");
     const missions = Object.values(items.missions);
-    const rainbowColors = generateRainbowColors(missions.length);
+    const missionCount = missions.length; // Get the mission count
+    const rainbowColors = generateRainbowColors(missionCount);
+
+    console.log("Number of missions:", missionCount); // Log the mission count
 
     return (
       <div>
+        <MapOverlay missionCount={missionCount} />
         {missions.map((mission, index) => {
           const color = rainbowColors[index];
           return (

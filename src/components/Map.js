@@ -22,7 +22,6 @@ export default function Map() {
         <BannerMarkers bannerId={bannerId} />
         <LocationMarker />
       </MapContainer>
-      <MapOverlay />
     </div>
   );
 }

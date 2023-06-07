@@ -5,6 +5,7 @@ import { Polyline } from "react-leaflet";
 export default function Mission({ mission, missionNumber, color }) {
   console.log("current mission:");
   console.log(mission);
+  console.log(mission.id);
 
   const stepsToRender = Object.values(mission.steps).filter(
     (step) => step.poi.type !== "unavailable"

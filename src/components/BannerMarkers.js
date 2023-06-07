@@ -43,7 +43,7 @@ export default function BannerMarkers({ bannerId }) {
 
     return (
       <div>
-        <MapOverlay missionCount={missionCount} />
+        <MapOverlay missions={missions} />
         {missions.map((mission, index) => {
           const color = rainbowColors[index];
           return (

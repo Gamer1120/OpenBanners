@@ -1,13 +1,15 @@
 import React from "react";
 import { Popup, Marker } from "react-leaflet";
 
-export default function MissionStepMarker(props) {
+export default function MissionStepMarker({
+  latitude,
+  longitude,
+  missionNumber,
+}) {
   return (
     <div>
-      <Marker position={[props.latitude, props.longitude]}>
-        <Popup>
-          A pretty CSS3 popup. <br /> Easily customizable.
-        </Popup>
+      <Marker position={[latitude, longitude]}>
+        <Popup>Mission #{missionNumber}</Popup>
       </Marker>
     </div>
   );

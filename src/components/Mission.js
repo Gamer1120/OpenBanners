@@ -14,11 +14,12 @@ export default function Mission({ mission }) {
 
   return (
     <div>
-      {stepsToRender.map((step) => (
+      {stepsToRender.map((step, index) => (
         <MissionStepMarker
           key={step.poi.id}
           latitude={step.poi.latitude}
           longitude={step.poi.longitude}
+          missionNumber={index + 1}
         />
       ))}
       <Polyline positions={polylinePositions} />

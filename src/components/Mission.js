@@ -27,7 +27,7 @@ export default function Mission({ mission, missionNumber, color }) {
           isFirst={index === 0}
         />
       ))}
-      <Polyline positions={polylinePositions} />
+      <Polyline positions={polylinePositions} color={color} />
     </div>
   );
 }

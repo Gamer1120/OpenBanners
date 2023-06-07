@@ -1,16 +1,29 @@
 import React, { useState, useEffect, useRef } from "react";
 
 export default function MapOverlay({ missionCount }) {
-  const [currentMission, setCurrentMission] = useState(1);
+  const [currentMission, setCurrentMission] = useState(0);
   const overlayRef = useRef(null);
 
+  const handleDecrement = () => {
+    if (currentMission === 1) {
+      setCurrentMission("-");
+    } else if (currentMission !== "-") {
+      setCurrentMission((prevMission) => prevMission - 1);
+    }
+  };
+
   const handleIncrement = () => {
-    setCurrentMission((prevMission) => prevMission + 1);
+    console.log("current mission " + currentMission);
+    if (currentMission === "-") {
+      setCurrentMission(1);
+    } else {
+      setCurrentMission((prevMission) => prevMission + 1);
+    }
   };
 
   useEffect(() => {
     const handleOverlayMouseEvents = (event) => {
-      event.stopPropagation(); // Stop the propagation of all mouse events
+      event.stopPropagation();
     };
 
     if (overlayRef.current) {
@@ -21,6 +34,11 @@ export default function MapOverlay({ missionCount }) {
       overlayRef.current.addEventListener("mouseup", handleOverlayMouseEvents);
       overlayRef.current.addEventListener("click", handleOverlayMouseEvents);
       overlayRef.current.addEventListener("dblclick", handleOverlayMouseEvents);
+
+      const plusButton = overlayRef.current.querySelector(
+        ".overlay-button-plus"
+      );
+      plusButton.addEventListener("click", handleIncrement);
     }
 
     return () => {
@@ -41,7 +59,11 @@ export default function MapOverlay({ missionCount }) {
           "dblclick",
           handleOverlayMouseEvents
         );
-        // Remove more mouse events as needed
+
+        const plusButton = overlayRef.current.querySelector(
+          ".overlay-button-plus"
+        );
+        plusButton.removeEventListener("click", handleIncrement);
       }
     };
   }, []);
@@ -51,7 +73,9 @@ export default function MapOverlay({ missionCount }) {
       <div className="overlay-controls">
         <button className="overlay-button-minus">-</button>
         <p>
-          {currentMission}/{missionCount}
+          {currentMission !== 0
+            ? `${currentMission}/${missionCount}`
+            : `-/${missionCount}`}
         </p>
         <button className="overlay-button-plus" onClick={handleIncrement}>
           +

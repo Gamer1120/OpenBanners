@@ -4,7 +4,11 @@ import Mission from "./Mission";
 import { useParams } from "react-router-dom";
 import MapOverlay from "./MapOverlay";
 
-export default function BannerMarkers({ bannerId }) {
+export default function BannerMarkers({
+  bannerId,
+  currentMission,
+  setCurrentMission,
+}) {
   const [error, setError] = useState(null);
   const [isLoaded, setIsLoaded] = useState(false);
   const [items, setItems] = useState([]);
@@ -43,7 +47,11 @@ export default function BannerMarkers({ bannerId }) {
 
     return (
       <div>
-        <MapOverlay missions={missions} />
+        <MapOverlay
+          missions={missions}
+          currentMission={currentMission}
+          setCurrentMission={setCurrentMission}
+        />
         {missions.map((mission, index) => {
           const color = rainbowColors[index];
           return (

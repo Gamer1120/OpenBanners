@@ -1,8 +1,11 @@
 import React, { useState, useEffect, useRef } from "react";
 
-export default function MapOverlay({ missions }) {
+export default function MapOverlay({
+  missions,
+  currentMission,
+  setCurrentMission,
+}) {
   const missionCount = missions.length;
-  const [currentMission, setCurrentMission] = useState(0);
   const overlayRef = useRef(null);
 
   const handleDecrement = () => {

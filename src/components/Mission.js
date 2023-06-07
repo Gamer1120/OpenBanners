@@ -2,7 +2,7 @@ import React from "react";
 import MissionStepMarker from "./MissionStepMarker";
 import { Polyline } from "react-leaflet";
 
-export default function Mission({ mission, missionNumber }) {
+export default function Mission({ mission, missionNumber, color }) {
   console.log("current mission:");
   console.log(mission);
 
@@ -17,12 +17,14 @@ export default function Mission({ mission, missionNumber }) {
 
   return (
     <div>
-      {stepsToRender.map((step) => (
+      {stepsToRender.map((step, index) => (
         <MissionStepMarker
           key={step.poi.id}
           latitude={step.poi.latitude}
           longitude={step.poi.longitude}
           missionNumber={missionNumber}
+          color={color}
+          isFirst={index === 0}
         />
       ))}
       <Polyline positions={polylinePositions} />

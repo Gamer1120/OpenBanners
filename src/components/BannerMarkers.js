@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import React from "react";
 import Mission from "./Mission";
 import { useParams } from "react-router-dom";
+import { schemeCategory10 } from "d3-scale-chromatic";
 
 export default function BannerMarkers({ bannerId }) {
   const [error, setError] = useState(null);
@@ -34,14 +35,21 @@ export default function BannerMarkers({ bannerId }) {
     return;
   } else {
     console.log("loaded");
+    const numMissions = Object.values(items.missions).length;
+
     return (
       <div>
         {Object.values(items.missions).map((mission, index) => {
+          const color =
+            schemeCategory10[
+              Math.floor((index / numMissions) * schemeCategory10.length)
+            ];
           return (
             <Mission
               key={mission.id}
               mission={mission}
               missionNumber={index + 1}
+              color={color}
             />
           );
         })}

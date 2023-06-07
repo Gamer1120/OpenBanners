@@ -1,5 +1,4 @@
-# Attempt at better map for Bannergress
+# Open source front-end for Bannergress
+Not associated with Bannergress in any way. Not developed or endorsed by members of the Bannergress team.
 
-I was annoyed by the fact that it's not full screen and that it doesn't show the direction you're pointing at. This is an attempt to improve it.
-
-Not associated with Bannergress in any way.
+This project attempts to improve certain aspects of the Bannergress front-end, while being open-source from the start.

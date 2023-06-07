@@ -11,6 +11,6 @@ for file in files:
         output += f.read() + "\n"
         output += "```\n\n"
 
-output += "Please do not use comments in code. Please do not leave out code fragments with {...}.\n\n"
+output += "Do not use comments in any generated code. Please do not leave out code fragments with {...}.\n\n"
 print(output)
 pyperclip.copy(output)

@@ -7,16 +7,15 @@ export default function MapOverlay({ missionCount }) {
   const handleDecrement = () => {
     if (currentMission === 1) {
       setCurrentMission("-");
-    } else if (currentMission !== "-") {
+    } else if (currentMission !== "-" && currentMission > 0) {
       setCurrentMission((prevMission) => prevMission - 1);
     }
   };
 
   const handleIncrement = () => {
-    console.log("current mission " + currentMission);
     if (currentMission === "-") {
       setCurrentMission(1);
-    } else {
+    } else if (currentMission < missionCount) {
       setCurrentMission((prevMission) => prevMission + 1);
     }
   };
@@ -39,6 +38,11 @@ export default function MapOverlay({ missionCount }) {
         ".overlay-button-plus"
       );
       plusButton.addEventListener("click", handleIncrement);
+
+      const minusButton = overlayRef.current.querySelector(
+        ".overlay-button-minus"
+      );
+      minusButton.addEventListener("click", handleDecrement);
     }
 
     return () => {
@@ -64,9 +68,14 @@ export default function MapOverlay({ missionCount }) {
           ".overlay-button-plus"
         );
         plusButton.removeEventListener("click", handleIncrement);
+
+        const minusButton = overlayRef.current.querySelector(
+          ".overlay-button-minus"
+        );
+        minusButton.removeEventListener("click", handleDecrement);
       }
     };
-  }, []);
+  }, [currentMission]);
 
   return (
     <div ref={overlayRef} className="overlay">

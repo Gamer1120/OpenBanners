@@ -99,4 +99,4 @@ Section 8 – Interpretation.
 
 Additional clause not in the original CCAN 4.0 license:
 
-    Regardless of what the above sections say, by forking this project or by suggesting any changes for this project, you are permitted to ask for donations or sell physical items related to the project, as long as no current or future functionality of the project is locked behind a payment. There must be no incentive for the giver of the money to give their money, other than to support the development of the project or to buy a beer for a developer or similar reasons. 
+    Regardless of what the above sections say, by forking this project or by suggesting any changes for this project, you are permitted to ask for donations or sell physical items related to the project, as long as no current or future functionality of the project is locked behind a payment. There must be no incentive for the giver of the money to give their money, other than to support the development of the project or to buy a beer for a developer or similar reasons. Receiving physical items is also a valid reason, as long as they are related to the project.

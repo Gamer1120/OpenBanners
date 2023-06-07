@@ -40,3 +40,26 @@
 #map {
   height: 100vh;
 }
+
+.custom-icon {
+  border-radius: 50%;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.first-icon {
+  background-color: #ff0000;
+  color: #ffffff;
+}
+
+.black-icon {
+  background-color: #000000;
+  color: #ffffff;
+}
+
+.icon-content {
+  font-size: 14px;
+}

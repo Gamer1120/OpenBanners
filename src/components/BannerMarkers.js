@@ -36,8 +36,14 @@ export default function BannerMarkers({ bannerId }) {
     console.log("loaded");
     return (
       <div>
-        {Object.values(items.missions).map((mission) => {
-          return <Mission key={mission.id} mission={mission} />;
+        {Object.values(items.missions).map((mission, index) => {
+          return (
+            <Mission
+              key={mission.id}
+              mission={mission}
+              missionNumber={index + 1}
+            />
+          );
         })}
       </div>
     );

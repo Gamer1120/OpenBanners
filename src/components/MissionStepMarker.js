@@ -24,9 +24,15 @@ export default function MissionStepMarker({
     iconAnchor: [12, 12], // Adjust the icon anchor to center the icon
   });
 
+  const zIndexOffset = isFirst ? 1000 : 0; // Higher zIndexOffset for first icons
+
   return (
     <div>
-      <Marker position={[latitude, longitude]} icon={icon}>
+      <Marker
+        position={[latitude, longitude]}
+        icon={icon}
+        zIndexOffset={zIndexOffset}
+      >
         <Popup>
           {isFirst && (
             <div>

@@ -2,7 +2,6 @@ import { useState, useEffect } from "react";
 import React from "react";
 import Mission from "./Mission";
 import { useParams } from "react-router-dom";
-import { schemeCategory10 } from "d3-scale-chromatic";
 
 export default function BannerMarkers({ bannerId }) {
   const [error, setError] = useState(null);
@@ -35,15 +34,13 @@ export default function BannerMarkers({ bannerId }) {
     return null;
   } else {
     console.log("loaded");
-    const numMissions = Object.values(items.missions).length;
+    const missions = Object.values(items.missions);
+    const rainbowColors = generateRainbowColors(missions.length);
 
     return (
       <div>
-        {Object.values(items.missions).map((mission, index) => {
-          const color =
-            schemeCategory10[
-              Math.floor((index / numMissions) * schemeCategory10.length)
-            ];
+        {missions.map((mission, index) => {
+          const color = rainbowColors[index];
           return (
             <Mission
               key={mission.id}
@@ -56,4 +53,17 @@ export default function BannerMarkers({ bannerId }) {
       </div>
     );
   }
+}
+
+function generateRainbowColors(count) {
+  const colors = [];
+  const increment = 360 / count;
+
+  for (let i = 0; i < count; i++) {
+    const hue = (i * increment) % 360;
+    const color = `hsl(${hue}, 100%, 50%)`;
+    colors.push(color);
+  }
+
+  return colors;
 }

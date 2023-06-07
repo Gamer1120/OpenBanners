@@ -8,7 +8,7 @@ export default function MapOverlay() {
         <p>text</p>
         <button className="overlay-button-plus">+</button>
       </div>
-      <button className="start-button">Start</button>
+      <button className="start-button">START</button>
     </div>
   );
 }

@@ -49,7 +49,7 @@ export default function Map() {
           missions={Object.values(items.missions)}
           currentMission={currentMission}
         />
-        <LocationMarker />
+        {/* <LocationMarker /> */}
       </MapContainer>
       <MapOverlay
         missions={Object.values(items.missions)}

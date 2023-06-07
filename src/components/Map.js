@@ -45,7 +45,10 @@ export default function Map() {
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors. This website is NOT affiliated with Bannergress in any way!'
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
-        <BannerMarkers missions={Object.values(items.missions)} />
+        <BannerMarkers
+          missions={Object.values(items.missions)}
+          currentMission={currentMission}
+        />
         <LocationMarker />
       </MapContainer>
       <MapOverlay

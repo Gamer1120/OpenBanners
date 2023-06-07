@@ -34,3 +34,64 @@
   align-items: center;
   border-radius: 50%;
 }
+
+.overlay {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  display: flex;
+  flex-direction: column;
+  align-items: center; /* Updated: Center align the content */
+  z-index: 1000;
+  background-color: white;
+  padding: 5px;
+  border-radius: 4px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  color: black;
+}
+
+.overlay-controls {
+  display: flex;
+  align-items: center;
+}
+
+.overlay-button {
+  padding: 5px;
+  font-size: 18px;
+  border: none;
+  background-color: transparent;
+  cursor: pointer;
+  color: black;
+}
+
+.overlay-input {
+  margin: 0 10px;
+  padding: 5px;
+  font-size: 14px;
+  width: 200px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  color: black;
+}
+
+.overlay-controls {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.overlay-controls > p {
+  margin: 0;
+  flex: 1;
+  text-align: center;
+}
+
+.start-button {
+  padding: 5px 10px;
+  font-size: 14px;
+  background-color: #4caf50;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}

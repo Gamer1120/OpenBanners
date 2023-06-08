@@ -36,6 +36,9 @@ const useStyles = makeStyles((theme) => ({
     height: "auto",
     objectFit: "contain",
   },
+  loadMoreButton: {
+    marginTop: theme.spacing(2),
+  },
 }));
 
 export default function BannersNearMe() {
@@ -45,6 +48,7 @@ export default function BannersNearMe() {
   const [loading, setLoading] = useState(true);
   const [permissionStatus, setPermissionStatus] = useState("prompt");
   const [showPermissionPrompt, setShowPermissionPrompt] = useState(false);
+  const [limit, setLimit] = useState(9);
 
   useEffect(() => {
     const handlePermission = (status) => {
@@ -80,7 +84,7 @@ export default function BannersNearMe() {
 
   useEffect(() => {
     if (location) {
-      const apiUrl = `https://api.bannergress.com/bnrs?orderBy=proximityStartPoint&orderDirection=ASC&online=true&proximityLatitude=${location.latitude}&proximityLongitude=${location.longitude}&limit=9`;
+      const apiUrl = `https://api.bannergress.com/bnrs?orderBy=proximityStartPoint&orderDirection=ASC&online=true&proximityLatitude=${location.latitude}&proximityLongitude=${location.longitude}&limit=${limit}`;
 
       console.log("API URL:", apiUrl);
 
@@ -95,7 +99,7 @@ export default function BannersNearMe() {
           console.error("Error fetching banner data:", error);
         });
     }
-  }, [location]);
+  }, [location, limit]);
 
   const handleGrantLocationAccess = () => {
     setShowPermissionPrompt(false);
@@ -110,6 +114,10 @@ export default function BannersNearMe() {
     );
   };
 
+  const handleLoadMore = () => {
+    setLimit(60);
+  };
+
   return (
     <Container className={classes.section}>
       <Typography variant="h5">Banners near me</Typography>
@@ -122,36 +130,47 @@ export default function BannersNearMe() {
           <Typography variant="body2">Loading banners near you...</Typography>
         )
       ) : (
-        <Grid container spacing={2}>
-          {bannerData.map((banner) => (
-            <Grid item xs={12} sm={6} md={4} key={banner.id}>
-              <Card className={classes.card}>
-                <CardActionArea>
-                  <div className={classes.cardMediaWrapper}>
-                    <CardMedia
-                      component="img"
-                      image={`https://api.bannergress.com${banner.picture}`}
-                      alt={banner.title}
-                      className={classes.cardMedia}
-                    />
-                  </div>
-                  <CardContent>
-                    <Typography gutterBottom variant="h6" component="div">
-                      {banner.title}
-                    </Typography>
-                    <Typography variant="body2" color="text.secondary">
-                      {banner.numberOfMissions} Missions,{" "}
-                      {Math.round(banner.lengthMeters / 1000)} km
-                    </Typography>
-                    <Typography variant="body2" color="text.secondary">
-                      {banner.formattedAddress}
-                    </Typography>
-                  </CardContent>
-                </CardActionArea>
-              </Card>
-            </Grid>
-          ))}
-        </Grid>
+        <>
+          <Grid container spacing={2}>
+            {bannerData.map((banner) => (
+              <Grid item xs={12} sm={6} md={4} key={banner.id}>
+                <Card className={classes.card}>
+                  <CardActionArea>
+                    <div className={classes.cardMediaWrapper}>
+                      <CardMedia
+                        component="img"
+                        image={`https://api.bannergress.com${banner.picture}`}
+                        alt={banner.title}
+                        className={classes.cardMedia}
+                      />
+                    </div>
+                    <CardContent>
+                      <Typography gutterBottom variant="h6" component="div">
+                        {banner.title}
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        {banner.numberOfMissions} Missions,{" "}
+                        {Math.round(banner.lengthMeters / 1000)} km
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        {banner.formattedAddress}
+                      </Typography>
+                    </CardContent>
+                  </CardActionArea>
+                </Card>
+              </Grid>
+            ))}
+          </Grid>
+          {limit === 9 && (
+            <Button
+              variant="contained"
+              className={classes.loadMoreButton}
+              onClick={handleLoadMore}
+            >
+              Load more...
+            </Button>
+          )}
+        </>
       )}
     </Container>
   );

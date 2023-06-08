@@ -121,6 +121,11 @@ export default function BannersNearMe() {
 
   return (
     <Container className={classes.section}>
+      <Typography variant="subtitle2" color="textSecondary">
+        This website is not associated with Bannergress, Ingress and/or Niantic.
+        This website is an alternative, open-source front-end for Bannergress's
+        back-end.
+      </Typography>
       <Typography variant="h5">Banners near me</Typography>
       {loading ? (
         showPermissionPrompt ? (

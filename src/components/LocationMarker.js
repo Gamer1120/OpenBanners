@@ -7,25 +7,20 @@ import icon, { locationIcon } from "../constants";
 
 export default function LocationMarker() {
   const [position, setPosition] = useState(null);
+  const [direction, setDirection] = useState(null);
 
   const map = useMap();
 
-  const [time, setTime] = useState(Date.now());
-
-  const [direction, setDirection] = useState(null);
-
-  function angleFromCoordinate(lat1, lon1, lat2, lon2) {
-    var p1 = {
-      x: lat1,
-      y: lon1,
-    };
-
-    var p2 = {
-      x: lat2,
-      y: lon2,
-    };
-    return (Math.atan2(p2.y - p1.y, p2.x - p1.x) * 180) / Math.PI;
-  }
+  const calculateAngle = (lat1, lon1, lat2, lon2) => {
+    const y = Math.sin(lon2 - lon1) * Math.cos(lat2);
+    const x =
+      Math.cos(lat1) * Math.sin(lat2) -
+      Math.sin(lat1) * Math.cos(lat2) * Math.cos(lon2 - lon1);
+    let bearing = (Math.atan2(x, y) * 180) / Math.PI;
+    bearing = (bearing + 360) % 360;
+    bearing = (bearing + 180) % 360; // Adjust the calculation to account for the clockwise rotation
+    return bearing;
+  };
 
   useEffect(() => {
     let previousPosition = null;
@@ -45,38 +40,28 @@ export default function LocationMarker() {
           (previousPosition.lat !== e.latlng.lat ||
             previousPosition.lng !== e.latlng.lng)
         ) {
-          // show user direction
-          console.log(
-            "direction is " +
-              angleFromCoordinate(
-                previousPosition.lat,
-                previousPosition.lng,
-                e.latlng.lat,
-                e.latlng.lng
-              )
+          const bearing = calculateAngle(
+            previousPosition.lat,
+            previousPosition.lng,
+            e.latlng.lat,
+            e.latlng.lng
           );
-          setDirection(
-            angleFromCoordinate(
-              previousPosition.lat,
-              previousPosition.lng,
-              e.latlng.lat,
-              e.latlng.lng
-            )
-          );
+          setDirection(bearing);
         }
 
         previousPosition = e.latlng;
       }
     });
+
     const interval = setInterval(() => {
-      setTime(Date.now());
       map.locate();
     }, 5000);
+
     return () => {
       clearInterval(interval);
     };
   }, [map]);
-  console.log(direction);
+
   return position === null ? null : (
     <Marker
       position={position}

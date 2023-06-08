@@ -9,7 +9,7 @@ export default L.icon({
 });
 
 export const locationIcon = (rotation) => {
-  const lineLength = 40; // Length of the direction indicator lines
+  const lineLength = 23; // Length of the direction indicator lines
   const lineGap = 60; // Angle between the two lines
 
   const line1Angle = rotation - lineGap / 2 - 180 - 90; // Subtract 90 degrees from the angle

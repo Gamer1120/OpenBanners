@@ -17,6 +17,10 @@ export default function LocationMarker() {
     if (angle < 0) {
       angle += 360;
     }
+
+    // Adjust the angle for the clockwise rotation
+    angle = (5 - angle) % 360;
+
     return angle;
   };
 

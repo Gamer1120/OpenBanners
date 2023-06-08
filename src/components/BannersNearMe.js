@@ -7,24 +7,27 @@ const useStyles = makeStyles((theme) => ({
     marginTop: theme.spacing(2),
     color: theme.palette.common.white,
   },
-  permissionText: {
-    color: theme.palette.error.main,
-  },
 }));
 
 export default function BannersNearMe() {
   const classes = useStyles();
-  const [permissionStatus, setPermissionStatus] = useState("unknown");
+  const [location, setLocation] = useState(null);
 
   useEffect(() => {
     const handlePermission = (status) => {
-      setPermissionStatus(status);
+      console.log("Permission status:", status);
+
       if (status === "granted") {
         navigator.geolocation.getCurrentPosition(
           (position) => {
             const { latitude, longitude } = position.coords;
-            console.log("Latitude:", latitude);
-            console.log("Longitude:", longitude);
+            console.log(
+              "Location granted. Latitude:",
+              latitude,
+              "Longitude:",
+              longitude
+            );
+            setLocation({ latitude, longitude });
           },
           (error) => {
             console.error("Error getting location:", error);
@@ -33,27 +36,48 @@ export default function BannersNearMe() {
       }
     };
 
+    console.log("Is secure context:", window.isSecureContext);
+
     if ("permissions" in navigator) {
-      navigator.permissions.query({ name: "geolocation" }).then((result) => {
-        handlePermission(result.state);
-        result.onchange = () => {
+      navigator.permissions
+        .query({ name: "geolocation" })
+        .then((result) => {
+          console.log("Permission result:", result.state);
           handlePermission(result.state);
-        };
-      });
+          result.onchange = () => {
+            console.log("Permission change:", result.state);
+            handlePermission(result.state);
+          };
+        })
+        .catch((error) => {
+          console.error("Error requesting location permission:", error);
+        });
     } else if ("geolocation" in navigator) {
-      handlePermission("granted");
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          console.log("Location granted without permission request.");
+          const { latitude, longitude } = position.coords;
+          console.log("Latitude:", latitude, "Longitude:", longitude);
+          setLocation({ latitude, longitude });
+        },
+        (error) => {
+          console.error("Error getting location:", error);
+        }
+      );
     } else {
-      handlePermission("denied");
+      console.log("Geolocation API not supported.");
     }
   }, []);
 
   return (
     <Container className={classes.section}>
       <Typography variant="h5">Banners near me</Typography>
-      {permissionStatus !== "granted" && (
-        <Typography variant="body2" className={classes.permissionText}>
-          Location Permission not allowed
+      {location ? (
+        <Typography variant="body2">
+          Latitude: {location.latitude}, Longitude: {location.longitude}
         </Typography>
+      ) : (
+        <Typography variant="body2">Location permission not allowed</Typography>
       )}
     </Container>
   );

@@ -51,7 +51,7 @@ export default function TopMenu() {
       <Toolbar>
         <Container className={classes.titleContainer}>
           <Typography variant="h6" className={classes.title}>
-            OpenBanners
+            OpenBanners Alpha
           </Typography>
         </Container>
         <Container className={classes.buttonContainer}>

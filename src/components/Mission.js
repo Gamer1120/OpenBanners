@@ -1,11 +1,9 @@
-import React from "react";
+import React, { useEffect, useRef } from "react";
 import MissionStepMarker from "./MissionStepMarker";
-import { Polyline } from "react-leaflet";
+import { Polyline, useMap, MapContainer } from "react-leaflet";
 
 export default function Mission({ mission, missionNumber, color }) {
-  // console.log("current mission:");
-  // console.log(mission);
-  // console.log(mission.id);
+  const mapRef = useRef(null);
 
   const stepsToRender = Object.values(mission.steps).filter(
     (step) => step.poi.type !== "unavailable"
@@ -15,6 +13,25 @@ export default function Mission({ mission, missionNumber, color }) {
     step.poi.latitude,
     step.poi.longitude,
   ]);
+
+  useEffect(() => {
+    const map = mapRef.current?.leafletElement;
+    if (map) {
+      const updatePolylines = () => {
+        map.eachLayer((layer) => {
+          if (layer instanceof Polyline) {
+            layer.redraw(); // Redraw the polylines
+          }
+        });
+      };
+
+      map.on("moveend", updatePolylines); // Update polylines when the map moves
+
+      return () => {
+        map.off("moveend", updatePolylines); // Remove the event listener when component unmounts
+      };
+    }
+  }, []);
 
   return (
     <div>
@@ -29,6 +46,13 @@ export default function Mission({ mission, missionNumber, color }) {
         />
       ))}
       <Polyline positions={polylinePositions} color={color} />
+      <MapContainer
+        ref={mapRef}
+        center={[52.221058, 6.893297]}
+        zoom={8}
+        scrollWheelZoom={true}
+        style={{ display: "none" }} // Hide the map container
+      />
     </div>
   );
 }

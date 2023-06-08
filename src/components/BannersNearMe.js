@@ -20,6 +20,22 @@ const useStyles = makeStyles((theme) => ({
     maxWidth: 345,
     margin: theme.spacing(2),
   },
+  cardMediaWrapper: {
+    position: "relative",
+    paddingTop: "66.6667%", // 2:3 aspect ratio (height:width)
+    overflow: "hidden",
+  },
+  cardMedia: {
+    position: "absolute",
+    top: "50%",
+    left: "50%",
+    transform: "translate(-50%, -50%)",
+    maxWidth: "100%",
+    maxHeight: "100%",
+    width: "auto",
+    height: "auto",
+    objectFit: "contain",
+  },
 }));
 
 export default function BannersNearMe() {
@@ -111,12 +127,14 @@ export default function BannersNearMe() {
             <Grid item xs={12} sm={6} md={4} key={banner.id}>
               <Card className={classes.card}>
                 <CardActionArea>
-                  <CardMedia
-                    component="img"
-                    height="140"
-                    image={`https://api.bannergress.com${banner.picture}`}
-                    alt={banner.title}
-                  />
+                  <div className={classes.cardMediaWrapper}>
+                    <CardMedia
+                      component="img"
+                      image={`https://api.bannergress.com${banner.picture}`}
+                      alt={banner.title}
+                      className={classes.cardMedia}
+                    />
+                  </div>
                   <CardContent>
                     <Typography gutterBottom variant="h6" component="div">
                       {banner.title}

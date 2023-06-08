@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import {
   Container,
   Typography,
@@ -134,30 +135,35 @@ export default function BannersNearMe() {
           <Grid container spacing={2}>
             {bannerData.map((banner) => (
               <Grid item xs={12} sm={6} md={4} key={banner.id}>
-                <Card className={classes.card}>
-                  <CardActionArea>
-                    <div className={classes.cardMediaWrapper}>
-                      <CardMedia
-                        component="img"
-                        image={`https://api.bannergress.com${banner.picture}`}
-                        alt={banner.title}
-                        className={classes.cardMedia}
-                      />
-                    </div>
-                    <CardContent>
-                      <Typography gutterBottom variant="h6" component="div">
-                        {banner.title}
-                      </Typography>
-                      <Typography variant="body2" color="text.secondary">
-                        {banner.numberOfMissions} Missions,{" "}
-                        {Math.round(banner.lengthMeters / 1000)} km
-                      </Typography>
-                      <Typography variant="body2" color="text.secondary">
-                        {banner.formattedAddress}
-                      </Typography>
-                    </CardContent>
-                  </CardActionArea>
-                </Card>
+                <Link
+                  to={`/banner/${banner.id}`}
+                  style={{ textDecoration: "none" }}
+                >
+                  <Card className={classes.card}>
+                    <CardActionArea>
+                      <div className={classes.cardMediaWrapper}>
+                        <CardMedia
+                          component="img"
+                          image={`https://api.bannergress.com${banner.picture}`}
+                          alt={banner.title}
+                          className={classes.cardMedia}
+                        />
+                      </div>
+                      <CardContent>
+                        <Typography gutterBottom variant="h6" component="div">
+                          {banner.title}
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary">
+                          {banner.numberOfMissions} Missions,{" "}
+                          {Math.round(banner.lengthMeters / 1000)} km
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary">
+                          {banner.formattedAddress}
+                        </Typography>
+                      </CardContent>
+                    </CardActionArea>
+                  </Card>
+                </Link>
               </Grid>
             ))}
           </Grid>

@@ -11,53 +11,41 @@ export default function LocationMarker() {
 
   const map = useMap();
 
-  const calculateAngle = (lat1, lon1, lat2, lon2) => {
-    const y = Math.sin(lon2 - lon1) * Math.cos(lat2);
-    const x =
-      Math.cos(lat1) * Math.sin(lat2) -
-      Math.sin(lat1) * Math.cos(lat2) * Math.cos(lon2 - lon1);
-    let bearing = (Math.atan2(x, y) * 180) / Math.PI;
-    bearing = (bearing + 360) % 360;
-    bearing = (bearing + 180) % 360; // Adjust the calculation to account for the clockwise rotation
-    return bearing;
+  const calculateAngle = (alpha) => {
+    // Convert alpha to a value between 0 and 360
+    let angle = alpha % 360;
+    if (angle < 0) {
+      angle += 360;
+    }
+    return angle;
   };
 
   useEffect(() => {
-    let previousPosition = null;
-
-    map.locate().on("locationfound", function (e) {
-      if (
-        previousPosition == null ||
-        previousPosition.lat !== e.latlng.lat ||
-        previousPosition.lng !== e.latlng.lng
-      ) {
-        setPosition(e.latlng);
-        map.flyTo(e.latlng, map.getZoom());
-
-        if (
-          previousPosition !== null &&
-          e.latlng !== null &&
-          (previousPosition.lat !== e.latlng.lat ||
-            previousPosition.lng !== e.latlng.lng)
-        ) {
-          const bearing = calculateAngle(
-            previousPosition.lat,
-            previousPosition.lng,
-            e.latlng.lat,
-            e.latlng.lng
-          );
-          setDirection(bearing);
-        }
-
-        previousPosition = e.latlng;
+    const handleDeviceOrientation = (event) => {
+      const { alpha } = event;
+      if (alpha !== null) {
+        const bearing = calculateAngle(alpha);
+        setDirection(bearing);
       }
-    });
+    };
+
+    if (window.DeviceOrientationEvent) {
+      window.addEventListener("deviceorientation", handleDeviceOrientation);
+    }
+
+    const handleLocationFound = (e) => {
+      setPosition(e.latlng);
+      map.flyTo(e.latlng, map.getZoom());
+    };
+
+    map.locate().on("locationfound", handleLocationFound);
 
     const interval = setInterval(() => {
       map.locate();
     }, 5000);
 
     return () => {
+      window.removeEventListener("deviceorientation", handleDeviceOrientation);
       clearInterval(interval);
     };
   }, [map]);

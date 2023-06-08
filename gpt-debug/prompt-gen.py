@@ -1,11 +1,17 @@
 import pyperclip
 
-files = ["src/components/BannerMarkers.js", "src/components/MapOverlay.js", "src/components/LocationMarker.js", "src/components/Map.js", "src/components/Mission.js", "src/components/MissionStepMarker.js", "src/App.css"]
+files = [
+    "src/components/LocationMarker.js",
+    "src/components/Map.js",
+    "src/components/Mission.js",
+    "src/App.css",
+    "src/constants.js",
+]
 
 output = "I have the following code:\n"
 
 for file in files:
-    with open("../" + file, 'r') as f:
+    with open("../" + file, "r") as f:
         output += str(file) + ":\n"
         output += "```\n"
         output += f.read() + "\n"

@@ -39,7 +39,7 @@ export default function LocationMarker() {
 
     const handleLocationFound = (e) => {
       setPosition(e.latlng);
-      map.flyTo(e.latlng, map.getZoom(), { duration: 0 });
+      map.setView(e.latlng, 17);
     };
 
     map.locate().on("locationfound", handleLocationFound);

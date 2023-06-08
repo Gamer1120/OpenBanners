@@ -12,6 +12,7 @@ const useStyles = makeStyles((theme) => ({
 export default function BannersNearMe() {
   const classes = useStyles();
   const [location, setLocation] = useState(null);
+  const [bannerData, setBannerData] = useState(null);
 
   useEffect(() => {
     const handlePermission = (status) => {
@@ -20,14 +21,16 @@ export default function BannersNearMe() {
       if (status === "granted") {
         navigator.geolocation.getCurrentPosition(
           (position) => {
-            const { latitude, longitude } = position.coords;
             console.log(
               "Location granted. Latitude:",
-              latitude,
+              position.coords.latitude,
               "Longitude:",
-              longitude
+              position.coords.longitude
             );
-            setLocation({ latitude, longitude });
+            setLocation({
+              latitude: position.coords.latitude,
+              longitude: position.coords.longitude,
+            });
           },
           (error) => {
             console.error("Error getting location:", error);
@@ -56,9 +59,16 @@ export default function BannersNearMe() {
       navigator.geolocation.getCurrentPosition(
         (position) => {
           console.log("Location granted without permission request.");
-          const { latitude, longitude } = position.coords;
-          console.log("Latitude:", latitude, "Longitude:", longitude);
-          setLocation({ latitude, longitude });
+          console.log(
+            "Latitude:",
+            position.coords.latitude,
+            "Longitude:",
+            position.coords.longitude
+          );
+          setLocation({
+            latitude: position.coords.latitude,
+            longitude: position.coords.longitude,
+          });
         },
         (error) => {
           console.error("Error getting location:", error);
@@ -69,13 +79,31 @@ export default function BannersNearMe() {
     }
   }, []);
 
+  useEffect(() => {
+    if (location) {
+      const apiUrl = `https://api.bannergress.com/bnrs?orderBy=proximityStartPoint&orderDirection=ASC&online=true&proximityLatitude=${location.latitude}&proximityLongitude=${location.longitude}&limit=9`;
+
+      console.log("API URL:", apiUrl);
+
+      fetch(apiUrl)
+        .then((response) => response.json())
+        .then((data) => {
+          console.log("API response:", data);
+          setBannerData(data);
+        })
+        .catch((error) => {
+          console.error("Error fetching banner data:", error);
+        });
+    }
+  }, [location]);
+
   return (
     <Container className={classes.section}>
       <Typography variant="h5">Banners near me</Typography>
-      {location ? (
-        <Typography variant="body2">
-          Latitude: {location.latitude}, Longitude: {location.longitude}
-        </Typography>
+      {bannerData ? (
+        <Typography variant="body2">{JSON.stringify(bannerData)}</Typography>
+      ) : location ? (
+        <Typography variant="body2">Getting banner data...</Typography>
       ) : (
         <Typography variant="body2">Location permission not allowed</Typography>
       )}

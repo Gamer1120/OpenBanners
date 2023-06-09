@@ -5,7 +5,7 @@ const YellowArrow = ({ direction }) => {
     position: "absolute",
     top: "10px",
     left: "50%",
-    transform: "translateX(-50%) rotate(180deg)", // Added rotate(180deg) to flip the arrow
+    transform: "translateX(-50%)",
     zIndex: "1000",
   };
 
@@ -17,12 +17,16 @@ const YellowArrow = ({ direction }) => {
         height="24"
         viewBox="0 0 24 24"
       >
-        <path
-          fill="none"
-          stroke="#F8C60B"
-          strokeWidth="2" // Changed stroke-width to strokeWidth
-          d="M12 22L1 11h7V2h8v9h7z"
-        />
+        <g transform="rotate(180 12 12)">
+          {" "}
+          {/* Added a group element with rotation */}
+          <path
+            fill="none"
+            stroke="#F8C60B"
+            strokeWidth="2"
+            d="M12 22L1 11h7V2h8v9h7z"
+          />
+        </g>
       </svg>
     </div>
   );

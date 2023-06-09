@@ -5,7 +5,7 @@ const YellowArrow = ({ direction }) => {
     position: "absolute",
     top: "10px",
     left: "50%",
-    transform: "translateX(-50%)",
+    transform: `translateX(-50%) rotate(${direction}deg)`, // Apply rotation based on the direction
     zIndex: "1000",
   };
 
@@ -18,7 +18,6 @@ const YellowArrow = ({ direction }) => {
         viewBox="0 0 24 24"
       >
         <g transform="rotate(180 12 12)">
-          {" "}
           {/* Added a group element with rotation */}
           <path
             fill="none"

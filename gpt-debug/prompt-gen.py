@@ -13,6 +13,7 @@ files = [
     "src/components/BannerMarkers.js",
     "src/components/Mission.js",
     "src/components/MissionStepMarker.js",
+    "src/components/YellowArrow.js",
 ]
 
 output = "I have the following code:\n"
@@ -24,6 +25,6 @@ for file in files:
         output += f.read() + "\n"
         output += "```\n\n"
 
-output += "Do not use comments in any generated code. Please do not leave out code fragments with {...}. Always provide the full file when generating code, so I can copy-paste it.\n\n"
+output += "Do not use comments in any generated code. Always provide the full file when generating code, so I can copy-paste the full file into my editor.\n\n"
 print(output)
 pyperclip.copy(output)

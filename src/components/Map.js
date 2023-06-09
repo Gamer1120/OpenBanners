@@ -3,7 +3,7 @@ import LocationMarker from "./LocationMarker";
 import BannerMarkers from "./BannerMarkers";
 import { useParams } from "react-router-dom";
 import MapOverlay from "./MapOverlay";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import YellowArrow from "./YellowArrow";
 
 export default function Map() {
@@ -12,6 +12,8 @@ export default function Map() {
   const [currentMission, setCurrentMission] = useState(0);
   const [items, setItems] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
+
+  const mapRef = useRef(null);
 
   useEffect(() => {
     console.log(`Fetching data for bannerId: ${bannerId}`);
@@ -49,6 +51,7 @@ export default function Map() {
   return (
     <div>
       <MapContainer
+        ref={mapRef}
         id="map"
         center={[52.221058, 6.893297]}
         zoom={8}
@@ -66,6 +69,7 @@ export default function Map() {
         {firstMissionStepMarker && (
           <YellowArrow
             direction={calculateArrowDirection(firstMissionStepMarker)}
+            map={mapRef.current?.leafletElement}
           />
         )}
       </MapContainer>

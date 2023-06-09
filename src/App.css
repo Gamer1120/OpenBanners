@@ -98,3 +98,25 @@ body {
 .disable-click {
   cursor: not-allowed;
 }
+
+/* Additional styles for YellowArrow component */
+
+.yellow-arrow {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%) rotate(0deg);
+  transition: transform 0.3s ease-in-out;
+}
+
+.yellow-arrow:before {
+  content: "";
+  position: absolute;
+  top: -2px;
+  left: -12px;
+  width: 0;
+  height: 0;
+  border-top: 12px solid transparent;
+  border-bottom: 12px solid transparent;
+  border-right: 12px solid yellow;
+}

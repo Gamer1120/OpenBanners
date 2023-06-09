@@ -12,6 +12,7 @@ files = [
     "src/components/LocationMarker.js",
     "src/components/BannerMarkers.js",
     "src/components/Mission.js",
+    "src/components/MissionStepMarker.js",
 ]
 
 output = "I have the following code:\n"

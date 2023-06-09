@@ -22,7 +22,6 @@ const YellowArrow = ({ direction, map }) => {
           fill="#FDD017"
           transform={`rotate(${direction} 20 20)`}
         />
-        <circle cx="20" cy="20" r="3" fill="#000" />
       </svg>
     </div>
   );

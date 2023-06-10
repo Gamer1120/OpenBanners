@@ -39,6 +39,10 @@ export default function BannerCard({ banner }) {
     <Link to={`/banner/${banner.id}`} style={{ textDecoration: "none" }}>
       <Card className={classes.card}>
         <CardActionArea>
+          <Typography gutterBottom variant="h6" component="div">
+            {banner.title}
+          </Typography>
+
           <div className={classes.cardMediaWrapper}>
             <CardMedia
               component="img"
@@ -48,9 +52,6 @@ export default function BannerCard({ banner }) {
             />
           </div>
           <CardContent>
-            <Typography gutterBottom variant="h6" component="div">
-              {banner.title}
-            </Typography>
             <Typography variant="body2" color="text.secondary">
               {banner.numberOfMissions} Missions,{" "}
               {Math.round(banner.lengthMeters / 1000)} km

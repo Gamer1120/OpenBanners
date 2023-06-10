@@ -1,13 +1,14 @@
 import { MapContainer, TileLayer } from "react-leaflet";
 import LocationMarker from "./LocationMarker";
 import BannerMarkers from "./BannerMarkers";
-import { useParams, useNavigate } from "react-router-dom"; // Import useNavigate
+import { useParams, useNavigate, useLocation } from "react-router-dom";
 import MapOverlay from "./MapOverlay";
 import { useState, useEffect } from "react";
 
 export default function Map() {
   const { bannerId } = useParams();
-  const navigate = useNavigate(); // Initialize useNavigate
+  const navigate = useNavigate();
+  const location = useLocation(); // Access the current location
 
   const [currentMission, setCurrentMission] = useState(0);
   const [items, setItems] = useState([]);
@@ -34,6 +35,15 @@ export default function Map() {
     // Update the query parameter in the URL
     navigate(`?currentMission=${currentMission}`);
   }, [currentMission]);
+
+  useEffect(() => {
+    // Set the initial value of currentMission based on the query parameter
+    const searchParams = new URLSearchParams(location.search);
+    const missionParam = searchParams.get("currentMission");
+    if (missionParam !== null) {
+      setCurrentMission(parseInt(missionParam));
+    }
+  }, [location]);
 
   if (isLoading) {
     return <div>Loading...</div>;

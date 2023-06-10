@@ -11,6 +11,7 @@ import {
 } from "@mui/material";
 import { makeStyles } from "@mui/styles";
 import { Explore, LocationOn, Search } from "@mui/icons-material";
+import { Link } from "react-router-dom";
 
 const useStyles = makeStyles((theme) => ({
   appBar: {
@@ -64,7 +65,8 @@ export default function TopMenu({ onBrowseClick, onTitleClick }) {
             color="inherit"
             startIcon={<Explore />}
             disableElevation
-            onClick={onBrowseClick}
+            component={Link}
+            to="/browse/"
           >
             Browse
           </Button>

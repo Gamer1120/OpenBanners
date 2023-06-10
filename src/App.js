@@ -9,6 +9,7 @@ function App() {
       <Router>
         <Routes>
           <Route path="/" element={<Home />} />
+          <Route exact path="/browse/" component={Home} />
           <Route path="/banner/:bannerId" element={<Map />} />
         </Routes>
       </Router>

@@ -79,7 +79,8 @@ export default function BannersNearMe() {
       },
       (error) => {
         console.error("Error getting location:", error);
-      }
+      },
+      { enableHighAccuracy: true }
     );
   };
 

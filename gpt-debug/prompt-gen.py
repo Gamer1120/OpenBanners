@@ -6,6 +6,7 @@ files = [
     "src/index.js",
     "src/components/BannersNearMe.js",
     "src/components/TopMenu.js",
+    "src/components/BrowsingPage.js",
 ]
 
 # files = [

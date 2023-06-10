@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React from "react";
 import {
   AppBar,
   Toolbar,
@@ -43,14 +43,19 @@ const useStyles = makeStyles((theme) => ({
   },
 }));
 
-export default function TopMenu({ onBrowseClick }) {
+export default function TopMenu({ onBrowseClick, onTitleClick }) {
   const classes = useStyles();
 
   return (
     <AppBar position="static" className={classes.appBar}>
       <Toolbar>
         <Container className={classes.titleContainer}>
-          <Typography variant="h6" className={classes.title}>
+          <Typography
+            variant="h6"
+            className={classes.title}
+            onClick={onTitleClick}
+            style={{ cursor: "pointer" }}
+          >
             OpenBanners Alpha
           </Typography>
         </Container>

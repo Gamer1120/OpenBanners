@@ -54,7 +54,7 @@ export default function BannerCard({ banner }) {
           <CardContent>
             <Typography variant="body2" color="text.secondary">
               {banner.numberOfMissions} Missions,{" "}
-              {Math.round(banner.lengthMeters / 1000)} km
+              {Math.round((banner.lengthMeters / 1000) * 10) / 10} km
             </Typography>
             <Typography variant="body2" color="text.secondary">
               {banner.formattedAddress}

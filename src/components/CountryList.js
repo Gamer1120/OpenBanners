@@ -8,8 +8,9 @@ const useStyles = makeStyles((theme) => ({
     minWidth: "150px", // Optional: Adjust the width as needed
   },
   countryItem: {
-    marginBottom: theme.spacing(1),
+    marginBottom: theme.spacing(0.5), // Adjust the spacing as desired
     cursor: "pointer",
+    textAlign: "left", // Align the country names to the left
   },
   countryLink: {
     textDecoration: "none",

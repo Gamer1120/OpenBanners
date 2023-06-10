@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { makeStyles } from "@mui/styles";
 import BannerCard from "./BannerCard";
+import { Container, Typography, Grid, Button } from "@mui/material";
 
 const useStyles = makeStyles((theme) => ({
   browsingContainer: {
@@ -33,13 +34,26 @@ export default function BrowsingPage() {
   }, []);
 
   return (
-    <div className={classes.browsingContainer}>
-      <div>Browsing</div>
+    <Container className={classes.browsingContainer}>
+      <Typography variant="subtitle2" color="textSecondary">
+        This website is not associated with Bannergress, Ingress and/or Niantic.
+        This website is an alternative, open-source front-end for Bannergress's
+        back-end.
+      </Typography>
+      <Typography variant="h5">Browsing</Typography>
+      <Typography variant="h5">
+        This component is in active development. Come back later for a better
+        experience!
+      </Typography>
       <div className={classes.bannerContainer}>
-        {banners.map((banner) => (
-          <BannerCard key={banner.id} banner={banner} />
-        ))}
+        <Grid container spacing={2}>
+          {banners.map((banner) => (
+            <Grid item xs={12} sm={6} md={4} key={banner.id}>
+              <BannerCard banner={banner} />
+            </Grid>
+          ))}
+        </Grid>
       </div>
-    </div>
+    </Container>
   );
 }

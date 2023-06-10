@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { makeStyles } from "@mui/styles";
+import BannerCard from "./BannerCard";
 
 const useStyles = makeStyles((theme) => ({
   browsingContainer: {
@@ -15,17 +16,6 @@ const useStyles = makeStyles((theme) => ({
     flexWrap: "wrap",
     justifyContent: "center",
     marginTop: theme.spacing(2),
-  },
-  banner: {
-    width: "200px",
-    height: "200px",
-    margin: theme.spacing(1),
-    backgroundColor: theme.palette.primary.main,
-    display: "flex",
-    justifyContent: "center",
-    alignItems: "center",
-    color: theme.palette.common.white,
-    fontSize: "24px",
   },
 }));
 
@@ -45,7 +35,11 @@ export default function BrowsingPage() {
   return (
     <div className={classes.browsingContainer}>
       <div>Browsing</div>
-      <pre>{JSON.stringify(banners, null, 2)}</pre>
+      <div className={classes.bannerContainer}>
+        {banners.map((banner) => (
+          <BannerCard key={banner.id} banner={banner} />
+        ))}
+      </div>
     </div>
   );
 }

@@ -11,6 +11,11 @@ const useStyles = makeStyles((theme) => ({
     marginBottom: theme.spacing(1),
     cursor: "pointer",
   },
+  countryLink: {
+    textDecoration: "none",
+    color: "#FFF",
+    fontSize: "14px",
+  },
 }));
 
 export default function CountryList() {
@@ -28,7 +33,9 @@ export default function CountryList() {
     <div className={classes.countryList}>
       {countries.map((country) => (
         <div key={country.id} className={classes.countryItem}>
-          <Link to={`/browse/${country.id}`}>{country.formattedAddress}</Link>
+          <Link to={`/browse/${country.id}`} className={classes.countryLink}>
+            {country.formattedAddress}
+          </Link>
         </div>
       ))}
     </div>

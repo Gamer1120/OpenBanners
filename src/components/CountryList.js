@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from "react";
 import { makeStyles } from "@mui/styles";
+import { Link } from "react-router-dom";
 
 const useStyles = makeStyles((theme) => ({
   countryList: {
     marginRight: theme.spacing(2),
     minWidth: "150px", // Optional: Adjust the width as needed
   },
-
   countryItem: {
     marginBottom: theme.spacing(1),
     cursor: "pointer",
@@ -27,12 +27,8 @@ export default function CountryList() {
   return (
     <div className={classes.countryList}>
       {countries.map((country) => (
-        <div
-          key={country.id}
-          className={classes.countryItem}
-          onClick={() => console.log(country.formattedAddress)} // Replace with your desired functionality
-        >
-          {country.formattedAddress}
+        <div key={country.id} className={classes.countryItem}>
+          <Link to={`/browse/${country.id}`}>{country.formattedAddress}</Link>
         </div>
       ))}
     </div>

@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from "react";
 import { makeStyles } from "@mui/styles";
-import { useNavigate, useLocation } from "react-router-dom";
 import TopMenu from "./TopMenu";
 import BannersNearMe from "./BannersNearMe";
 import BrowsingPage from "./BrowsingPage";
+import CountryPage from "./CountryPage";
+import { useLocation, useNavigate } from "react-router-dom";
 
 const useStyles = makeStyles((theme) => ({
   root: {
@@ -16,12 +17,11 @@ const useStyles = makeStyles((theme) => ({
 export default function Home() {
   const classes = useStyles();
   const [isBrowsing, setIsBrowsing] = useState(false);
-  const navigate = useNavigate();
   const location = useLocation();
+  const navigate = useNavigate();
 
   const handleBrowseClick = () => {
     setIsBrowsing(true);
-    navigate("/browse/"); // Navigate to the "/browse/" route
   };
 
   const handleTitleClick = () => {
@@ -31,7 +31,12 @@ export default function Home() {
 
   useEffect(() => {
     setIsBrowsing(location.pathname.startsWith("/browse/"));
-  }, [location.pathname]);
+  }, [location]);
+
+  const isCountryPage =
+    location.pathname.startsWith("/browse/") &&
+    !isBrowsing &&
+    location.pathname.split("/").length === 3;
 
   return (
     <div className={classes.root}>
@@ -39,7 +44,13 @@ export default function Home() {
         onBrowseClick={handleBrowseClick}
         onTitleClick={handleTitleClick}
       />
-      {!isBrowsing ? <BannersNearMe /> : <BrowsingPage />}
+      {!isBrowsing ? (
+        <BannersNearMe />
+      ) : isCountryPage ? (
+        <CountryPage />
+      ) : (
+        <BrowsingPage />
+      )}
     </div>
   );
 }

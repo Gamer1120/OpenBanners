@@ -8,6 +8,8 @@ files = [
     "src/components/TopMenu.js",
     "src/components/BrowsingPage.js",
     "src/components/BannerCard.js",
+    "src/components/LocationMarker.js",
+    "src/components/Map.js",
 ]
 
 # files = [

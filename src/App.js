@@ -1,7 +1,7 @@
-import "./App.css";
-import Map from "./components/Map.js";
+import React from "react";
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import Home from "./components/Home";
+import CountryPage from "./components/CountryPage";
 
 function App() {
   return (
@@ -9,8 +9,8 @@ function App() {
       <Router>
         <Routes>
           <Route path="/" element={<Home />} />
-          <Route exact path="/browse/" element={<Home />} />
-          <Route path="/banner/:bannerId" element={<Map />} />
+          <Route path="/browse/*" element={<Home />} />
+          <Route path="/browse/:countryId" element={<Home />} />
         </Routes>
       </Router>
     </div>

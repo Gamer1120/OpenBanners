@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { makeStyles } from "@mui/styles";
 import BannerCard from "./BannerCard";
 import { Container, Typography, Grid, Button } from "@mui/material";
+import CountryList from "./CountryList";
 
 const useStyles = makeStyles((theme) => ({
   browsingContainer: {
@@ -17,6 +18,10 @@ const useStyles = makeStyles((theme) => ({
     flexWrap: "wrap",
     justifyContent: "center",
     marginTop: theme.spacing(2),
+  },
+  flexContainer: {
+    display: "flex",
+    alignItems: "flex-start",
   },
 }));
 
@@ -41,18 +46,17 @@ export default function BrowsingPage() {
         back-end.
       </Typography>
       <Typography variant="h5">Browsing</Typography>
-      <Typography variant="h5">
-        This component is in active development. Come back later for a better
-        experience!
-      </Typography>
-      <div className={classes.bannerContainer}>
-        <Grid container spacing={2}>
-          {banners.map((banner) => (
-            <Grid item xs={12} sm={6} md={4} key={banner.id}>
-              <BannerCard banner={banner} />
-            </Grid>
-          ))}
-        </Grid>
+      <div className={classes.flexContainer}>
+        <CountryList />
+        <div className={classes.bannerContainer}>
+          <Grid container spacing={2}>
+            {banners.map((banner) => (
+              <Grid item xs={12} sm={6} md={4} key={banner.id}>
+                <BannerCard banner={banner} />
+              </Grid>
+            ))}
+          </Grid>
+        </div>
       </div>
     </Container>
   );

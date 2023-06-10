@@ -1,13 +1,15 @@
 import { MapContainer, TileLayer } from "react-leaflet";
 import LocationMarker from "./LocationMarker";
 import BannerMarkers from "./BannerMarkers";
-import { useParams } from "react-router-dom";
+import { useParams, useNavigate, useLocation } from "react-router-dom";
 import MapOverlay from "./MapOverlay";
 import { useState, useEffect, useRef } from "react";
 import YellowArrow from "./YellowArrow";
 
 export default function Map() {
   const { bannerId } = useParams();
+  const navigate = useNavigate();
+  const location = useLocation(); // Access the current location
 
   const [currentMission, setCurrentMission] = useState(0);
   const [items, setItems] = useState([]);
@@ -16,13 +18,10 @@ export default function Map() {
   const mapRef = useRef(null);
 
   useEffect(() => {
-    console.log(`Fetching data for bannerId: ${bannerId}`);
     fetch(`https://api.bannergress.com/bnrs/${bannerId}`)
       .then((res) => res.json())
       .then(
         (result) => {
-          console.log("Result from Bannergress API:");
-          console.log(result);
           setItems(result);
           setIsLoading(false);
         },
@@ -31,6 +30,18 @@ export default function Map() {
         }
       );
   }, [bannerId]);
+
+  useEffect(() => {
+    navigate(`?currentMission=${currentMission}`);
+  }, [currentMission]);
+
+  useEffect(() => {
+    const searchParams = new URLSearchParams(location.search);
+    const missionParam = searchParams.get("currentMission");
+    if (missionParam !== null) {
+      setCurrentMission(parseInt(missionParam));
+    }
+  }, [location]);
 
   if (isLoading) {
     return <div>Loading...</div>;

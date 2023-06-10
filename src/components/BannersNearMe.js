@@ -78,7 +78,6 @@ export default function BannersNearMe() {
         };
       });
     } else {
-      console.log("Geolocation API not supported.");
       handlePermission("denied");
     }
   }, []);
@@ -87,12 +86,9 @@ export default function BannersNearMe() {
     if (location) {
       const apiUrl = `https://api.bannergress.com/bnrs?orderBy=proximityStartPoint&orderDirection=ASC&online=true&proximityLatitude=${location.latitude}&proximityLongitude=${location.longitude}&limit=${limit}`;
 
-      console.log("API URL:", apiUrl);
-
       fetch(apiUrl)
         .then((response) => response.json())
         .then((data) => {
-          console.log("API response:", data);
           setBannerData(data);
           setLoading(false);
         })

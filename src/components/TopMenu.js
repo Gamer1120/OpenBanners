@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import {
   AppBar,
   Toolbar,
@@ -43,7 +43,7 @@ const useStyles = makeStyles((theme) => ({
   },
 }));
 
-export default function TopMenu() {
+export default function TopMenu({ onBrowseClick }) {
   const classes = useStyles();
 
   return (
@@ -55,7 +55,12 @@ export default function TopMenu() {
           </Typography>
         </Container>
         <Container className={classes.buttonContainer}>
-          <Button color="inherit" startIcon={<Explore />} disableElevation>
+          <Button
+            color="inherit"
+            startIcon={<Explore />}
+            disableElevation
+            onClick={onBrowseClick}
+          >
             Browse
           </Button>
           <Button color="inherit" startIcon={<LocationOn />} disableElevation>

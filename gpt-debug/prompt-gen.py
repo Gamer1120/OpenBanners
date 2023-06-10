@@ -1,18 +1,19 @@
 import pyperclip
 
-# files = [
-#     "src/components/Home.js",
-#     "src/App.css",
-#     "src/components/BannersNearMe.js",
-#     "src/components/TopMenu.js",
-# ]
-
 files = [
-    "src/components/Map.js",
-    "src/components/LocationMarker.js",
-    "src/components/BannerMarkers.js",
-    "src/components/Mission.js",
+    "src/components/Home.js",
+    "src/App.css",
+    "src/index.js",
+    "src/components/BannersNearMe.js",
+    "src/components/TopMenu.js",
 ]
+
+# files = [
+#     "src/components/Map.js",
+#     "src/components/LocationMarker.js",
+#     "src/components/BannerMarkers.js",
+#     "src/components/Mission.js",
+# ]
 
 output = "I have the following code:\n"
 

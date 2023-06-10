@@ -8,19 +8,9 @@ export default function BannerMarkers({ missions, currentMission }) {
   const missionCount = missions.length; // Get the mission count
   const rainbowColors = generateRainbowColors(missionCount);
 
-  console.log("Number of missions:", missionCount); // Log the mission count
-
   return (
     <div>
       {missions.map((mission, index) => {
-        console.log(
-          "index " +
-            index +
-            " currentMission " +
-            currentMission +
-            " missioncount " +
-            missionCount
-        );
         if (
           currentMission === 0 ||
           index === currentMission ||

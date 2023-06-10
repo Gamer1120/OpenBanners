@@ -15,13 +15,10 @@ export default function Map() {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    console.log(`Fetching data for bannerId: ${bannerId}`);
     fetch(`https://api.bannergress.com/bnrs/${bannerId}`)
       .then((res) => res.json())
       .then(
         (result) => {
-          console.log("Result from Bannergress API:");
-          console.log(result);
           setItems(result);
           setIsLoading(false);
         },
@@ -32,12 +29,10 @@ export default function Map() {
   }, [bannerId]);
 
   useEffect(() => {
-    // Update the query parameter in the URL
     navigate(`?currentMission=${currentMission}`);
   }, [currentMission]);
 
   useEffect(() => {
-    // Set the initial value of currentMission based on the query parameter
     const searchParams = new URLSearchParams(location.search);
     const missionParam = searchParams.get("currentMission");
     if (missionParam !== null) {

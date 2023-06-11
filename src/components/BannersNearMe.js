@@ -95,7 +95,7 @@ export default function BannersNearMe() {
         This website is an alternative, open-source front-end for Bannergress's
         back-end.
       </Typography>
-      <Typography variant="h5">Banners near me...</Typography>
+      <Typography variant="h5">Banners near me....</Typography>
       {loading ? (
         showPermissionPrompt ? (
           <Button variant="contained" onClick={handleGrantLocationAccess}>

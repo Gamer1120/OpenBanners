@@ -25,14 +25,17 @@ const useStyles = makeStyles((theme) => ({
   },
 }));
 
-export default function BrowsingPage() {
+export default function BrowsingPage({ placeId }) {
   const classes = useStyles();
   const [banners, setBanners] = useState([]);
 
   useEffect(() => {
-    fetch(
-      "https://api.bannergress.com/bnrs?orderBy=created&orderDirection=DESC&online=true&limit=9&offset=0"
-    )
+    let url =
+      "https://api.bannergress.com/bnrs?orderBy=created&orderDirection=DESC&online=true&limit=9&offset=0";
+    if (placeId) {
+      url += `&placeId=${placeId}`;
+    }
+    fetch(url)
       .then((response) => response.json())
       .then((data) => setBanners(data))
       .catch((error) => console.error(error));

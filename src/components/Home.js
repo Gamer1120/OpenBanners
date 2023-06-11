@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { makeStyles } from "@mui/styles";
-import { useNavigate, useLocation } from "react-router-dom";
+import { useParams, useNavigate, useLocation } from "react-router-dom";
 import TopMenu from "./TopMenu";
 import BannersNearMe from "./BannersNearMe";
 import BrowsingPage from "./BrowsingPage";
@@ -16,6 +16,7 @@ const useStyles = makeStyles((theme) => ({
 export default function Home() {
   const classes = useStyles();
   const [isBrowsing, setIsBrowsing] = useState(false);
+  const { placeId } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -39,7 +40,7 @@ export default function Home() {
         onBrowseClick={handleBrowseClick}
         onTitleClick={handleTitleClick}
       />
-      {!isBrowsing ? <BannersNearMe /> : <BrowsingPage />}
+      {!isBrowsing ? <BannersNearMe /> : <BrowsingPage placeId={placeId} />}
     </div>
   );
 }

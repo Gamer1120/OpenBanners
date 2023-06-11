@@ -1,7 +1,7 @@
 import pyperclip
 
 files = [
-    # "src/components/Home.js",
+    "src/components/Home.js",
     "src/App.css",
     "src/index.js",
     "src/components/TopMenu.js",

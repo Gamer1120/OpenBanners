@@ -39,7 +39,7 @@ export default function BrowsingPage({ placeId }) {
       .then((response) => response.json())
       .then((data) => setBanners(data))
       .catch((error) => console.error(error));
-  }, []);
+  }, [placeId]);
 
   return (
     <Container className={classes.browsingContainer}>

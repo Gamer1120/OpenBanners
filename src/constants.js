@@ -12,8 +12,8 @@ export const locationIcon = (rotation) => {
   const lineLength = 23; // Length of the direction indicator lines
   const lineGap = 60; // Angle between the two lines
 
-  const line1Angle = rotation - lineGap / 2 - 180 - 90; // Subtract 90 degrees from the angle
-  const line2Angle = rotation + lineGap / 2 - 180 - 90; // Subtract 90 degrees from the angle
+  const line1Angle = rotation - lineGap / 2; // Subtract 90 degrees from the angle
+  const line2Angle = rotation + lineGap / 2; // Subtract 90 degrees from the angle
 
   const line1X = lineLength * Math.sin((line1Angle * Math.PI) / 180);
   const line1Y = -lineLength * Math.cos((line1Angle * Math.PI) / 180);

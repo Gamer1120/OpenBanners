@@ -7,53 +7,76 @@ import icon, { locationIcon } from "../constants";
 
 export default function LocationMarker() {
   const [position, setPosition] = useState(null);
-  const [direction, setDirection] = useState(null);
 
   const map = useMap();
 
-  const calculateAngle = (alpha) => {
-    // Convert alpha to a value between 0 and 360
-    let angle = alpha % 360;
-    if (angle < 0) {
-      angle += 360;
-    }
+  const [time, setTime] = useState(Date.now());
 
-    // Adjust the angle for the clockwise rotation
-    angle = (5 - angle) % 360;
+  const [direction, setDirection] = useState(null);
 
-    return angle;
-  };
+  function angleFromCoordinate(lat1, lon1, lat2, lon2) {
+    var p1 = {
+      x: lat1,
+      y: lon1,
+    };
+
+    var p2 = {
+      x: lat2,
+      y: lon2,
+    };
+    return (Math.atan2(p2.y - p1.y, p2.x - p1.x) * 180) / Math.PI;
+  }
 
   useEffect(() => {
-    const handleDeviceOrientation = (event) => {
-      const { alpha } = event;
-      if (alpha !== null) {
-        const bearing = calculateAngle(alpha);
-        setDirection(bearing);
+    let previousPosition = null;
+
+    map.locate().on("locationfound", function (e) {
+      if (
+        previousPosition == null ||
+        previousPosition.lat !== e.latlng.lat ||
+        previousPosition.lng !== e.latlng.lng
+      ) {
+        setPosition(e.latlng);
+        map.flyTo(e.latlng, map.getZoom());
+
+        if (
+          previousPosition !== null &&
+          e.latlng !== null &&
+          (previousPosition.lat !== e.latlng.lat ||
+            previousPosition.lng !== e.latlng.lng)
+        ) {
+          // show user direction
+          console.log(
+            "direction is " +
+              angleFromCoordinate(
+                previousPosition.lat,
+                previousPosition.lng,
+                e.latlng.lat,
+                e.latlng.lng
+              )
+          );
+          setDirection(
+            angleFromCoordinate(
+              previousPosition.lat,
+              previousPosition.lng,
+              e.latlng.lat,
+              e.latlng.lng
+            )
+          );
+        }
+
+        previousPosition = e.latlng;
       }
-    };
-
-    if (window.DeviceOrientationEvent) {
-      window.addEventListener("deviceorientation", handleDeviceOrientation);
-    }
-
-    const handleLocationFound = (e) => {
-      setPosition(e.latlng);
-      map.setView(e.latlng, 17);
-    };
-
-    map.locate().on("locationfound", handleLocationFound);
-
+    });
     const interval = setInterval(() => {
+      setTime(Date.now());
       map.locate();
     }, 5000);
-
     return () => {
-      window.removeEventListener("deviceorientation", handleDeviceOrientation);
       clearInterval(interval);
     };
   }, [map]);
-
+  console.log(direction);
   return position === null ? null : (
     <Marker
       position={position}

@@ -93,7 +93,7 @@ export default function BannersNearMe() {
       <Typography variant="subtitle2" color="textSecondary">
         This website is not associated with Bannergress, Ingress and/or Niantic.
         This website is an alternative, open-source front-end for Bannergress's
-        back-end...
+        back-end....
       </Typography>
       <Typography variant="h5">Banners near me</Typography>
       {loading ? (

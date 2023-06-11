@@ -2,12 +2,13 @@ import pyperclip
 
 files = [
     # "src/components/Home.js",
-    # "src/App.css",
-    # "src/index.js",
-    "src/components/BannersNearMe.js",
+    "src/App.css",
+    "src/index.js",
     "src/components/TopMenu.js",
     "src/components/BrowsingPage.js",
     "src/components/BannerCard.js",
+    "src/App.js",
+    "src/components/CountryList.js",
 ]
 
 # files = [

@@ -31,11 +31,19 @@ export default function CountryList() {
       .catch((error) => console.error(error));
   }, []);
 
+  const handleCountryClick = (countryId) => {
+    console.log("Clicked on country ID:", countryId);
+  };
+
   return (
     <div className={classes.countryList}>
       {countries.map((country) => (
         <div key={country.id} className={classes.countryItem}>
-          <Link to={`/browse/${country.id}`} className={classes.countryLink}>
+          <Link
+            to={`/browse/${country.id}`}
+            className={classes.countryLink}
+            onClick={() => handleCountryClick(country.id)}
+          >
             {flags[country.formattedAddress]} {country.formattedAddress} (
             {country.numberOfBanners})
           </Link>

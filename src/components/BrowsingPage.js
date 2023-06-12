@@ -41,6 +41,7 @@ export default function BrowsingPage() {
         if (selectedPlaceId) {
           url += `&placeId=${selectedPlaceId}`;
         }
+        console.log("Fetch URL:", url);
         const response = await fetch(url);
         const data = await response.json();
         setBanners(data);

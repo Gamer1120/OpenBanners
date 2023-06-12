@@ -9,6 +9,7 @@ files = [
     "src/components/BannerCard.js",
     "src/App.js",
     "src/components/CountryList.js",
+    "src/components/PlaceList.js",
 ]
 
 # files = [

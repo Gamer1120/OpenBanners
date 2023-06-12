@@ -53,20 +53,23 @@ export default function BrowsingPage({ placeId }) {
       </Typography>
       <Typography variant="h5">Browsing</Typography>
 
-      <div className={classes.bannerContainer}>
-        <Grid container spacing={2}>
-          {selectedCountry ? (
-            <PlaceList placeId={selectedCountry} />
-          ) : (
-            <CountryList onCountryClick={handleCountryClick} />
-          )}
-          {banners.map((banner) => (
-            <Grid item xs={12} sm={6} md={4} key={banner.id}>
-              <BannerCard banner={banner} />
-            </Grid>
-          ))}
+      <Grid container spacing={2}>
+        <Grid item xs={12} sm={6} md={4}>
+          <CountryList onCountryClick={handleCountryClick} />
         </Grid>
-      </div>
+        <Grid item xs={12} sm={6} md={4}>
+          <PlaceList placeId={selectedCountry} />
+        </Grid>
+        <Grid item xs={12} sm={12} md={4} className={classes.bannerContainer}>
+          <Grid container spacing={2}>
+            {banners.map((banner) => (
+              <Grid item xs={12} sm={6} md={4} key={banner.id}>
+                <BannerCard banner={banner} />
+              </Grid>
+            ))}
+          </Grid>
+        </Grid>
+      </Grid>
     </Container>
   );
 }

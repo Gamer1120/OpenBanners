@@ -2,8 +2,7 @@ import React, { useState, useEffect } from "react";
 import { makeStyles } from "@mui/styles";
 import BannerCard from "./BannerCard";
 import { Container, Typography, Grid } from "@mui/material";
-import CountryList from "./CountryList";
-import PlaceList from "./PlaceList";
+import PlacesList from "./PlacesList";
 
 const useStyles = makeStyles((theme) => ({
   browsingContainer: {
@@ -25,33 +24,36 @@ const useStyles = makeStyles((theme) => ({
     justifyContent: "center",
   },
   bannerColumn: {
-    minWidth: "300px", // Adjust the width as desired
+    minWidth: "300px",
   },
 }));
 
-export default function BrowsingPage({ placeId }) {
+export default function BrowsingPage() {
   const classes = useStyles();
   const [banners, setBanners] = useState([]);
-  const [selectedCountry, setSelectedCountry] = useState(null);
+  const [selectedPlaceId, setSelectedPlaceId] = useState(null);
 
   useEffect(() => {
-    let url =
-      "https://api.bannergress.com/bnrs?orderBy=created&orderDirection=DESC&online=true&limit=9&offset=0";
-    if (placeId) {
-      url += `&placeId=${placeId}`;
-    }
-    fetch(url)
-      .then((response) => response.json())
-      .then((data) => setBanners(data))
-      .catch((error) => console.error(error));
-
-    return () => {
-      setSelectedCountry(null);
+    const fetchBanners = async () => {
+      try {
+        let url =
+          "https://api.bannergress.com/bnrs?orderBy=created&orderDirection=DESC&online=true&limit=9&offset=0";
+        if (selectedPlaceId) {
+          url += `&placeId=${selectedPlaceId}`;
+        }
+        const response = await fetch(url);
+        const data = await response.json();
+        setBanners(data);
+      } catch (error) {
+        console.error(error);
+      }
     };
-  }, [placeId]);
 
-  const handleCountryClick = (countryId) => {
-    setSelectedCountry(countryId);
+    fetchBanners();
+  }, [selectedPlaceId]);
+
+  const handlePlaceClick = (placeId) => {
+    setSelectedPlaceId(placeId);
   };
 
   return (
@@ -64,14 +66,15 @@ export default function BrowsingPage({ placeId }) {
       <Typography variant="h5">Browsing</Typography>
 
       <Grid container spacing={2}>
-        {!selectedCountry && (
+        <Grid item xs={12} sm={6} md={2}>
+          <PlacesList onPlaceClick={handlePlaceClick} />
+        </Grid>
+        {selectedPlaceId && (
           <Grid item xs={12} sm={6} md={2}>
-            <CountryList onCountryClick={handleCountryClick} />
-          </Grid>
-        )}
-        {selectedCountry && !placeId && (
-          <Grid item xs={12} sm={6} md={2}>
-            <PlaceList placeId={selectedCountry} />
+            <PlacesList
+              onPlaceClick={handlePlaceClick}
+              parentPlaceId={selectedPlaceId}
+            />
           </Grid>
         )}
         <Grid item xs={12} sm={12} md={8} className={classes.bannerContainer}>

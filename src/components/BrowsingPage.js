@@ -21,6 +21,9 @@ const useStyles = makeStyles((theme) => ({
     display: "flex",
     justifyContent: "center",
   },
+  bannerColumn: {
+    minWidth: "300px", // Adjust the width as desired
+  },
 }));
 
 export default function BrowsingPage({ placeId }) {
@@ -64,7 +67,7 @@ export default function BrowsingPage({ placeId }) {
             <PlaceList placeId={selectedCountry} />
           </Grid>
         )}
-        <Grid item xs={12} sm={12} md={4} className={classes.bannerContainer}>
+        <Grid item xs={12} sm={12} md={8} className={classes.bannerContainer}>
           <Grid container spacing={2}>
             {banners.map((banner) => (
               <Grid

@@ -28,18 +28,17 @@ const useStyles = makeStyles((theme) => ({
   },
 }));
 
-export default function BrowsingPage() {
+export default function BrowsingPage({ placeId }) {
   const classes = useStyles();
   const [banners, setBanners] = useState([]);
-  const [selectedPlaceId, setSelectedPlaceId] = useState(null);
 
   useEffect(() => {
     const fetchBanners = async () => {
       try {
         let url =
           "https://api.bannergress.com/bnrs?orderBy=created&orderDirection=DESC&online=true&limit=9&offset=0";
-        if (selectedPlaceId) {
-          url += `&placeId=${selectedPlaceId}`;
+        if (placeId) {
+          url += `&placeId=${placeId}`;
         }
         console.log("Fetch URL:", url);
         const response = await fetch(url);
@@ -51,11 +50,7 @@ export default function BrowsingPage() {
     };
 
     fetchBanners();
-  }, [selectedPlaceId]);
-
-  const handlePlaceClick = (placeId) => {
-    setSelectedPlaceId(placeId);
-  };
+  }, [placeId]);
 
   return (
     <Container className={classes.browsingContainer}>
@@ -67,15 +62,14 @@ export default function BrowsingPage() {
       <Typography variant="h5">Browsing</Typography>
 
       <Grid container spacing={2}>
-        <Grid item xs={12} sm={6} md={2}>
-          <PlacesList onPlaceClick={handlePlaceClick} />
-        </Grid>
-        {selectedPlaceId && (
+        {!placeId && (
           <Grid item xs={12} sm={6} md={2}>
-            <PlacesList
-              onPlaceClick={handlePlaceClick}
-              parentPlaceId={selectedPlaceId}
-            />
+            <PlacesList />
+          </Grid>
+        )}
+        {placeId && (
+          <Grid item xs={12} sm={6} md={2}>
+            <PlacesList parentPlaceId={placeId} />
           </Grid>
         )}
         <Grid item xs={12} sm={12} md={8} className={classes.bannerContainer}>

@@ -6,12 +6,12 @@ import flags from "./CountryFlags";
 const useStyles = makeStyles((theme) => ({
   countryList: {
     marginRight: theme.spacing(2),
-    minWidth: "150px", // Optional: Adjust the width as needed
+    minWidth: "150px",
   },
   countryItem: {
-    marginBottom: theme.spacing(0.2), // Adjust the spacing as desired
+    marginBottom: theme.spacing(0.2),
     cursor: "pointer",
-    textAlign: "left", // Align the country names to the left
+    textAlign: "left",
   },
   countryLink: {
     textDecoration: "none",
@@ -20,7 +20,7 @@ const useStyles = makeStyles((theme) => ({
   },
 }));
 
-export default function CountryList() {
+export default function CountryList({ onCountryClick }) {
   const classes = useStyles();
   const [countries, setCountries] = useState([]);
 
@@ -31,19 +31,19 @@ export default function CountryList() {
       .catch((error) => console.error(error));
   }, []);
 
-  const handleCountryClick = (countryId) => {
-    console.log("Clicked on country ID:", countryId);
+  const handleClick = (countryId) => {
+    onCountryClick(countryId);
   };
 
   return (
     <div className={classes.countryList}>
       {countries.map((country) => (
-        <div key={country.id} className={classes.countryItem}>
-          <Link
-            to={`/browse/${country.id}`}
-            className={classes.countryLink}
-            onClick={() => handleCountryClick(country.id)}
-          >
+        <div
+          key={country.id}
+          className={classes.countryItem}
+          onClick={() => handleClick(country.id)}
+        >
+          <Link to={`/browse/${country.id}`} className={classes.countryLink}>
             {flags[country.formattedAddress]} {country.formattedAddress} (
             {country.numberOfBanners})
           </Link>

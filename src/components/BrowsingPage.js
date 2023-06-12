@@ -15,11 +15,11 @@ const useStyles = makeStyles((theme) => ({
     fontSize: "24px",
   },
   bannerContainer: {
-    display: "flex",
-    flexWrap: "wrap",
-    alignItems: "flex-start",
-    justifyContent: "center",
     marginTop: theme.spacing(2),
+  },
+  bannerGridItem: {
+    display: "flex",
+    justifyContent: "center",
   },
 }));
 
@@ -54,16 +54,25 @@ export default function BrowsingPage({ placeId }) {
       <Typography variant="h5">Browsing</Typography>
 
       <Grid container spacing={2}>
-        <Grid item xs={12} sm={6} md={4}>
-          <CountryList onCountryClick={handleCountryClick} />
-        </Grid>
-        <Grid item xs={12} sm={6} md={4}>
-          <PlaceList placeId={selectedCountry} />
-        </Grid>
+        {!selectedCountry && (
+          <Grid item xs={12} sm={6} md={4}>
+            <CountryList onCountryClick={handleCountryClick} />
+          </Grid>
+        )}
+        {selectedCountry && (
+          <Grid item xs={12} sm={6} md={4}>
+            <PlaceList placeId={selectedCountry} />
+          </Grid>
+        )}
         <Grid item xs={12} sm={12} md={4} className={classes.bannerContainer}>
           <Grid container spacing={2}>
             {banners.map((banner) => (
-              <Grid item xs={12} sm={6} md={4} key={banner.id}>
+              <Grid
+                item
+                xs={4}
+                key={banner.id}
+                className={classes.bannerGridItem}
+              >
                 <BannerCard banner={banner} />
               </Grid>
             ))}

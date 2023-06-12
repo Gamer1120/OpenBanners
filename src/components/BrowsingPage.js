@@ -8,14 +8,17 @@ import PlaceList from "./PlaceList";
 const useStyles = makeStyles((theme) => ({
   browsingContainer: {
     display: "flex",
-    justifyContent: "center",
+    flexDirection: "column",
     alignItems: "center",
-    height: "100%",
+    minHeight: "100vh",
     color: theme.palette.common.white,
     fontSize: "24px",
+    paddingTop: theme.spacing(2),
+    paddingBottom: theme.spacing(2),
   },
   bannerContainer: {
     marginTop: theme.spacing(2),
+    marginBottom: theme.spacing(2),
   },
   bannerGridItem: {
     display: "flex",
@@ -41,6 +44,10 @@ export default function BrowsingPage({ placeId }) {
       .then((response) => response.json())
       .then((data) => setBanners(data))
       .catch((error) => console.error(error));
+
+    return () => {
+      setSelectedCountry(null);
+    };
   }, [placeId]);
 
   const handleCountryClick = (countryId) => {
@@ -58,12 +65,12 @@ export default function BrowsingPage({ placeId }) {
 
       <Grid container spacing={2}>
         {!selectedCountry && (
-          <Grid item xs={12} sm={6} md={4}>
+          <Grid item xs={12} sm={6} md={2}>
             <CountryList onCountryClick={handleCountryClick} />
           </Grid>
         )}
-        {selectedCountry && (
-          <Grid item xs={12} sm={6} md={4}>
+        {selectedCountry && !placeId && (
+          <Grid item xs={12} sm={6} md={2}>
             <PlaceList placeId={selectedCountry} />
           </Grid>
         )}

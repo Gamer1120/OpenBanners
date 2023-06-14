@@ -40,15 +40,22 @@ const useStyles = makeStyles((theme) => ({
 export default function BrowsingPage({ placeId }) {
   const classes = useStyles();
   const [banners, setBanners] = useState([]);
-  const [sortOption, setSortOption] = useState("created");
-  const [sortOrder, setSortOrder] = useState("desc");
+  const [sortOption, setSortOption] = useState("Created");
+  const [sortOrder, setSortOrder] = useState("DESC");
+
+  const sortOptionsMap = {
+    Created: "created",
+    "A-Z": "title",
+    Distance: "lengthMeters",
+    "Nr. of Missions": "numberOfMissions",
+  };
 
   const handleSort = (option) => {
     if (option === sortOption) {
-      setSortOrder(sortOrder === "asc" ? "desc" : "asc");
+      setSortOrder(sortOrder === "ASC" ? "DESC" : "ASC");
     } else {
       setSortOption(option);
-      setSortOrder("desc");
+      setSortOrder("DESC");
     }
   };
 
@@ -56,15 +63,20 @@ export default function BrowsingPage({ placeId }) {
     const fetchBanners = async () => {
       try {
         let url =
-          "https://api.bannergress.com/bnrs?orderBy=created&orderDirection=DESC&online=true&limit=9&offset=0";
+          "https://api.bannergress.com/bnrs?online=true&limit=9&offset=0";
         if (placeId) {
           url += `&placeId=${placeId}`;
         }
-        url += `&orderBy=${sortOption}&orderDirection=${sortOrder}`;
+        url += `&orderBy=${sortOptionsMap[sortOption]}&orderDirection=${sortOrder}`;
         console.log("Fetch URL:", url);
         const response = await fetch(url);
         const data = await response.json();
-        setBanners(data);
+        if (data && Array.isArray(data)) {
+          console.log("Fetch Response:", data);
+          setBanners(data);
+        } else {
+          console.error("Invalid response data:", data);
+        }
       } catch (error) {
         console.error(error);
       }
@@ -91,10 +103,10 @@ export default function BrowsingPage({ placeId }) {
           <div className={classes.sortingContainer}>
             <Button
               variant="outlined"
-              onClick={() => handleSort("created")}
+              onClick={() => handleSort("Created")}
               endIcon={
-                sortOption === "created" ? (
-                  sortOrder === "asc" ? (
+                sortOption === "Created" ? (
+                  sortOrder === "ASC" ? (
                     <ArrowDropUp />
                   ) : (
                     <ArrowDropDown />
@@ -107,10 +119,10 @@ export default function BrowsingPage({ placeId }) {
             </Button>
             <Button
               variant="outlined"
-              onClick={() => handleSort("title")}
+              onClick={() => handleSort("A-Z")}
               endIcon={
-                sortOption === "title" ? (
-                  sortOrder === "asc" ? (
+                sortOption === "A-Z" ? (
+                  sortOrder === "ASC" ? (
                     <ArrowDropUp />
                   ) : (
                     <ArrowDropDown />
@@ -123,10 +135,10 @@ export default function BrowsingPage({ placeId }) {
             </Button>
             <Button
               variant="outlined"
-              onClick={() => handleSort("distance")}
+              onClick={() => handleSort("Distance")}
               endIcon={
-                sortOption === "distance" ? (
-                  sortOrder === "asc" ? (
+                sortOption === "Distance" ? (
+                  sortOrder === "ASC" ? (
                     <ArrowDropUp />
                   ) : (
                     <ArrowDropDown />
@@ -139,10 +151,10 @@ export default function BrowsingPage({ placeId }) {
             </Button>
             <Button
               variant="outlined"
-              onClick={() => handleSort("missions")}
+              onClick={() => handleSort("Nr. of Missions")}
               endIcon={
-                sortOption === "missions" ? (
-                  sortOrder === "asc" ? (
+                sortOption === "Nr. of Missions" ? (
+                  sortOrder === "ASC" ? (
                     <ArrowDropUp />
                   ) : (
                     <ArrowDropDown />

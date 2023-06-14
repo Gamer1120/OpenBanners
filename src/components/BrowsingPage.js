@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from "react";
 import { makeStyles } from "@mui/styles";
 import BannerCard from "./BannerCard";
-import { Container, Typography, Grid } from "@mui/material";
+import { Container, Typography, Grid, Button } from "@mui/material";
+import { ArrowDropDown, ArrowDropUp } from "@mui/icons-material";
 import PlacesList from "./PlacesList";
 
 const useStyles = makeStyles((theme) => ({
@@ -26,11 +27,30 @@ const useStyles = makeStyles((theme) => ({
   bannerColumn: {
     minWidth: "300px",
   },
+  sortingContainer: {
+    display: "flex",
+    justifyContent: "flex-end",
+    marginBottom: theme.spacing(2),
+  },
+  sortingButton: {
+    marginLeft: theme.spacing(2),
+  },
 }));
 
 export default function BrowsingPage({ placeId }) {
   const classes = useStyles();
   const [banners, setBanners] = useState([]);
+  const [sortOption, setSortOption] = useState("created");
+  const [sortOrder, setSortOrder] = useState("desc");
+
+  const handleSort = (option) => {
+    if (option === sortOption) {
+      setSortOrder(sortOrder === "asc" ? "desc" : "asc");
+    } else {
+      setSortOption(option);
+      setSortOrder("desc");
+    }
+  };
 
   useEffect(() => {
     const fetchBanners = async () => {
@@ -40,6 +60,7 @@ export default function BrowsingPage({ placeId }) {
         if (placeId) {
           url += `&placeId=${placeId}`;
         }
+        url += `&orderBy=${sortOption}&orderDirection=${sortOrder}`;
         console.log("Fetch URL:", url);
         const response = await fetch(url);
         const data = await response.json();
@@ -50,7 +71,7 @@ export default function BrowsingPage({ placeId }) {
     };
 
     fetchBanners();
-  }, [placeId]);
+  }, [placeId, sortOption, sortOrder]);
 
   return (
     <Container className={classes.browsingContainer}>
@@ -62,18 +83,78 @@ export default function BrowsingPage({ placeId }) {
       <Typography variant="h5">Browsing</Typography>
 
       <Grid container spacing={2}>
-        {!placeId && (
-          <Grid item xs={12} sm={6} md={2}>
-            <PlacesList />
-          </Grid>
-        )}
-        {placeId && (
-          <Grid item xs={12} sm={6} md={2}>
-            <PlacesList parentPlaceId={placeId} />
-          </Grid>
-        )}
-        <Grid item xs={12} sm={12} md={10} className={classes.bannerContainer}>
-          <Grid container spacing={2}>
+        <Grid item xs={12} sm={6} md={2}>
+          {!placeId && <PlacesList />}
+          {placeId && <PlacesList parentPlaceId={placeId} />}
+        </Grid>
+        <Grid item xs={12} sm={12} md={10}>
+          <div className={classes.sortingContainer}>
+            <Button
+              variant="outlined"
+              onClick={() => handleSort("created")}
+              endIcon={
+                sortOption === "created" ? (
+                  sortOrder === "asc" ? (
+                    <ArrowDropUp />
+                  ) : (
+                    <ArrowDropDown />
+                  )
+                ) : null
+              }
+              className={classes.sortingButton}
+            >
+              Created
+            </Button>
+            <Button
+              variant="outlined"
+              onClick={() => handleSort("title")}
+              endIcon={
+                sortOption === "title" ? (
+                  sortOrder === "asc" ? (
+                    <ArrowDropUp />
+                  ) : (
+                    <ArrowDropDown />
+                  )
+                ) : null
+              }
+              className={classes.sortingButton}
+            >
+              A-Z
+            </Button>
+            <Button
+              variant="outlined"
+              onClick={() => handleSort("distance")}
+              endIcon={
+                sortOption === "distance" ? (
+                  sortOrder === "asc" ? (
+                    <ArrowDropUp />
+                  ) : (
+                    <ArrowDropDown />
+                  )
+                ) : null
+              }
+              className={classes.sortingButton}
+            >
+              Distance
+            </Button>
+            <Button
+              variant="outlined"
+              onClick={() => handleSort("missions")}
+              endIcon={
+                sortOption === "missions" ? (
+                  sortOrder === "asc" ? (
+                    <ArrowDropUp />
+                  ) : (
+                    <ArrowDropDown />
+                  )
+                ) : null
+              }
+              className={classes.sortingButton}
+            >
+              Nr. of Missions
+            </Button>
+          </div>
+          <Grid container spacing={2} className={classes.bannerContainer}>
             {banners.map((banner) => (
               <Grid
                 item

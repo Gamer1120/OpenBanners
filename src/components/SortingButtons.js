@@ -2,7 +2,14 @@ import React from "react";
 import { Button } from "@mui/material";
 import { ArrowDropDown, ArrowDropUp } from "@mui/icons-material";
 
-export default function SortingButtons({ handleSort, sortOption, sortOrder }) {
+export default function SortingButtons({
+  handleSort,
+  sortOption,
+  sortOrder,
+  bannerCount,
+}) {
+  const showMissionsPerKmButton = bannerCount > 0 && bannerCount < 100;
+
   return (
     <div>
       <Button
@@ -64,6 +71,21 @@ export default function SortingButtons({ handleSort, sortOption, sortOrder }) {
         }
       >
         Nr. of Missions
+      </Button>
+      <Button
+        variant="outlined"
+        onClick={() => handleSort("MissionsPerKm")}
+        endIcon={
+          sortOption === "MissionsPerKm" ? (
+            sortOrder === "ASC" ? (
+              <ArrowDropUp />
+            ) : (
+              <ArrowDropDown />
+            )
+          ) : null
+        }
+      >
+        Missions per km
       </Button>
     </div>
   );

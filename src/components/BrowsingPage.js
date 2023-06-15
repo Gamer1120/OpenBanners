@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from "react";
 import { makeStyles } from "@mui/styles";
 import BannerCard from "./BannerCard";
-import { Container, Typography, Grid, Button } from "@mui/material";
-import { ArrowDropDown, ArrowDropUp } from "@mui/icons-material";
+import { Container, Grid } from "@mui/material";
+import BrowsingHeader from "./BrowsingHeader";
+import SortingButtons from "./SortingButtons";
 import PlacesList from "./PlacesList";
 
 const useStyles = makeStyles((theme) => ({
@@ -87,13 +88,7 @@ export default function BrowsingPage({ placeId }) {
 
   return (
     <Container className={classes.browsingContainer}>
-      <Typography variant="subtitle2" color="textSecondary">
-        This website is not associated with Bannergress, Ingress and/or Niantic.
-        This website is an alternative, open-source front-end for Bannergress's
-        back-end.
-      </Typography>
-      <Typography variant="h5">Browsing</Typography>
-
+      <BrowsingHeader />
       <Grid container spacing={2}>
         <Grid item xs={12} sm={6} md={2}>
           {!placeId && <PlacesList />}
@@ -101,70 +96,11 @@ export default function BrowsingPage({ placeId }) {
         </Grid>
         <Grid item xs={12} sm={12} md={10}>
           <div className={classes.sortingContainer}>
-            <Button
-              variant="outlined"
-              onClick={() => handleSort("Created")}
-              endIcon={
-                sortOption === "Created" ? (
-                  sortOrder === "ASC" ? (
-                    <ArrowDropUp />
-                  ) : (
-                    <ArrowDropDown />
-                  )
-                ) : null
-              }
-              className={classes.sortingButton}
-            >
-              Created
-            </Button>
-            <Button
-              variant="outlined"
-              onClick={() => handleSort("A-Z")}
-              endIcon={
-                sortOption === "A-Z" ? (
-                  sortOrder === "ASC" ? (
-                    <ArrowDropUp />
-                  ) : (
-                    <ArrowDropDown />
-                  )
-                ) : null
-              }
-              className={classes.sortingButton}
-            >
-              A-Z
-            </Button>
-            <Button
-              variant="outlined"
-              onClick={() => handleSort("Distance")}
-              endIcon={
-                sortOption === "Distance" ? (
-                  sortOrder === "ASC" ? (
-                    <ArrowDropUp />
-                  ) : (
-                    <ArrowDropDown />
-                  )
-                ) : null
-              }
-              className={classes.sortingButton}
-            >
-              Distance
-            </Button>
-            <Button
-              variant="outlined"
-              onClick={() => handleSort("Nr. of Missions")}
-              endIcon={
-                sortOption === "Nr. of Missions" ? (
-                  sortOrder === "ASC" ? (
-                    <ArrowDropUp />
-                  ) : (
-                    <ArrowDropDown />
-                  )
-                ) : null
-              }
-              className={classes.sortingButton}
-            >
-              Nr. of Missions
-            </Button>
+            <SortingButtons
+              handleSort={handleSort}
+              sortOption={sortOption}
+              sortOrder={sortOrder}
+            />
           </div>
           <Grid container spacing={2} className={classes.bannerContainer}>
             {banners.map((banner) => (

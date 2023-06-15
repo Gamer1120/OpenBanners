@@ -64,7 +64,7 @@ export default function BrowsingPage({ placeId }) {
     const fetchBanners = async () => {
       try {
         let url =
-          "https://api.bannergress.com/bnrs?online=true&limit=9&offset=0";
+          "https://api.bannergress.com/bnrs?online=true&limit=100&offset=0";
         if (placeId) {
           url += `&placeId=${placeId}`;
         }

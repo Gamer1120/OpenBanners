@@ -55,12 +55,17 @@ export default function BrowsingPage({ placeId }) {
     if (option === sortOption) {
       setSortOrder(sortOrder === "ASC" ? "DESC" : "ASC");
     } else {
-      setSortOption(option);
+      if (sortOption === "Efficiency") {
+        setSortOption("Created")
+      } else {
+        setSortOption(option);
+      }
       setSortOrder("DESC");
     }
   };
   
   function sortJsonByMissionsPerLength(data, sortOrder) {
+    console.log('Sorting by efficiency ' + sortOrder)
     return data.sort((a, b) => {
       const missionsPerLengthA = a.numberOfMissions / a.lengthMeters;
       const missionsPerLengthB = b.numberOfMissions / b.lengthMeters;
@@ -107,10 +112,12 @@ export default function BrowsingPage({ placeId }) {
   useEffect(() => {
     switch (sortOption) {
       case "Efficiency":
-        setBanners(sortJsonByMissionsPerLength(banners, sortOrder))
+        setBanners((prevBanners) =>
+          sortJsonByMissionsPerLength([...prevBanners], sortOrder)
+        );
         break;
       default:
-        fetchBanners()
+        fetchBanners();
     }
   }, [sortOption, sortOrder]);
 

@@ -102,6 +102,48 @@ export default function BrowsingPage({ placeId }) {
     }
   };
 
+  const fetchAllBanners = async () => {
+    try {
+      let offset = 0;
+      let allBanners = [];
+
+      if (!placeId) {
+        return;
+      }
+  
+      while (true) {
+        let url =
+          `https://api.bannergress.com/bnrs?online=true&limit=100&offset=${offset}`;
+  
+        if (placeId) {
+          url += `&placeId=${placeId}`;
+        }
+
+        console.log("Fetch URL:", url);
+  
+        const response = await fetch(url);
+        const data = await response.json();
+  
+        if (data && Array.isArray(data)) {
+          console.log("Fetch Response:", data);
+          allBanners = [...allBanners, ...data];
+          if (data.length === 0) {
+            break;
+          }
+          offset += 100;
+          console.log("offset is " + offset)
+        } else {
+          console.error("Invalid response data:", data);
+          break;
+        }
+      }
+  
+      setBanners(allBanners);
+    } catch (error) {
+      console.error(error);
+    }
+  };  
+
   useEffect(() => {
     setSortOption("Created");
     setSortOrder("DESC");
@@ -110,10 +152,12 @@ export default function BrowsingPage({ placeId }) {
   }, [placeId]);
 
   useEffect(() => {
+    console.log('sortoption or sortorder changed ' + sortOption + " " + sortOrder)
     switch (sortOption) {
       case "Efficiency":
-        setBanners((prevBanners) =>
-          sortJsonByMissionsPerLength([...prevBanners], sortOrder)
+        fetchAllBanners()
+        setBanners((banners) =>
+          sortJsonByMissionsPerLength([...banners], sortOrder)
         );
         break;
       default:

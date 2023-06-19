@@ -65,7 +65,6 @@ export default function BrowsingPage({ placeId }) {
   };
   
   function sortJsonByMissionsPerLength(data, sortOrder) {
-    console.log('Sorting by efficiency ' + sortOrder)
     return data.sort((a, b) => {
       const missionsPerLengthA = a.numberOfMissions / a.lengthMeters;
       const missionsPerLengthB = b.numberOfMissions / b.lengthMeters;
@@ -102,6 +101,47 @@ export default function BrowsingPage({ placeId }) {
     }
   };
 
+  const fetchAllBanners = async () => {
+    try {
+      let offset = 0;
+      let allBanners = [];
+
+      if (!placeId) {
+        return;
+      }
+  
+      while (true) {
+        let url =
+          `https://api.bannergress.com/bnrs?online=true&limit=100&offset=${offset}`;
+  
+        if (placeId) {
+          url += `&placeId=${placeId}`;
+        }
+
+        console.log("Fetch URL:", url);
+  
+        const response = await fetch(url);
+        const data = await response.json();
+  
+        if (data && Array.isArray(data)) {
+          console.log("Fetch Response:", data);
+          allBanners = [...allBanners, ...data];
+          if (data.length === 0) {
+            break;
+          }
+          offset += 100;
+        } else {
+          console.error("Invalid response data:", data);
+          break;
+        }
+      }
+  
+      setBanners(allBanners);
+    } catch (error) {
+      console.error(error);
+    }
+  };  
+
   useEffect(() => {
     setSortOption("Created");
     setSortOrder("DESC");
@@ -112,8 +152,9 @@ export default function BrowsingPage({ placeId }) {
   useEffect(() => {
     switch (sortOption) {
       case "Efficiency":
-        setBanners((prevBanners) =>
-          sortJsonByMissionsPerLength([...prevBanners], sortOrder)
+        fetchAllBanners()
+        setBanners((banners) =>
+          sortJsonByMissionsPerLength([...banners], sortOrder)
         );
         break;
       default:

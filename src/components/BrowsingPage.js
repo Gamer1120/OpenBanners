@@ -59,32 +59,60 @@ export default function BrowsingPage({ placeId }) {
       setSortOrder("DESC");
     }
   };
+  
+  function sortJsonByMissionsPerLength(data, sortOrder) {
+    return data.sort((a, b) => {
+      const missionsPerLengthA = a.numberOfMissions / a.lengthMeters;
+      const missionsPerLengthB = b.numberOfMissions / b.lengthMeters;
+  
+      if (sortOrder === "ASC") {
+        return missionsPerLengthA - missionsPerLengthB;
+      } else if (sortOrder === "DESC") {
+        return missionsPerLengthB - missionsPerLengthA;
+      } else {
+        return missionsPerLengthA - missionsPerLengthB;
+      }
+    });
+  }
+
+  const fetchBanners = async () => {
+    try {
+      let url =
+        "https://api.bannergress.com/bnrs?online=true&limit=100&offset=0";
+      if (placeId) {
+        url += `&placeId=${placeId}`;
+      }
+      url += `&orderBy=${sortOptionsMap[sortOption]}&orderDirection=${sortOrder}`;
+      console.log("Fetch URL:", url);
+      const response = await fetch(url);
+      const data = await response.json();
+      if (data && Array.isArray(data)) {
+        console.log("Fetch Response:", data);
+        setBanners(data);
+      } else {
+        console.error("Invalid response data:", data);
+      }
+    } catch (error) {
+      console.error(error);
+    }
+  };
 
   useEffect(() => {
-    const fetchBanners = async () => {
-      try {
-        let url =
-          "https://api.bannergress.com/bnrs?online=true&limit=100&offset=0";
-        if (placeId) {
-          url += `&placeId=${placeId}`;
-        }
-        url += `&orderBy=${sortOptionsMap[sortOption]}&orderDirection=${sortOrder}`;
-        console.log("Fetch URL:", url);
-        const response = await fetch(url);
-        const data = await response.json();
-        if (data && Array.isArray(data)) {
-          console.log("Fetch Response:", data);
-          setBanners(data);
-        } else {
-          console.error("Invalid response data:", data);
-        }
-      } catch (error) {
-        console.error(error);
-      }
-    };
-
+    setSortOption("Created");
+    setSortOrder("DESC");
+    setBanners([]);
     fetchBanners();
-  }, [placeId, sortOption, sortOrder]);
+  }, [placeId]);
+
+  useEffect(() => {
+    switch (sortOption) {
+      case "Efficiency":
+        setBanners(sortJsonByMissionsPerLength(banners, sortOrder))
+        break;
+      default:
+        fetchBanners()
+    }
+  }, [sortOption, sortOrder]);
 
   return (
     <Container className={classes.browsingContainer}>

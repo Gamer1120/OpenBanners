@@ -65,6 +65,21 @@ export default function SortingButtons({ handleSort, sortOption, sortOrder }) {
       >
         Nr. of Missions
       </Button>
+      <Button
+        variant="outlined"
+        onClick={() => handleSort("Efficiency")}
+        endIcon={
+          sortOption === "Efficiency" ? (
+            sortOrder === "ASC" ? (
+              <ArrowDropUp />
+            ) : (
+              <ArrowDropDown />
+            )
+          ) : null
+        }
+      >
+        Efficiency
+      </Button>
     </div>
   );
 }

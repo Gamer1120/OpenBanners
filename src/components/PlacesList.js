@@ -35,11 +35,8 @@ export default function PlacesList() {
           url += "&type=country";
         }
 
-        console.log(url); // Log the URL of the fetch request
-
         const response = await fetch(url);
         const data = await response.json();
-        console.log(data); // Log the data received from the API
         setPlaces(data);
       } catch (error) {
         console.error(error);

@@ -65,7 +65,6 @@ export default function BrowsingPage({ placeId }) {
   };
   
   function sortJsonByMissionsPerLength(data, sortOrder) {
-    console.log('Sorting by efficiency ' + sortOrder)
     return data.sort((a, b) => {
       const missionsPerLengthA = a.numberOfMissions / a.lengthMeters;
       const missionsPerLengthB = b.numberOfMissions / b.lengthMeters;
@@ -131,7 +130,6 @@ export default function BrowsingPage({ placeId }) {
             break;
           }
           offset += 100;
-          console.log("offset is " + offset)
         } else {
           console.error("Invalid response data:", data);
           break;
@@ -152,7 +150,6 @@ export default function BrowsingPage({ placeId }) {
   }, [placeId]);
 
   useEffect(() => {
-    console.log('sortoption or sortorder changed ' + sortOption + " " + sortOrder)
     switch (sortOption) {
       case "Efficiency":
         fetchAllBanners()

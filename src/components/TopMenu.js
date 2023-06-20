@@ -45,10 +45,11 @@ const useStyles = makeStyles((theme) => ({
 }));
 
 export default function TopMenu({ onBrowseClick, onTitleClick, onSearch }) {
-  const [searchQuery, setSearchQuery] = useState("");
   const classes = useStyles();
+  const [searchQuery, setSearchQuery] = useState("");
 
   const handleSearch = (event) => {
+    event.preventDefault();
     onSearch(searchQuery);
   };
 
@@ -80,14 +81,14 @@ export default function TopMenu({ onBrowseClick, onTitleClick, onSearch }) {
           </Button>
         </Container>
         <Container className={classes.searchContainer}>
-          <form onSubmit={handleSearch}>
+          <form onSubmit={handleSearch} searchQuery={searchQuery}>
             <TextField
               variant="outlined"
               placeholder="Search"
               size="small"
               className={classes.searchInput}
               value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
+              onChange={(event) => setSearchQuery(event.target.value)}
               InputProps={{
                 endAdornment: (
                   <InputAdornment position="end">

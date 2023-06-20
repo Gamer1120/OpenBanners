@@ -17,18 +17,17 @@ const useStyles = makeStyles((theme) => ({
 export default function Home() {
   const classes = useStyles();
   const [isBrowsing, setIsBrowsing] = useState(false);
-  const { placeId } = useParams();
+  const { placeId, searchQuery } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
-  const [searchQuery, setSearchQuery] = useState("");
 
   const handleBrowseClick = () => {
     setIsBrowsing(true);
     navigate("/browse/");
   };
 
-  const handleSearch = (event) => {
-    navigate(`/search/${event}`);
+  const handleSearch = (query) => {
+    navigate(`/search/${encodeURIComponent(query)}`);
   };
 
   const handleTitleClick = () => {

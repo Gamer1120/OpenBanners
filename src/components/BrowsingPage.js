@@ -109,7 +109,7 @@ export default function BrowsingPage({ placeId }) {
       let allBanners = [];
 
       if (!placeId) {
-        return;
+        return allBanners;
       }
 
       while (true) {
@@ -137,9 +137,10 @@ export default function BrowsingPage({ placeId }) {
         }
       }
 
-      setBanners(allBanners);
+      return allBanners;
     } catch (error) {
       console.error(error);
+      return [];
     }
   };
 
@@ -152,8 +153,11 @@ export default function BrowsingPage({ placeId }) {
 
   useEffect(() => {
     if (sortOption === "Efficiency") {
-      fetchAllBanners().then(() => {
-        const sortedBanners = sortJsonByMissionsPerLength(banners, sortOrder);
+      fetchAllBanners().then((allBanners) => {
+        const sortedBanners = sortJsonByMissionsPerLength(
+          allBanners,
+          sortOrder
+        );
         setBanners(sortedBanners);
       });
     } else {

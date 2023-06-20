@@ -1,15 +1,19 @@
 // src/components/SearchResults.js
 
 import React, { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 
-export default function SearchResults({ query }) {
+export default function SearchResults() {
   const [results, setResults] = useState([]);
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+  const { query } = useParams();
+
+  useEffect(() => {
+    fetchSearchResults();
+  }, [query]);
 
   const fetchSearchResults = async () => {
-    console.log("fetching search results");
     setLoading(true);
     try {
       const response = await fetch(

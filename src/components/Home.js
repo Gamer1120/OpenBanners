@@ -17,7 +17,7 @@ const useStyles = makeStyles((theme) => ({
 export default function Home() {
   const classes = useStyles();
   const [currentView, setCurrentView] = useState("bannersNearMe");
-  const { placeId, searchQuery } = useParams();
+  const { placeId } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -38,7 +38,7 @@ export default function Home() {
 
   useEffect(() => {
     if (location.pathname.startsWith("/search/")) {
-      setCurrentView("searchResults");
+      setCurrentView("searching");
     } else if (location.pathname.startsWith("/browse/")) {
       setCurrentView("browsing");
     } else {
@@ -55,7 +55,7 @@ export default function Home() {
       />
       {currentView === "bannersNearMe" && <BannersNearMe />}
       {currentView === "browsing" && <BrowsingPage placeId={placeId} />}
-      {currentView === "searching" && <SearchResults query={searchQuery} />}
+      {currentView === "searching" && <SearchResults />}
     </div>
   );
 }

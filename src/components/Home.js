@@ -16,27 +16,34 @@ const useStyles = makeStyles((theme) => ({
 
 export default function Home() {
   const classes = useStyles();
-  const [isBrowsing, setIsBrowsing] = useState(false);
+  const [currentView, setCurrentView] = useState("bannersNearMe");
   const { placeId, searchQuery } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
 
   const handleBrowseClick = () => {
-    setIsBrowsing(true);
+    setCurrentView("browsing");
     navigate("/browse/");
   };
 
   const handleSearch = (query) => {
+    setCurrentView("searching");
     navigate(`/search/${encodeURIComponent(query)}`);
   };
 
   const handleTitleClick = () => {
-    setIsBrowsing(false);
+    setCurrentView("bannersNearMe");
     navigate("/");
   };
 
   useEffect(() => {
-    setIsBrowsing(location.pathname.startsWith("/browse/"));
+    if (location.pathname.startsWith("/search/")) {
+      setCurrentView("searchResults");
+    } else if (location.pathname.startsWith("/browse/")) {
+      setCurrentView("browsing");
+    } else {
+      setCurrentView("bannersNearMe");
+    }
   }, [location.pathname]);
 
   return (
@@ -46,15 +53,9 @@ export default function Home() {
         onTitleClick={handleTitleClick}
         onSearch={handleSearch}
       />
-      {!isBrowsing ? (
-        searchQuery ? (
-          <SearchResults query={searchQuery} />
-        ) : (
-          <BannersNearMe />
-        )
-      ) : (
-        <BrowsingPage placeId={placeId} />
-      )}
+      {currentView === "bannersNearMe" && <BannersNearMe />}
+      {currentView === "browsing" && <BrowsingPage placeId={placeId} />}
+      {currentView === "searching" && <SearchResults query={searchQuery} />}
     </div>
   );
 }

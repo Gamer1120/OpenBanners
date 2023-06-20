@@ -12,6 +12,7 @@ function App() {
           <Route exact path="/browse/" element={<Home />} />
           <Route exact path="/browse/:placeId" element={<Home />} />
           <Route path="/banner/:bannerId" element={<Map />} />
+          <Route path="/search/:query" element={<Home />} />
         </Routes>
       </Router>
     </div>

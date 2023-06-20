@@ -1,17 +1,18 @@
 import pyperclip
 
 files = [
-    # "src/components/Home.js",
-    # "src/App.css",
-    # "src/index.js",
-    # "src/components/TopMenu.js",
-    "src/components/BrowsingPage.js",
+    "src/components/Home.js",
+    "src/App.css",
+    "src/index.js",
+    "src/components/TopMenu.js",
+    # "src/components/BrowsingPage.js",
     "src/components/BannerCard.js",
     # "src/components/BannersNearMe.js",
     # "src/components/BrowsingHeader.js",
-    "src/components/SortingButtons.js",
-    # "src/App.js",
+    # "src/components/SortingButtons.js",
+    "src/App.js",
     # "src/components/PlacesList.js",
+    "src/components/SearchResults.js",
 ]
 
 # files = [

@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import {
   AppBar,
   Toolbar,
@@ -44,8 +44,13 @@ const useStyles = makeStyles((theme) => ({
   },
 }));
 
-export default function TopMenu({ onBrowseClick, onTitleClick }) {
+export default function TopMenu({ onBrowseClick, onTitleClick, onSearch }) {
+  const [searchQuery, setSearchQuery] = useState("");
   const classes = useStyles();
+
+  const handleSearch = (event) => {
+    onSearch(searchQuery);
+  };
 
   return (
     <AppBar position="static" className={classes.appBar}>
@@ -75,21 +80,25 @@ export default function TopMenu({ onBrowseClick, onTitleClick }) {
           </Button>
         </Container>
         <Container className={classes.searchContainer}>
-          <TextField
-            variant="outlined"
-            placeholder="Search"
-            size="small"
-            className={classes.searchInput}
-            InputProps={{
-              endAdornment: (
-                <InputAdornment position="end">
-                  <IconButton>
-                    <Search />
-                  </IconButton>
-                </InputAdornment>
-              ),
-            }}
-          />
+          <form onSubmit={handleSearch}>
+            <TextField
+              variant="outlined"
+              placeholder="Search"
+              size="small"
+              className={classes.searchInput}
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              InputProps={{
+                endAdornment: (
+                  <InputAdornment position="end">
+                    <IconButton type="submit">
+                      <Search />
+                    </IconButton>
+                  </InputAdornment>
+                ),
+              }}
+            />
+          </form>
         </Container>
       </Toolbar>
     </AppBar>

@@ -43,6 +43,8 @@ export default function BrowsingPage({ placeId }) {
   const [banners, setBanners] = useState([]);
   const [sortOption, setSortOption] = useState("Created");
   const [sortOrder, setSortOrder] = useState("DESC");
+  const [bannersFetchedForEfficiency, setBannersFetchedForEfficiency] =
+    useState(false);
 
   const sortOptionsMap = {
     Created: "created",
@@ -58,6 +60,7 @@ export default function BrowsingPage({ placeId }) {
       if (sortOption === "Efficiency") {
         setSortOption("Created");
       } else {
+        setBannersFetchedForEfficiency(false);
         setSortOption(option);
       }
       setSortOrder("DESC");
@@ -108,7 +111,7 @@ export default function BrowsingPage({ placeId }) {
       let offset = 0;
       let allBanners = [];
 
-      if (!placeId) {
+      if (!placeId || bannersFetchedForEfficiency) {
         return allBanners;
       }
 
@@ -125,7 +128,7 @@ export default function BrowsingPage({ placeId }) {
         const data = await response.json();
 
         if (data && Array.isArray(data)) {
-          console.log("Fetch Response:", data);
+          // console.log("Fetch Response:", data);
           allBanners = [...allBanners, ...data];
           if (data.length === 0) {
             break;
@@ -148,18 +151,28 @@ export default function BrowsingPage({ placeId }) {
     setSortOption("Created");
     setSortOrder("DESC");
     setBanners([]);
+    setBannersFetchedForEfficiency(false);
     fetchBanners();
   }, [placeId]);
 
   useEffect(() => {
     if (sortOption === "Efficiency") {
-      fetchAllBanners().then((allBanners) => {
-        const sortedBanners = sortJsonByMissionsPerLength(
-          allBanners,
-          sortOrder
-        );
+      console.log(
+        "banners fetched for efficiency " + bannersFetchedForEfficiency
+      );
+      if (bannersFetchedForEfficiency) {
+        const sortedBanners = sortJsonByMissionsPerLength(banners, sortOrder);
         setBanners(sortedBanners);
-      });
+      } else {
+        fetchAllBanners().then((allBanners) => {
+          const sortedBanners = sortJsonByMissionsPerLength(
+            allBanners,
+            sortOrder
+          );
+          setBanners(sortedBanners);
+          setBannersFetchedForEfficiency(true);
+        });
+      }
     } else {
       fetchBanners();
     }

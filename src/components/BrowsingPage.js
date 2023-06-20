@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { makeStyles } from "@mui/styles";
 import BannerCard from "./BannerCard";
-import { Container, Grid } from "@mui/material";
+import { Container, Grid, Typography } from "@mui/material";
 import BrowsingHeader from "./BrowsingHeader";
 import SortingButtons from "./SortingButtons";
 import PlacesList from "./PlacesList";
@@ -45,6 +45,7 @@ export default function BrowsingPage({ placeId }) {
   const [sortOrder, setSortOrder] = useState("DESC");
   const [bannersFetchedForEfficiency, setBannersFetchedForEfficiency] =
     useState(false);
+  const [loading, setLoading] = useState(false);
 
   const sortOptionsMap = {
     Created: "created",
@@ -115,6 +116,8 @@ export default function BrowsingPage({ placeId }) {
         return allBanners;
       }
 
+      setLoading(true);
+
       while (true) {
         let url = `https://api.bannergress.com/bnrs?online=true&limit=100&offset=${offset}`;
 
@@ -139,6 +142,8 @@ export default function BrowsingPage({ placeId }) {
           break;
         }
       }
+
+      setLoading(false);
 
       return allBanners;
     } catch (error) {
@@ -195,18 +200,28 @@ export default function BrowsingPage({ placeId }) {
               placeId={placeId}
             />
           </div>
-          <Grid container spacing={2} className={classes.bannerContainer}>
-            {banners.map((banner) => (
-              <Grid
-                item
-                xs={4}
-                key={banner.id}
-                className={classes.bannerGridItem}
-              >
-                <BannerCard banner={banner} />
-              </Grid>
-            ))}
-          </Grid>
+          {loading ? (
+            <Typography
+              variant="body2"
+              color="text.secondary"
+              className={classes.loadingText}
+            >
+              Loading...
+            </Typography>
+          ) : (
+            <Grid container spacing={2} className={classes.bannerContainer}>
+              {banners.map((banner) => (
+                <Grid
+                  item
+                  xs={4}
+                  key={banner.id}
+                  className={classes.bannerGridItem}
+                >
+                  <BannerCard banner={banner} />
+                </Grid>
+              ))}
+            </Grid>
+          )}
         </Grid>
       </Grid>
     </Container>

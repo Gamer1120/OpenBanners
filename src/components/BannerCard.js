@@ -57,6 +57,13 @@ export default function BannerCard({ banner }) {
               {Math.round((banner.lengthMeters / 1000) * 10) / 10} km
             </Typography>
             <Typography variant="body2" color="text.secondary">
+              EFF:{" "}
+              {((banner.numberOfMissions / banner.lengthMeters) * 1000).toFixed(
+                3
+              )}
+            </Typography>
+
+            <Typography variant="body2" color="text.secondary">
               {banner.formattedAddress}
             </Typography>
           </CardContent>

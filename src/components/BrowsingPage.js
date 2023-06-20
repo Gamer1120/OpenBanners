@@ -65,6 +65,8 @@ export default function BrowsingPage({ placeId }) {
   };
 
   function sortJsonByMissionsPerLength(data, sortOrder) {
+    console.log("data");
+    console.log(data);
     return data.sort((a, b) => {
       const missionsPerLengthA = a.numberOfMissions / a.lengthMeters;
       const missionsPerLengthB = b.numberOfMissions / b.lengthMeters;
@@ -149,15 +151,13 @@ export default function BrowsingPage({ placeId }) {
   }, [placeId]);
 
   useEffect(() => {
-    switch (sortOption) {
-      case "Efficiency":
-        fetchAllBanners();
-        setBanners((banners) =>
-          sortJsonByMissionsPerLength([...banners], sortOrder)
-        );
-        break;
-      default:
-        fetchBanners();
+    if (sortOption === "Efficiency") {
+      fetchAllBanners().then(() => {
+        const sortedBanners = sortJsonByMissionsPerLength(banners, sortOrder);
+        setBanners(sortedBanners);
+      });
+    } else {
+      fetchBanners();
     }
   }, [sortOption, sortOrder]);
 

@@ -60,7 +60,8 @@ export default function BannerCard({ banner }) {
               Efficiency:{" "}
               {((banner.numberOfMissions / banner.lengthMeters) * 1000).toFixed(
                 3
-              )}
+              )}{" "}
+              missions/km
             </Typography>
 
             <Typography variant="body2" color="text.secondary">

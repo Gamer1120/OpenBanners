@@ -2,7 +2,12 @@ import React from "react";
 import { Button } from "@mui/material";
 import { ArrowDropDown, ArrowDropUp } from "@mui/icons-material";
 
-export default function SortingButtons({ handleSort, sortOption, sortOrder }) {
+export default function SortingButtons({
+  handleSort,
+  sortOption,
+  sortOrder,
+  placeId,
+}) {
   return (
     <div>
       <Button
@@ -65,21 +70,26 @@ export default function SortingButtons({ handleSort, sortOption, sortOrder }) {
       >
         Nr. of Missions
       </Button>
-      <Button
-        variant="outlined"
-        onClick={() => handleSort("Efficiency")}
-        endIcon={
-          sortOption === "Efficiency" ? (
-            sortOrder === "ASC" ? (
-              <ArrowDropUp />
-            ) : (
-              <ArrowDropDown />
-            )
-          ) : null
-        }
-      >
-        Efficiency
-      </Button>
+      {placeId &&
+        placeId !== "united-states-3d4e" &&
+        placeId !== "japan-8068" &&
+        placeId !== "germany-ea85" && (
+          <Button
+            variant="outlined"
+            onClick={() => handleSort("Efficiency")}
+            endIcon={
+              sortOption === "Efficiency" ? (
+                sortOrder === "ASC" ? (
+                  <ArrowDropUp />
+                ) : (
+                  <ArrowDropDown />
+                )
+              ) : null
+            }
+          >
+            Efficiency
+          </Button>
+        )}
     </div>
   );
 }

@@ -56,19 +56,19 @@ export default function BrowsingPage({ placeId }) {
       setSortOrder(sortOrder === "ASC" ? "DESC" : "ASC");
     } else {
       if (sortOption === "Efficiency") {
-        setSortOption("Created")
+        setSortOption("Created");
       } else {
         setSortOption(option);
       }
       setSortOrder("DESC");
     }
   };
-  
+
   function sortJsonByMissionsPerLength(data, sortOrder) {
     return data.sort((a, b) => {
       const missionsPerLengthA = a.numberOfMissions / a.lengthMeters;
       const missionsPerLengthB = b.numberOfMissions / b.lengthMeters;
-  
+
       if (sortOrder === "ASC") {
         return missionsPerLengthA - missionsPerLengthB;
       } else if (sortOrder === "DESC") {
@@ -109,20 +109,19 @@ export default function BrowsingPage({ placeId }) {
       if (!placeId) {
         return;
       }
-  
+
       while (true) {
-        let url =
-          `https://api.bannergress.com/bnrs?online=true&limit=100&offset=${offset}`;
-  
+        let url = `https://api.bannergress.com/bnrs?online=true&limit=100&offset=${offset}`;
+
         if (placeId) {
           url += `&placeId=${placeId}`;
         }
 
         console.log("Fetch URL:", url);
-  
+
         const response = await fetch(url);
         const data = await response.json();
-  
+
         if (data && Array.isArray(data)) {
           console.log("Fetch Response:", data);
           allBanners = [...allBanners, ...data];
@@ -135,12 +134,12 @@ export default function BrowsingPage({ placeId }) {
           break;
         }
       }
-  
+
       setBanners(allBanners);
     } catch (error) {
       console.error(error);
     }
-  };  
+  };
 
   useEffect(() => {
     setSortOption("Created");
@@ -152,7 +151,7 @@ export default function BrowsingPage({ placeId }) {
   useEffect(() => {
     switch (sortOption) {
       case "Efficiency":
-        fetchAllBanners()
+        fetchAllBanners();
         setBanners((banners) =>
           sortJsonByMissionsPerLength([...banners], sortOrder)
         );
@@ -176,6 +175,7 @@ export default function BrowsingPage({ placeId }) {
               handleSort={handleSort}
               sortOption={sortOption}
               sortOrder={sortOrder}
+              placeId={placeId}
             />
           </div>
           <Grid container spacing={2} className={classes.bannerContainer}>

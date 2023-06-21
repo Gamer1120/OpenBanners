@@ -79,7 +79,7 @@ export default function Map() {
         ref={mapRef}
         id="map"
         center={[52.221058, 6.893297]}
-        zoom={8}
+        zoom={15}
         scrollWheelZoom={true}
       >
         <TileLayer

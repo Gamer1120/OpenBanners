@@ -246,7 +246,8 @@ export default function BrowsingPage({ placeId }) {
               {banners.map((banner) => (
                 <Grid
                   item
-                  xs={4}
+                  xs={6}
+                  sm={4}
                   key={banner.id}
                   className={classes.bannerGridItem}
                 >

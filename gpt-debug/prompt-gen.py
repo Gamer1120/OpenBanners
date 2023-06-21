@@ -6,13 +6,14 @@ files = [
     "src/index.js",
     "src/components/TopMenu.js",
     # "src/components/BrowsingPage.js",
-    "src/components/BannerCard.js",
+    # "src/components/BannerCard.js",
     # "src/components/BannersNearMe.js",
     # "src/components/BrowsingHeader.js",
     # "src/components/SortingButtons.js",
     "src/App.js",
+    "src/components/Map.js",
     # "src/components/PlacesList.js",
-    "src/components/SearchResults.js",
+    # "src/components/SearchResults.js",
 ]
 
 # files = [

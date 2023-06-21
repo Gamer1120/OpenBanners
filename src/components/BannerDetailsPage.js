@@ -2,8 +2,9 @@ import { MapContainer, TileLayer } from "react-leaflet";
 import LocationMarker from "./LocationMarker";
 import BannerMarkers from "./BannerMarkers";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
-import MapOverlay from "./MapOverlay";
 import { useState, useEffect } from "react";
+import BannerDetailsCard from "./BannerDetailsCard";
+import BannerInfo from "./BannerInfo";
 
 export default function BannerDetailsPage() {
   const { bannerId } = useParams();
@@ -20,6 +21,8 @@ export default function BannerDetailsPage() {
       .then(
         (result) => {
           setItems(result);
+          console.log("items");
+          console.log(result);
           setIsLoading(false);
         },
         (error) => {
@@ -45,28 +48,30 @@ export default function BannerDetailsPage() {
   }
 
   return (
-    <div>
-      <MapContainer
-        id="map"
-        center={[52.221058, 6.893297]}
-        zoom={8}
-        scrollWheelZoom={true}
-      >
-        <TileLayer
-          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors. This website is NOT affiliated with Bannergress in any way!'
-          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-        />
-        <BannerMarkers
-          missions={Object.values(items.missions)}
-          currentMission={currentMission}
-        />
-        <LocationMarker />
-      </MapContainer>
-      <MapOverlay
-        missions={Object.values(items.missions)}
-        currentMission={currentMission}
-        setCurrentMission={setCurrentMission}
-      />
+    <div style={{ display: "flex" }}>
+      <div style={{ flex: "2" }}>
+        <BannerDetailsCard banner={items} />
+        <BannerInfo description={items.description} />
+      </div>
+      <div style={{ flex: "3" }}>
+        <MapContainer
+          id="map"
+          center={[52.221058, 6.893297]}
+          zoom={8}
+          scrollWheelZoom={true}
+          style={{ height: "100vh" }}
+        >
+          <TileLayer
+            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors. This website is NOT affiliated with Bannergress in any way!'
+            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+          />
+          <BannerMarkers
+            missions={Object.values(items.missions)}
+            currentMission={currentMission}
+          />
+          <LocationMarker />
+        </MapContainer>
+      </div>
     </div>
   );
 }

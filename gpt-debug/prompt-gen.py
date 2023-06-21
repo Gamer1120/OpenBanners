@@ -6,7 +6,7 @@ files = [
     "src/index.js",
     "src/components/TopMenu.js",
     # "src/components/BrowsingPage.js",
-    # "src/components/BannerCard.js",
+    "src/components/BannerCard.js",
     # "src/components/BannersNearMe.js",
     # "src/components/BrowsingHeader.js",
     # "src/components/SortingButtons.js",
@@ -14,6 +14,9 @@ files = [
     "src/components/Map.js",
     # "src/components/PlacesList.js",
     # "src/components/SearchResults.js",
+    "src/components/BannerDetailsPage.js",
+    "src/components/BannerDetailsCard.js",
+    "src/components/BannerInfo.js",
 ]
 
 # files = [

@@ -36,7 +36,7 @@ export default function BannerCard({ banner }) {
   const classes = useStyles();
 
   return (
-    <Link to={`/bannerguide/${banner.id}`} style={{ textDecoration: "none" }}>
+    <Link to={`/banner/${banner.id}`} style={{ textDecoration: "none" }}>
       <Card className={classes.card}>
         <CardActionArea>
           <Typography gutterBottom variant="h6" component="div">

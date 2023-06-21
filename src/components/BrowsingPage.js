@@ -202,7 +202,7 @@ export default function BrowsingPage({ placeId }) {
     <Container className={classes.browsingContainer}>
       <BrowsingHeader />
       <Grid container spacing={2}>
-        <Grid item xs={12} sm={6} md={2}>
+        <Grid item xs={12} sm={3} md={2}>
           {isSmallScreen && (
             <div>
               <Button variant="outlined" onClick={handlePlacesListToggle}>
@@ -220,7 +220,7 @@ export default function BrowsingPage({ placeId }) {
         <Grid
           item
           xs={12}
-          sm={isSmallScreen ? 12 : 6}
+          sm={isSmallScreen ? 12 : 9}
           md={isSmallScreen ? 12 : 10}
         >
           <div className={classes.sortingContainer}>

@@ -15,9 +15,9 @@ files = [
     # "src/components/BannerMarkers.js",
     # "src/components/PlacesList.js",
     # "src/components/SearchResults.js",
-    "src/components/BannerDetailsPage.js",
-    "src/components/BannerDetailsCard.js",
-    "src/components/BannerInfo.js",
+    # "src/components/BannerDetailsPage.js",
+    # "src/components/BannerDetailsCard.js",
+    # "src/components/BannerInfo.js",
 ]
 
 # files = [

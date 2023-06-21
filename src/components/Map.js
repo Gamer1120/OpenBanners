@@ -56,6 +56,9 @@ export default function Map() {
         })
         .filter((coord) => coord !== null);
 
+      console.log("items.missions:", items.missions);
+      console.log("missionCoordinates:", missionCoordinates);
+
       if (missionCoordinates.length > 0) {
         const bounds = L.latLngBounds(missionCoordinates);
         mapRef.current.fitBounds(bounds, {

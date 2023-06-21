@@ -5,6 +5,7 @@ import TopMenu from "./TopMenu";
 import BannersNearMe from "./BannersNearMe";
 import BrowsingPage from "./BrowsingPage";
 import SearchResults from "./SearchResults";
+import BannerDetailsPage from "./BannerDetailsPage";
 
 const useStyles = makeStyles((theme) => ({
   root: {
@@ -41,6 +42,8 @@ export default function Home() {
       setCurrentView("searching");
     } else if (location.pathname.startsWith("/browse/")) {
       setCurrentView("browsing");
+    } else if (location.pathname.startsWith("/banner/")) {
+      setCurrentView("bannerDetails");
     } else {
       setCurrentView("bannersNearMe");
     }
@@ -56,6 +59,7 @@ export default function Home() {
       {currentView === "bannersNearMe" && <BannersNearMe />}
       {currentView === "browsing" && <BrowsingPage placeId={placeId} />}
       {currentView === "searching" && <SearchResults />}
+      {currentView === "bannerDetails" && <BannerDetailsPage />}
     </div>
   );
 }

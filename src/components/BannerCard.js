@@ -6,6 +6,7 @@ import {
   CardContent,
   CardMedia,
   Typography,
+  Box,
 } from "@mui/material";
 import { makeStyles } from "@mui/styles";
 
@@ -30,10 +31,27 @@ const useStyles = makeStyles((theme) => ({
     height: "auto",
     objectFit: "contain",
   },
+  overlay: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    width: "100%",
+    height: "100%",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "rgba(0, 0, 0, 0.7)",
+    color: "#fff",
+    fontSize: "24px",
+    fontWeight: "bold",
+    textAlign: "center",
+  },
 }));
 
 export default function BannerCard({ banner }) {
   const classes = useStyles();
+
+  console.log(banner);
 
   return (
     <Link to={`/banner/${banner.id}`} style={{ textDecoration: "none" }}>
@@ -50,6 +68,11 @@ export default function BannerCard({ banner }) {
               alt={banner.title}
               className={classes.cardMedia}
             />
+            {banner.numberOfDisabledMissions > 0 && (
+              <Box className={classes.overlay}>
+                <Typography variant="body1">Banner Offline</Typography>
+              </Box>
+            )}
           </div>
           <CardContent>
             <Typography variant="body2" color="text.secondary">

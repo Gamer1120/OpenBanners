@@ -72,12 +72,20 @@ export default function BannerDetailsPage() {
   }
 
   return (
-    <div
-      style={{
-        display: "flex",
-        flexDirection: "column-reverse", // Reverse the order on narrow screens
-      }}
-    >
+    <div style={{ display: "flex" }}>
+      <div
+        style={{
+          flex: "2",
+          display: "flex",
+          justifyContent: "center",
+          alignItems: "center",
+        }}
+      >
+        <div style={{ maxWidth: "400px", margin: "0 auto" }}>
+          <BannerDetailsCard banner={items} />
+          <BannerInfo banner={items} />
+        </div>
+      </div>
       <div style={{ flex: "3" }}>
         <MapContainer
           id="map"
@@ -97,20 +105,6 @@ export default function BannerDetailsPage() {
           />
           <LocationMarker />
         </MapContainer>
-      </div>
-      <div
-        style={{
-          flex: "2",
-          display: "flex",
-          flexDirection: "column",
-          justifyContent: "center",
-          alignItems: "center",
-          maxWidth: "400px",
-          margin: "0 auto",
-        }}
-      >
-        <BannerDetailsCard banner={items} />
-        <BannerInfo banner={items} />
       </div>
     </div>
   );

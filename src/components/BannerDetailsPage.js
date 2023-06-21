@@ -96,7 +96,6 @@ export default function BannerDetailsPage() {
             missions={items.missions ? Object.values(items.missions) : []}
             currentMission={currentMission}
           />
-          <LocationMarker />
         </MapContainer>
       </div>
     </div>

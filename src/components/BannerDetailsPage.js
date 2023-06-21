@@ -73,9 +73,18 @@ export default function BannerDetailsPage() {
 
   return (
     <div style={{ display: "flex" }}>
-      <div style={{ flex: "2" }}>
-        <BannerDetailsCard banner={items} />
-        <BannerInfo banner={items} />
+      <div
+        style={{
+          flex: "2",
+          display: "flex",
+          justifyContent: "center",
+          alignItems: "center",
+        }}
+      >
+        <div style={{ maxWidth: "400px", margin: "0 auto" }}>
+          <BannerDetailsCard banner={items} />
+          <BannerInfo banner={items} />
+        </div>
       </div>
       <div style={{ flex: "3" }}>
         <MapContainer

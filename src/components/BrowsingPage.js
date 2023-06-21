@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { makeStyles } from "@mui/styles";
 import BannerCard from "./BannerCard";
-import { Container, Grid, Typography } from "@mui/material";
+import { Container, Grid, Typography, Button } from "@mui/material";
 import BrowsingHeader from "./BrowsingHeader";
 import SortingButtons from "./SortingButtons";
 import PlacesList from "./PlacesList";
@@ -47,6 +47,7 @@ export default function BrowsingPage({ placeId }) {
     useState(false);
   const [loading, setLoading] = useState(false);
   const [showOffline, setShowOffline] = useState(false);
+  const [isPlacesListExpanded, setIsPlacesListExpanded] = useState(true);
 
   const sortOptionsMap = {
     Created: "created",
@@ -71,6 +72,10 @@ export default function BrowsingPage({ placeId }) {
 
   const toggleShowOffline = () => {
     setShowOffline(!showOffline);
+  };
+
+  const handlePlacesListToggle = () => {
+    setIsPlacesListExpanded(!isPlacesListExpanded);
   };
 
   function sortJsonByMissionsPerLength(data, sortOrder) {
@@ -193,8 +198,14 @@ export default function BrowsingPage({ placeId }) {
       <BrowsingHeader />
       <Grid container spacing={2}>
         <Grid item xs={12} sm={6} md={2}>
-          {!placeId && <PlacesList />}
-          {placeId && <PlacesList parentPlaceId={placeId} />}
+          <Button variant="outlined" onClick={handlePlacesListToggle}>
+            {isPlacesListExpanded ? "Collapse Places" : "Expand Places"}
+          </Button>
+          <div>
+            {isPlacesListExpanded ? (
+              <PlacesList parentPlaceId={placeId} />
+            ) : null}
+          </div>
         </Grid>
         <Grid item xs={12} sm={12} md={10}>
           <div className={classes.sortingContainer}>

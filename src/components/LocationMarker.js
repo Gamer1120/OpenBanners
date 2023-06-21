@@ -37,7 +37,7 @@ export default function LocationMarker() {
         previousPosition.lng !== e.latlng.lng
       ) {
         setPosition(e.latlng);
-        map.flyTo(e.latlng, map.getZoom());
+        map.setView(e.latlng, map.getZoom());
 
         if (
           previousPosition !== null &&

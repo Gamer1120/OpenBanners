@@ -90,12 +90,15 @@ export default function BrowsingPage({ placeId }) {
 
   const fetchBanners = async () => {
     try {
-      let url =
-        "https://api.bannergress.com/bnrs?online=true&limit=100&offset=0";
+      let url = "https://api.bannergress.com/bnrs?limit=100&offset=0";
       if (placeId) {
         url += `&placeId=${placeId}`;
       }
       url += `&orderBy=${sortOptionsMap[sortOption]}&orderDirection=${sortOrder}`;
+      if (!showOffline) {
+        url += "&online=true";
+      }
+      console.log(url);
       const response = await fetch(url);
       const data = await response.json();
       if (data && Array.isArray(data)) {
@@ -120,10 +123,14 @@ export default function BrowsingPage({ placeId }) {
       setLoading(true);
 
       while (true) {
-        let url = `https://api.bannergress.com/bnrs?online=true&limit=100&offset=${offset}`;
+        let url = `https://api.bannergress.com/bnrs?limit=100&offset=${offset}`;
 
         if (placeId) {
           url += `&placeId=${placeId}`;
+        }
+
+        if (!showOffline) {
+          url += "&online=true";
         }
 
         console.log("Fetch URL:", url);
@@ -179,7 +186,7 @@ export default function BrowsingPage({ placeId }) {
     } else {
       fetchBanners();
     }
-  }, [sortOption, sortOrder]);
+  }, [sortOption, sortOrder, showOffline]);
 
   return (
     <Container className={classes.browsingContainer}>

@@ -108,7 +108,6 @@ export default function BrowsingPage({ placeId }) {
       if (!showOffline) {
         url += "&online=true";
       }
-      console.log(url);
       const response = await fetch(url);
       const data = await response.json();
       if (data && Array.isArray(data)) {
@@ -143,13 +142,10 @@ export default function BrowsingPage({ placeId }) {
           url += "&online=true";
         }
 
-        console.log("Fetch URL:", url);
-
         const response = await fetch(url);
         const data = await response.json();
 
         if (data && Array.isArray(data)) {
-          // console.log("Fetch Response:", data);
           allBanners = [...allBanners, ...data];
           if (data.length === 0) {
             break;

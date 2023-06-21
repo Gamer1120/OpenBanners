@@ -45,16 +45,6 @@ export default function LocationMarker() {
           (previousPosition.lat !== e.latlng.lat ||
             previousPosition.lng !== e.latlng.lng)
         ) {
-          // show user direction
-          console.log(
-            "direction is " +
-              angleFromCoordinate(
-                previousPosition.lat,
-                previousPosition.lng,
-                e.latlng.lat,
-                e.latlng.lng
-              )
-          );
           setDirection(
             angleFromCoordinate(
               previousPosition.lat,
@@ -76,7 +66,6 @@ export default function LocationMarker() {
       clearInterval(interval);
     };
   }, [map]);
-  console.log(direction);
   return position === null ? null : (
     <Marker
       position={position}

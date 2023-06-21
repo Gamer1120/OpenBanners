@@ -50,9 +50,6 @@ const useStyles = makeStyles((theme) => ({
 
 export default function BannerCard({ banner }) {
   const classes = useStyles();
-
-  console.log(banner);
-
   return (
     <Link to={`/banner/${banner.id}`} style={{ textDecoration: "none" }}>
       <Card className={classes.card}>

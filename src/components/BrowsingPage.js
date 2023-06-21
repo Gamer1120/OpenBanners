@@ -46,6 +46,7 @@ export default function BrowsingPage({ placeId }) {
   const [bannersFetchedForEfficiency, setBannersFetchedForEfficiency] =
     useState(false);
   const [loading, setLoading] = useState(false);
+  const [showOffline, setShowOffline] = useState(false);
 
   const sortOptionsMap = {
     Created: "created",
@@ -66,6 +67,10 @@ export default function BrowsingPage({ placeId }) {
       }
       setSortOrder("DESC");
     }
+  };
+
+  const toggleShowOffline = () => {
+    setShowOffline(!showOffline);
   };
 
   function sortJsonByMissionsPerLength(data, sortOrder) {
@@ -191,6 +196,8 @@ export default function BrowsingPage({ placeId }) {
               sortOption={sortOption}
               sortOrder={sortOrder}
               placeId={placeId}
+              showOffline={showOffline}
+              toggleShowOffline={toggleShowOffline}
             />
           </div>
           {loading ? (

@@ -1,5 +1,5 @@
 import React from "react";
-import { Button } from "@mui/material";
+import { Button, Checkbox, FormControlLabel } from "@mui/material";
 import { ArrowDropDown, ArrowDropUp } from "@mui/icons-material";
 
 export default function SortingButtons({
@@ -7,9 +7,21 @@ export default function SortingButtons({
   sortOption,
   sortOrder,
   placeId,
+  showOffline,
+  toggleShowOffline,
 }) {
   return (
     <div>
+      <FormControlLabel
+        control={
+          <Checkbox
+            checked={showOffline}
+            onChange={toggleShowOffline}
+            color="primary"
+          />
+        }
+        label="Show offline"
+      />
       <Button
         variant="outlined"
         onClick={() => handleSort("Created")}

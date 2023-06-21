@@ -72,21 +72,14 @@ export default function BannerDetailsPage() {
   }
 
   return (
-    <div style={{ display: "flex" }}>
-      <div
-        style={{
-          flex: "2",
-          display: "flex",
-          justifyContent: "center",
-          alignItems: "center",
-        }}
-      >
-        <div style={{ maxWidth: "400px", margin: "0 auto" }}>
+    <div className="banner-details-page">
+      <div className="banner-details-container">
+        <div className="banner-details-card">
           <BannerDetailsCard banner={items} />
           <BannerInfo banner={items} />
         </div>
       </div>
-      <div style={{ flex: "3" }}>
+      <div className="map-container">
         <MapContainer
           id="map"
           center={[52.221058, 6.893297]}

@@ -98,3 +98,39 @@ body {
 .disable-click {
   cursor: not-allowed;
 }
+
+.banner-details-page {
+  display: flex;
+}
+
+.banner-details-container {
+  flex: 2;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.banner-details-card {
+  max-width: 400px;
+  margin: 0 auto;
+}
+
+.map-container {
+  flex: 3;
+  height: 100vh;
+}
+
+@media (max-width: 768px) {
+  .banner-details-page {
+    flex-direction: column;
+  }
+
+  .banner-details-container {
+    order: 1;
+  }
+
+  .map-container {
+    order: 1;
+    height: 50vh;
+  }
+}

@@ -1,7 +1,13 @@
 import React, { useState, useEffect } from "react";
 import { makeStyles } from "@mui/styles";
 import BannerCard from "./BannerCard";
-import { Container, Grid, Typography, Button } from "@mui/material";
+import {
+  useMediaQuery,
+  Container,
+  Grid,
+  Typography,
+  Button,
+} from "@mui/material";
 import BrowsingHeader from "./BrowsingHeader";
 import SortingButtons from "./SortingButtons";
 import PlacesList from "./PlacesList";
@@ -25,9 +31,6 @@ const useStyles = makeStyles((theme) => ({
     display: "flex",
     justifyContent: "center",
   },
-  bannerColumn: {
-    minWidth: "300px",
-  },
   sortingContainer: {
     display: "flex",
     justifyContent: "flex-end",
@@ -47,7 +50,9 @@ export default function BrowsingPage({ placeId }) {
     useState(false);
   const [loading, setLoading] = useState(false);
   const [showOffline, setShowOffline] = useState(false);
-  const [isPlacesListExpanded, setIsPlacesListExpanded] = useState(true);
+  const [isPlacesListExpanded, setIsPlacesListExpanded] = useState(false);
+
+  const isSmallScreen = useMediaQuery((theme) => theme.breakpoints.down("sm"));
 
   const sortOptionsMap = {
     Created: "created",
@@ -198,16 +203,26 @@ export default function BrowsingPage({ placeId }) {
       <BrowsingHeader />
       <Grid container spacing={2}>
         <Grid item xs={12} sm={6} md={2}>
-          <Button variant="outlined" onClick={handlePlacesListToggle}>
-            {isPlacesListExpanded ? "Collapse Places" : "Expand Places"}
-          </Button>
+          {isSmallScreen && (
+            <div>
+              <Button variant="outlined" onClick={handlePlacesListToggle}>
+                {isPlacesListExpanded ? "Collapse Places" : "Expand Places"}
+              </Button>
+            </div>
+          )}
           <div>
-            {isPlacesListExpanded ? (
+            {isPlacesListExpanded || !isSmallScreen ? (
               <PlacesList parentPlaceId={placeId} />
             ) : null}
           </div>
         </Grid>
-        <Grid item xs={12} sm={12} md={10}>
+
+        <Grid
+          item
+          xs={12}
+          sm={isSmallScreen ? 12 : 6}
+          md={isSmallScreen ? 12 : 10}
+        >
           <div className={classes.sortingContainer}>
             <SortingButtons
               handleSort={handleSort}

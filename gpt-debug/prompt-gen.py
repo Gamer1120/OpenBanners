@@ -4,7 +4,7 @@ files = [
     "src/components/Home.js",
     "src/App.css",
     "src/index.js",
-    "src/components/TopMenu.js",
+    # "src/components/TopMenu.js",
     # "src/components/BrowsingPage.js",
     # "src/components/BannerCard.js",
     # "src/components/BannersNearMe.js",
@@ -12,11 +12,12 @@ files = [
     # "src/components/SortingButtons.js",
     "src/App.js",
     "src/components/Map.js",
+    "src/components/BannerMarkers.js",
     # "src/components/PlacesList.js",
     # "src/components/SearchResults.js",
-    "src/components/BannerDetailsPage.js",
-    "src/components/BannerDetailsCard.js",
-    "src/components/BannerInfo.js",
+    # "src/components/BannerDetailsPage.js",
+    # "src/components/BannerDetailsCard.js",
+    # "src/components/BannerInfo.js",
 ]
 
 # files = [

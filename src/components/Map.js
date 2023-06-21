@@ -3,7 +3,8 @@ import LocationMarker from "./LocationMarker";
 import BannerMarkers from "./BannerMarkers";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import MapOverlay from "./MapOverlay";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
+import L from "leaflet";
 
 export default function Map() {
   const { bannerId } = useParams();
@@ -11,8 +12,9 @@ export default function Map() {
   const location = useLocation(); // Access the current location
 
   const [currentMission, setCurrentMission] = useState(0);
-  const [items, setItems] = useState([]);
+  const [items, setItems] = useState({});
   const [isLoading, setIsLoading] = useState(true);
+  const mapRef = useRef(null);
 
   useEffect(() => {
     fetch(`https://api.bannergress.com/bnrs/${bannerId}`)
@@ -40,6 +42,30 @@ export default function Map() {
     }
   }, [location]);
 
+  useEffect(() => {
+    if (!isLoading && mapRef.current && items.missions) {
+      const missionCoordinates = Object.values(items.missions)
+        .map((mission) => {
+          const { poi } = mission.steps[0];
+          const latitude = poi.latitude;
+          const longitude = poi.longitude;
+          if (latitude && longitude) {
+            return [latitude, longitude];
+          }
+          return null;
+        })
+        .filter((coord) => coord !== null);
+
+      if (missionCoordinates.length > 0) {
+        const bounds = L.latLngBounds(missionCoordinates);
+        mapRef.current.fitBounds(bounds, {
+          padding: [50, 50],
+          animate: true,
+        });
+      }
+    }
+  }, [isLoading, items.missions]);
+
   if (isLoading) {
     return <div>Loading...</div>;
   }
@@ -47,6 +73,7 @@ export default function Map() {
   return (
     <div>
       <MapContainer
+        ref={mapRef}
         id="map"
         center={[52.221058, 6.893297]}
         zoom={8}
@@ -57,13 +84,13 @@ export default function Map() {
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
         <BannerMarkers
-          missions={Object.values(items.missions)}
+          missions={items.missions ? Object.values(items.missions) : []}
           currentMission={currentMission}
         />
         <LocationMarker />
       </MapContainer>
       <MapOverlay
-        missions={Object.values(items.missions)}
+        missions={items.missions ? Object.values(items.missions) : []}
         currentMission={currentMission}
         setCurrentMission={setCurrentMission}
       />

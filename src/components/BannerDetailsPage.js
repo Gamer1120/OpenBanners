@@ -51,7 +51,7 @@ export default function BannerDetailsPage() {
     <div style={{ display: "flex" }}>
       <div style={{ flex: "2" }}>
         <BannerDetailsCard banner={items} />
-        <BannerInfo description={items.description} />
+        <BannerInfo banner={items} />
       </div>
       <div style={{ flex: "3" }}>
         <MapContainer

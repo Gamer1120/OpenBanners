@@ -1,12 +1,15 @@
 import React from "react";
 import PropTypes from "prop-types";
 import { makeStyles } from "@mui/styles";
+import { Typography, Button } from "@mui/material";
+import { useNavigate } from "react-router-dom";
 
 const useStyles = makeStyles((theme) => ({
   bannerInfo: {
-    backgroundColor: "#f9f9f9",
+    backgroundColor: "#1F1F1F",
+    color: "#fff",
     padding: theme.spacing(2),
-    marginTop: theme.spacing(2),
+    margin: theme.spacing(2),
   },
   title: {
     fontSize: 20,
@@ -18,19 +21,29 @@ const useStyles = makeStyles((theme) => ({
   },
 }));
 
-const BannerInfo = ({ description }) => {
+const BannerInfo = ({ banner }) => {
   const classes = useStyles();
+  const navigate = useNavigate();
+
+  const handleOpenBannerGuider = () => {
+    navigate(`/bannerguider/${banner.id}`);
+  };
 
   return (
     <div className={classes.bannerInfo}>
-      <h2 className={classes.title}>Description</h2>
-      <p className={classes.description}>{description}</p>
+      <Button
+        variant="contained"
+        color="primary"
+        onClick={handleOpenBannerGuider}
+        className={classes.button}
+      >
+        Open BannerGuider
+      </Button>
+      <Typography variant="body1" className={classes.description}>
+        {banner.description}
+      </Typography>
     </div>
   );
-};
-
-BannerInfo.propTypes = {
-  description: PropTypes.string.isRequired,
 };
 
 export default BannerInfo;

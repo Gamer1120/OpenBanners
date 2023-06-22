@@ -57,6 +57,8 @@ export default function BannerDetailsPage() {
         })
         .filter((coord) => coord !== null);
 
+      console.log("mission coordinates");
+      console.log(missionCoordinates);
       if (missionCoordinates.length > 0) {
         const bounds = L.latLngBounds(missionCoordinates);
         mapRef.current?.fitBounds(bounds, {

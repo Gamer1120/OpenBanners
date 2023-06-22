@@ -16,7 +16,6 @@ export default function BannerDetailsPage() {
   const [items, setItems] = useState({});
   const [isLoading, setIsLoading] = useState(true);
   const mapRef = useRef(null);
-  const timeoutRef = useRef(null);
 
   useEffect(() => {
     fetch(`https://api.bannergress.com/bnrs/${bannerId}`)
@@ -54,6 +53,9 @@ export default function BannerDetailsPage() {
 
   useEffect(() => {
     console.log("items.missions changed: " + items.missions);
+  }, [items.missions]);
+
+  useEffect(() => {
     if (mapRef.current && !isLoading && items.missions) {
       const missionCoordinates = Object.values(items.missions)
         .map((mission) => {
@@ -75,23 +77,9 @@ export default function BannerDetailsPage() {
           padding: [50, 50],
           animate: true,
         });
-
-        clearTimeout(timeoutRef.current); // Clear previous timeout if any
-        timeoutRef.current = setTimeout(() => {
-          mapRef.current.fitBounds(bounds, {
-            padding: [50, 50],
-            animate: true,
-          });
-        }, 200);
       }
     }
   }, [isLoading, items.missions]);
-
-  useEffect(() => {
-    return () => {
-      clearTimeout(timeoutRef.current);
-    };
-  }, []);
 
   if (isLoading) {
     return <div>Loading...</div>;

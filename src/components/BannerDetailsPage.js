@@ -12,7 +12,6 @@ export default function BannerDetailsPage() {
   const navigate = useNavigate();
   const location = useLocation(); // Access the current location
 
-  const [currentMission, setCurrentMission] = useState(0);
   const [items, setItems] = useState({});
   const [isLoading, setIsLoading] = useState(true);
   const [isMapVisible, setIsMapVisible] = useState(false);
@@ -33,8 +32,18 @@ export default function BannerDetailsPage() {
   }, [bannerId]);
 
   useEffect(() => {
-    navigate(`?currentMission=${currentMission}`);
-  }, [currentMission]);
+    if (!isLoading && items.missions) {
+      const missionCoordinates = Object.values(items.missions)
+        .map((mission) => {
+          const { poi } = mission.steps[0];
+          const latitude = poi.latitude;
+          const longitude = poi.longitude;
+          if (latitude && longitude) {
+            return [latitude, longitude];
+          }
+          return null;
+        })
+        .filter((coord) => coord !== null);
 
       if (missionCoordinates.length > 0) {
         const bounds = L.latLngBounds(missionCoordinates);
@@ -45,19 +54,7 @@ export default function BannerDetailsPage() {
         setIsMapVisible(true); // Set the flag to true when the map should be visible
       }
     }
-  }, [location]);
-
-  useEffect(() => {
-    console.log("is loading changed: " + isLoading);
-  }, [isLoading]);
-
-  useEffect(() => {
-    console.log("items changed: " + items);
-  }, [items]);
-
-  useEffect(() => {
-    console.log("items.missions changed: " + items.missions);
-  }, [items.missions]);
+  }, [isLoading, items.missions]);
 
   if (isLoading) {
     return <div>Loading...</div>;

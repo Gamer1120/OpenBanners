@@ -12,6 +12,7 @@ export default function BannerMarkers({ missions, currentMission }) {
     <div>
       {missions.map((mission, index) => {
         if (
+          !currentMission ||
           currentMission === 0 ||
           index === currentMission ||
           index + 1 === currentMission ||

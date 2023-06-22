@@ -15,6 +15,7 @@ export default function Map() {
   const [items, setItems] = useState({});
   const [isLoading, setIsLoading] = useState(true);
   const mapRef = useRef(null);
+  const [mapInitialized, setMapInitialized] = useState(false);
 
   useEffect(() => {
     fetch(`https://api.bannergress.com/bnrs/${bannerId}`)
@@ -43,7 +44,7 @@ export default function Map() {
   }, [location]);
 
   useEffect(() => {
-    if (!isLoading && mapRef.current && items.missions) {
+    if (!isLoading && mapRef.current && items.missions && mapInitialized) {
       const missionCoordinates = Object.values(items.missions)
         .map((mission) => {
           const { poi } = mission.steps[0];
@@ -56,9 +57,6 @@ export default function Map() {
         })
         .filter((coord) => coord !== null);
 
-      console.log("items.missions:", items.missions);
-      console.log("missionCoordinates:", missionCoordinates);
-
       if (missionCoordinates.length > 0) {
         const bounds = L.latLngBounds(missionCoordinates);
         mapRef.current.fitBounds(bounds, {
@@ -67,11 +65,15 @@ export default function Map() {
         });
       }
     }
-  }, [isLoading, items.missions]);
+  }, [isLoading, items.missions, mapInitialized]);
 
   if (isLoading) {
     return <div>Loading...</div>;
   }
+
+  const handleMapContainerReady = () => {
+    setMapInitialized(true);
+  };
 
   return (
     <div>
@@ -81,6 +83,7 @@ export default function Map() {
         center={[52.221058, 6.893297]}
         zoom={15}
         scrollWheelZoom={true}
+        whenReady={handleMapContainerReady}
       >
         <TileLayer
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors. This website is NOT affiliated with Bannergress in any way!'

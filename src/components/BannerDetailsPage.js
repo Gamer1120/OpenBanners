@@ -73,6 +73,7 @@ export default function BannerDetailsPage() {
       console.log(missionCoordinates);
       if (missionCoordinates.length > 0) {
         const bounds = L.latLngBounds(missionCoordinates);
+        console.log("fitting bounds! " + bounds);
         mapRef.current?.fitBounds(bounds, {
           padding: [50, 50],
           animate: true,

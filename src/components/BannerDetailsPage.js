@@ -16,6 +16,7 @@ export default function BannerDetailsPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isMapVisible, setIsMapVisible] = useState(false);
   const mapRef = useRef(null);
+  const [mapInitialized, setMapInitialized] = useState(false);
 
   useEffect(() => {
     fetch(`https://api.bannergress.com/bnrs/${bannerId}`)
@@ -32,7 +33,16 @@ export default function BannerDetailsPage() {
   }, [bannerId]);
 
   useEffect(() => {
-    if (!isLoading && items.missions) {
+    console.log(
+      "is loading " +
+        isLoading +
+        " items.missions " +
+        items.missions +
+        " mapInitialized " +
+        mapInitialized
+    );
+    if (!isLoading && items.missions && mapInitialized) {
+      console.log("using effect");
       const missionCoordinates = Object.values(items.missions)
         .map((mission) => {
           const { poi } = mission.steps[0];
@@ -44,7 +54,8 @@ export default function BannerDetailsPage() {
           return null;
         })
         .filter((coord) => coord !== null);
-
+      console.log("mission coordinates");
+      console.log(missionCoordinates);
       if (missionCoordinates.length > 0) {
         const bounds = L.latLngBounds(missionCoordinates);
         mapRef.current?.fitBounds(bounds, {
@@ -54,11 +65,20 @@ export default function BannerDetailsPage() {
         setIsMapVisible(true); // Set the flag to true when the map should be visible
       }
     }
-  }, [isLoading, items.missions]);
+  }, [isLoading, items.missions, mapInitialized]);
+
+  useEffect(() => {
+    console.log("map initializeda " + mapInitialized);
+  }, [mapInitialized]);
 
   if (isLoading) {
     return <div>Loading...</div>;
   }
+
+  const handleMapContainerReady = () => {
+    console.log("handle triggered");
+    setMapInitialized(true);
+  };
 
   return (
     <div className="banner-details-page">
@@ -69,24 +89,23 @@ export default function BannerDetailsPage() {
         </div>
       </div>
       <div className="map-container">
-        {isMapVisible && ( // Render the map only if isMapVisible is true
-          <MapContainer
-            id="map"
-            center={[52.221058, 6.893297]}
-            zoom={8}
-            scrollWheelZoom={true}
-            style={{ height: "100vh" }}
-            ref={mapRef}
-          >
-            <TileLayer
-              attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors. This website is NOT affiliated with Bannergress in any way!'
-              url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-            />
-            <BannerMarkers
-              missions={items.missions ? Object.values(items.missions) : []}
-            />
-          </MapContainer>
-        )}
+        <MapContainer
+          id="map"
+          center={[52.221058, 6.893297]}
+          zoom={8}
+          scrollWheelZoom={true}
+          style={{ height: "100vh" }}
+          ref={mapRef}
+          whenReady={handleMapContainerReady}
+        >
+          <TileLayer
+            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors. This website is NOT affiliated with Bannergress in any way!'
+            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+          />
+          <BannerMarkers
+            missions={items.missions ? Object.values(items.missions) : []}
+          />
+        </MapContainer>
       </div>
     </div>
   );

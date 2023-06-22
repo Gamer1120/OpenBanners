@@ -56,7 +56,7 @@ export default function BannerDetailsPage() {
   }, [items.missions]);
 
   useEffect(() => {
-    if (!isLoading && items.missions) {
+    if (mapRef.current && !isLoading && items.missions) {
       const missionCoordinates = Object.values(items.missions)
         .map((mission) => {
           const { poi } = mission.steps[0];
@@ -73,8 +73,7 @@ export default function BannerDetailsPage() {
       console.log(missionCoordinates);
       if (missionCoordinates.length > 0) {
         const bounds = L.latLngBounds(missionCoordinates);
-        console.log("fitting bounds! " + bounds);
-        mapRef.current?.fitBounds(bounds, {
+        mapRef.current.fitBounds(bounds, {
           padding: [50, 50],
           animate: true,
         });

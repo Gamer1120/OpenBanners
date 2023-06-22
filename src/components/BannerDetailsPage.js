@@ -55,32 +55,6 @@ export default function BannerDetailsPage() {
     console.log("items.missions changed: " + items.missions);
   }, [items.missions]);
 
-  useEffect(() => {
-    if (mapRef.current && !isLoading && items.missions) {
-      const missionCoordinates = Object.values(items.missions)
-        .map((mission) => {
-          const { poi } = mission.steps[0];
-          const latitude = poi.latitude;
-          const longitude = poi.longitude;
-          if (latitude && longitude) {
-            return [latitude, longitude];
-          }
-          return null;
-        })
-        .filter((coord) => coord !== null);
-
-      console.log("mission coordinates");
-      console.log(missionCoordinates);
-      if (missionCoordinates.length > 0) {
-        const bounds = L.latLngBounds(missionCoordinates);
-        mapRef.current.fitBounds(bounds, {
-          padding: [50, 50],
-          animate: true,
-        });
-      }
-    }
-  }, [isLoading, items.missions]);
-
   if (isLoading) {
     return <div>Loading...</div>;
   }

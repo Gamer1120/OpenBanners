@@ -40,7 +40,7 @@ const BannerInfo = ({ banner }) => {
         Open BannerGuider
       </Button>
       <Typography variant="body1" className={classes.description}>
-        BannerGuider tutorial2: Open BannerGuider, tap NEXT to open the next
+        BannerGuider tutorial3: Open BannerGuider, tap NEXT to open the next
         mission in your scanner. Do the mission, press NEXT again until you're
         done with the banner. NOTE: Due to a bug in the latest version in
         Ingress, you have to open and close COMM after clicking next before your

@@ -32,16 +32,7 @@ export default function BannerDetailsPage() {
   }, [bannerId]);
 
   useEffect(() => {
-    console.log(
-      "is loading " +
-        isLoading +
-        " items.missions " +
-        items.missions +
-        " mapInitialized " +
-        mapInitialized
-    );
     if (!isLoading && items.missions && mapInitialized) {
-      console.log("using effect");
       const missionCoordinates = Object.values(items.missions)
         .map((mission) => {
           const { poi } = mission.steps[0];
@@ -53,8 +44,6 @@ export default function BannerDetailsPage() {
           return null;
         })
         .filter((coord) => coord !== null);
-      console.log("mission coordinates");
-      console.log(missionCoordinates);
       if (missionCoordinates.length > 0) {
         const bounds = L.latLngBounds(missionCoordinates);
         mapRef.current?.fitBounds(bounds, {
@@ -65,16 +54,11 @@ export default function BannerDetailsPage() {
     }
   }, [isLoading, items.missions, mapInitialized]);
 
-  useEffect(() => {
-    console.log("map initializeda " + mapInitialized);
-  }, [mapInitialized]);
-
   if (isLoading) {
     return <div>Loading...</div>;
   }
 
   const handleMapContainerReady = () => {
-    console.log("handle triggered");
     setMapInitialized(true);
   };
 

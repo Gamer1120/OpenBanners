@@ -99,6 +99,7 @@ export default function Map() {
         missions={items.missions ? Object.values(items.missions) : []}
         currentMission={currentMission}
         setCurrentMission={setCurrentMission}
+        bannerId={bannerId}
       />
     </div>
   );

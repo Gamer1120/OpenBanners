@@ -4,6 +4,7 @@ export default function MapOverlay({
   missions,
   currentMission,
   setCurrentMission,
+  bannerId,
 }) {
   const missionCount = missions.length;
   const overlayRef = useRef(null);
@@ -87,8 +88,14 @@ export default function MapOverlay({
 
   const handleStart = () => {
     handleIncrement();
-    const missionUrl = `https://link.ingress.com/?link=https%3a%2f%2fintel.ingress.com%2fmission%2f${missions[currentMission].id}&apn=com.nianticproject.ingress&isi=576505181&ibi=com.google.ingress&ifl=https%3a%2f%2fapps.apple.com%2fapp%2fingress%2fid576505181&ofl=https%3a%2f%2fintel.ingress.com%2fmission%2f${missions[currentMission].id}`;
-    window.open(missionUrl, "_blank");
+
+    if (currentMission === missionCount) {
+      const missionUrl = `https://www.bannergress.com/banner/${bannerId}`;
+      window.open(missionUrl, "_blank");
+    } else {
+      const missionUrl = `https://link.ingress.com/?link=https%3a%2f%2fintel.ingress.com%2fmission%2f${missions[currentMission].id}&apn=com.nianticproject.ingress&isi=576505181&ibi=com.google.ingress&ifl=https%3a%2f%2fapps.apple.com%2fapp%2fingress%2fid576505181&ofl=https%3a%2f%2fintel.ingress.com%2fmission%2f${missions[currentMission].id}`;
+      window.open(missionUrl, "_blank");
+    }
   };
 
   return (
@@ -118,14 +125,8 @@ export default function MapOverlay({
           +
         </button>
       </div>
-      <button
-        className={`start-button ${
-          currentMission === missionCount ? "disable-click" : ""
-        }`}
-        onClick={handleStart}
-        disabled={currentMission === missionCount}
-      >
-        {currentMission === missionCount ? "🎉🎉🎉" : "NEXT"}
+      <button className="start-button" onClick={handleStart}>
+        {currentMission === missionCount ? "OPEN BG" : "NEXT"}
       </button>
     </div>
   );

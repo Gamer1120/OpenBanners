@@ -5,13 +5,14 @@ import { useParams } from "react-router-dom";
 import MapOverlay from "./MapOverlay";
 
 export default function BannerMarkers({ missions, currentMission }) {
-  const missionCount = missions.length; // Get the mission count
+  const missionCount = missions.length;
   const rainbowColors = generateRainbowColors(missionCount);
 
   return (
     <div>
       {missions.map((mission, index) => {
         if (
+          !currentMission ||
           currentMission === 0 ||
           index === currentMission ||
           index + 1 === currentMission ||

@@ -12,7 +12,6 @@ export default function BannerDetailsPage() {
   const navigate = useNavigate();
   const location = useLocation(); // Access the current location
 
-  const [currentMission, setCurrentMission] = useState(0);
   const [items, setItems] = useState({});
   const [isLoading, setIsLoading] = useState(true);
   const mapRef = useRef(null);
@@ -30,18 +29,6 @@ export default function BannerDetailsPage() {
         }
       );
   }, [bannerId]);
-
-  useEffect(() => {
-    navigate(`?currentMission=${currentMission}`);
-  }, [currentMission]);
-
-  useEffect(() => {
-    const searchParams = new URLSearchParams(location.search);
-    const missionParam = searchParams.get("currentMission");
-    if (missionParam !== null) {
-      setCurrentMission(parseInt(missionParam));
-    }
-  }, [location]);
 
   useEffect(() => {
     if (!isLoading && items.missions) {
@@ -94,7 +81,6 @@ export default function BannerDetailsPage() {
           />
           <BannerMarkers
             missions={items.missions ? Object.values(items.missions) : []}
-            currentMission={currentMission}
           />
         </MapContainer>
       </div>

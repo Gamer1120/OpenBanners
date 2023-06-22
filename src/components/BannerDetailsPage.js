@@ -44,6 +44,18 @@ export default function BannerDetailsPage() {
   }, [location]);
 
   useEffect(() => {
+    console.log("is loading changed: " + isLoading);
+  }, [isLoading]);
+
+  useEffect(() => {
+    console.log("items changed: " + items);
+  }, [items]);
+
+  useEffect(() => {
+    console.log("items.missions changed: " + items.missions);
+  }, [items.missions]);
+
+  useEffect(() => {
     if (!isLoading && items.missions) {
       const missionCoordinates = Object.values(items.missions)
         .map((mission) => {

@@ -15,6 +15,7 @@ export default function BannerDetailsPage() {
   const [currentMission, setCurrentMission] = useState(0);
   const [items, setItems] = useState({});
   const [isLoading, setIsLoading] = useState(true);
+  const [isMapVisible, setIsMapVisible] = useState(false);
   const mapRef = useRef(null);
 
   useEffect(() => {
@@ -35,11 +36,14 @@ export default function BannerDetailsPage() {
     navigate(`?currentMission=${currentMission}`);
   }, [currentMission]);
 
-  useEffect(() => {
-    const searchParams = new URLSearchParams(location.search);
-    const missionParam = searchParams.get("currentMission");
-    if (missionParam !== null) {
-      setCurrentMission(parseInt(missionParam));
+      if (missionCoordinates.length > 0) {
+        const bounds = L.latLngBounds(missionCoordinates);
+        mapRef.current?.fitBounds(bounds, {
+          padding: [50, 50],
+          animate: true,
+        });
+        setIsMapVisible(true); // Set the flag to true when the map should be visible
+      }
     }
   }, [location]);
 
@@ -68,23 +72,24 @@ export default function BannerDetailsPage() {
         </div>
       </div>
       <div className="map-container">
-        <MapContainer
-          id="map"
-          center={[52.221058, 6.893297]}
-          zoom={8}
-          scrollWheelZoom={true}
-          style={{ height: "100vh" }}
-          ref={mapRef}
-        >
-          <TileLayer
-            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors. This website is NOT affiliated with Bannergress in any way!'
-            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-          />
-          <BannerMarkers
-            missions={items.missions ? Object.values(items.missions) : []}
-            currentMission={currentMission}
-          />
-        </MapContainer>
+        {isMapVisible && ( // Render the map only if isMapVisible is true
+          <MapContainer
+            id="map"
+            center={[52.221058, 6.893297]}
+            zoom={8}
+            scrollWheelZoom={true}
+            style={{ height: "100vh" }}
+            ref={mapRef}
+          >
+            <TileLayer
+              attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors. This website is NOT affiliated with Bannergress in any way!'
+              url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+            />
+            <BannerMarkers
+              missions={items.missions ? Object.values(items.missions) : []}
+            />
+          </MapContainer>
+        )}
       </div>
     </div>
   );

@@ -78,6 +78,8 @@ export default function BannerDetailsPage() {
           scrollWheelZoom={true}
           style={{ height: "100vh" }}
           ref={mapRef}
+          dragging={!L.Browser.mobile}
+          touchZoom={true}
           whenReady={handleMapContainerReady}
         >
           <TileLayer

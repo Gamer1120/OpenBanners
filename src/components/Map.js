@@ -79,7 +79,7 @@ const Map = () => {
               <div>
                 <h3>{banner.title}</h3>
                 <img
-                  src={`https://bannergress.com${banner.picture}`}
+                  src={`https://api.bannergress.com${banner.picture}`}
                   alt="Banner"
                 />
               </div>

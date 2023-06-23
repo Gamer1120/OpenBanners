@@ -12,10 +12,15 @@ const Map = () => {
 
       const apiUrl = `https://api.bannergress.com/bnrs?orderBy=created&orderDirection=DESC&online=true&minLatitude=${minLatitude}&maxLatitude=${maxLatitude}&minLongitude=${minLongitude}&maxLongitude=${maxLongitude}&limit=100`;
 
+      console.log("API URL:", apiUrl);
+
       fetch(apiUrl)
         .then((response) => response.json())
         .then((data) => {
-          console.log(data);
+          console.log(
+            "Latitudes:",
+            data.map((item) => item.latitude)
+          );
         })
         .catch((error) => {
           console.error("Error fetching banners:", error);

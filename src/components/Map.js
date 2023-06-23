@@ -1,11 +1,7 @@
-import {
-  MapContainer,
-  TileLayer,
-  Marker,
-  Popup,
-  useMapEvents,
-} from "react-leaflet";
+import { MapContainer, TileLayer, Marker, useMapEvents } from "react-leaflet";
 import { useState, useEffect, useRef } from "react";
+import L from "leaflet";
+import { Link } from "react-router-dom";
 
 const Map = () => {
   const [visibleArea, setVisibleArea] = useState(null);
@@ -19,12 +15,9 @@ const Map = () => {
 
       const apiUrl = `https://api.bannergress.com/bnrs?orderBy=created&orderDirection=DESC&online=true&minLatitude=${minLatitude}&maxLatitude=${maxLatitude}&minLongitude=${minLongitude}&maxLongitude=${maxLongitude}&limit=100`;
 
-      console.log("API URL:", apiUrl);
-
       fetch(apiUrl)
         .then((response) => response.json())
         .then((data) => {
-          console.log(data);
           setBanners(data);
         })
         .catch((error) => {
@@ -36,9 +29,7 @@ const Map = () => {
   const MapEvents = () => {
     useMapEvents({
       moveend: () => {
-        console.log("move end");
         if (mapRef.current) {
-          console.log("thing");
           const bounds = mapRef.current.getBounds();
           const { _southWest, _northEast } = bounds;
           const { lat: minLatitude, lng: minLongitude } = _southWest;
@@ -56,6 +47,24 @@ const Map = () => {
 
     return null;
   };
+
+  const getMarkerIcon = (imageUrl) => {
+    const maxWidth = 100;
+    const image = new Image();
+    image.src = imageUrl;
+
+    const ratio = image.width / image.height;
+    const height = maxWidth / ratio;
+
+    const icon = L.icon({
+      iconUrl: imageUrl,
+      iconSize: [maxWidth, height],
+      iconAnchor: [maxWidth / 2, height],
+    });
+
+    return icon;
+  };
+
   return (
     <div>
       <MapContainer
@@ -70,22 +79,30 @@ const Map = () => {
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
 
-        {banners.map((banner) => (
-          <Marker
-            key={banner.id}
-            position={[banner.startLatitude, banner.startLongitude]}
-          >
-            <Popup>
-              <div>
-                <h3>{banner.title}</h3>
-                <img
-                  src={`https://api.bannergress.com${banner.picture}`}
-                  alt="Banner"
-                />
-              </div>
-            </Popup>
-          </Marker>
-        ))}
+        {banners.map((banner) => {
+          const latitude = parseFloat(banner.startLatitude);
+          const longitude = parseFloat(banner.startLongitude);
+
+          if (isNaN(latitude) || isNaN(longitude)) {
+            console.error(
+              "Invalid coordinates:",
+              banner.startLatitude,
+              banner.startLongitude
+            );
+            return null;
+          }
+
+          return (
+            <Link to={`/banners/${banner.id}`} key={banner.id}>
+              <Marker
+                position={[latitude, longitude]}
+                icon={getMarkerIcon(
+                  `https://api.bannergress.com${banner.picture}`
+                )}
+              />
+            </Link>
+          );
+        })}
 
         <MapEvents />
       </MapContainer>

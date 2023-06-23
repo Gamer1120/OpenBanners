@@ -1,5 +1,5 @@
 import "./App.css";
-import Map from "./components/Map.js";
+import BannerGuider from "./components/BannerGuider.js";
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import Home from "./components/Home";
 
@@ -12,7 +12,7 @@ function App() {
           <Route exact path="/browse/" element={<Home />} />
           <Route exact path="/browse/:placeId" element={<Home />} />
           <Route path="/banner/:bannerId" element={<Home />} />
-          <Route path="/bannerguider/:bannerId" element={<Map />} />
+          <Route path="/bannerguider/:bannerId" element={<BannerGuider />} />
           <Route path="/search/:query" element={<Home />} />
         </Routes>
       </Router>

@@ -47,7 +47,7 @@ const useStyles = makeStyles((theme) => ({
 export default function TopMenu({ onBrowseClick, onTitleClick, onSearch }) {
   const classes = useStyles();
   const [searchQuery, setSearchQuery] = useState("");
-  const navigate = useNavigate(); // Hook to handle navigation
+  const navigate = useNavigate();
 
   const handleSearch = (event) => {
     event.preventDefault();
@@ -55,7 +55,7 @@ export default function TopMenu({ onBrowseClick, onTitleClick, onSearch }) {
   };
 
   const handleMapClick = () => {
-    navigate("/map"); // Navigate to /map route
+    navigate("/map");
   };
 
   return (

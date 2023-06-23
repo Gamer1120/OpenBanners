@@ -6,11 +6,8 @@ const Map = () => {
   const [visibleArea, setVisibleArea] = useState(null);
   const [banners, setBanners] = useState([]);
   const mapRef = useRef(null);
-  const [mapLoaded, setMapLoaded] = useState(false);
 
   useEffect(() => {
-    console.log("visible area");
-    console.log(visibleArea);
     if (mapRef.current && visibleArea) {
       const { minLatitude, maxLatitude, minLongitude, maxLongitude } =
         visibleArea;
@@ -29,16 +26,14 @@ const Map = () => {
           console.error("Error fetching banners:", error);
         });
     }
-  }, [visibleArea, mapLoaded]);
-
-  const handleMapLoaded = () => {
-    setMapLoaded(true);
-  };
+  }, [mapRef.current, visibleArea]);
 
   const MapEvents = () => {
     useMapEvents({
       moveend: () => {
+        console.log("move end");
         if (mapRef.current) {
+          console.log("thing");
           const bounds = mapRef.current.getBounds();
           const { _southWest, _northEast } = bounds;
           const { lat: minLatitude, lng: minLongitude } = _southWest;
@@ -64,7 +59,6 @@ const Map = () => {
         zoom={15}
         scrollWheelZoom={true}
         ref={mapRef}
-        whenReady={handleMapLoaded}
       >
         <TileLayer
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors. This website is NOT affiliated with Bannergress in any way!'

@@ -1,11 +1,6 @@
-import {
-  MapContainer,
-  TileLayer,
-  Marker,
-  Popup,
-  useMapEvents,
-} from "react-leaflet";
+import { MapContainer, TileLayer, Marker, useMapEvents } from "react-leaflet";
 import { useState, useEffect, useRef } from "react";
+import L from "leaflet";
 
 const Map = () => {
   const [visibleArea, setVisibleArea] = useState(null);
@@ -74,17 +69,11 @@ const Map = () => {
           <Marker
             key={banner.id}
             position={[banner.startLatitude, banner.startLongitude]}
-          >
-            <Popup>
-              <div>
-                <h3>{banner.title}</h3>
-                <img
-                  src={`https://api.bannergress.com${banner.picture}`}
-                  alt="Banner"
-                />
-              </div>
-            </Popup>
-          </Marker>
+            icon={L.icon({
+              iconUrl: `https://api.bannergress.com${banner.picture}`,
+              iconSize: [100, "auto"],
+            })}
+          />
         ))}
 
         <MapEvents />

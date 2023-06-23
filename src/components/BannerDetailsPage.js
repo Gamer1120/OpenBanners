@@ -79,6 +79,8 @@ export default function BannerDetailsPage() {
           style={{ height: "100vh" }}
           ref={mapRef}
           whenReady={handleMapContainerReady}
+          touchZoom={!L.Browser.mobile || { draggable: true }}
+          dragging={!L.Browser.mobile || { draggable: true }}
         >
           <TileLayer
             attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors. This website is NOT affiliated with Bannergress in any way!'

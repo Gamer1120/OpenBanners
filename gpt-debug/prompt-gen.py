@@ -11,11 +11,11 @@ files = [
     # "src/components/BrowsingHeader.js",
     # "src/components/BannerCard.js",
     # "src/components/SortingButtons.js",
-    "src/components/Map.js",
+    # "src/components/Map.js",
     # "src/components/BannerMarkers.js",
     # "src/components/PlacesList.js",
     # "src/components/SearchResults.js",
-    # "src/components/BannerDetailsPage.js",
+    "src/components/BannerDetailsPage.js",
     # "src/components/BannerDetailsCard.js",
     # "src/components/BannerInfo.js",
 ]

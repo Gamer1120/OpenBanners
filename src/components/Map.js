@@ -8,21 +8,23 @@ const Map = () => {
   const [banners, setBanners] = useState([]);
   const mapRef = useRef(null);
 
+  const fetchBanners = async (area) => {
+    const { minLatitude, maxLatitude, minLongitude, maxLongitude } = area;
+
+    const apiUrl = `https://api.bannergress.com/bnrs?orderBy=created&orderDirection=DESC&online=true&minLatitude=${minLatitude}&maxLatitude=${maxLatitude}&minLongitude=${minLongitude}&maxLongitude=${maxLongitude}&limit=100`;
+
+    try {
+      const response = await fetch(apiUrl);
+      const data = await response.json();
+      setBanners(data);
+    } catch (error) {
+      console.error("Error fetching banners:", error);
+    }
+  };
+
   useEffect(() => {
     if (mapRef.current && visibleArea) {
-      const { minLatitude, maxLatitude, minLongitude, maxLongitude } =
-        visibleArea;
-
-      const apiUrl = `https://api.bannergress.com/bnrs?orderBy=created&orderDirection=DESC&online=true&minLatitude=${minLatitude}&maxLatitude=${maxLatitude}&minLongitude=${minLongitude}&maxLongitude=${maxLongitude}&limit=100`;
-
-      fetch(apiUrl)
-        .then((response) => response.json())
-        .then((data) => {
-          setBanners(data);
-        })
-        .catch((error) => {
-          console.error("Error fetching banners:", error);
-        });
+      fetchBanners(visibleArea);
     }
   }, [mapRef.current, visibleArea]);
 

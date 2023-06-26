@@ -32,6 +32,22 @@ const Map = () => {
     useMapEvents({
       moveend: () => {
         if (mapRef.current) {
+          console.log("yep");
+          const bounds = mapRef.current.getBounds();
+          const { _southWest, _northEast } = bounds;
+          const { lat: minLatitude, lng: minLongitude } = _southWest;
+          const { lat: maxLatitude, lng: maxLongitude } = _northEast;
+
+          setVisibleArea({
+            minLatitude,
+            maxLatitude,
+            minLongitude,
+            maxLongitude,
+          });
+        }
+      },
+      load: () => {
+        if (mapRef.current) {
           const bounds = mapRef.current.getBounds();
           const { _southWest, _northEast } = bounds;
           const { lat: minLatitude, lng: minLongitude } = _southWest;
@@ -67,6 +83,17 @@ const Map = () => {
     return icon;
   };
 
+  const handleMapReady = () => {
+    console.log("map ready");
+    console.log(mapRef);
+    // fetchBanners(visibleArea);
+  };
+
+  useEffect(() => {
+    console.log("map ref changed");
+    console.log(mapRef.current);
+  }, [mapRef.current]);
+
   return (
     <div>
       <MapContainer
@@ -75,6 +102,7 @@ const Map = () => {
         zoom={15}
         scrollWheelZoom={true}
         ref={mapRef}
+        whenReady={handleMapReady}
       >
         <TileLayer
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors. This website is NOT affiliated with Bannergress in any way!'

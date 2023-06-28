@@ -29,8 +29,23 @@ const BannerInfo = ({ banner }) => {
     navigate(`/bannerguider/${banner.id}`);
   };
 
+  const handleNavigateToStartPoint = () => {
+    window.open(
+      `https://www.google.com/maps/dir/?api=1&destination=${banner.startLatitude},${banner.startLongitude}`,
+      "_self"
+    );
+  };
+
   return (
     <div className={classes.bannerInfo}>
+      <Button
+        variant="contained"
+        color="primary"
+        onClick={handleNavigateToStartPoint}
+        className={classes.button}
+      >
+        Navigate to Start Point
+      </Button>
       <Button
         variant="contained"
         color="primary"

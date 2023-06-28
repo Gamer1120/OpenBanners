@@ -3,6 +3,7 @@ import { Popup, Marker } from "react-leaflet";
 import L from "leaflet";
 
 export default function MissionStepMarker({
+  portalName,
   latitude,
   longitude,
   missionNumber,
@@ -37,13 +38,17 @@ export default function MissionStepMarker({
         zIndexOffset={zIndexOffset}
       >
         <Popup>
-          {isFirst && (
-            <div>
-              <div>Mission Number: {missionNumber}</div>
-              <div>Other Content</div>
-            </div>
-          )}
-          {!isFirst && <div>Other Content</div>}
+          <div>
+            {isFirst && <div>Mission Number: {missionNumber}</div>}
+            <div>{portalName}</div>
+            <a
+              href={`https://www.google.com/maps/dir/?api=1&destination=${latitude},${longitude}`}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Navigate to portal
+            </a>
+          </div>
         </Popup>
       </Marker>
     </div>

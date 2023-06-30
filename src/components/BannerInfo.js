@@ -36,8 +36,36 @@ const BannerInfo = ({ banner }) => {
     );
   };
 
+  const handleShareBanner = () => {
+    const bannerURL = `https://opnb.org/${banner.id}`;
+
+    if (navigator.share) {
+      navigator
+        .share({
+          url: bannerURL,
+        })
+        .then(() => console.log("Shared successfully."))
+        .catch((error) => console.error("Error sharing:", error));
+    } else {
+      const textarea = document.createElement("textarea");
+      textarea.value = bannerURL;
+      document.body.appendChild(textarea);
+      textarea.select();
+      document.execCommand("copy");
+      document.body.removeChild(textarea);
+    }
+  };
+
   return (
     <div className={classes.bannerInfo}>
+      <Button
+        variant="contained"
+        color="primary"
+        onClick={handleShareBanner}
+        className={classes.button}
+      >
+        Share banner
+      </Button>
       <Button
         variant="contained"
         color="primary"

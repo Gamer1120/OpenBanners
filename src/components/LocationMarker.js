@@ -7,11 +7,11 @@ import icon, { locationIcon } from "../constants";
 
 export default function LocationMarker() {
   const [position, setPosition] = useState(null);
+  const [permissionAsked, setPermissionAsked] = useState(false); // Track if permission has been asked before
 
   const map = useMap();
 
   const [time, setTime] = useState(Date.now());
-
   const [direction, setDirection] = useState(null);
 
   function angleFromCoordinate(lat1, lon1, lat2, lon2) {
@@ -30,7 +30,13 @@ export default function LocationMarker() {
   useEffect(() => {
     let previousPosition = null;
 
-    map.locate().on("locationfound", function (e) {
+    // Check permission status before calling locate()
+    if (!permissionAsked) {
+      map.locate();
+      setPermissionAsked(true);
+    }
+
+    map.on("locationfound", function (e) {
       if (
         previousPosition == null ||
         previousPosition.lat !== e.latlng.lat ||
@@ -58,14 +64,21 @@ export default function LocationMarker() {
         previousPosition = e.latlng;
       }
     });
+
     const interval = setInterval(() => {
       setTime(Date.now());
-      map.locate();
+
+      // Check permission status before calling locate()
+      if (map.locate && map.locate._active) {
+        map.locate();
+      }
     }, 5000);
+
     return () => {
       clearInterval(interval);
     };
-  }, [map]);
+  }, [map, permissionAsked]);
+
   return position === null ? null : (
     <Marker
       position={position}

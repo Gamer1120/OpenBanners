@@ -11,6 +11,7 @@ files = [
     # "src/components/BrowsingHeader.js",
     # "src/components/BannerCard.js",
     # "src/components/SortingButtons.js",
+    # "src/components/BannerGuider.js",
     "src/components/Map.js",
     "src/components/BannerMarkers.js",
     # "src/components/PlacesList.js",

@@ -1,102 +1,143 @@
-import { MapContainer, TileLayer } from "react-leaflet";
-import LocationMarker from "./LocationMarker";
-import BannerMarkers from "./BannerMarkers";
-import { useParams, useNavigate, useLocation } from "react-router-dom";
-import MapOverlay from "./MapOverlay";
+import { MapContainer, TileLayer, Marker, useMapEvents } from "react-leaflet";
 import { useState, useEffect, useRef } from "react";
 import L from "leaflet";
+import { Link } from "react-router-dom";
 
-export default function Map() {
-  const { bannerId } = useParams();
-  const navigate = useNavigate();
-  const location = useLocation(); // Access the current location
-
-  const [currentMission, setCurrentMission] = useState(0);
-  const [items, setItems] = useState({});
-  const [isLoading, setIsLoading] = useState(true);
+const Map = () => {
+  const [visibleArea, setVisibleArea] = useState(null);
+  const [banners, setBanners] = useState([]);
   const mapRef = useRef(null);
 
+  const fetchBanners = async (area) => {
+    const { minLatitude, maxLatitude, minLongitude, maxLongitude } = area;
+
+    const apiUrl = `https://api.bannergress.com/bnrs?orderBy=created&orderDirection=DESC&online=true&minLatitude=${minLatitude}&maxLatitude=${maxLatitude}&minLongitude=${minLongitude}&maxLongitude=${maxLongitude}&limit=100`;
+
+    try {
+      const response = await fetch(apiUrl);
+      const data = await response.json();
+      setBanners(data);
+    } catch (error) {
+      console.error("Error fetching banners:", error);
+    }
+  };
+
   useEffect(() => {
-    fetch(`https://api.bannergress.com/bnrs/${bannerId}`)
-      .then((res) => res.json())
-      .then(
-        (result) => {
-          setItems(result);
-          setIsLoading(false);
-        },
-        (error) => {
-          console.log(error);
+    if (mapRef.current && visibleArea) {
+      fetchBanners(visibleArea);
+    }
+  }, [mapRef.current, visibleArea]);
+
+  const MapEvents = () => {
+    useMapEvents({
+      moveend: () => {
+        if (mapRef.current) {
+          console.log("yep");
+          const bounds = mapRef.current.getBounds();
+          const { _southWest, _northEast } = bounds;
+          const { lat: minLatitude, lng: minLongitude } = _southWest;
+          const { lat: maxLatitude, lng: maxLongitude } = _northEast;
+
+          setVisibleArea({
+            minLatitude,
+            maxLatitude,
+            minLongitude,
+            maxLongitude,
+          });
         }
-      );
-  }, [bannerId]);
+      },
+      load: () => {
+        if (mapRef.current) {
+          const bounds = mapRef.current.getBounds();
+          const { _southWest, _northEast } = bounds;
+          const { lat: minLatitude, lng: minLongitude } = _southWest;
+          const { lat: maxLatitude, lng: maxLongitude } = _northEast;
+
+          setVisibleArea({
+            minLatitude,
+            maxLatitude,
+            minLongitude,
+            maxLongitude,
+          });
+        }
+      },
+    });
+
+    return null;
+  };
+
+  const getMarkerIcon = (imageUrl) => {
+    const maxWidth = 100;
+    const image = new Image();
+    image.src = imageUrl;
+
+    const ratio = image.width / image.height;
+    const height = maxWidth / ratio;
+
+    const icon = L.icon({
+      iconUrl: imageUrl,
+      iconSize: [maxWidth, height],
+      iconAnchor: [maxWidth / 2, height],
+    });
+
+    return icon;
+  };
+
+  const handleMapReady = () => {
+    console.log("map ready");
+    console.log(mapRef);
+    // fetchBanners(visibleArea);
+  };
 
   useEffect(() => {
-    navigate(`?currentMission=${currentMission}`);
-  }, [currentMission]);
-
-  useEffect(() => {
-    const searchParams = new URLSearchParams(location.search);
-    const missionParam = searchParams.get("currentMission");
-    if (missionParam !== null) {
-      setCurrentMission(parseInt(missionParam));
-    }
-  }, [location]);
-
-  useEffect(() => {
-    if (!isLoading && mapRef.current && items.missions) {
-      const missionCoordinates = Object.values(items.missions)
-        .map((mission) => {
-          const { poi } = mission.steps[0];
-          const latitude = poi.latitude;
-          const longitude = poi.longitude;
-          if (latitude && longitude) {
-            return [latitude, longitude];
-          }
-          return null;
-        })
-        .filter((coord) => coord !== null);
-
-      console.log("items.missions:", items.missions);
-      console.log("missionCoordinates:", missionCoordinates);
-
-      if (missionCoordinates.length > 0) {
-        const bounds = L.latLngBounds(missionCoordinates);
-        mapRef.current.fitBounds(bounds, {
-          padding: [50, 50],
-          animate: true,
-        });
-      }
-    }
-  }, [isLoading, items.missions]);
-
-  if (isLoading) {
-    return <div>Loading...</div>;
-  }
+    console.log("map ref changed");
+    console.log(mapRef.current);
+  }, [mapRef.current]);
 
   return (
     <div>
       <MapContainer
-        ref={mapRef}
         id="map"
         center={[52.221058, 6.893297]}
         zoom={15}
         scrollWheelZoom={true}
+        ref={mapRef}
+        whenReady={handleMapReady}
       >
         <TileLayer
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors. This website is NOT affiliated with Bannergress in any way!'
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
-        <BannerMarkers
-          missions={items.missions ? Object.values(items.missions) : []}
-          currentMission={currentMission}
-        />
-        <LocationMarker />
+
+        {banners.map((banner) => {
+          const latitude = parseFloat(banner.startLatitude);
+          const longitude = parseFloat(banner.startLongitude);
+
+          if (isNaN(latitude) || isNaN(longitude)) {
+            console.error(
+              "Invalid coordinates:",
+              banner.startLatitude,
+              banner.startLongitude
+            );
+            return null;
+          }
+
+          return (
+            <Link to={`/banners/${banner.id}`} key={banner.id}>
+              <Marker
+                position={[latitude, longitude]}
+                icon={getMarkerIcon(
+                  `https://api.bannergress.com${banner.picture}`
+                )}
+              />
+            </Link>
+          );
+        })}
+
+        <MapEvents />
       </MapContainer>
-      <MapOverlay
-        missions={items.missions ? Object.values(items.missions) : []}
-        currentMission={currentMission}
-        setCurrentMission={setCurrentMission}
-      />
     </div>
   );
-}
+};
+
+export default Map;

@@ -11,7 +11,7 @@ import {
 } from "@mui/material";
 import { makeStyles } from "@mui/styles";
 import { Explore, LocationOn, Search } from "@mui/icons-material";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom"; // Import useNavigate
 
 const useStyles = makeStyles((theme) => ({
   appBar: {
@@ -47,10 +47,15 @@ const useStyles = makeStyles((theme) => ({
 export default function TopMenu({ onBrowseClick, onTitleClick, onSearch }) {
   const classes = useStyles();
   const [searchQuery, setSearchQuery] = useState("");
+  const navigate = useNavigate();
 
   const handleSearch = (event) => {
     event.preventDefault();
     onSearch(searchQuery);
+  };
+
+  const handleMapClick = () => {
+    navigate("/map");
   };
 
   return (
@@ -76,7 +81,12 @@ export default function TopMenu({ onBrowseClick, onTitleClick, onSearch }) {
           >
             Browse
           </Button>
-          <Button color="inherit" startIcon={<LocationOn />} disableElevation>
+          <Button
+            color="inherit"
+            startIcon={<LocationOn />}
+            disableElevation
+            onClick={handleMapClick} // Add onClick event handler
+          >
             Map
           </Button>
         </Container>

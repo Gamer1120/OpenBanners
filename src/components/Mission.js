@@ -37,7 +37,8 @@ export default function Mission({ mission, missionNumber, color }) {
     <div>
       {stepsToRender.map((step, index) => (
         <MissionStepMarker
-          key={step.poi.id}
+          key={step.poi.title}
+          portalName={step.poi.title}
           latitude={step.poi.latitude}
           longitude={step.poi.longitude}
           missionNumber={missionNumber}

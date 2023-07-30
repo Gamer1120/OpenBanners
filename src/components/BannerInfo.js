@@ -85,9 +85,7 @@ const BannerInfo = ({ banner }) => {
       <Typography variant="body1" className={classes.description}>
         BannerGuider tutorial: Open BannerGuider, tap NEXT to open the next
         mission in your scanner. Do the mission, press NEXT again until you're
-        done with the banner. NOTE: Due to a bug in the latest version in
-        Ingress, you have to open and close COMM after clicking next before your
-        next mission will pop up.
+        done with the banner.
       </Typography>
       <br />
       <Typography variant="body1" className={classes.description}>

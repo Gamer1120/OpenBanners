@@ -51,6 +51,9 @@ export default function TopMenu({ onBrowseClick, onTitleClick, onSearch }) {
 
   const handleSearch = (event) => {
     event.preventDefault();
+    if (searchQuery.trim() === "") {
+      return;
+    }
     onSearch(searchQuery);
   };
 

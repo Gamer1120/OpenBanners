@@ -11,7 +11,19 @@ export default function Map() {
   const navigate = useNavigate();
   const location = useLocation(); // Access the current location
 
-  const [currentMission, setCurrentMission] = useState(0);
+  // Parse the 'currentMission' query parameter from the URL
+  const searchParams = new URLSearchParams(location.search);
+  const missionParam = searchParams.get("currentMission");
+
+  // Initialize 'currentMission' from the URL query parameter or localStorage, or default to 0
+  const [currentMission, setCurrentMission] = useState(
+    missionParam
+      ? parseInt(missionParam)
+      : localStorage.getItem("currentMission")
+      ? parseInt(localStorage.getItem("currentMission"))
+      : 0
+  );
+
   const [items, setItems] = useState({});
   const [isLoading, setIsLoading] = useState(true);
   const mapRef = useRef(null);
@@ -32,16 +44,9 @@ export default function Map() {
   }, [bannerId]);
 
   useEffect(() => {
+    // Update the URL with the new 'currentMission' value
     navigate(`?currentMission=${currentMission}`);
-  }, [currentMission]);
-
-  useEffect(() => {
-    const searchParams = new URLSearchParams(location.search);
-    const missionParam = searchParams.get("currentMission");
-    if (missionParam !== null) {
-      setCurrentMission(parseInt(missionParam));
-    }
-  }, [location]);
+  }, [navigate, currentMission]);
 
   useEffect(() => {
     if (!isLoading && mapRef.current && items.missions && mapInitialized) {

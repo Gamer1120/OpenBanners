@@ -1,5 +1,6 @@
 import { MapContainer, TileLayer } from "react-leaflet";
 import LocationMarker from "./LocationMarker";
+import { Helmet } from "react-helmet";
 import BannerMarkers from "./BannerMarkers";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { useState, useEffect, useRef } from "react";
@@ -64,6 +65,20 @@ export default function BannerDetailsPage() {
 
   return (
     <div className="banner-details-page">
+      <Helmet>
+        <title>{items.title || "Banner Title"}</title>
+        <meta
+          name="description"
+          content={items.description || "Banner Description"}
+        />
+        <meta
+          property="og:image"
+          content={
+            `https://api.bannergress.com${items.picture}` ||
+            "URL_TO_DEFAULT_IMAGE"
+          }
+        />
+      </Helmet>
       <div className="banner-details-container">
         <div className="banner-details-card">
           <BannerDetailsCard banner={items} />

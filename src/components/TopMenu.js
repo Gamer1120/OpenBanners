@@ -21,26 +21,28 @@ const useStyles = makeStyles((theme) => ({
     marginRight: theme.spacing(2),
   },
   titleContainer: {
-    display: "flex",
     alignItems: "center",
-    width: "33%",
+    width: "25% !important",
+    "padding-left": "0px !important",
+    "padding-right": "0px !important",
   },
-  title: {
-    marginLeft: theme.spacing(2),
-  },
+  title: {},
   buttonContainer: {
     display: "flex",
     flexDirection: "column",
     alignItems: "center",
-    width: "33%",
+    width: "5%",
+    "padding-left": "0px !important",
+    "padding-right": "0px !important",
   },
   searchContainer: {
     display: "flex",
     justifyContent: "flex-end",
-    width: "33%",
+    width: "25%",
   },
-  searchInput: {
-    paddingRight: theme.spacing(2),
+  toolbar: {
+    "padding-left": "0px !important",
+    "padding-right": "0px !important",
   },
 }));
 
@@ -63,7 +65,7 @@ export default function TopMenu({ onBrowseClick, onTitleClick, onSearch }) {
 
   return (
     <AppBar position="static" className={classes.appBar}>
-      <Toolbar>
+      <Toolbar className={classes.toolbar}>
         <Container className={classes.titleContainer}>
           <Typography
             variant="h6"
@@ -71,7 +73,7 @@ export default function TopMenu({ onBrowseClick, onTitleClick, onSearch }) {
             onClick={onTitleClick}
             style={{ cursor: "pointer" }}
           >
-            OpenBanners Alpha
+            OB
           </Typography>
         </Container>
         <Container className={classes.buttonContainer}>

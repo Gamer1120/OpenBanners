@@ -8,6 +8,7 @@ import {
   Typography,
 } from "@mui/material";
 import { makeStyles } from "@mui/styles";
+import { Helmet } from 'react-helmet';
 
 const useStyles = makeStyles((theme) => ({
   card: {
@@ -36,6 +37,15 @@ export default function BannerDetailsCard({ banner }) {
   const classes = useStyles();
 
   return (
+    <Helmet>
+      <meta property="og:title" content={banner.title} />
+      <meta property="og:image" content={`https://api.bannergress.com${banner.picture}`} />
+      <meta property="og:description" content={banner.numberOfMissions} Missions,{" "}
+          {Math.round((banner.lengthMeters / 1000) * 10) / 10} km
+          {banner.formattedAddress}
+            />
+    </Helmet>
+              
     <Card className={classes.card}>
       <Typography gutterBottom variant="h6" component="div">
         {banner.title}

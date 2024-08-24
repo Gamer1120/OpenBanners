@@ -29,6 +29,10 @@ const BannerInfo = ({ banner }) => {
     navigate(`/bannerguider/${banner.id}`);
   };
 
+  const handleOpenBannerGuiderWithoutLocation = () => {
+    navigate(`/bannerguiderwithoutlocation/${banner.id}`);
+  };
+
   const handleNavigateToStartPoint = () => {
     window.open(
       `https://www.google.com/maps/dir/?api=1&destination=${banner.startLatitude},${banner.startLongitude}`,
@@ -81,6 +85,15 @@ const BannerInfo = ({ banner }) => {
         className={classes.button}
       >
         Open BannerGuider
+      </Button>
+      <Button
+        variant="contained"
+        color="primary"
+        onClick={handleOpenBannerGuiderWithoutLocation}
+        className={classes.button}
+      >
+        Open BannerGuider without location (may prevent "Inaccurate location" in
+        Ingress on iOS)
       </Button>
       <Typography variant="body1" className={classes.description}>
         BannerGuider tutorial: Open BannerGuider, tap NEXT to open the next

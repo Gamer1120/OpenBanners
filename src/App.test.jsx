@@ -145,23 +145,35 @@ beforeEach(() => {
   global.fetch = vi.fn();
   window.open = vi.fn();
   window.localStorage.clear();
-  navigator.share = vi.fn().mockResolvedValue(undefined);
-  navigator.clipboard = {
-    writeText: vi.fn().mockResolvedValue(undefined),
-  };
-  navigator.permissions = {
-    query: vi.fn().mockResolvedValue({ state: "prompt", onchange: null }),
-  };
-  navigator.geolocation = {
-    getCurrentPosition: vi.fn((success) =>
-      success({
-        coords: {
-          latitude: 52.221058,
-          longitude: 6.893297,
-        },
-      })
-    ),
-  };
+  Object.defineProperty(navigator, "share", {
+    configurable: true,
+    value: vi.fn().mockResolvedValue(undefined),
+  });
+  Object.defineProperty(navigator, "clipboard", {
+    configurable: true,
+    value: {
+      writeText: vi.fn().mockResolvedValue(undefined),
+    },
+  });
+  Object.defineProperty(navigator, "permissions", {
+    configurable: true,
+    value: {
+      query: vi.fn().mockResolvedValue({ state: "prompt", onchange: null }),
+    },
+  });
+  Object.defineProperty(navigator, "geolocation", {
+    configurable: true,
+    value: {
+      getCurrentPosition: vi.fn((success) =>
+        success({
+          coords: {
+            latitude: 52.221058,
+            longitude: 6.893297,
+          },
+        })
+      ),
+    },
+  });
 });
 
 afterEach(() => {
@@ -266,6 +278,13 @@ test("renders browsing results and places list", async () => {
   expect(await screen.findByText("Browsing")).toBeInTheDocument();
   expect(await screen.findByText("Browse Banner")).toBeInTheDocument();
   expect(await screen.findByText(/Netherlands/)).toBeInTheDocument();
+  expect(
+    screen.getByRole("button", { name: /visual banner view/i })
+  ).toHaveAttribute("aria-pressed", "true");
+  expect(screen.getByRole("link", { name: /browse banner/i })).toHaveAttribute(
+    "href",
+    "/banner/browse-banner"
+  );
 });
 
 test("renders places list flags and browse links for aliased place names", async () => {
@@ -419,6 +438,84 @@ test("renders place and banner search results", async () => {
 
   expect(await screen.findByText(/Enschede \(CITY\) \(22\)/)).toBeInTheDocument();
   expect(await screen.findByText("Search Banner")).toBeInTheDocument();
+  expect(
+    screen.getByRole("button", { name: /visual banner view/i })
+  ).toHaveAttribute("aria-pressed", "true");
+  expect(screen.getByRole("link", { name: /search banner/i })).toHaveAttribute(
+    "href",
+    "/banner/search-banner"
+  );
+});
+
+test("persists compact banner view preference across result screens", async () => {
+  global.fetch.mockImplementation((url) => {
+    if (url.includes("/places?used=true&type=country")) {
+      return jsonResponse([]);
+    }
+
+    if (url.includes("/bnrs?limit=100&offset=0&orderBy=created")) {
+      return jsonResponse([
+        {
+          id: "browse-banner",
+          title: "Browse Banner",
+          picture: "/images/browse.jpg",
+          numberOfMissions: 6,
+          lengthMeters: 2400,
+          formattedAddress: "Utrecht, NL",
+          numberOfDisabledMissions: 0,
+        },
+      ]);
+    }
+
+    if (url.includes("/places?used=true&collapsePlaces=true&query=enschede")) {
+      return jsonResponse([]);
+    }
+
+    if (url.includes("/bnrs?orderBy=relevance") && url.includes("query=enschede")) {
+      return jsonResponse([
+        {
+          id: "search-banner",
+          title: "Search Banner",
+          picture: "/images/search.jpg",
+          numberOfMissions: 12,
+          lengthMeters: 3600,
+          formattedAddress: "Enschede, NL",
+          numberOfDisabledMissions: 0,
+        },
+      ]);
+    }
+
+    throw new Error(`Unhandled fetch: ${url}`);
+  });
+
+  const user = userEvent.setup();
+
+  const { unmount } = renderWithProviders(
+    <Routes>
+      <Route path="/browse/" element={<BrowsingPage />} />
+    </Routes>,
+    { route: "/browse/" }
+  );
+
+  await screen.findByText("Browse Banner");
+  await user.click(screen.getByRole("button", { name: /compact banner view/i }));
+  expect(
+    screen.getByRole("button", { name: /compact banner view/i })
+  ).toHaveAttribute("aria-pressed", "true");
+
+  unmount();
+
+  renderWithProviders(
+    <Routes>
+      <Route path="/search/:query" element={<SearchResults />} />
+    </Routes>,
+    { route: "/search/enschede" }
+  );
+
+  await screen.findByText("Search Banner");
+  expect(
+    screen.getByRole("button", { name: /compact banner view/i })
+  ).toHaveAttribute("aria-pressed", "true");
 });
 
 test("shows place results before banner results finish loading", async () => {

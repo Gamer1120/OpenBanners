@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import BannerCard from "./BannerCard";
+import BannerListItem from "./BannerListItem";
+import BannerResultsViewToggle from "./BannerResultsViewToggle";
 import {
   Alert,
   Box,
@@ -11,6 +13,8 @@ import {
   Typography,
 } from "@mui/material";
 
+const viewModeStorageKey = "openbanners-banner-view-mode";
+
 export default function SearchResults() {
   const [results, setResults] = useState([]);
   const [bannerData, setBannerData] = useState([]);
@@ -19,6 +23,10 @@ export default function SearchResults() {
   const [placesError, setPlacesError] = useState("");
   const [bannersError, setBannersError] = useState("");
   const [reloadToken, setReloadToken] = useState(0);
+  const [viewMode, setViewMode] = useState(() => {
+    const storedValue = window.localStorage.getItem(viewModeStorageKey);
+    return storedValue === "compact" ? "compact" : "visual";
+  });
   const { query } = useParams();
 
   useEffect(() => {
@@ -100,6 +108,11 @@ export default function SearchResults() {
 
   const reloadSearch = () => {
     setReloadToken((currentValue) => currentValue + 1);
+  };
+
+  const handleViewModeChange = (nextViewMode) => {
+    setViewMode(nextViewMode);
+    window.localStorage.setItem(viewModeStorageKey, nextViewMode);
   };
 
   const finishedLoading = !placesLoading && !bannersLoading;
@@ -200,9 +213,24 @@ export default function SearchResults() {
             boxShadow: "0 14px 32px rgba(0,0,0,0.14)",
           }}
         >
-          <Typography variant="h6" component="h2" sx={{ mb: 1 }}>
-            Banners
-          </Typography>
+          <Box
+            sx={{
+              mb: 1.5,
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              gap: 1.5,
+              flexWrap: "wrap",
+            }}
+          >
+            <Typography variant="h6" component="h2">
+              Banners
+            </Typography>
+            <BannerResultsViewToggle
+              viewMode={viewMode}
+              onChange={handleViewModeChange}
+            />
+          </Box>
           {bannersError ? (
             <Alert
               severity="error"
@@ -214,21 +242,41 @@ export default function SearchResults() {
             >
               {bannersError}
             </Alert>
+          ) : bannersLoading && viewMode === "compact" ? (
+            <Stack spacing={1.25} sx={{ mt: 0.5 }}>
+              {Array.from({ length: 3 }).map((_, index) => (
+                <BannerListItem key={`search-skeleton-${index}`} loading />
+              ))}
+            </Stack>
           ) : bannersLoading ? (
             <Grid container spacing={2} sx={{ mt: 0 }}>
               {Array.from({ length: 3 }).map((_, index) => (
-                <Grid item xs={6} sm={4} key={`search-skeleton-${index}`}>
-                  <Skeleton variant="rounded" height={260} />
+                <Grid item xs={12} sm={6} lg={4} key={`search-grid-skeleton-${index}`}>
+                  <Box
+                    sx={{
+                      height: 260,
+                      borderRadius: 3,
+                      bgcolor: "rgba(255,255,255,0.04)",
+                      border: "1px solid rgba(255,255,255,0.08)",
+                    }}
+                  />
                 </Grid>
               ))}
             </Grid>
+          ) : bannerData.length > 0 && viewMode === "compact" ? (
+            <Stack spacing={1.25} sx={{ mt: 0.5 }}>
+              {bannerData.map((banner) => (
+                <BannerListItem key={banner.id} banner={banner} />
+              ))}
+            </Stack>
           ) : bannerData.length > 0 ? (
             <Grid container spacing={2} sx={{ mt: 0 }}>
               {bannerData.map((banner) => (
                 <Grid
                   item
-                  xs={6}
-                  sm={4}
+                  xs={12}
+                  sm={6}
+                  lg={4}
                   key={banner.id}
                   sx={{
                     display: "flex",

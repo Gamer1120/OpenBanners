@@ -1,11 +1,14 @@
 import React, { useEffect, useState } from "react";
+import BannerListItem from "./BannerListItem";
 import BannerCard from "./BannerCard";
+import BannerResultsViewToggle from "./BannerResultsViewToggle";
 import {
   Alert,
   Box,
   Button,
   Container,
   Grid,
+  Stack,
   Typography,
   useMediaQuery,
 } from "@mui/material";
@@ -56,6 +59,7 @@ const sortOptionsMap = {
   Distance: "lengthMeters",
   "Nr. of Missions": "numberOfMissions",
 };
+const viewModeStorageKey = "openbanners-banner-view-mode";
 
 export default function BrowsingPage({ placeId }) {
   const [banners, setBanners] = useState([]);
@@ -68,6 +72,10 @@ export default function BrowsingPage({ placeId }) {
   const [isPlacesListExpanded, setIsPlacesListExpanded] = useState(false);
   const [error, setError] = useState("");
   const [reloadToken, setReloadToken] = useState(0);
+  const [viewMode, setViewMode] = useState(() => {
+    const storedValue = window.localStorage.getItem(viewModeStorageKey);
+    return storedValue === "compact" ? "compact" : "visual";
+  });
 
   const isSmallScreen = useMediaQuery((theme) => theme.breakpoints.down("sm"));
 
@@ -92,6 +100,11 @@ export default function BrowsingPage({ placeId }) {
 
   const handleRetry = () => {
     setReloadToken((currentValue) => currentValue + 1);
+  };
+
+  const handleViewModeChange = (nextViewMode) => {
+    setViewMode(nextViewMode);
+    window.localStorage.setItem(viewModeStorageKey, nextViewMode);
   };
 
   useEffect(() => {
@@ -256,10 +269,17 @@ export default function BrowsingPage({ placeId }) {
           <Box
             sx={{
               display: "flex",
-              justifyContent: "flex-end",
+              justifyContent: "space-between",
+              alignItems: "center",
+              gap: 1.5,
+              flexWrap: "wrap",
               mb: 2,
             }}
           >
+            <BannerResultsViewToggle
+              viewMode={viewMode}
+              onChange={handleViewModeChange}
+            />
             <SortingButtons
               handleSort={handleSort}
               sortOption={sortOption}
@@ -282,18 +302,44 @@ export default function BrowsingPage({ placeId }) {
             </Alert>
           )}
           {loading ? (
-            <Typography variant="body2" color="text.secondary">
-              Loading...
-            </Typography>
+            viewMode === "compact" ? (
+              <Stack spacing={1.25} sx={{ mt: 2, mb: 2 }}>
+                {Array.from({ length: 4 }).map((_, index) => (
+                  <BannerListItem key={`browse-loading-${index}`} loading />
+                ))}
+              </Stack>
+            ) : (
+              <Grid container spacing={2.5} sx={{ mt: 2, mb: 2 }}>
+                {Array.from({ length: 6 }).map((_, index) => (
+                  <Grid item xs={6} sm={4} key={`browse-grid-loading-${index}`}>
+                    <Box
+                      sx={{
+                        height: 260,
+                        borderRadius: 3,
+                        bgcolor: "rgba(255,255,255,0.04)",
+                        border: "1px solid rgba(255,255,255,0.08)",
+                      }}
+                    />
+                  </Grid>
+                ))}
+              </Grid>
+            )
           ) : banners.length === 0 && !error ? (
             <Alert severity="info">No banners matched this selection.</Alert>
+          ) : viewMode === "compact" ? (
+            <Stack spacing={1.25} sx={{ mt: 2, mb: 2 }}>
+              {banners.map((banner) => (
+                <BannerListItem key={banner.id} banner={banner} />
+              ))}
+            </Stack>
           ) : (
             <Grid container spacing={2.5} sx={{ mt: 2, mb: 2 }}>
               {banners.map((banner) => (
                 <Grid
                   item
-                  xs={6}
-                  sm={4}
+                  xs={12}
+                  sm={6}
+                  lg={4}
                   key={banner.id}
                   sx={{
                     display: "flex",

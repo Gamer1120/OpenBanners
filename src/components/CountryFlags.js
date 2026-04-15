@@ -151,4 +151,36 @@ const flags = {
   Botswana: "🇧🇼",
 };
 
+const aliases = {
+  Bahamas: "The Bahamas",
+  "Czech Republic": "Czechia",
+  Curacao: "Curaçao",
+  Reunion: "Réunion",
+  "Republic of Korea": "South Korea",
+  "South Korea (Republic of Korea)": "South Korea",
+  "Korea, South": "South Korea",
+  "The Netherlands": "Netherlands",
+  "St. Lucia": "St Lucia",
+  "U.S. Virgin Islands": "U.S. Virgin Islands",
+  "Virgin Islands, U.S.": "U.S. Virgin Islands",
+};
+
+function normalizePlaceName(placeName) {
+  return placeName
+    .trim()
+    .replace(/\s+/g, " ")
+    .normalize("NFKC");
+}
+
+export function getFlagForPlace(placeName) {
+  if (!placeName) {
+    return "";
+  }
+
+  const normalizedPlaceName = normalizePlaceName(placeName);
+  const canonicalPlaceName = aliases[normalizedPlaceName] ?? normalizedPlaceName;
+
+  return flags[canonicalPlaceName] ?? "";
+}
+
 export default flags;

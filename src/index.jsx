@@ -2,6 +2,7 @@ import React from "react";
 import { createTheme, ThemeProvider } from "@mui/material";
 import { createRoot } from "react-dom/client";
 import "./index.css";
+import "leaflet/dist/leaflet.css";
 import App from "./App";
 
 const theme = createTheme({

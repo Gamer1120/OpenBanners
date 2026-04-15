@@ -1,7 +1,6 @@
 import { MapContainer, TileLayer } from "react-leaflet";
-import LocationMarker from "./LocationMarker";
 import BannerMarkers from "./BannerMarkers";
-import { useParams, useNavigate, useLocation } from "react-router-dom";
+import { useParams } from "react-router-dom";
 import { useState, useEffect, useRef } from "react";
 import BannerDetailsCard from "./BannerDetailsCard";
 import BannerInfo from "./BannerInfo";
@@ -9,12 +8,9 @@ import L from "leaflet";
 
 export default function BannerDetailsPage() {
   const { bannerId } = useParams();
-  const navigate = useNavigate();
-  const location = useLocation(); // Access the current location
 
   const [items, setItems] = useState({});
   const [isLoading, setIsLoading] = useState(true);
-  const [isMapVisible, setIsMapVisible] = useState(false);
   const mapRef = useRef(null);
   const [mapInitialized, setMapInitialized] = useState(false);
 
@@ -51,7 +47,6 @@ export default function BannerDetailsPage() {
           padding: [50, 50],
           animate: true,
         });
-        setIsMapVisible(true); // Set the flag to true when the map should be visible
       }
     }
   }, [isLoading, items.missions, mapInitialized]);

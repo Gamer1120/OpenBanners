@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { makeStyles } from "@mui/styles";
+import { Box } from "@mui/material";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import TopMenu from "./TopMenu";
 import BannersNearMe from "./BannersNearMe";
@@ -7,16 +7,7 @@ import BrowsingPage from "./BrowsingPage";
 import SearchResults from "./SearchResults";
 import BannerDetailsPage from "./BannerDetailsPage";
 
-const useStyles = makeStyles((theme) => ({
-  root: {
-    flexGrow: 1,
-    backgroundColor: theme.palette.grey[900],
-    minHeight: "100vh",
-  },
-}));
-
 export default function Home() {
-  const classes = useStyles();
   const [currentView, setCurrentView] = useState("bannersNearMe");
   const { placeId } = useParams();
   const navigate = useNavigate();
@@ -50,7 +41,7 @@ export default function Home() {
   }, [location.pathname]);
 
   return (
-    <div className={classes.root}>
+    <Box sx={{ flexGrow: 1, bgcolor: "grey.900", minHeight: "100vh" }}>
       <TopMenu
         onBrowseClick={handleBrowseClick}
         onTitleClick={handleTitleClick}
@@ -60,6 +51,6 @@ export default function Home() {
       {currentView === "browsing" && <BrowsingPage placeId={placeId} />}
       {currentView === "searching" && <SearchResults />}
       {currentView === "bannerDetails" && <BannerDetailsPage />}
-    </div>
+    </Box>
   );
 }

@@ -1,6 +1,6 @@
 import React, { useEffect, useRef } from "react";
 import MissionStepMarker from "./MissionStepMarker";
-import { Polyline, useMap, MapContainer } from "react-leaflet";
+import { Polyline, MapContainer } from "react-leaflet";
 
 export default function Mission({ mission, missionNumber, color }) {
   const mapRef = useRef(null);

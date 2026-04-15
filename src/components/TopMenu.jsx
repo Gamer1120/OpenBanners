@@ -1,53 +1,19 @@
 import React, { useState } from "react";
 import {
   AppBar,
+  Box,
+  Container,
   Toolbar,
   Typography,
   Button,
-  Container,
   TextField,
   IconButton,
   InputAdornment,
 } from "@mui/material";
-import { makeStyles } from "@mui/styles";
 import { Explore, LocationOn, Search } from "@mui/icons-material";
-import { Link, useNavigate } from "react-router-dom"; // Import useNavigate
-
-const useStyles = makeStyles((theme) => ({
-  appBar: {
-    backgroundColor: theme.palette.grey[800],
-  },
-  menuButton: {
-    marginRight: theme.spacing(2),
-  },
-  titleContainer: {
-    alignItems: "center",
-    width: "25% !important",
-    "padding-left": "0px !important",
-    "padding-right": "0px !important",
-  },
-  title: {},
-  buttonContainer: {
-    display: "flex",
-    flexDirection: "column",
-    alignItems: "center",
-    width: "5%",
-    "padding-left": "0px !important",
-    "padding-right": "0px !important",
-  },
-  searchContainer: {
-    display: "flex",
-    justifyContent: "flex-end",
-    width: "25%",
-  },
-  toolbar: {
-    "padding-left": "0px !important",
-    "padding-right": "0px !important",
-  },
-}));
+import { useNavigate } from "react-router-dom";
 
 export default function TopMenu({ onBrowseClick, onTitleClick, onSearch }) {
-  const classes = useStyles();
   const [searchQuery, setSearchQuery] = useState("");
   const navigate = useNavigate();
 
@@ -64,25 +30,44 @@ export default function TopMenu({ onBrowseClick, onTitleClick, onSearch }) {
   };
 
   return (
-    <AppBar position="static" className={classes.appBar}>
-      <Toolbar className={classes.toolbar}>
-        <Container className={classes.titleContainer}>
+    <AppBar
+      position="static"
+      sx={{
+        bgcolor: "#121212",
+      }}
+    >
+      <Toolbar sx={{ px: "0 !important" }}>
+        <Container
+          sx={{
+            width: "25% !important",
+            pl: "0 !important",
+            pr: "0 !important",
+          }}
+        >
           <Typography
             variant="h6"
-            className={classes.title}
             onClick={onTitleClick}
-            style={{ cursor: "pointer" }}
+            sx={{ cursor: "pointer" }}
           >
             OB
           </Typography>
         </Container>
-        <Container className={classes.buttonContainer}>
+
+        <Container
+          sx={{
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            width: "5%",
+            pl: "0 !important",
+            pr: "0 !important",
+          }}
+        >
           <Button
             color="inherit"
             startIcon={<Explore />}
             disableElevation
-            component={Link}
-            to="/browse/"
+            onClick={onBrowseClick}
           >
             Browse
           </Button>
@@ -90,18 +75,24 @@ export default function TopMenu({ onBrowseClick, onTitleClick, onSearch }) {
             color="inherit"
             startIcon={<LocationOn />}
             disableElevation
-            onClick={handleMapClick} // Add onClick event handler
+            onClick={handleMapClick}
           >
             Map
           </Button>
         </Container>
-        <Container className={classes.searchContainer}>
-          <form onSubmit={handleSearch} searchQuery={searchQuery}>
+
+        <Container
+          sx={{
+            display: "flex",
+            justifyContent: "flex-end",
+            width: "25%",
+          }}
+        >
+          <Box component="form" onSubmit={handleSearch}>
             <TextField
               variant="outlined"
               placeholder="Search"
               size="small"
-              className={classes.searchInput}
               value={searchQuery}
               onChange={(event) => setSearchQuery(event.target.value)}
               InputProps={{
@@ -114,7 +105,7 @@ export default function TopMenu({ onBrowseClick, onTitleClick, onSearch }) {
                 ),
               }}
             />
-          </form>
+          </Box>
         </Container>
       </Toolbar>
     </AppBar>

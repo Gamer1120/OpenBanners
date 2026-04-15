@@ -11,7 +11,6 @@ export default function LocationMarker() {
 
   const map = useMap();
 
-  const [time, setTime] = useState(Date.now());
   const [direction, setDirection] = useState(null);
 
   function angleFromCoordinate(lat1, lon1, lat2, lon2) {
@@ -66,7 +65,6 @@ export default function LocationMarker() {
     });
 
     const interval = setInterval(() => {
-      setTime(Date.now());
       // Request location update only if permission has been granted
       if (permissionAsked) {
         map.locate();

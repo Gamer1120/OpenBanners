@@ -1,28 +1,8 @@
 import React from "react";
-import PropTypes from "prop-types";
-import { makeStyles } from "@mui/styles";
-import { Typography, Button } from "@mui/material";
+import { Box, Button, Typography } from "@mui/material";
 import { useNavigate } from "react-router-dom";
 
-const useStyles = makeStyles((theme) => ({
-  bannerInfo: {
-    backgroundColor: "#1F1F1F",
-    color: "#fff",
-    padding: theme.spacing(2),
-    margin: theme.spacing(2),
-  },
-  title: {
-    fontSize: 20,
-    marginBottom: theme.spacing(1),
-  },
-  description: {
-    fontSize: 16,
-    lineHeight: 1.5,
-  },
-}));
-
 const BannerInfo = ({ banner }) => {
-  const classes = useStyles();
   const navigate = useNavigate();
 
   const handleOpenBannerGuider = () => {
@@ -61,50 +41,47 @@ const BannerInfo = ({ banner }) => {
   };
 
   return (
-    <div className={classes.bannerInfo}>
-      <Button
-        variant="contained"
-        color="primary"
-        onClick={handleShareBanner}
-        className={classes.button}
-      >
+    <Box
+      sx={{
+        bgcolor: "#1F1F1F",
+        color: "#fff",
+        p: 2,
+        m: 2,
+        display: "flex",
+        flexDirection: "column",
+        gap: 1,
+      }}
+    >
+      <Button variant="contained" color="primary" onClick={handleShareBanner}>
         Share banner
       </Button>
       <Button
         variant="contained"
         color="primary"
         onClick={handleNavigateToStartPoint}
-        className={classes.button}
       >
         Navigate to Start Point
       </Button>
-      <Button
-        variant="contained"
-        color="primary"
-        onClick={handleOpenBannerGuider}
-        className={classes.button}
-      >
+      <Button variant="contained" color="primary" onClick={handleOpenBannerGuider}>
         Open BannerGuider
       </Button>
       <Button
         variant="contained"
         color="primary"
         onClick={handleOpenBannerGuiderWithoutLocation}
-        className={classes.button}
       >
         Open BannerGuider without location (may prevent "Inaccurate location" in
         Ingress on iOS)
       </Button>
-      <Typography variant="body1" className={classes.description}>
+      <Typography variant="body1" sx={{ fontSize: 16, lineHeight: 1.5, mt: 1 }}>
         BannerGuider tutorial4: Open BannerGuider, tap NEXT to open the next
         mission in your scanner. Do the mission, press NEXT again until you're
         done with the banner.
       </Typography>
-      <br />
-      <Typography variant="body1" className={classes.description}>
+      <Typography variant="body1" sx={{ fontSize: 16, lineHeight: 1.5 }}>
         {banner.description}
       </Typography>
-    </div>
+    </Box>
   );
 };
 

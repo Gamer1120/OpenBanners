@@ -1,31 +1,16 @@
 import React, { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
 import { Container, Typography, Grid, Button } from "@mui/material";
-import { makeStyles } from "@mui/styles";
 import BannerCard from "./BannerCard";
 
-const useStyles = makeStyles((theme) => ({
-  section: {
-    marginTop: theme.spacing(2),
-    color: theme.palette.common.white,
-  },
-  loadMoreButton: {
-    marginTop: theme.spacing(2),
-  },
-}));
-
 export default function BannersNearMe() {
-  const classes = useStyles();
   const [location, setLocation] = useState(null);
   const [bannerData, setBannerData] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [permissionStatus, setPermissionStatus] = useState("prompt");
   const [showPermissionPrompt, setShowPermissionPrompt] = useState(false);
   const [limit, setLimit] = useState(9);
 
   useEffect(() => {
     const handlePermission = (status) => {
-      setPermissionStatus(status);
       if (status === "granted") {
         setShowPermissionPrompt(false);
         navigator.geolocation.getCurrentPosition(
@@ -89,7 +74,7 @@ export default function BannersNearMe() {
   };
 
   return (
-    <Container className={classes.section}>
+    <Container sx={{ mt: 2, color: "common.white" }}>
       <Typography variant="subtitle2" color="textSecondary">
         This website is not associated with Bannergress, Ingress and/or Niantic.
         This website is an alternative, open-source front-end for Bannergress's
@@ -108,7 +93,7 @@ export default function BannersNearMe() {
         <>
           <Grid container spacing={2}>
             {bannerData.map((banner) => (
-              <Grid item xs={12} sm={6} md={4} key={banner.id}>
+              <Grid item xs={12} sm={6} md={4} key={banner.id} sx={{ display: "flex" }}>
                 <BannerCard banner={banner} />
               </Grid>
             ))}
@@ -116,8 +101,8 @@ export default function BannersNearMe() {
           {limit === 9 && (
             <Button
               variant="contained"
-              className={classes.loadMoreButton}
               onClick={handleLoadMore}
+              sx={{ mt: 2 }}
             >
               Load more...
             </Button>

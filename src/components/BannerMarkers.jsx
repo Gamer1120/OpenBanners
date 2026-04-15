@@ -1,8 +1,4 @@
-import { useState, useEffect } from "react";
-import React from "react";
 import Mission from "./Mission";
-import { useParams } from "react-router-dom";
-import MapOverlay from "./MapOverlay";
 
 export default function BannerMarkers({ missions, currentMission }) {
   const missionCount = missions.length;
@@ -28,6 +24,8 @@ export default function BannerMarkers({ missions, currentMission }) {
             />
           );
         }
+
+        return null;
       })}
     </div>
   );

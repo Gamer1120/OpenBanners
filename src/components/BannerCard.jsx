@@ -6,13 +6,25 @@ import {
   CardActionArea,
   CardContent,
   CardMedia,
+  Chip,
+  Stack,
   Typography,
 } from "@mui/material";
+
+function formatDistance(lengthMeters) {
+  return Number.isFinite(lengthMeters)
+    ? `${Math.round((lengthMeters / 1000) * 10) / 10} km`
+    : "Unknown distance";
+}
 
 export default function BannerCard({ banner }) {
   const lengthMeters = Number(banner.lengthMeters);
   const missions = Number(banner.numberOfMissions);
   const showImage = Boolean(banner.picture);
+  const efficiency =
+    Number.isFinite(missions) && Number.isFinite(lengthMeters) && lengthMeters > 0
+      ? `${((missions / lengthMeters) * 1000).toFixed(3)} /km`
+      : "Unavailable";
 
   return (
     <Link
@@ -27,10 +39,11 @@ export default function BannerCard({ banner }) {
       <Card
         sx={{
           width: "100%",
-          maxWidth: 345,
-          m: 2,
+          maxWidth: 360,
           display: "flex",
           height: "100%",
+          borderRadius: 3,
+          overflow: "hidden",
         }}
       >
         <CardActionArea
@@ -39,18 +52,73 @@ export default function BannerCard({ banner }) {
             flexDirection: "column",
             alignItems: "stretch",
             height: "100%",
+            transition: "transform 180ms ease, box-shadow 180ms ease",
+            "&:hover": {
+              transform: "translateY(-3px)",
+            },
           }}
         >
-          <Typography
-            gutterBottom
-            variant="h6"
-            component="div"
-            sx={{ px: 2, pt: 2, minHeight: 64 }}
+          <Box
+            sx={{
+              px: 2.25,
+              pt: 2.25,
+              pb: 1.25,
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "flex-start",
+              gap: 1.5,
+            }}
           >
-            {banner.title}
-          </Typography>
+            <Typography
+              gutterBottom
+              variant="h6"
+              component="div"
+              sx={{
+                minHeight: 58,
+                m: 0,
+                lineHeight: 1.1,
+                textAlign: "left",
+                display: "-webkit-box",
+                WebkitLineClamp: 2,
+                WebkitBoxOrient: "vertical",
+                overflow: "hidden",
+              }}
+            >
+              {banner.title}
+            </Typography>
+            <Chip
+              size="small"
+              label={banner.numberOfDisabledMissions > 0 ? "Offline" : "Live"}
+              sx={{
+                flexShrink: 0,
+                mt: 0.25,
+                fontWeight: 600,
+                color: "text.secondary",
+                bgcolor:
+                  banner.numberOfDisabledMissions > 0
+                    ? "rgba(255, 255, 255, 0.06)"
+                    : "rgba(255, 255, 255, 0.04)",
+                border:
+                  banner.numberOfDisabledMissions > 0
+                    ? "1px solid rgba(255, 255, 255, 0.12)"
+                    : "1px solid rgba(255, 255, 255, 0.1)",
+                borderRadius: 1,
+              }}
+            />
+          </Box>
 
-          <Box sx={{ position: "relative", pt: "66.6667%", overflow: "hidden" }}>
+          <Box
+            sx={{
+              position: "relative",
+              mx: 2,
+              mb: 1.75,
+              borderRadius: 2,
+              overflow: "hidden",
+              pt: "66.6667%",
+              background: "rgba(255,255,255,0.03)",
+              border: "1px solid rgba(255,255,255,0.06)",
+            }}
+          >
             {showImage ? (
               <CardMedia
                 component="img"
@@ -82,38 +150,26 @@ export default function BannerCard({ banner }) {
                 <Typography variant="body2">No image available</Typography>
               </Box>
             )}
-            {banner.numberOfDisabledMissions > 0 && (
-              <Box
-                sx={{
-                  position: "absolute",
-                  inset: 0,
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  bgcolor: "rgba(0, 0, 0, 0.7)",
-                  color: "#fff",
-                  fontSize: 24,
-                  fontWeight: "bold",
-                  textAlign: "center",
-                }}
-              >
-                <Typography variant="body1">Banner Offline</Typography>
-              </Box>
-            )}
           </Box>
-          <CardContent sx={{ mt: "auto", textAlign: "left" }}>
-            <Typography variant="body2" color="text.secondary">
-              {Number.isFinite(missions) ? missions : "Unknown"} Missions,{" "}
-              {Number.isFinite(lengthMeters)
-                ? `${Math.round((lengthMeters / 1000) * 10) / 10} km`
-                : "Unknown distance"}
-            </Typography>
-            <Typography variant="body2" color="text.secondary">
-              Efficiency:{" "}
-              {Number.isFinite(missions) && Number.isFinite(lengthMeters) && lengthMeters > 0
-                ? `${((missions / lengthMeters) * 1000).toFixed(3)} missions/km`
-                : "Unavailable"}
-            </Typography>
+
+          <CardContent sx={{ mt: "auto", textAlign: "left", px: 2.25, pb: 2.25 }}>
+            <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap" sx={{ mb: 1.25 }}>
+              <Chip
+                size="small"
+                label={`${Number.isFinite(missions) ? missions : "?"} missions`}
+                sx={{ bgcolor: "rgba(255,255,255,0.04)", borderRadius: 1 }}
+              />
+              <Chip
+                size="small"
+                label={formatDistance(lengthMeters)}
+                sx={{ bgcolor: "rgba(255,255,255,0.04)", borderRadius: 1 }}
+              />
+              <Chip
+                size="small"
+                label={efficiency}
+                sx={{ bgcolor: "rgba(255,255,255,0.04)", borderRadius: 1 }}
+              />
+            </Stack>
 
             <Typography variant="body2" color="text.secondary">
               {banner.formattedAddress || "Address unavailable"}

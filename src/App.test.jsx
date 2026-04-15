@@ -360,14 +360,20 @@ test("submits top menu searches, fires menu callbacks, and navigates map route",
   await userEvent.click(screen.getByRole("button", { name: /browse/i }));
   expect(onBrowseClick).toHaveBeenCalledTimes(1);
 
-  await userEvent.click(screen.getByText("OB"));
+  await userEvent.click(screen.getByRole("button", { name: /go to home page/i }));
   expect(onTitleClick).toHaveBeenCalledTimes(1);
 
-  await userEvent.type(screen.getByPlaceholderText("Search"), "enschede{enter}");
+  await userEvent.type(
+    screen.getByPlaceholderText("Search banners or places"),
+    "enschede{enter}"
+  );
   expect(onSearch).toHaveBeenCalledWith("enschede");
 
-  await userEvent.clear(screen.getByPlaceholderText("Search"));
-  await userEvent.type(screen.getByPlaceholderText("Search"), "{enter}");
+  await userEvent.clear(screen.getByPlaceholderText("Search banners or places"));
+  await userEvent.type(
+    screen.getByPlaceholderText("Search banners or places"),
+    "{enter}"
+  );
   expect(onSearch).toHaveBeenCalledTimes(1);
 
   await userEvent.click(screen.getByRole("button", { name: /map/i }));

@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import {
   Alert,
+  Box,
   Button,
   Container,
   Grid,
@@ -155,13 +156,35 @@ export default function BannersNearMe() {
   };
 
   return (
-    <Container sx={{ mt: 2, color: "common.white" }}>
-      <Typography variant="subtitle2" color="textSecondary">
-        This website is not associated with Bannergress, Ingress and/or Niantic.
-        This website is an alternative, open-source front-end for Bannergress's
-        back-end.
-      </Typography>
-      <Typography variant="h5">Banners near me</Typography>
+    <Container sx={{ mt: 3, color: "common.white", pb: 4 }}>
+      <Box
+        sx={{
+          p: { xs: 2.25, sm: 3 },
+          borderRadius: 3,
+          border: "1px solid rgba(255, 255, 255, 0.08)",
+          background: "rgba(20, 27, 33, 0.78)",
+          boxShadow: "0 20px 40px rgba(0, 0, 0, 0.22)",
+        }}
+      >
+        <Typography
+          variant="overline"
+          sx={{ color: "text.secondary", letterSpacing: "0.18em" }}
+        >
+          Discover
+        </Typography>
+        <Typography variant="h4" sx={{ mb: 1 }}>
+          Banners near me
+        </Typography>
+        <Typography variant="subtitle1" color="text.secondary" sx={{ maxWidth: 700 }}>
+          Find live banners around your current location and jump into details
+          quickly.
+        </Typography>
+        <Typography variant="body2" color="text.secondary" sx={{ mt: 1.5 }}>
+          This website is not associated with Bannergress, Ingress and/or
+          Niantic. This website is an alternative, open-source front-end for
+          Bannergress's back-end.
+        </Typography>
+      </Box>
       <Stack spacing={2} sx={{ mt: 2 }}>
         {showPermissionPrompt && (
           <Alert
@@ -219,7 +242,7 @@ export default function BannersNearMe() {
 
         {bannerData.length > 0 && (
           <>
-            <Grid container spacing={2}>
+            <Grid container spacing={2.5}>
               {bannerData.map((banner) => (
                 <Grid item xs={12} sm={6} md={4} key={banner.id} sx={{ display: "flex" }}>
                   <BannerCard banner={banner} />

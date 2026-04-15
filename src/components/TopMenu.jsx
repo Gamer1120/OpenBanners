@@ -31,19 +31,29 @@ export default function TopMenu({ onBrowseClick, onTitleClick, onSearch }) {
   };
 
   return (
-    <AppBar position="static" sx={{ bgcolor: "#121212" }}>
+    <AppBar
+      position="sticky"
+      elevation={0}
+      sx={{
+        bgcolor: "rgba(11, 16, 20, 0.9)",
+        backdropFilter: "blur(14px)",
+        borderBottom: "1px solid rgba(255, 255, 255, 0.08)",
+        backgroundImage: "none",
+      }}
+    >
       <Toolbar
         sx={{
-          px: { xs: 1.5, sm: "0 !important" },
-          py: { xs: 1, sm: 0 },
+          px: { xs: 1.5, sm: 2.5 },
+          py: { xs: 1.25, sm: 1.5 },
           display: "flex",
           flexWrap: { xs: "wrap", sm: "nowrap" },
-          gap: { xs: 1, sm: 0 },
+          gap: { xs: 1.25, sm: 2 },
+          alignItems: "center",
         }}
       >
         <Container
           sx={{
-            width: { xs: "100%", sm: "25% !important" },
+            width: { xs: "100%", sm: "25%" },
             pl: "0 !important",
             pr: "0 !important",
             display: "flex",
@@ -54,13 +64,22 @@ export default function TopMenu({ onBrowseClick, onTitleClick, onSearch }) {
             onClick={onTitleClick}
             aria-label="Go to home page"
             sx={{
-              borderRadius: 1,
-              px: 1,
-              py: 0.5,
+              borderRadius: 1.5,
+              px: 1.25,
+              py: 0.75,
+              border: "1px solid rgba(255, 255, 255, 0.08)",
+              background: "rgba(255,255,255,0.03)",
             }}
           >
-            <Typography variant="h6" component="span">
-              OB
+            <Typography
+              variant="h6"
+              component="span"
+              sx={{
+                color: "text.primary",
+                letterSpacing: "0.08em",
+              }}
+            >
+              OPENBANNERS
             </Typography>
           </ButtonBase>
         </Container>
@@ -68,23 +87,24 @@ export default function TopMenu({ onBrowseClick, onTitleClick, onSearch }) {
         <Container
           sx={{
             display: "flex",
-            flexDirection: { xs: "row", sm: "column" },
+            flexDirection: { xs: "row", sm: "row" },
             alignItems: "center",
             justifyContent: "center",
-            width: { xs: "100%", sm: "5%" },
+            width: { xs: "100%", sm: "auto" },
             pl: "0 !important",
             pr: "0 !important",
-            gap: { xs: 1, sm: 0 },
+            gap: 1,
           }}
         >
           <Button
             color="inherit"
             startIcon={<Explore />}
-            disableElevation
             onClick={onBrowseClick}
             sx={{
               minHeight: 44,
-              width: { xs: "auto", sm: "100%" },
+              px: 1.75,
+              bgcolor: "rgba(255,255,255,0.03)",
+              border: "1px solid rgba(255,255,255,0.08)",
             }}
           >
             Browse
@@ -92,11 +112,12 @@ export default function TopMenu({ onBrowseClick, onTitleClick, onSearch }) {
           <Button
             color="inherit"
             startIcon={<LocationOn />}
-            disableElevation
             onClick={handleMapClick}
             sx={{
               minHeight: 44,
-              width: { xs: "auto", sm: "100%" },
+              px: 1.75,
+              bgcolor: "rgba(255,255,255,0.03)",
+              border: "1px solid rgba(255,255,255,0.08)",
             }}
           >
             Map
@@ -107,9 +128,10 @@ export default function TopMenu({ onBrowseClick, onTitleClick, onSearch }) {
           sx={{
             display: "flex",
             justifyContent: { xs: "stretch", sm: "flex-end" },
-            width: { xs: "100%", sm: "25%" },
+            width: { xs: "100%", sm: "min(360px, 30vw)" },
             pl: "0 !important",
             pr: "0 !important",
+            ml: { sm: "auto" },
           }}
         >
           <Box
@@ -121,7 +143,7 @@ export default function TopMenu({ onBrowseClick, onTitleClick, onSearch }) {
           >
             <TextField
               variant="outlined"
-              placeholder="Search"
+              placeholder="Search banners or places"
               size="small"
               fullWidth
               value={searchQuery}

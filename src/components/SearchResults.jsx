@@ -111,18 +111,40 @@ export default function SearchResults() {
     bannerData.length === 0;
 
   return (
-    <Box sx={{ mt: 2, px: 2, color: "common.white" }}>
+    <Box sx={{ mt: 3, px: 2, pb: 4, color: "common.white" }}>
       <Stack spacing={3}>
-        <Box>
-          <Typography variant="h5" component="h1" sx={{ mb: 1 }}>
+        <Box
+          sx={{
+            p: { xs: 2.25, sm: 3 },
+            borderRadius: 3,
+            border: "1px solid rgba(255, 255, 255, 0.08)",
+            background: "rgba(20, 27, 33, 0.78)",
+            boxShadow: "0 20px 40px rgba(0, 0, 0, 0.22)",
+          }}
+        >
+          <Typography
+            variant="overline"
+            sx={{ color: "text.secondary", letterSpacing: "0.18em" }}
+          >
+            Search
+          </Typography>
+          <Typography variant="h4" component="h1" sx={{ mb: 1 }}>
             Search: {query}
           </Typography>
           <Typography variant="body2" color="text.secondary">
-            Places and banners load independently.
+            Places and banners load independently so you can act on early results.
           </Typography>
         </Box>
 
-        <Box>
+        <Box
+          sx={{
+            p: { xs: 2, sm: 2.5 },
+            borderRadius: 3,
+            bgcolor: "rgba(20, 27, 33, 0.72)",
+            border: "1px solid rgba(255,255,255,0.08)",
+            boxShadow: "0 14px 32px rgba(0,0,0,0.14)",
+          }}
+        >
           <Typography variant="h6" component="h2" sx={{ mb: 1 }}>
             Places
           </Typography>
@@ -169,7 +191,15 @@ export default function SearchResults() {
           )}
         </Box>
 
-        <Box>
+        <Box
+          sx={{
+            p: { xs: 2, sm: 2.5 },
+            borderRadius: 3,
+            bgcolor: "rgba(20, 27, 33, 0.72)",
+            border: "1px solid rgba(255,255,255,0.08)",
+            boxShadow: "0 14px 32px rgba(0,0,0,0.14)",
+          }}
+        >
           <Typography variant="h6" component="h2" sx={{ mb: 1 }}>
             Banners
           </Typography>

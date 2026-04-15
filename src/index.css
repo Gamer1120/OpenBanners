@@ -1,13 +1,45 @@
+@import url("https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap");
+
+:root {
+  --app-bg: #0b1014;
+  --app-bg-soft: #141b21;
+  --app-panel: rgba(20, 27, 33, 0.92);
+  --app-panel-strong: rgba(16, 22, 28, 0.96);
+  --app-border: rgba(255, 255, 255, 0.09);
+  --app-text: #edf1f3;
+  --app-text-soft: #97a5ae;
+  --app-accent: #8fa3b5;
+  --app-accent-strong: #b8c7d2;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  background:
+    linear-gradient(180deg, #0a0f13 0%, #0b1014 48%, #11171d 100%);
+  min-height: 100%;
+}
+
 body {
   margin: 0;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
-    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
-    sans-serif;
+  min-height: 100vh;
+  color: var(--app-text);
+  font-family: "IBM Plex Sans", "Segoe UI", sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  background: transparent;
+}
+
+#root {
+  min-height: 100vh;
+}
+
+a {
+  color: inherit;
 }
 
 code {
-  font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
-    monospace;
+  font-family: "IBM Plex Mono", "SFMono-Regular", Consolas, monospace;
 }

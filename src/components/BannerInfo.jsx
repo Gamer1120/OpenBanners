@@ -99,15 +99,24 @@ const BannerInfo = ({ banner, loading = false }) => {
     <>
       <Box
         sx={{
-          bgcolor: "#1F1F1F",
+          background: "rgba(20, 27, 33, 0.94)",
           color: "#fff",
-          p: 2,
+          p: 2.25,
           m: 2,
           display: "flex",
           flexDirection: "column",
-          gap: 1,
+          gap: 1.25,
+          borderRadius: 3,
+          border: "1px solid rgba(255, 255, 255, 0.08)",
+          boxShadow: "0 20px 45px rgba(0, 0, 0, 0.22)",
         }}
       >
+        <Typography
+          variant="overline"
+          sx={{ color: "text.secondary", letterSpacing: "0.16em" }}
+        >
+          Banner Tools
+        </Typography>
         <Button
           variant="contained"
           color="primary"
@@ -146,12 +155,15 @@ const BannerInfo = ({ banner, loading = false }) => {
             No start-point coordinates are available for navigation.
           </Alert>
         ) : null}
-        <Typography variant="body1" sx={{ fontSize: 16, lineHeight: 1.5, mt: 1 }}>
+        <Typography
+          variant="body1"
+          sx={{ fontSize: 16, lineHeight: 1.65, mt: 1, color: "text.secondary" }}
+        >
           BannerGuider tutorial: Open BannerGuider, tap NEXT to open the next
           mission in your scanner. Do the mission, then press NEXT again until
           you are done with the banner.
         </Typography>
-        <Typography variant="body1" sx={{ fontSize: 16, lineHeight: 1.5 }}>
+        <Typography variant="body1" sx={{ fontSize: 16, lineHeight: 1.7 }}>
           {loading ? (
             <>
               <Skeleton sx={{ bgcolor: "rgba(255,255,255,0.12)" }} />

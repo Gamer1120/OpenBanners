@@ -219,25 +219,37 @@ export default function BrowsingPage({ placeId }) {
         minHeight: "100vh",
         color: "common.white",
         fontSize: 24,
-        pt: 2,
-        pb: 2,
+        pt: 3,
+        pb: 4,
       }}
     >
       <BrowsingHeader />
-      <Grid container spacing={2}>
+      <Grid container spacing={2.5}>
         <Grid item xs={12} sm={3} md={2}>
           {isSmallScreen && (
-            <div>
-              <Button variant="outlined" onClick={handlePlacesListToggle}>
+            <Box sx={{ mb: 1.5 }}>
+              <Button
+                variant="outlined"
+                onClick={handlePlacesListToggle}
+                sx={{ width: "100%" }}
+              >
                 {isPlacesListExpanded ? "Collapse Places" : "Expand Places"}
               </Button>
-            </div>
+            </Box>
           )}
-          <div>
+          <Box
+            sx={{
+              p: 1.5,
+              borderRadius: 3,
+              bgcolor: "rgba(20, 27, 33, 0.72)",
+              border: "1px solid rgba(255,255,255,0.08)",
+              boxShadow: "0 14px 32px rgba(0,0,0,0.14)",
+            }}
+          >
             {isPlacesListExpanded || !isSmallScreen ? (
               <PlacesList parentPlaceId={placeId} />
             ) : null}
-          </div>
+          </Box>
         </Grid>
 
         <Grid item xs={12} sm={isSmallScreen ? 12 : 9} md={isSmallScreen ? 12 : 10}>
@@ -276,7 +288,7 @@ export default function BrowsingPage({ placeId }) {
           ) : banners.length === 0 && !error ? (
             <Alert severity="info">No banners matched this selection.</Alert>
           ) : (
-            <Grid container spacing={2} sx={{ mt: 2, mb: 2 }}>
+            <Grid container spacing={2.5} sx={{ mt: 2, mb: 2 }}>
               {banners.map((banner) => (
                 <Grid
                   item

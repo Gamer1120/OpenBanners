@@ -115,6 +115,18 @@ function jsonResponse(data) {
   });
 }
 
+function deferred() {
+  let resolve;
+  let reject;
+
+  const promise = new Promise((resolvePromise, rejectPromise) => {
+    resolve = resolvePromise;
+    reject = rejectPromise;
+  });
+
+  return { promise, resolve, reject };
+}
+
 function renderWithProviders(ui, { route = "/" } = {}) {
   return render(
     <ThemeProvider theme={theme}>
@@ -132,7 +144,11 @@ function LocationDisplay() {
 beforeEach(() => {
   global.fetch = vi.fn();
   window.open = vi.fn();
+  window.localStorage.clear();
   navigator.share = vi.fn().mockResolvedValue(undefined);
+  navigator.clipboard = {
+    writeText: vi.fn().mockResolvedValue(undefined),
+  };
   navigator.permissions = {
     query: vi.fn().mockResolvedValue({ state: "prompt", onchange: null }),
   };
@@ -185,6 +201,23 @@ test("renders nearby banners after granting location access", async () => {
   expect(global.fetch).toHaveBeenCalledWith(
     expect.stringContaining("orderBy=proximityStartPoint")
   );
+});
+
+test("shows a warning when nearby banners cannot use blocked location access", async () => {
+  navigator.permissions.query = vi.fn().mockResolvedValue({
+    state: "denied",
+    onchange: null,
+  });
+
+  renderWithProviders(
+    <Routes>
+      <Route path="/" element={<BannersNearMe />} />
+    </Routes>
+  );
+
+  expect(
+    await screen.findByText(/Location access is blocked/i)
+  ).toBeInTheDocument();
 });
 
 test("normalizes place aliases to the expected country flags", () => {
@@ -273,6 +306,32 @@ test("renders places list flags and browse links for aliased place names", async
   ).toHaveAttribute("href", "/browse/south-korea");
 });
 
+test("uses cached country places without refetching", async () => {
+  window.localStorage.setItem(
+    "openbanners-country-places-v1",
+    JSON.stringify({
+      cachedAt: Date.now(),
+      places: [
+        {
+          id: "cached-netherlands",
+          formattedAddress: "Netherlands",
+          numberOfBanners: 12,
+        },
+      ],
+    })
+  );
+
+  renderWithProviders(
+    <Routes>
+      <Route path="/browse/" element={<PlacesList />} />
+    </Routes>,
+    { route: "/browse/" }
+  );
+
+  expect(await screen.findByText(/Netherlands \(12\)/)).toBeInTheDocument();
+  expect(global.fetch).not.toHaveBeenCalled();
+});
+
 test("submits top menu searches, fires menu callbacks, and navigates map route", async () => {
   const onBrowseClick = vi.fn();
   const onTitleClick = vi.fn();
@@ -356,6 +415,75 @@ test("renders place and banner search results", async () => {
   expect(await screen.findByText("Search Banner")).toBeInTheDocument();
 });
 
+test("shows place results before banner results finish loading", async () => {
+  const bannerResponse = deferred();
+
+  global.fetch.mockImplementation((url) => {
+    if (url.includes("/places?used=true&collapsePlaces=true&query=enschede")) {
+      return jsonResponse([
+        {
+          id: "enschede-place",
+          shortName: "Enschede",
+          type: "CITY",
+          numberOfBanners: 22,
+        },
+      ]);
+    }
+
+    if (url.includes("/bnrs?orderBy=relevance") && url.includes("query=enschede")) {
+      return bannerResponse.promise;
+    }
+
+    throw new Error(`Unhandled fetch: ${url}`);
+  });
+
+  renderWithProviders(
+    <Routes>
+      <Route path="/search/:query" element={<SearchResults />} />
+    </Routes>,
+    { route: "/search/enschede" }
+  );
+
+  expect(await screen.findByText(/Enschede \(CITY\) \(22\)/)).toBeInTheDocument();
+  expect(screen.queryByText("Search Banner")).not.toBeInTheDocument();
+
+  bannerResponse.resolve({
+    json: () =>
+      Promise.resolve([
+        {
+          id: "search-banner",
+          title: "Search Banner",
+          picture: "/images/search.jpg",
+          numberOfMissions: 12,
+          lengthMeters: 3600,
+          formattedAddress: "Enschede, NL",
+          numberOfDisabledMissions: 0,
+        },
+      ]),
+  });
+
+  expect(await screen.findByText("Search Banner")).toBeInTheDocument();
+});
+
+test("shows an empty state when search returns no places or banners", async () => {
+  global.fetch.mockImplementation((url) => {
+    if (url.includes("query=missing")) {
+      return jsonResponse([]);
+    }
+
+    throw new Error(`Unhandled fetch: ${url}`);
+  });
+
+  renderWithProviders(
+    <Routes>
+      <Route path="/search/:query" element={<SearchResults />} />
+    </Routes>,
+    { route: "/search/missing" }
+  );
+
+  expect(await screen.findByText('No results found for "missing".')).toBeInTheDocument();
+});
+
 test("renders banner details route with actions", async () => {
   global.fetch.mockImplementation((url) => {
     if (url.endsWith("/bnrs/detail-banner")) {
@@ -401,6 +529,24 @@ test("renders banner details route with actions", async () => {
   expect(
     screen.getByRole("button", { name: /share banner/i })
   ).toBeInTheDocument();
+});
+
+test("shows a retryable error when banner details fail to load", async () => {
+  const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+  global.fetch.mockRejectedValue(new Error("network down"));
+
+  renderWithProviders(
+    <Routes>
+      <Route path="/banner/:bannerId" element={<BannerDetailsPage />} />
+    </Routes>,
+    { route: "/banner/broken-banner" }
+  );
+
+  expect(
+    await screen.findByText("Couldn't load this banner. Please try again.")
+  ).toBeInTheDocument();
+  expect(screen.getByRole("button", { name: /retry/i })).toBeInTheDocument();
+  consoleErrorSpy.mockRestore();
 });
 
 test("renders map markers using fixed contain icons linked to banner details routes", async () => {

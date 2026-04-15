@@ -10,6 +10,7 @@ body {
 
 #map {
   height: 100vh;
+  min-height: 320px;
 }
 
 .custom-icon {
@@ -55,12 +56,15 @@ body {
   padding: 5px;
   border-radius: 4px;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  width: min(320px, calc(100vw - 20px));
+  max-width: 100%;
 }
 
 .overlay-controls {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  width: 100%;
 }
 
 .overlay-input {
@@ -85,14 +89,14 @@ body {
 .overlay-button-minus,
 .overlay-button-plus,
 .start-button {
-  /* Common styles */
   padding: 10px 15px;
   font-size: 16px;
-  background-color: #616161; /* Dark grey background color */
-  color: #f2f2f2; /* Light grey text color */
+  background-color: #616161;
+  color: #f2f2f2;
   border: none;
-  border-radius: 0; /* Square corners */
+  border-radius: 0;
   cursor: pointer;
+  min-height: 44px;
 }
 
 .disable-click {
@@ -101,6 +105,7 @@ body {
 
 .banner-details-page {
   display: flex;
+  gap: 16px;
 }
 
 .banner-details-container {
@@ -108,16 +113,20 @@ body {
   display: flex;
   justify-content: center;
   align-items: center;
+  padding: 16px;
 }
 
 .banner-details-card {
   max-width: 400px;
   margin: 0 auto;
+  width: 100%;
 }
 
 .map-container {
   flex: 3;
   height: 100vh;
+  min-height: 320px;
+  position: relative;
 }
 
 @media (max-width: 768px) {
@@ -127,10 +136,24 @@ body {
 
   .banner-details-container {
     order: 1;
+    padding: 8px;
   }
 
   .map-container {
     order: 1;
-    height: 50vh;
+    height: 45vh;
+    min-height: 300px;
+  }
+
+  .overlay {
+    top: auto;
+    bottom: 10px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: calc(100vw - 20px);
+  }
+
+  .overlay-controls > p {
+    margin: 0 6px;
   }
 }

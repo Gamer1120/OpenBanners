@@ -1,9 +1,17 @@
-import React from "react";
-import { Box, Button, Typography } from "@mui/material";
+import React, { useState } from "react";
+import {
+  Alert,
+  Box,
+  Button,
+  Skeleton,
+  Snackbar,
+  Typography,
+} from "@mui/material";
 import { useNavigate } from "react-router-dom";
 
-const BannerInfo = ({ banner }) => {
+const BannerInfo = ({ banner, loading = false }) => {
   const navigate = useNavigate();
+  const [shareFeedback, setShareFeedback] = useState(null);
 
   const handleOpenBannerGuider = () => {
     navigate(`/bannerguider/${banner.id}`);
@@ -14,6 +22,14 @@ const BannerInfo = ({ banner }) => {
   };
 
   const handleNavigateToStartPoint = () => {
+    if (!banner.startLatitude || !banner.startLongitude) {
+      setShareFeedback({
+        severity: "warning",
+        message: "This banner does not have a valid start point.",
+      });
+      return;
+    }
+
     window.open(
       `https://www.google.com/maps/dir/?api=1&destination=${banner.startLatitude},${banner.startLongitude}`,
       "_self"
@@ -28,60 +44,141 @@ const BannerInfo = ({ banner }) => {
         .share({
           url: bannerURL,
         })
-        .then(() => console.log("Shared successfully."))
-        .catch((error) => console.error("Error sharing:", error));
-    } else {
-      const textarea = document.createElement("textarea");
-      textarea.value = bannerURL;
-      document.body.appendChild(textarea);
-      textarea.select();
+        .catch((error) => {
+          console.error("Error sharing:", error);
+          setShareFeedback({
+            severity: "error",
+            message: "Couldn't share this banner.",
+          });
+        });
+      return;
+    }
+
+    if (navigator.clipboard?.writeText) {
+      navigator.clipboard
+        .writeText(bannerURL)
+        .then(() => {
+          setShareFeedback({
+            severity: "success",
+            message: "Banner link copied to clipboard.",
+          });
+        })
+        .catch((error) => {
+          console.error("Error copying banner URL:", error);
+          setShareFeedback({
+            severity: "error",
+            message: "Couldn't copy the banner link.",
+          });
+        });
+      return;
+    }
+
+    const textarea = document.createElement("textarea");
+    textarea.value = bannerURL;
+    document.body.appendChild(textarea);
+    textarea.select();
+
+    try {
       document.execCommand("copy");
+      setShareFeedback({
+        severity: "success",
+        message: "Banner link copied to clipboard.",
+      });
+    } catch (error) {
+      console.error("Error copying banner URL:", error);
+      setShareFeedback({
+        severity: "error",
+        message: "Couldn't copy the banner link.",
+      });
+    } finally {
       document.body.removeChild(textarea);
     }
   };
 
   return (
-    <Box
-      sx={{
-        bgcolor: "#1F1F1F",
-        color: "#fff",
-        p: 2,
-        m: 2,
-        display: "flex",
-        flexDirection: "column",
-        gap: 1,
-      }}
-    >
-      <Button variant="contained" color="primary" onClick={handleShareBanner}>
-        Share banner
-      </Button>
-      <Button
-        variant="contained"
-        color="primary"
-        onClick={handleNavigateToStartPoint}
+    <>
+      <Box
+        sx={{
+          bgcolor: "#1F1F1F",
+          color: "#fff",
+          p: 2,
+          m: 2,
+          display: "flex",
+          flexDirection: "column",
+          gap: 1,
+        }}
       >
-        Navigate to Start Point
-      </Button>
-      <Button variant="contained" color="primary" onClick={handleOpenBannerGuider}>
-        Open BannerGuider
-      </Button>
-      <Button
-        variant="contained"
-        color="primary"
-        onClick={handleOpenBannerGuiderWithoutLocation}
+        <Button
+          variant="contained"
+          color="primary"
+          onClick={handleShareBanner}
+          disabled={loading}
+        >
+          Share banner
+        </Button>
+        <Button
+          variant="contained"
+          color="primary"
+          onClick={handleNavigateToStartPoint}
+          disabled={loading || !banner.startLatitude || !banner.startLongitude}
+        >
+          Navigate to Start Point
+        </Button>
+        <Button
+          variant="contained"
+          color="primary"
+          onClick={handleOpenBannerGuider}
+          disabled={loading}
+        >
+          Open BannerGuider
+        </Button>
+        <Button
+          variant="contained"
+          color="primary"
+          onClick={handleOpenBannerGuiderWithoutLocation}
+          disabled={loading}
+        >
+          Open BannerGuider without location (may prevent "Inaccurate location" in
+          Ingress on iOS)
+        </Button>
+        {!loading && (!banner.startLatitude || !banner.startLongitude) ? (
+          <Alert severity="info" sx={{ mt: 1 }}>
+            No start-point coordinates are available for navigation.
+          </Alert>
+        ) : null}
+        <Typography variant="body1" sx={{ fontSize: 16, lineHeight: 1.5, mt: 1 }}>
+          BannerGuider tutorial: Open BannerGuider, tap NEXT to open the next
+          mission in your scanner. Do the mission, then press NEXT again until
+          you are done with the banner.
+        </Typography>
+        <Typography variant="body1" sx={{ fontSize: 16, lineHeight: 1.5 }}>
+          {loading ? (
+            <>
+              <Skeleton sx={{ bgcolor: "rgba(255,255,255,0.12)" }} />
+              <Skeleton sx={{ bgcolor: "rgba(255,255,255,0.12)" }} />
+              <Skeleton width="70%" sx={{ bgcolor: "rgba(255,255,255,0.12)" }} />
+            </>
+          ) : (
+            banner.description || "No banner description is available."
+          )}
+        </Typography>
+      </Box>
+      <Snackbar
+        open={Boolean(shareFeedback)}
+        autoHideDuration={2500}
+        onClose={() => setShareFeedback(null)}
       >
-        Open BannerGuider without location (may prevent "Inaccurate location" in
-        Ingress on iOS)
-      </Button>
-      <Typography variant="body1" sx={{ fontSize: 16, lineHeight: 1.5, mt: 1 }}>
-        BannerGuider tutorial: Open BannerGuider, tap NEXT to open the next
-        mission in your scanner. Do the mission, press NEXT again until you're
-        done with the banner.
-      </Typography>
-      <Typography variant="body1" sx={{ fontSize: 16, lineHeight: 1.5 }}>
-        {banner.description}
-      </Typography>
-    </Box>
+        {shareFeedback ? (
+          <Alert
+            severity={shareFeedback.severity}
+            onClose={() => setShareFeedback(null)}
+            sx={{ width: "100%" }}
+          >
+            {shareFeedback.message}
+          </Alert>
+        ) : null}
+      </Snackbar>
+    </>
   );
 };
 

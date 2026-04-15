@@ -1,11 +1,13 @@
-import React, { useState, useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import BannerCard from "./BannerCard";
 import {
-  useMediaQuery,
+  Alert,
+  Box,
+  Button,
   Container,
   Grid,
   Typography,
-  Button,
+  useMediaQuery,
 } from "@mui/material";
 import BrowsingHeader from "./BrowsingHeader";
 import SortingButtons from "./SortingButtons";
@@ -24,7 +26,13 @@ function sortJsonByMissionsPerLength(data, sortOrder) {
   });
 }
 
-function buildBannersUrl({ placeId, sortOption, sortOrder, showOffline, offset }) {
+function buildBannersUrl({
+  placeId,
+  sortOption,
+  sortOrder,
+  showOffline,
+  offset,
+}) {
   let url = `https://api.bannergress.com/bnrs?limit=100&offset=${offset}`;
 
   if (placeId) {
@@ -58,6 +66,8 @@ export default function BrowsingPage({ placeId }) {
   const [loading, setLoading] = useState(false);
   const [showOffline, setShowOffline] = useState(false);
   const [isPlacesListExpanded, setIsPlacesListExpanded] = useState(false);
+  const [error, setError] = useState("");
+  const [reloadToken, setReloadToken] = useState(0);
 
   const isSmallScreen = useMediaQuery((theme) => theme.breakpoints.down("sm"));
 
@@ -65,22 +75,23 @@ export default function BrowsingPage({ placeId }) {
     if (option === sortOption) {
       setSortOrder(sortOrder === "ASC" ? "DESC" : "ASC");
     } else {
-      if (sortOption === "Efficiency") {
-        setSortOption("Created");
-      } else {
-        setBannersFetchedForEfficiency(false);
-        setSortOption(option);
-      }
+      setBannersFetchedForEfficiency(false);
+      setSortOption(option);
       setSortOrder("DESC");
     }
   };
 
   const toggleShowOffline = () => {
     setShowOffline(!showOffline);
+    setBannersFetchedForEfficiency(false);
   };
 
   const handlePlacesListToggle = () => {
     setIsPlacesListExpanded(!isPlacesListExpanded);
+  };
+
+  const handleRetry = () => {
+    setReloadToken((currentValue) => currentValue + 1);
   };
 
   useEffect(() => {
@@ -88,29 +99,34 @@ export default function BrowsingPage({ placeId }) {
     setSortOrder("DESC");
     setBanners([]);
     setBannersFetchedForEfficiency(false);
+    setError("");
   }, [placeId]);
 
   useEffect(() => {
     let ignore = false;
 
     const loadBanners = async () => {
+      setLoading(true);
+      setError("");
+
       try {
         if (sortOption === "Efficiency") {
           if (bannersFetchedForEfficiency) {
             setBanners((currentBanners) =>
               sortJsonByMissionsPerLength(currentBanners, sortOrder)
             );
+            setLoading(false);
             return;
           }
 
           if (!placeId) {
             setBanners([]);
+            setLoading(false);
             return;
           }
 
           let offset = 0;
           let allBanners = [];
-          setLoading(true);
 
           while (!ignore) {
             const response = await fetch(
@@ -126,6 +142,7 @@ export default function BrowsingPage({ placeId }) {
 
             if (!Array.isArray(data)) {
               console.error("Invalid response data:", data);
+              setError("Couldn't load banners for this place.");
               break;
             }
 
@@ -141,7 +158,6 @@ export default function BrowsingPage({ placeId }) {
           if (!ignore) {
             setBanners(sortJsonByMissionsPerLength(allBanners, sortOrder));
             setBannersFetchedForEfficiency(true);
-            setLoading(false);
           }
 
           return;
@@ -163,14 +179,18 @@ export default function BrowsingPage({ placeId }) {
             setBanners(data);
           } else {
             console.error("Invalid response data:", data);
+            setBanners([]);
+            setError("Couldn't load banners.");
           }
         }
-      } catch (error) {
+      } catch (fetchError) {
         if (!ignore) {
-          console.error(error);
+          console.error(fetchError);
+          setBanners([]);
+          setError("Couldn't load banners. Please try again.");
         }
       } finally {
-        if (!ignore && sortOption !== "Efficiency") {
+        if (!ignore) {
           setLoading(false);
         }
       }
@@ -181,7 +201,14 @@ export default function BrowsingPage({ placeId }) {
     return () => {
       ignore = true;
     };
-  }, [placeId, sortOption, sortOrder, showOffline, bannersFetchedForEfficiency]);
+  }, [
+    placeId,
+    sortOption,
+    sortOrder,
+    showOffline,
+    bannersFetchedForEfficiency,
+    reloadToken,
+  ]);
 
   return (
     <Container
@@ -213,13 +240,14 @@ export default function BrowsingPage({ placeId }) {
           </div>
         </Grid>
 
-        <Grid
-          item
-          xs={12}
-          sm={isSmallScreen ? 12 : 9}
-          md={isSmallScreen ? 12 : 10}
-        >
-          <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 16 }}>
+        <Grid item xs={12} sm={isSmallScreen ? 12 : 9} md={isSmallScreen ? 12 : 10}>
+          <Box
+            sx={{
+              display: "flex",
+              justifyContent: "flex-end",
+              mb: 2,
+            }}
+          >
             <SortingButtons
               handleSort={handleSort}
               sortOption={sortOption}
@@ -228,14 +256,25 @@ export default function BrowsingPage({ placeId }) {
               showOffline={showOffline}
               toggleShowOffline={toggleShowOffline}
             />
-          </div>
-          {loading ? (
-            <Typography
-              variant="body2"
-              color="text.secondary"
+          </Box>
+          {error && (
+            <Alert
+              severity="error"
+              action={
+                <Button color="inherit" size="small" onClick={handleRetry}>
+                  Retry
+                </Button>
+              }
             >
+              {error}
+            </Alert>
+          )}
+          {loading ? (
+            <Typography variant="body2" color="text.secondary">
               Loading...
             </Typography>
+          ) : banners.length === 0 && !error ? (
+            <Alert severity="info">No banners matched this selection.</Alert>
           ) : (
             <Grid container spacing={2} sx={{ mt: 2, mb: 2 }}>
               {banners.map((banner) => (
@@ -244,7 +283,11 @@ export default function BrowsingPage({ placeId }) {
                   xs={6}
                   sm={4}
                   key={banner.id}
-                  sx={{ display: "flex", justifyContent: "center", alignItems: "stretch" }}
+                  sx={{
+                    display: "flex",
+                    justifyContent: "center",
+                    alignItems: "stretch",
+                  }}
                 >
                   <BannerCard banner={banner} />
                 </Grid>

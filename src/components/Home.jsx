@@ -47,10 +47,12 @@ export default function Home() {
         onTitleClick={handleTitleClick}
         onSearch={handleSearch}
       />
-      {currentView === "bannersNearMe" && <BannersNearMe />}
-      {currentView === "browsing" && <BrowsingPage placeId={placeId} />}
-      {currentView === "searching" && <SearchResults />}
-      {currentView === "bannerDetails" && <BannerDetailsPage />}
+      <Box component="main" id="main-content" sx={{ minHeight: 0 }}>
+        {currentView === "bannersNearMe" && <BannersNearMe />}
+        {currentView === "browsing" && <BrowsingPage placeId={placeId} />}
+        {currentView === "searching" && <SearchResults />}
+        {currentView === "bannerDetails" && <BannerDetailsPage />}
+      </Box>
     </Box>
   );
 }

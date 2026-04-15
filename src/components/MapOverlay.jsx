@@ -8,6 +8,7 @@ export default function MapOverlay({
 }) {
   const missionCount = missions.length;
   const overlayRef = useRef(null);
+
   const stopPropagation = (event) => {
     event.stopPropagation();
   };
@@ -42,10 +43,13 @@ export default function MapOverlay({
     <div
       ref={overlayRef}
       className="overlay"
+      role="group"
+      aria-label="Mission controls"
       onMouseDown={stopPropagation}
       onMouseUp={stopPropagation}
       onClick={stopPropagation}
       onDoubleClick={stopPropagation}
+      onTouchStart={stopPropagation}
     >
       <div className="overlay-controls">
         <button
@@ -54,10 +58,11 @@ export default function MapOverlay({
           }`}
           onClick={handleDecrement}
           disabled={currentMission === 0}
+          aria-label="Previous mission"
         >
           -
         </button>
-        <p>
+        <p aria-live="polite" aria-atomic="true">
           {currentMission !== 0
             ? `${currentMission}/${missionCount}`
             : `-/${missionCount}`}
@@ -68,11 +73,20 @@ export default function MapOverlay({
           }`}
           onClick={handleIncrement}
           disabled={currentMission === missionCount}
+          aria-label="Next mission"
         >
           +
         </button>
       </div>
-      <button className="start-button" onClick={handleStart}>
+      <button
+        className="start-button"
+        onClick={handleStart}
+        aria-label={
+          currentMission === missionCount
+            ? "Open Bannergress banner page"
+            : "Open next mission in Ingress"
+        }
+      >
         {currentMission === missionCount ? "OPEN BG" : "NEXT"}
       </button>
     </div>

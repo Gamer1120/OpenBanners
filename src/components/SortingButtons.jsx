@@ -1,5 +1,5 @@
 import React from "react";
-import { Button, Checkbox, FormControlLabel } from "@mui/material";
+import { Box, Button, Checkbox, FormControlLabel } from "@mui/material";
 import { ArrowDropDown, ArrowDropUp } from "@mui/icons-material";
 
 export default function SortingButtons({
@@ -11,7 +11,7 @@ export default function SortingButtons({
   toggleShowOffline,
 }) {
   return (
-    <div>
+    <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap", justifyContent: "flex-end" }}>
       <FormControlLabel
         control={
           <Checkbox
@@ -24,6 +24,7 @@ export default function SortingButtons({
       />
       <Button
         variant="outlined"
+        size="small"
         onClick={() => handleSort("Created")}
         endIcon={
           sortOption === "Created" ? (
@@ -39,6 +40,7 @@ export default function SortingButtons({
       </Button>
       <Button
         variant="outlined"
+        size="small"
         onClick={() => handleSort("A-Z")}
         endIcon={
           sortOption === "A-Z" ? (
@@ -54,6 +56,7 @@ export default function SortingButtons({
       </Button>
       <Button
         variant="outlined"
+        size="small"
         onClick={() => handleSort("Distance")}
         endIcon={
           sortOption === "Distance" ? (
@@ -69,6 +72,7 @@ export default function SortingButtons({
       </Button>
       <Button
         variant="outlined"
+        size="small"
         onClick={() => handleSort("Nr. of Missions")}
         endIcon={
           sortOption === "Nr. of Missions" ? (
@@ -88,6 +92,7 @@ export default function SortingButtons({
         placeId !== "germany-ea85" && (
           <Button
             variant="outlined"
+            size="small"
             onClick={() => handleSort("Efficiency")}
             endIcon={
               sortOption === "Efficiency" ? (
@@ -102,6 +107,6 @@ export default function SortingButtons({
             Efficiency
           </Button>
         )}
-    </div>
+    </Box>
   );
 }

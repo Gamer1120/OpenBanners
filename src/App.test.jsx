@@ -8,6 +8,7 @@ import BannersNearMe from "./components/BannersNearMe";
 import BrowsingPage from "./components/BrowsingPage";
 import SearchResults from "./components/SearchResults";
 import BannerDetailsPage from "./components/BannerDetailsPage";
+import BannerGuiderWithoutLocation from "./components/BannerGuiderWithoutLocation";
 import Map from "./components/Map";
 import PlacesList from "./components/PlacesList";
 import TopMenu from "./components/TopMenu";
@@ -632,6 +633,214 @@ test("renders banner details route with actions", async () => {
   expect(
     screen.getByRole("button", { name: /share banner/i })
   ).toBeInTheDocument();
+});
+
+test("renders a single visible map for banner details even with multiple missions", async () => {
+  global.fetch.mockImplementation((url) => {
+    if (url.endsWith("/bnrs/large-banner")) {
+      return jsonResponse({
+        id: "large-banner",
+        title: "Large Banner",
+        picture: "/images/detail.jpg",
+        numberOfMissions: 2,
+        lengthMeters: 2100,
+        formattedAddress: "Amsterdam, NL",
+        missions: {
+          "mission-1": {
+            id: "mission-1",
+            steps: {
+              0: {
+                poi: {
+                  title: "Portal One",
+                  type: "portal",
+                  latitude: 52.37,
+                  longitude: 4.89,
+                },
+              },
+            },
+          },
+          "mission-2": {
+            id: "mission-2",
+            steps: {
+              0: {
+                poi: {
+                  title: "Portal Two",
+                  type: "portal",
+                  latitude: 52.38,
+                  longitude: 4.9,
+                },
+              },
+            },
+          },
+        },
+      });
+    }
+
+    throw new Error(`Unhandled fetch: ${url}`);
+  });
+
+  renderWithProviders(
+    <Routes>
+      <Route path="/banner/:bannerId" element={<BannerDetailsPage />} />
+    </Routes>,
+    { route: "/banner/large-banner" }
+  );
+
+  expect(await screen.findByText("Large Banner")).toBeInTheDocument();
+  expect(screen.getAllByTestId("map-container")).toHaveLength(1);
+});
+
+test("renders only mission start markers on the banner details overview map", async () => {
+  global.fetch.mockImplementation((url) => {
+    if (url.endsWith("/bnrs/overview-banner")) {
+      return jsonResponse({
+        id: "overview-banner",
+        title: "Overview Banner",
+        picture: "/images/detail.jpg",
+        numberOfMissions: 2,
+        lengthMeters: 2100,
+        formattedAddress: "Amsterdam, NL",
+        missions: {
+          "mission-1": {
+            id: "mission-1",
+            steps: {
+              0: {
+                poi: {
+                  title: "Portal One",
+                  type: "portal",
+                  latitude: 52.37,
+                  longitude: 4.89,
+                },
+              },
+              1: {
+                poi: {
+                  title: "Portal Two",
+                  type: "portal",
+                  latitude: 52.371,
+                  longitude: 4.891,
+                },
+              },
+            },
+          },
+          "mission-2": {
+            id: "mission-2",
+            steps: {
+              0: {
+                poi: {
+                  title: "Portal Three",
+                  type: "portal",
+                  latitude: 52.38,
+                  longitude: 4.9,
+                },
+              },
+              1: {
+                poi: {
+                  title: "Portal Four",
+                  type: "portal",
+                  latitude: 52.381,
+                  longitude: 4.901,
+                },
+              },
+            },
+          },
+        },
+      });
+    }
+
+    throw new Error(`Unhandled fetch: ${url}`);
+  });
+
+  renderWithProviders(
+    <Routes>
+      <Route path="/banner/:bannerId" element={<BannerDetailsPage />} />
+    </Routes>,
+    { route: "/banner/overview-banner" }
+  );
+
+  expect(await screen.findByText("Overview Banner")).toBeInTheDocument();
+  expect(screen.getByTestId("marker-52.37-4.89")).toBeInTheDocument();
+  expect(screen.getByTestId("marker-52.38-4.9")).toBeInTheDocument();
+  expect(screen.queryByTestId("marker-52.371-4.891")).not.toBeInTheDocument();
+  expect(screen.queryByTestId("marker-52.381-4.901")).not.toBeInTheDocument();
+  expect(screen.queryByText("Navigate to portal")).not.toBeInTheDocument();
+});
+
+test("renders the guider in overview mode before a mission is selected", async () => {
+  global.fetch.mockImplementation((url) => {
+    if (url.endsWith("/bnrs/guide-banner")) {
+      return jsonResponse({
+        id: "guide-banner",
+        title: "Guide Banner",
+        missions: {
+          "mission-1": {
+            id: "mission-1",
+            steps: {
+              0: {
+                poi: {
+                  title: "Portal One",
+                  type: "portal",
+                  latitude: 52.37,
+                  longitude: 4.89,
+                },
+              },
+              1: {
+                poi: {
+                  title: "Portal Two",
+                  type: "portal",
+                  latitude: 52.371,
+                  longitude: 4.891,
+                },
+              },
+            },
+          },
+          "mission-2": {
+            id: "mission-2",
+            steps: {
+              0: {
+                poi: {
+                  title: "Portal Three",
+                  type: "portal",
+                  latitude: 52.38,
+                  longitude: 4.9,
+                },
+              },
+              1: {
+                poi: {
+                  title: "Portal Four",
+                  type: "portal",
+                  latitude: 52.381,
+                  longitude: 4.901,
+                },
+              },
+            },
+          },
+        },
+      });
+    }
+
+    throw new Error(`Unhandled fetch: ${url}`);
+  });
+
+  renderWithProviders(
+    <Routes>
+      <Route
+        path="/bannerguiderwithoutlocation/:bannerId"
+        element={<BannerGuiderWithoutLocation />}
+      />
+    </Routes>,
+    { route: "/bannerguiderwithoutlocation/guide-banner" }
+  );
+
+  await waitFor(() =>
+    expect(global.fetch).toHaveBeenCalledWith(
+      expect.stringContaining("/bnrs/guide-banner")
+    )
+  );
+  expect(screen.getByTestId("marker-52.37-4.89")).toBeInTheDocument();
+  expect(screen.getByTestId("marker-52.38-4.9")).toBeInTheDocument();
+  expect(screen.queryByTestId("marker-52.371-4.891")).not.toBeInTheDocument();
+  expect(screen.queryByTestId("marker-52.381-4.901")).not.toBeInTheDocument();
+  expect(screen.queryByText("Navigate to portal")).not.toBeInTheDocument();
 });
 
 test("shows a retryable error when banner details fail to load", async () => {

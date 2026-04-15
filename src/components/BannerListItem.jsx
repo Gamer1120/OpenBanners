@@ -1,13 +1,6 @@
 import React from "react";
 import { Link } from "react-router-dom";
-import {
-  Box,
-  Chip,
-  Paper,
-  Skeleton,
-  Stack,
-  Typography,
-} from "@mui/material";
+import { Box, Chip, Paper, Skeleton, Stack, Typography } from "@mui/material";
 
 function formatDistance(lengthMeters) {
   return Number.isFinite(lengthMeters)
@@ -21,45 +14,45 @@ export default function BannerListItem({ banner, loading = false }) {
       <Paper
         elevation={0}
         sx={{
-          p: { xs: 1.25, sm: 1.5 },
-          borderRadius: 2,
+          p: { xs: 0.75, sm: 0.9 },
+          borderRadius: 3,
           border: "1px solid rgba(255,255,255,0.08)",
-          bgcolor: "rgba(20, 27, 33, 0.72)",
+          bgcolor: "rgba(18, 25, 31, 0.78)",
         }}
       >
         <Box
           sx={{
             display: "grid",
-            gridTemplateColumns: { xs: "82px 1fr", sm: "104px 1fr 88px" },
-            gap: { xs: 1.25, sm: 1.75 },
-            alignItems: "center",
+            gridTemplateColumns: {
+              xs: "minmax(148px, 46%) minmax(0, 1fr)",
+              sm: "minmax(224px, 42%) minmax(0, 1fr)",
+            },
+            gap: { xs: 0.9, sm: 1.1 },
+            alignItems: "stretch",
           }}
         >
           <Skeleton
             variant="rounded"
-            sx={{ width: "100%", aspectRatio: "2 / 3", transform: "none" }}
+            sx={{
+              width: "100%",
+              height: "100%",
+              minHeight: { xs: 186, sm: 214 },
+              borderRadius: 2.5,
+              transform: "none",
+            }}
           />
-          <Stack spacing={1}>
-            <Skeleton variant="text" width="72%" height={34} />
-            <Skeleton variant="text" width="48%" />
-            <Stack direction="row" spacing={0.75}>
-              <Skeleton variant="rounded" width={74} height={26} />
-              <Skeleton variant="rounded" width={84} height={26} />
-              <Skeleton
-                variant="rounded"
-                width={72}
-                height={26}
-                sx={{ display: { xs: "none", sm: "block" } }}
-              />
-            </Stack>
-          </Stack>
           <Stack
-            spacing={1}
-            alignItems="flex-end"
-            sx={{ display: { xs: "none", sm: "flex" } }}
+            spacing={0.8}
+            justifyContent="center"
+            sx={{
+              minWidth: 0,
+              py: { xs: 0.35, sm: 0.5 },
+              pr: { xs: 0.25, sm: 0.4 },
+            }}
           >
-            <Skeleton variant="rounded" width={70} height={26} />
-            <Skeleton variant="text" width={36} />
+            <Skeleton variant="text" width="82%" height={38} />
+            <Skeleton variant="text" width="64%" height={22} />
+            <Skeleton variant="text" width="76%" height={20} />
           </Stack>
         </Box>
       </Paper>
@@ -88,16 +81,22 @@ export default function BannerListItem({ banner, loading = false }) {
       <Paper
         elevation={0}
         sx={{
-          p: { xs: 1.25, sm: 1.5 },
-          borderRadius: 2,
+          p: { xs: 0.75, sm: 0.9 },
+          borderRadius: 3,
           border: "1px solid rgba(255,255,255,0.08)",
-          bgcolor: "rgba(20, 27, 33, 0.72)",
+          bgcolor: "rgba(18, 25, 31, 0.78)",
+          overflow: "hidden",
           transition:
-            "transform 180ms ease, border-color 180ms ease, background-color 180ms ease",
+            "transform 180ms ease, border-color 180ms ease, background-color 180ms ease, box-shadow 180ms ease",
+          boxShadow: "0 14px 34px rgba(0,0,0,0.16)",
           "&:hover": {
-            transform: "translateY(-1px)",
+            transform: "translateY(-2px)",
             borderColor: "rgba(255,255,255,0.18)",
-            bgcolor: "rgba(24, 31, 38, 0.9)",
+            bgcolor: "rgba(24, 31, 38, 0.92)",
+            boxShadow: "0 18px 40px rgba(0,0,0,0.2)",
+            "& .banner-list-item-image": {
+              transform: "scale(1.03)",
+            },
           },
           "&:focus-within": {
             borderColor: "primary.main",
@@ -107,24 +106,48 @@ export default function BannerListItem({ banner, loading = false }) {
         <Box
           sx={{
             display: "grid",
-            gridTemplateColumns: { xs: "82px 1fr", sm: "104px 1fr 88px" },
-            gap: { xs: 1.25, sm: 1.75 },
-            alignItems: "center",
+            gridTemplateColumns: {
+              xs: "minmax(148px, 46%) minmax(0, 1fr)",
+              sm: "minmax(224px, 42%) minmax(0, 1fr)",
+            },
+            gap: { xs: 0.9, sm: 1.1 },
+            alignItems: "stretch",
           }}
         >
           <Box
             sx={{
               position: "relative",
-              aspectRatio: "2 / 3",
-              borderRadius: 1.5,
+              minHeight: { xs: 186, sm: 214 },
+              borderRadius: 2.5,
               overflow: "hidden",
-              bgcolor: "rgba(255,255,255,0.03)",
+              bgcolor: "rgba(255,255,255,0.04)",
               border: "1px solid rgba(255,255,255,0.06)",
+              backgroundImage:
+                "linear-gradient(180deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.015) 100%)",
             }}
           >
+            {isOffline ? (
+              <Chip
+                size="small"
+                label="Offline"
+                sx={{
+                  position: "absolute",
+                  top: 10,
+                  left: 10,
+                  zIndex: 1,
+                  height: 24,
+                  fontWeight: 600,
+                  color: "#ffd8b2",
+                  bgcolor: "rgba(120, 60, 28, 0.78)",
+                  border: "1px solid rgba(255,255,255,0.14)",
+                  backdropFilter: "blur(8px)",
+                }}
+              />
+            ) : null}
             {showImage ? (
               <Box
                 component="img"
+                className="banner-list-item-image"
                 src={`https://api.bannergress.com${banner.picture}`}
                 alt={banner.title}
                 sx={{
@@ -133,6 +156,7 @@ export default function BannerListItem({ banner, loading = false }) {
                   width: "100%",
                   height: "100%",
                   objectFit: "contain",
+                  transition: "transform 220ms ease",
                 }}
               />
             ) : (
@@ -147,84 +171,61 @@ export default function BannerListItem({ banner, loading = false }) {
                   textAlign: "center",
                 }}
               >
-                <Typography variant="caption" color="text.secondary">
+                <Typography variant="body2" color="text.secondary">
                   No image
                 </Typography>
               </Box>
             )}
           </Box>
 
-          <Stack spacing={0.85} sx={{ minWidth: 0 }}>
-            <Stack
-              direction={{ xs: "column", sm: "row" }}
-              spacing={0.75}
-              alignItems={{ xs: "flex-start", sm: "center" }}
+          <Stack
+            spacing={0.8}
+            justifyContent="center"
+            sx={{
+              minWidth: 0,
+              py: { xs: 0.35, sm: 0.5 },
+              pr: { xs: 0.25, sm: 0.4 },
+            }}
+          >
+            <Typography
+              variant="h6"
+              sx={{
+                fontSize: { xs: "1rem", sm: "1.12rem" },
+                lineHeight: 1.15,
+                minWidth: 0,
+                display: "-webkit-box",
+                WebkitLineClamp: 2,
+                WebkitBoxOrient: "vertical",
+                overflow: "hidden",
+                fontWeight: 700,
+              }}
             >
-              <Typography
-                variant="h6"
-                sx={{
-                  fontSize: { xs: "1rem", sm: "1.1rem" },
-                  lineHeight: 1.15,
-                  display: "-webkit-box",
-                  WebkitLineClamp: 2,
-                  WebkitBoxOrient: "vertical",
-                  overflow: "hidden",
-                }}
-              >
-                {banner.title}
-              </Typography>
-              <Chip
-                size="small"
-                label={isOffline ? "Offline" : "Live"}
-                sx={{
-                  display: { xs: "inline-flex", sm: "none" },
-                  borderRadius: 1,
-                  bgcolor: "rgba(255,255,255,0.04)",
-                  color: "text.secondary",
-                }}
-              />
-            </Stack>
-
-            <Typography variant="body2" color="text.secondary">
+              {banner.title}
+            </Typography>
+            <Typography
+              variant="body2"
+              color="text.secondary"
+              sx={{
+                display: "-webkit-box",
+                WebkitLineClamp: 3,
+                WebkitBoxOrient: "vertical",
+                overflow: "hidden",
+                lineHeight: 1.35,
+              }}
+            >
               {banner.formattedAddress || "Address unavailable"}
             </Typography>
-
-            <Stack direction="row" spacing={0.75} useFlexGap flexWrap="wrap">
-              <Chip
-                size="small"
-                label={`${Number.isFinite(missions) ? missions : "?"} missions`}
-                sx={{ bgcolor: "rgba(255,255,255,0.04)", borderRadius: 1 }}
-              />
-              <Chip
-                size="small"
-                label={formatDistance(lengthMeters)}
-                sx={{ bgcolor: "rgba(255,255,255,0.04)", borderRadius: 1 }}
-              />
-              <Chip
-                size="small"
-                label={efficiency}
-                sx={{ bgcolor: "rgba(255,255,255,0.04)", borderRadius: 1 }}
-              />
-            </Stack>
-          </Stack>
-
-          <Stack
-            spacing={1}
-            alignItems="flex-end"
-            justifyContent="center"
-            sx={{ display: { xs: "none", sm: "flex" } }}
-          >
-            <Chip
-              size="small"
-              label={isOffline ? "Offline" : "Live"}
+            <Typography
+              variant="body2"
+              color="text.secondary"
               sx={{
-                borderRadius: 1,
-                bgcolor: "rgba(255,255,255,0.04)",
-                color: "text.secondary",
+                fontSize: { xs: "0.82rem", sm: "0.88rem" },
+                lineHeight: 1.35,
               }}
-            />
-            <Typography variant="caption" color="text.secondary">
-              Open
+            >
+              {`${Number.isFinite(missions) ? missions : "?"} missions • ${formatDistance(
+                lengthMeters
+              )} • ${efficiency}`}
             </Typography>
           </Stack>
         </Box>

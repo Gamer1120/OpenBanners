@@ -1,6 +1,7 @@
 .App {
   text-align: center;
   min-height: 100vh;
+  min-height: 100dvh;
 }
 
 #map {
@@ -99,39 +100,52 @@
 }
 
 .banner-details-page {
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(360px, 432px) minmax(0, 1fr);
   gap: 16px;
+  flex: 1;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .banner-details-container {
-  flex: 2;
-  display: flex;
-  justify-content: center;
-  align-items: center;
+  display: block;
   padding: 16px;
+  min-height: 0;
+  overflow-y: auto;
 }
 
 .banner-details-card {
-  max-width: 400px;
+  max-width: 432px;
   margin: 0 auto;
   width: 100%;
 }
 
 .map-container {
-  flex: 3;
-  height: 100vh;
-  min-height: 320px;
+  min-height: 0;
   position: relative;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.map-container > .leaflet-container {
+  height: 100% !important;
+  width: 100%;
 }
 
 @media (max-width: 768px) {
   .banner-details-page {
+    display: flex;
     flex-direction: column;
+    height: auto;
+    overflow: visible;
   }
 
   .banner-details-container {
     order: 1;
     padding: 8px;
+    overflow-y: visible;
   }
 
   .map-container {

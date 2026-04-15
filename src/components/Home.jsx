@@ -41,13 +41,32 @@ export default function Home() {
   }, [location.pathname]);
 
   return (
-    <Box sx={{ flexGrow: 1, bgcolor: "grey.900", minHeight: "100vh" }}>
+    <Box
+      sx={{
+        flexGrow: 1,
+        bgcolor: "grey.900",
+        height: currentView === "bannerDetails" ? "100dvh" : "auto",
+        minHeight: "100dvh",
+        display: "flex",
+        flexDirection: "column",
+      }}
+    >
       <TopMenu
         onBrowseClick={handleBrowseClick}
         onTitleClick={handleTitleClick}
         onSearch={handleSearch}
       />
-      <Box component="main" id="main-content" sx={{ minHeight: 0 }}>
+      <Box
+        component="main"
+        id="main-content"
+        sx={{
+          flex: 1,
+          minHeight: 0,
+          display: "flex",
+          flexDirection: "column",
+          overflow: currentView === "bannerDetails" ? "hidden" : "visible",
+        }}
+      >
         {currentView === "bannersNearMe" && <BannersNearMe />}
         {currentView === "browsing" && <BrowsingPage placeId={placeId} />}
         {currentView === "searching" && <SearchResults />}

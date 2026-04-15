@@ -1,8 +1,16 @@
+import { useMemo } from "react";
 import Mission from "./Mission";
 
-export default function BannerMarkers({ missions, currentMission }) {
+export default function BannerMarkers({
+  missions,
+  currentMission,
+  showStepMarkers = true,
+}) {
   const missionCount = missions.length;
-  const rainbowColors = generateRainbowColors(missionCount);
+  const rainbowColors = useMemo(
+    () => generateRainbowColors(missionCount),
+    [missionCount]
+  );
 
   return (
     <div>
@@ -21,6 +29,7 @@ export default function BannerMarkers({ missions, currentMission }) {
               mission={mission}
               missionNumber={index + 1}
               color={color}
+              showStepMarkers={showStepMarkers}
             />
           );
         }

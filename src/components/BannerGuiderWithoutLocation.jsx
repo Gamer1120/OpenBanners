@@ -2,7 +2,7 @@ import { MapContainer, TileLayer } from "react-leaflet";
 import BannerMarkers from "./BannerMarkers";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import MapOverlay from "./MapOverlay";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import L from "leaflet";
 
 export default function Map() {
@@ -27,6 +27,31 @@ export default function Map() {
   const [isLoading, setIsLoading] = useState(true);
   const mapRef = useRef(null);
   const [mapInitialized, setMapInitialized] = useState(false);
+  const missions = useMemo(
+    () => Object.values(items.missions ?? {}),
+    [items.missions]
+  );
+  const missionCoordinates = useMemo(
+    () =>
+      missions
+        .map((mission) => {
+          const poi = mission.steps?.[0]?.poi;
+          if (!poi) {
+            return null;
+          }
+          const latitude = poi.latitude;
+          const longitude = poi.longitude;
+
+          if (latitude && longitude) {
+            return [latitude, longitude];
+          }
+
+          return null;
+        })
+        .filter(Boolean),
+    [missions]
+  );
+  const overviewMode = currentMission <= 0 || currentMission >= missions.length;
 
   useEffect(() => {
     fetch(`https://api.bannergress.com/bnrs/${bannerId}`)
@@ -48,28 +73,14 @@ export default function Map() {
   }, [navigate, currentMission]);
 
   useEffect(() => {
-    if (!isLoading && mapRef.current && items.missions && mapInitialized) {
-      const missionCoordinates = Object.values(items.missions)
-        .map((mission) => {
-          const { poi } = mission.steps[0];
-          const latitude = poi.latitude;
-          const longitude = poi.longitude;
-          if (latitude && longitude) {
-            return [latitude, longitude];
-          }
-          return null;
-        })
-        .filter((coord) => coord !== null);
-
-      if (missionCoordinates.length > 0) {
+    if (!isLoading && mapRef.current && mapInitialized && missionCoordinates.length > 0) {
         const bounds = L.latLngBounds(missionCoordinates);
         mapRef.current.fitBounds(bounds, {
           padding: [50, 50],
-          animate: true,
+          animate: missionCoordinates.length <= 100,
         });
-      }
     }
-  }, [isLoading, items.missions, mapInitialized]);
+  }, [isLoading, mapInitialized, missionCoordinates]);
 
   if (isLoading) {
     return <div>Loading...</div>;
@@ -88,18 +99,20 @@ export default function Map() {
         zoom={15}
         scrollWheelZoom={true}
         whenReady={handleMapContainerReady}
+        preferCanvas={missionCoordinates.length > 200}
       >
         <TileLayer
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors. This website is NOT affiliated with Bannergress in any way!'
           url="https://tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
         <BannerMarkers
-          missions={items.missions ? Object.values(items.missions) : []}
+          missions={missions}
           currentMission={currentMission}
+          showStepMarkers={!overviewMode}
         />
       </MapContainer>
       <MapOverlay
-        missions={items.missions ? Object.values(items.missions) : []}
+        missions={missions}
         currentMission={currentMission}
         setCurrentMission={setCurrentMission}
         bannerId={bannerId}

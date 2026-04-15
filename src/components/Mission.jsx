@@ -1,41 +1,56 @@
-import React, { useEffect, useRef } from "react";
+import React, { useMemo } from "react";
 import MissionStepMarker from "./MissionStepMarker";
-import { Polyline, MapContainer } from "react-leaflet";
+import { Polyline } from "react-leaflet";
 
-export default function Mission({ mission, missionNumber, color }) {
-  const mapRef = useRef(null);
+function compressPolylinePositions(positions, maxPoints) {
+  if (positions.length <= maxPoints) {
+    return positions;
+  }
 
-  const stepsToRender = Object.values(mission.steps).filter(
-    (step) => step.poi.type !== "unavailable"
+  const lastIndex = positions.length - 1;
+  const compressedPositions = [positions[0]];
+
+  for (let index = 1; index < maxPoints - 1; index += 1) {
+    const sourceIndex = Math.round((index / (maxPoints - 1)) * lastIndex);
+    compressedPositions.push(positions[sourceIndex]);
+  }
+
+  compressedPositions.push(positions[lastIndex]);
+
+  return compressedPositions;
+}
+
+function Mission({
+  mission,
+  missionNumber,
+  color,
+  showStepMarkers = true,
+}) {
+  const stepsToRender = useMemo(
+    () =>
+      Object.values(mission.steps ?? {}).filter(
+        (step) => step.poi.type !== "unavailable"
+      ),
+    [mission.steps]
   );
 
-  const polylinePositions = stepsToRender.map((step) => [
-    step.poi.latitude,
-    step.poi.longitude,
-  ]);
-
-  useEffect(() => {
-    const map = mapRef.current?.leafletElement;
-    if (map) {
-      const updatePolylines = () => {
-        map.eachLayer((layer) => {
-          if (layer instanceof Polyline) {
-            layer.redraw(); // Redraw the polylines
-          }
-        });
-      };
-
-      map.on("moveend", updatePolylines); // Update polylines when the map moves
-
-      return () => {
-        map.off("moveend", updatePolylines); // Remove the event listener when component unmounts
-      };
-    }
-  }, []);
+  const polylinePositions = useMemo(
+    () =>
+      stepsToRender.map((step) => [step.poi.latitude, step.poi.longitude]),
+    [stepsToRender]
+  );
+  const overviewPolylinePositions = useMemo(
+    () => compressPolylinePositions(polylinePositions, 24),
+    [polylinePositions]
+  );
+  const markerSteps = showStepMarkers ? stepsToRender : stepsToRender.slice(0, 1);
+  const positionsToRender = showStepMarkers
+    ? polylinePositions
+    : overviewPolylinePositions;
 
   return (
     <div>
-      {stepsToRender.map((step, index) => (
+      {markerSteps.map((step, index) => (
         <MissionStepMarker
           key={step.poi.title}
           portalName={step.poi.title}
@@ -44,16 +59,12 @@ export default function Mission({ mission, missionNumber, color }) {
           missionNumber={missionNumber}
           color={color}
           isFirst={index === 0}
+          interactive={showStepMarkers}
         />
       ))}
-      <Polyline positions={polylinePositions} color={color} />
-      <MapContainer
-        ref={mapRef}
-        center={[52.221058, 6.893297]}
-        zoom={8}
-        scrollWheelZoom={true}
-        style={{ display: "none" }} // Hide the map container
-      />
+      <Polyline positions={positionsToRender} color={color} smoothFactor={4} />
     </div>
   );
 }
+
+export default React.memo(Mission);

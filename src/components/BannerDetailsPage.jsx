@@ -1,7 +1,7 @@
 import { MapContainer, TileLayer } from "react-leaflet";
 import BannerMarkers from "./BannerMarkers";
 import { useParams } from "react-router-dom";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Alert, Box, Button, Typography } from "@mui/material";
 import BannerDetailsCard from "./BannerDetailsCard";
 import BannerInfo from "./BannerInfo";
@@ -16,6 +16,29 @@ export default function BannerDetailsPage() {
   const [mapInitialized, setMapInitialized] = useState(false);
   const [reloadToken, setReloadToken] = useState(0);
   const mapRef = useRef(null);
+  const mapContainerRef = useRef(null);
+  const missions = useMemo(
+    () => Object.values(items.missions ?? {}),
+    [items.missions]
+  );
+  const missionCoordinates = useMemo(
+    () =>
+      missions.flatMap((mission) =>
+        Object.values(mission.steps ?? {})
+          .map((step) => {
+            const latitude = step?.poi?.latitude;
+            const longitude = step?.poi?.longitude;
+
+            if (latitude && longitude) {
+              return [latitude, longitude];
+            }
+
+            return null;
+          })
+          .filter(Boolean)
+      ),
+    [missions]
+  );
 
   useEffect(() => {
     let ignore = false;
@@ -58,33 +81,49 @@ export default function BannerDetailsPage() {
   }, [bannerId, reloadToken]);
 
   useEffect(() => {
-    if (!isLoading && items.missions && mapInitialized) {
-      const missionCoordinates = Object.values(items.missions)
-        .flatMap((mission) =>
-          Object.values(mission.steps ?? {})
-            .map((step) => {
-              const latitude = step?.poi?.latitude;
-              const longitude = step?.poi?.longitude;
-
-              if (latitude && longitude) {
-                return [latitude, longitude];
-              }
-
-              return null;
-            })
-            .filter(Boolean)
-        )
-        .filter((coord) => coord !== null);
-
+    if (!isLoading && missionCoordinates.length > 0 && mapInitialized) {
       if (missionCoordinates.length > 0) {
         const bounds = L.latLngBounds(missionCoordinates);
         mapRef.current?.fitBounds(bounds, {
           padding: [50, 50],
-          animate: true,
+          animate: missionCoordinates.length <= 100,
         });
       }
     }
-  }, [isLoading, items.missions, mapInitialized]);
+  }, [isLoading, mapInitialized, missionCoordinates]);
+
+  useEffect(() => {
+    if (!mapInitialized) {
+      return undefined;
+    }
+
+    const invalidateMapSize = () => {
+      mapRef.current?.invalidateSize?.(false);
+    };
+
+    const animationFrameId = window.requestAnimationFrame(invalidateMapSize);
+    const timeoutId = window.setTimeout(invalidateMapSize, 150);
+    let resizeObserver;
+
+    if (
+      typeof ResizeObserver !== "undefined" &&
+      mapContainerRef.current
+    ) {
+      resizeObserver = new ResizeObserver(() => {
+        invalidateMapSize();
+      });
+      resizeObserver.observe(mapContainerRef.current);
+    } else {
+      window.addEventListener("resize", invalidateMapSize);
+    }
+
+    return () => {
+      window.cancelAnimationFrame(animationFrameId);
+      window.clearTimeout(timeoutId);
+      resizeObserver?.disconnect();
+      window.removeEventListener("resize", invalidateMapSize);
+    };
+  }, [mapInitialized]);
 
   return (
     <div className="banner-details-page">
@@ -117,7 +156,7 @@ export default function BannerDetailsPage() {
           )}
         </div>
       </div>
-      <div className="map-container">
+      <div className="map-container" ref={mapContainerRef}>
         {isLoading && (
           <Box
             sx={{
@@ -140,8 +179,9 @@ export default function BannerDetailsPage() {
           center={[52.221058, 6.893297]}
           zoom={8}
           scrollWheelZoom={true}
-          style={{ height: "100vh" }}
+          style={{ height: "100%", width: "100%" }}
           ref={mapRef}
+          preferCanvas={missionCoordinates.length > 200}
           dragging={!L.Browser.mobile}
           touchZoom={true}
           whenReady={() => setMapInitialized(true)}
@@ -150,9 +190,7 @@ export default function BannerDetailsPage() {
             attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors. This website is NOT affiliated with Bannergress in any way!'
             url="https://tile.openstreetmap.org/{z}/{x}/{y}.png"
           />
-          <BannerMarkers
-            missions={items.missions ? Object.values(items.missions) : []}
-          />
+          <BannerMarkers missions={missions} showStepMarkers={false} />
         </MapContainer>
       </div>
     </div>

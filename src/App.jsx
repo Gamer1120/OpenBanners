@@ -3,7 +3,6 @@ import BannerGuider from "./components/BannerGuider";
 import BannerGuiderWithoutLocation from "./components/BannerGuiderWithoutLocation";
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import Home from "./components/Home";
-import Map from "./components/Map";
 
 function App() {
   return (
@@ -20,7 +19,7 @@ function App() {
             element={<BannerGuiderWithoutLocation />}
           />
           <Route path="/search/:query" element={<Home />} />
-          <Route path="/map" element={<Map />} />
+          <Route path="/map" element={<Home />} />
         </Routes>
       </Router>
     </div>

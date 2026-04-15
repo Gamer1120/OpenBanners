@@ -1,5 +1,5 @@
 import React from "react";
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { useMediaQuery } from "@mui/material";
 import { ThemeProvider, createTheme } from "@mui/material/styles";
@@ -10,7 +10,7 @@ import BrowsingPage from "./components/BrowsingPage";
 import SearchResults from "./components/SearchResults";
 import BannerDetailsPage from "./components/BannerDetailsPage";
 import BannerGuiderWithoutLocation from "./components/BannerGuiderWithoutLocation";
-import Map from "./components/Map";
+import Map, { __resetDiscoveryMapCacheForTests } from "./components/Map";
 import PlacesList from "./components/PlacesList";
 import TopMenu from "./components/TopMenu";
 import { getFlagForPlace } from "./components/CountryFlags";
@@ -144,8 +144,28 @@ function LocationDisplay() {
 }
 
 beforeEach(() => {
+  __resetDiscoveryMapCacheForTests();
   global.fetch = vi.fn();
   useMediaQuery.mockReturnValue(false);
+  global.Image = class MockImage {
+    constructor() {
+      this.naturalWidth = 2;
+      this.naturalHeight = 3;
+      this.onload = null;
+      this.onerror = null;
+    }
+
+    set src(_value) {
+      this._src = _value;
+      setTimeout(() => {
+        this.onload?.();
+      }, 0);
+    }
+
+    get src() {
+      return this._src;
+    }
+  };
   window.open = vi.fn();
   window.localStorage.clear();
   Object.defineProperty(navigator, "share", {
@@ -924,14 +944,18 @@ test("shows a retryable error when banner details fail to load", async () => {
   consoleErrorSpy.mockRestore();
 });
 
-test("renders map markers using fixed contain icons linked to banner details routes", async () => {
+test("renders a discovery map with proximity-sorted poster markers and preview links", async () => {
   global.fetch.mockImplementation((url) => {
-    if (url.includes("/bnrs?orderBy=created&orderDirection=DESC&online=true")) {
+    if (url.includes("/bnrs?orderBy=proximityStartPoint")) {
       return jsonResponse([
         {
           id: "map-banner",
           title: "Map Banner",
           picture: "/images/map.jpg",
+          numberOfMissions: 6,
+          lengthMeters: 1800,
+          formattedAddress: "Enschede, NL",
+          numberOfDisabledMissions: 0,
           startLatitude: "52.22",
           startLongitude: "6.89",
         },
@@ -943,10 +967,10 @@ test("renders map markers using fixed contain icons linked to banner details rou
 
   renderWithProviders(<Map />);
 
-  const bannerLink = await screen.findByRole("link");
+  const bannerLink = await screen.findByRole("link", { name: /open banner/i });
   await waitFor(() =>
     expect(global.fetch).toHaveBeenCalledWith(
-      expect.stringContaining("orderBy=created")
+      expect.stringContaining("orderBy=proximityStartPoint")
     )
   );
   expect(bannerLink).toHaveAttribute("href", "/banner/map-banner");
@@ -954,9 +978,9 @@ test("renders map markers using fixed contain icons linked to banner details rou
   expect(L.divIcon).toHaveBeenCalledWith(
     expect.objectContaining({
       className: "banner-map-icon",
-      iconSize: [100, 150],
-      iconAnchor: [50, 150],
-      html: expect.stringContaining("object-fit:contain"),
+      iconSize: expect.any(Array),
+      iconAnchor: expect.any(Array),
+      html: expect.stringContaining("box-shadow"),
     })
   );
   expect(L.divIcon).toHaveBeenCalledWith(
@@ -964,4 +988,208 @@ test("renders map markers using fixed contain icons linked to banner details rou
       html: expect.stringContaining("https://api.bannergress.com/images/map.jpg"),
     })
   );
+  expect(screen.getByText("Map Banner")).toBeInTheDocument();
+  expect(screen.getByText(/away/i)).toBeInTheDocument();
+});
+
+test("lets you change discovery map poster size with presets and a custom slider", async () => {
+  const user = userEvent.setup();
+
+  global.fetch.mockImplementation((url) => {
+    if (url.includes("/bnrs?orderBy=proximityStartPoint")) {
+      return jsonResponse([
+        {
+          id: "map-banner",
+          title: "Map Banner",
+          picture: "/images/map.jpg",
+          numberOfMissions: 6,
+          lengthMeters: 1800,
+          formattedAddress: "Enschede, NL",
+          numberOfDisabledMissions: 0,
+          startLatitude: "52.22",
+          startLongitude: "6.89",
+        },
+      ]);
+    }
+
+    throw new Error(`Unhandled fetch: ${url}`);
+  });
+
+  renderWithProviders(<Map />);
+
+  await screen.findByRole("link", { name: /open banner/i });
+
+  const imageSizeButton = screen.getByRole("button", {
+    name: /image size: medium/i,
+  });
+
+  await user.click(imageSizeButton);
+  await user.click(screen.getByRole("menuitem", { name: /large/i }));
+
+  await waitFor(() =>
+    expect(
+      screen.getByRole("button", { name: /image size: large/i })
+    ).toBeInTheDocument()
+  );
+
+  await user.click(screen.getByRole("button", { name: /image size: large/i }));
+  await user.click(screen.getByRole("menuitem", { name: /custom/i }));
+
+  const customSlider = screen.getByRole("slider", {
+    name: /custom image size/i,
+  });
+  fireEvent.change(customSlider, { target: { value: "1.6" } });
+
+  await waitFor(() =>
+    expect(
+      screen.getByRole("button", {
+        name: /image size: custom \(160%\)/i,
+        hidden: true,
+      })
+    ).toBeInTheDocument()
+  );
+
+  const bannerIconCalls = L.divIcon.mock.calls
+    .map(([options]) => options)
+    .filter((options) => options.className === "banner-map-icon");
+
+  expect(
+    bannerIconCalls.some((options) => options.html?.includes("width:172px"))
+  ).toBe(true);
+});
+
+test("reuses cached discovery map results for the same view", async () => {
+  global.fetch.mockImplementation((url) => {
+    if (url.includes("/bnrs?orderBy=proximityStartPoint")) {
+      return jsonResponse([
+        {
+          id: "cached-map-banner",
+          title: "Cached Map Banner",
+          picture: "/images/cached-map.jpg",
+          numberOfMissions: 6,
+          lengthMeters: 1800,
+          formattedAddress: "Enschede, NL",
+          numberOfDisabledMissions: 0,
+          startLatitude: "52.22",
+          startLongitude: "6.89",
+        },
+      ]);
+    }
+
+    throw new Error(`Unhandled fetch: ${url}`);
+  });
+
+  const firstRender = renderWithProviders(<Map />);
+  expect(
+    await screen.findByRole("link", { name: /open banner/i })
+  ).toHaveAttribute("href", "/banner/cached-map-banner");
+  expect(global.fetch).toHaveBeenCalledTimes(1);
+
+  firstRender.unmount();
+  global.fetch.mockClear();
+
+  renderWithProviders(<Map />);
+
+  expect(
+    await screen.findByRole("link", { name: /open banner/i })
+  ).toHaveAttribute("href", "/banner/cached-map-banner");
+  expect(global.fetch).not.toHaveBeenCalled();
+});
+
+test("renders every fetched discovery map banner in the current view", async () => {
+  global.fetch.mockImplementation((url) => {
+    if (url.includes("/bnrs?orderBy=proximityStartPoint")) {
+      return jsonResponse([
+        {
+          id: "map-banner-1",
+          title: "Map Banner One",
+          picture: "/images/map-1.jpg",
+          numberOfMissions: 6,
+          lengthMeters: 1800,
+          formattedAddress: "Enschede, NL",
+          numberOfDisabledMissions: 0,
+          startLatitude: "52.22",
+          startLongitude: "6.89",
+        },
+        {
+          id: "map-banner-2",
+          title: "Map Banner Two",
+          picture: "/images/map-2.jpg",
+          numberOfMissions: 12,
+          lengthMeters: 2200,
+          formattedAddress: "Enschede, NL",
+          numberOfDisabledMissions: 0,
+          startLatitude: "52.225",
+          startLongitude: "6.895",
+        },
+      ]);
+    }
+
+    throw new Error(`Unhandled fetch: ${url}`);
+  });
+
+  renderWithProviders(<Map />);
+
+  expect(await screen.findByText("2 banners in view")).toBeInTheDocument();
+  expect(screen.queryByText(/showing the nearest/i)).not.toBeInTheDocument();
+});
+
+test("renders discovery map markers even before banner image ratios load", async () => {
+  global.Image = class PendingImage {
+    constructor() {
+      this.onload = null;
+      this.onerror = null;
+    }
+
+    set src(_value) {
+      this._src = _value;
+    }
+
+    get src() {
+      return this._src;
+    }
+  };
+
+  global.fetch.mockImplementation((url) => {
+    if (url.includes("/bnrs?orderBy=proximityStartPoint")) {
+      return jsonResponse([
+        {
+          id: "pending-map-banner-1",
+          title: "Pending Map Banner One",
+          picture: "/images/pending-map-1.jpg",
+          numberOfMissions: 6,
+          lengthMeters: 1800,
+          formattedAddress: "Enschede, NL",
+          numberOfDisabledMissions: 0,
+          startLatitude: "52.22",
+          startLongitude: "6.89",
+        },
+        {
+          id: "pending-map-banner-2",
+          title: "Pending Map Banner Two",
+          picture: "/images/pending-map-2.jpg",
+          numberOfMissions: 12,
+          lengthMeters: 2200,
+          formattedAddress: "Enschede, NL",
+          numberOfDisabledMissions: 0,
+          startLatitude: "52.225",
+          startLongitude: "6.895",
+        },
+      ]);
+    }
+
+    throw new Error(`Unhandled fetch: ${url}`);
+  });
+
+  renderWithProviders(<Map />);
+
+  expect(await screen.findByText("2 banners in view")).toBeInTheDocument();
+
+  await waitFor(() => {
+    const bannerIconCalls = L.divIcon.mock.calls
+      .map(([options]) => options)
+      .filter((options) => options.className === "banner-map-icon");
+
+    expect(bannerIconCalls.length).toBeGreaterThanOrEqual(2);
+  });
 });

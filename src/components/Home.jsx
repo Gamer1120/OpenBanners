@@ -6,6 +6,7 @@ import BannersNearMe from "./BannersNearMe";
 import BrowsingPage from "./BrowsingPage";
 import SearchResults from "./SearchResults";
 import BannerDetailsPage from "./BannerDetailsPage";
+import Map from "./Map";
 
 export default function Home() {
   const [currentView, setCurrentView] = useState("bannersNearMe");
@@ -36,6 +37,8 @@ export default function Home() {
       setCurrentView("browsing");
     } else if (location.pathname.startsWith("/banner/")) {
       setCurrentView("bannerDetails");
+    } else if (location.pathname.startsWith("/map")) {
+      setCurrentView("map");
     } else {
       setCurrentView("bannersNearMe");
     }
@@ -47,7 +50,9 @@ export default function Home() {
         flexGrow: 1,
         bgcolor: "grey.900",
         height:
-          currentView === "bannerDetails" && !isMobile ? "100dvh" : "auto",
+          (currentView === "bannerDetails" || currentView === "map") && !isMobile
+            ? "100dvh"
+            : "auto",
         minHeight: "100dvh",
         display: "flex",
         flexDirection: "column",
@@ -67,13 +72,16 @@ export default function Home() {
           display: "flex",
           flexDirection: "column",
           overflow:
-            currentView === "bannerDetails" && !isMobile ? "hidden" : "visible",
+            (currentView === "bannerDetails" || currentView === "map") && !isMobile
+              ? "hidden"
+              : "visible",
         }}
       >
         {currentView === "bannersNearMe" && <BannersNearMe />}
         {currentView === "browsing" && <BrowsingPage placeId={placeId} />}
         {currentView === "searching" && <SearchResults />}
         {currentView === "bannerDetails" && <BannerDetailsPage />}
+        {currentView === "map" && <Map />}
       </Box>
     </Box>
   );

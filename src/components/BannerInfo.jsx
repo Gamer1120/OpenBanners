@@ -74,7 +74,7 @@ const BannerInfo = ({ banner }) => {
         Ingress on iOS)
       </Button>
       <Typography variant="body1" sx={{ fontSize: 16, lineHeight: 1.5, mt: 1 }}>
-        BannerGuider tutorial4: Open BannerGuider, tap NEXT to open the next
+        BannerGuider tutorial: Open BannerGuider, tap NEXT to open the next
         mission in your scanner. Do the mission, press NEXT again until you're
         done with the banner.
       </Typography>

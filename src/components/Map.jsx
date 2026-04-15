@@ -23,6 +23,11 @@ import MyLocationRoundedIcon from "@mui/icons-material/MyLocationRounded";
 import L from "leaflet";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
+import { fetchBannergress, useBannergressSync } from "../bannergressSync";
+import {
+  applyBannerFilters,
+  DEFAULT_BANNER_FILTERS,
+} from "../bannerFilters";
 
 const DEFAULT_CENTER = [52.221058, 6.893297];
 const DEFAULT_ZOOM = 15;
@@ -552,7 +557,7 @@ function BannerDisambiguationMenu({ banners, point, onClose, onSelect }) {
   }
 
   const topOffset = Math.max(12, Math.round(point.y));
-  const maxHeight = `max(220px, calc(100% - ${topOffset}px - 12px))`;
+  const availableHeight = `calc(100% - ${topOffset}px - 12px)`;
   const stopMapInteraction = (event) => {
     event.stopPropagation();
   };
@@ -573,9 +578,11 @@ function BannerDisambiguationMenu({ banners, point, onClose, onSelect }) {
         zIndex: 1100,
         width: "min(320px, calc(100% - 24px))",
         p: 1,
-        display: "flex",
-        flexDirection: "column",
-        maxHeight,
+        display: "grid",
+        gridTemplateRows: "auto minmax(0, 1fr)",
+        height: `min(420px, ${availableHeight})`,
+        maxHeight: availableHeight,
+        minHeight: 0,
         overflow: "hidden",
         borderRadius: 2.5,
         bgcolor: "rgba(18,25,31,0.96)",
@@ -585,7 +592,7 @@ function BannerDisambiguationMenu({ banners, point, onClose, onSelect }) {
         pointerEvents: "auto",
       }}
     >
-      <Stack spacing={1} sx={{ flex: 1, minHeight: 0 }}>
+      <Stack spacing={1} sx={{ minHeight: 0 }}>
         <Stack direction="row" alignItems="center" justifyContent="space-between">
           <Stack spacing={0.2}>
             <Typography
@@ -607,8 +614,8 @@ function BannerDisambiguationMenu({ banners, point, onClose, onSelect }) {
         <Stack
           spacing={1}
           sx={{
-            flex: 1,
             minHeight: 0,
+            height: "100%",
             overflowY: "auto",
             pr: 0.25,
             overscrollBehavior: "contain",
@@ -734,7 +741,9 @@ function setMapInteractionsEnabled(mapInstance, enabled) {
   mapInstance.tap?.[method]?.();
 }
 
-export default function Map() {
+export default function Map({
+  bannerFilters = DEFAULT_BANNER_FILTERS,
+}) {
   const initialImageSizePreference = readInitialImageSizePreference();
   const [visibleArea, setVisibleArea] = useState(null);
   const [banners, setBanners] = useState([]);
@@ -746,6 +755,7 @@ export default function Map() {
   const [userLocation, setUserLocation] = useState(null);
   const [currentZoom, setCurrentZoom] = useState(DEFAULT_ZOOM);
   const [minimumMissions, setMinimumMissions] = useState(0);
+  const syncState = useBannergressSync();
   const [imageSizeMode, setImageSizeMode] = useState(initialImageSizePreference.mode);
   const [customImageScale, setCustomImageScale] = useState(
     initialImageSizePreference.customScale
@@ -897,8 +907,21 @@ export default function Map() {
   );
   const fetchLimit = markerDisplay.maxMarkers;
   const discoveryMapRequestKey = useMemo(
-    () => (discoveryMapQueryKey ? `${discoveryMapQueryKey}:${fetchLimit}` : ""),
-    [discoveryMapQueryKey, fetchLimit]
+    () =>
+      discoveryMapQueryKey
+        ? [
+            discoveryMapQueryKey,
+            fetchLimit,
+            bannerFilters.showOfflineBanners ? "offline" : "online-only",
+            bannerFilters.showHiddenBanners ? "show-hidden" : "hide-hidden",
+          ].join(":")
+        : "",
+    [
+      bannerFilters.showHiddenBanners,
+      bannerFilters.showOfflineBanners,
+      discoveryMapQueryKey,
+      fetchLimit,
+    ]
   );
 
   useEffect(() => {
@@ -927,7 +950,8 @@ export default function Map() {
 
       const apiUrl =
         `https://api.bannergress.com/bnrs?orderBy=proximityStartPoint` +
-        `&orderDirection=ASC&online=true` +
+        `&orderDirection=ASC` +
+        `${bannerFilters.showOfflineBanners ? "" : "&online=true"}` +
         `&minLatitude=${normalizedVisibleArea.minLatitude}` +
         `&maxLatitude=${normalizedVisibleArea.maxLatitude}` +
         `&minLongitude=${normalizedVisibleArea.minLongitude}` +
@@ -942,7 +966,9 @@ export default function Map() {
         );
 
         if (!responsePromise) {
-          responsePromise = fetch(apiUrl);
+          responsePromise = fetchBannergress(apiUrl, {
+            authenticate: !bannerFilters.showHiddenBanners,
+          });
           discoveryMapInflightRequests.set(
             discoveryMapRequestKey,
             responsePromise
@@ -995,6 +1021,8 @@ export default function Map() {
   }, [
     discoveryMapRequestKey,
     fetchLimit,
+    bannerFilters.showHiddenBanners,
+    bannerFilters.showOfflineBanners,
     normalizedOriginLocation,
     normalizedVisibleArea,
   ]);
@@ -1025,8 +1053,10 @@ export default function Map() {
 
   const filteredBanners = useMemo(
     () =>
-      banners.filter((banner) => Number(banner.numberOfMissions) >= minimumMissions),
-    [banners, minimumMissions]
+      applyBannerFilters(banners, syncState, bannerFilters).filter(
+        (banner) => Number(banner.numberOfMissions) >= minimumMissions
+      ),
+    [bannerFilters, banners, minimumMissions, syncState]
   );
 
   const displayedBanners = filteredBanners;

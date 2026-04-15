@@ -1,26 +1,21 @@
 import React from "react";
-import { Box, Button, Checkbox, FormControlLabel } from "@mui/material";
+import { Box, Button } from "@mui/material";
 import { ArrowDropDown, ArrowDropUp } from "@mui/icons-material";
+import BannerFilterButton from "./BannerFilterButton";
 
 export default function SortingButtons({
   handleSort,
   sortOption,
   sortOrder,
   placeId,
-  showOffline,
-  toggleShowOffline,
+  bannerFilters,
+  onBannerFiltersChange,
 }) {
   return (
     <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap", justifyContent: "flex-end" }}>
-      <FormControlLabel
-        control={
-          <Checkbox
-            checked={showOffline}
-            onChange={toggleShowOffline}
-            color="primary"
-          />
-        }
-        label="Show offline"
+      <BannerFilterButton
+        filters={bannerFilters}
+        onChange={onBannerFiltersChange}
       />
       <Button
         variant="outlined"

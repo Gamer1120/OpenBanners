@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import BannerListItem from "./BannerListItem";
 import BannerCard from "./BannerCard";
 import BannerResultsViewToggle from "./BannerResultsViewToggle";
@@ -15,6 +15,11 @@ import {
 import BrowsingHeader from "./BrowsingHeader";
 import SortingButtons from "./SortingButtons";
 import PlacesList from "./PlacesList";
+import { fetchBannergress, useBannergressSync } from "../bannergressSync";
+import {
+  applyBannerFilters,
+  DEFAULT_BANNER_FILTERS,
+} from "../bannerFilters";
 
 function sortJsonByMissionsPerLength(data, sortOrder) {
   return [...data].sort((a, b) => {
@@ -33,10 +38,10 @@ function buildBannersUrl({
   placeId,
   sortOption,
   sortOrder,
-  showOffline,
+  showOfflineBanners,
   offset,
 }) {
-  let url = `https://api.bannergress.com/bnrs?limit=100&offset=${offset}`;
+  let url = `https://api.bannergress.com/bnrs?limit=9&offset=${offset}`;
 
   if (placeId) {
     url += `&placeId=${placeId}`;
@@ -46,7 +51,7 @@ function buildBannersUrl({
     url += `&orderBy=${sortOption}&orderDirection=${sortOrder}`;
   }
 
-  if (!showOffline) {
+  if (!showOfflineBanners) {
     url += "&online=true";
   }
 
@@ -60,18 +65,29 @@ const sortOptionsMap = {
   "Nr. of Missions": "numberOfMissions",
 };
 const viewModeStorageKey = "openbanners-banner-view-mode";
+const BROWSE_PAGE_SIZE = 9;
 
-export default function BrowsingPage({ placeId }) {
+export default function BrowsingPage({
+  placeId,
+  bannerFilters = DEFAULT_BANNER_FILTERS,
+  onBannerFiltersChange,
+}) {
   const [banners, setBanners] = useState([]);
   const [sortOption, setSortOption] = useState("Created");
   const [sortOrder, setSortOrder] = useState("DESC");
   const [bannersFetchedForEfficiency, setBannersFetchedForEfficiency] =
     useState(false);
   const [loading, setLoading] = useState(false);
-  const [showOffline, setShowOffline] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(true);
+  const [requestedOffset, setRequestedOffset] = useState(0);
+  const [nextOffset, setNextOffset] = useState(0);
   const [isPlacesListExpanded, setIsPlacesListExpanded] = useState(false);
   const [error, setError] = useState("");
   const [reloadToken, setReloadToken] = useState(0);
+  const syncState = useBannergressSync();
+  const loadMoreRef = useRef(null);
+  const [activeBrowseQueryKey, setActiveBrowseQueryKey] = useState("");
   const [viewMode, setViewMode] = useState(() => {
     const storedValue = window.localStorage.getItem(viewModeStorageKey);
     return storedValue === "compact" ? "compact" : "visual";
@@ -87,11 +103,6 @@ export default function BrowsingPage({ placeId }) {
       setSortOption(option);
       setSortOrder("DESC");
     }
-  };
-
-  const toggleShowOffline = () => {
-    setShowOffline(!showOffline);
-    setBannersFetchedForEfficiency(false);
   };
 
   const handlePlacesListToggle = () => {
@@ -110,16 +121,46 @@ export default function BrowsingPage({ placeId }) {
   useEffect(() => {
     setSortOption("Created");
     setSortOrder("DESC");
-    setBanners([]);
-    setBannersFetchedForEfficiency(false);
-    setError("");
   }, [placeId]);
 
+  const browseQueryKey = [
+    placeId ?? "",
+    sortOption,
+    sortOrder,
+    bannerFilters.showOfflineBanners ? "offline" : "online-only",
+    bannerFilters.showHiddenBanners ? "show-hidden" : "hide-hidden",
+    bannerFilters.hideDoneBanners ? "hide-done" : "show-done",
+    reloadToken,
+  ].join("|");
+
   useEffect(() => {
+    setActiveBrowseQueryKey(browseQueryKey);
+    setBanners([]);
+    setBannersFetchedForEfficiency(false);
+    setLoading(false);
+    setLoadingMore(false);
+    setHasMore(true);
+    setRequestedOffset(0);
+    setNextOffset(0);
+    setError("");
+  }, [browseQueryKey]);
+
+  useEffect(() => {
+    if (browseQueryKey !== activeBrowseQueryKey) {
+      return undefined;
+    }
+
     let ignore = false;
 
     const loadBanners = async () => {
-      setLoading(true);
+      const isInitialPage = requestedOffset === 0;
+
+      if (isInitialPage) {
+        setLoading(true);
+      } else {
+        setLoadingMore(true);
+      }
+
       setError("");
 
       try {
@@ -129,12 +170,15 @@ export default function BrowsingPage({ placeId }) {
               sortJsonByMissionsPerLength(currentBanners, sortOrder)
             );
             setLoading(false);
+            setLoadingMore(false);
             return;
           }
 
           if (!placeId) {
             setBanners([]);
             setLoading(false);
+            setLoadingMore(false);
+            setHasMore(false);
             return;
           }
 
@@ -142,14 +186,17 @@ export default function BrowsingPage({ placeId }) {
           let allBanners = [];
 
           while (!ignore) {
-            const response = await fetch(
+            const response = await fetchBannergress(
               buildBannersUrl({
                 placeId,
                 sortOption: null,
                 sortOrder,
-                showOffline,
+                showOfflineBanners: bannerFilters.showOfflineBanners,
                 offset,
-              })
+              }),
+              {
+                authenticate: !bannerFilters.showHiddenBanners,
+              }
             );
             const data = await response.json();
 
@@ -171,40 +218,57 @@ export default function BrowsingPage({ placeId }) {
           if (!ignore) {
             setBanners(sortJsonByMissionsPerLength(allBanners, sortOrder));
             setBannersFetchedForEfficiency(true);
+            setHasMore(false);
           }
 
           return;
         }
 
-        const response = await fetch(
+        const response = await fetchBannergress(
           buildBannersUrl({
             placeId,
             sortOption: sortOptionsMap[sortOption],
             sortOrder,
-            showOffline,
-            offset: 0,
-          })
+            showOfflineBanners: bannerFilters.showOfflineBanners,
+            offset: requestedOffset,
+          }),
+          {
+            authenticate: !bannerFilters.showHiddenBanners,
+          }
         );
         const data = await response.json();
 
         if (!ignore) {
           if (Array.isArray(data)) {
-            setBanners(data);
+            setBanners((currentBanners) =>
+              requestedOffset === 0 ? data : [...currentBanners, ...data]
+            );
+            setHasMore(data.length === BROWSE_PAGE_SIZE);
+            setNextOffset(requestedOffset + data.length);
           } else {
             console.error("Invalid response data:", data);
-            setBanners([]);
+            if (requestedOffset === 0) {
+              setBanners([]);
+            }
             setError("Couldn't load banners.");
+            setHasMore(false);
           }
         }
       } catch (fetchError) {
         if (!ignore) {
           console.error(fetchError);
-          setBanners([]);
+          if (requestedOffset === 0) {
+            setBanners([]);
+          }
           setError("Couldn't load banners. Please try again.");
         }
       } finally {
         if (!ignore) {
-          setLoading(false);
+          if (requestedOffset === 0) {
+            setLoading(false);
+          } else {
+            setLoadingMore(false);
+          }
         }
       }
     };
@@ -215,13 +279,79 @@ export default function BrowsingPage({ placeId }) {
       ignore = true;
     };
   }, [
-    placeId,
+    activeBrowseQueryKey,
+    browseQueryKey,
+    requestedOffset,
     sortOption,
     sortOrder,
-    showOffline,
+    placeId,
+    bannerFilters.showOfflineBanners,
+    bannerFilters.showHiddenBanners,
+    bannerFilters.hideDoneBanners,
     bannersFetchedForEfficiency,
-    reloadToken,
   ]);
+
+  const displayedBanners = applyBannerFilters(
+    banners,
+    syncState,
+    bannerFilters
+  );
+
+  useEffect(() => {
+    if (
+      sortOption === "Efficiency" ||
+      !hasMore ||
+      loading ||
+      loadingMore ||
+      displayedBanners.length > 0 ||
+      banners.length === 0
+    ) {
+      return;
+    }
+
+    setRequestedOffset(nextOffset);
+  }, [
+    banners.length,
+    displayedBanners.length,
+    hasMore,
+    loading,
+    loadingMore,
+    nextOffset,
+    sortOption,
+  ]);
+
+  useEffect(() => {
+    if (
+      sortOption === "Efficiency" ||
+      !hasMore ||
+      loading ||
+      loadingMore ||
+      !loadMoreRef.current
+    ) {
+      return undefined;
+    }
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            setRequestedOffset((currentOffset) =>
+              currentOffset === nextOffset ? currentOffset : nextOffset
+            );
+          }
+        });
+      },
+      {
+        rootMargin: "320px 0px",
+      }
+    );
+
+    observer.observe(loadMoreRef.current);
+
+    return () => {
+      observer.disconnect();
+    };
+  }, [hasMore, loading, loadingMore, nextOffset, sortOption]);
 
   return (
     <Container
@@ -285,8 +415,8 @@ export default function BrowsingPage({ placeId }) {
               sortOption={sortOption}
               sortOrder={sortOrder}
               placeId={placeId}
-              showOffline={showOffline}
-              toggleShowOffline={toggleShowOffline}
+              bannerFilters={bannerFilters}
+              onBannerFiltersChange={onBannerFiltersChange}
             />
           </Box>
           {error && (
@@ -324,17 +454,23 @@ export default function BrowsingPage({ placeId }) {
                 ))}
               </Grid>
             )
-          ) : banners.length === 0 && !error ? (
+          ) : displayedBanners.length === 0 && !error ? (
             <Alert severity="info">No banners matched this selection.</Alert>
           ) : viewMode === "compact" ? (
             <Stack spacing={1.25} sx={{ mt: 2, mb: 2 }}>
-              {banners.map((banner) => (
+              {displayedBanners.map((banner) => (
                 <BannerListItem key={banner.id} banner={banner} />
               ))}
+              {loadingMore
+                ? Array.from({ length: 3 }).map((_, index) => (
+                    <BannerListItem key={`browse-loading-more-${index}`} loading />
+                  ))
+                : null}
+              {hasMore ? <Box ref={loadMoreRef} sx={{ height: 1 }} /> : null}
             </Stack>
           ) : (
             <Grid container spacing={2.5} sx={{ mt: 2, mb: 2 }}>
-              {banners.map((banner) => (
+              {displayedBanners.map((banner) => (
                 <Grid
                   item
                   xs={12}
@@ -350,6 +486,31 @@ export default function BrowsingPage({ placeId }) {
                   <BannerCard banner={banner} />
                 </Grid>
               ))}
+              {loadingMore
+                ? Array.from({ length: 3 }).map((_, index) => (
+                    <Grid
+                      item
+                      xs={12}
+                      sm={6}
+                      lg={4}
+                      key={`browse-grid-loading-more-${index}`}
+                    >
+                      <Box
+                        sx={{
+                          height: 260,
+                          borderRadius: 3,
+                          bgcolor: "rgba(255,255,255,0.04)",
+                          border: "1px solid rgba(255,255,255,0.08)",
+                        }}
+                      />
+                    </Grid>
+                  ))
+                : null}
+              {hasMore ? (
+                <Grid item xs={12}>
+                  <Box ref={loadMoreRef} sx={{ height: 1 }} />
+                </Grid>
+              ) : null}
             </Grid>
           )}
         </Grid>

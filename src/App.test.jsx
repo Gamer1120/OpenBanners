@@ -5,7 +5,9 @@ import { useMediaQuery } from "@mui/material";
 import { ThemeProvider, createTheme } from "@mui/material/styles";
 import { MemoryRouter, Route, Routes, useLocation } from "react-router-dom";
 import { vi } from "vitest";
+import * as bannergressSync from "./bannergressSync";
 import BannersNearMe from "./components/BannersNearMe";
+import BannerListItem from "./components/BannerListItem";
 import BrowsingPage from "./components/BrowsingPage";
 import SearchResults from "./components/SearchResults";
 import BannerDetailsPage from "./components/BannerDetailsPage";
@@ -14,6 +16,14 @@ import Map, { __resetDiscoveryMapCacheForTests } from "./components/Map";
 import PlacesList from "./components/PlacesList";
 import TopMenu from "./components/TopMenu";
 import { getFlagForPlace } from "./components/CountryFlags";
+import { applyBannerFilters, DEFAULT_BANNER_FILTERS } from "./bannerFilters";
+import {
+  BANNERGRESS_AUTH_STATUS_REQUEST,
+  BANNERGRESS_AUTH_STATUS_RESULT,
+  BANNERGRESS_SYNC_BRIDGE,
+  BANNERGRESS_SYNC_STORAGE_KEY,
+  BANNERGRESS_SYNC_READY,
+} from "./bannergressSync";
 import L from "leaflet";
 
 vi.mock("@mui/material", async () => {
@@ -164,6 +174,16 @@ beforeEach(() => {
   __resetDiscoveryMapCacheForTests();
   global.fetch = vi.fn();
   useMediaQuery.mockReturnValue(false);
+  delete window.__openBannersBannergressBridgePresent;
+  global.IntersectionObserver = class MockIntersectionObserver {
+    constructor() {}
+
+    observe() {}
+
+    disconnect() {}
+
+    unobserve() {}
+  };
   global.Image = class MockImage {
     constructor() {
       this.naturalWidth = 2;
@@ -251,7 +271,10 @@ test("renders nearby banners after granting location access", async () => {
 
   expect(await screen.findByText("Nearby Banner")).toBeInTheDocument();
   expect(global.fetch).toHaveBeenCalledWith(
-    expect.stringContaining("orderBy=proximityStartPoint")
+    expect.stringContaining("orderBy=proximityStartPoint"),
+    expect.objectContaining({
+      headers: expect.any(Headers),
+    })
   );
 });
 
@@ -291,7 +314,7 @@ test("renders browsing results and places list", async () => {
       ]);
     }
 
-    if (url.includes("/bnrs?limit=100&offset=0&orderBy=created")) {
+    if (url.includes("/bnrs?limit=9&offset=0&orderBy=created")) {
       return jsonResponse([
         {
           id: "browse-banner",
@@ -325,6 +348,138 @@ test("renders browsing results and places list", async () => {
     "href",
     "/banner/browse-banner"
   );
+});
+
+test("compact list actions update the Bannergress list through the API", async () => {
+  window.__openBannersBannergressBridgePresent = true;
+  const updateBannerListSpy = vi
+    .spyOn(bannergressSync, "updateBannergressBannerListType")
+    .mockImplementation(async (bannerId, listType) => {
+      return bannergressSync.saveBannergressBannerListType(bannerId, listType);
+    });
+
+  renderWithProviders(
+    <BannerListItem
+      banner={{
+        id: "list-action-banner",
+        title: "Action Banner",
+        picture: "/images/action-banner.jpg",
+        numberOfMissions: 6,
+        lengthMeters: 2400,
+        formattedAddress: "Enschede, NL",
+        numberOfDisabledMissions: 0,
+      }}
+    />
+  );
+
+  await userEvent.click(screen.getByRole("button", { name: /to do/i }));
+
+  await waitFor(() => {
+    expect(updateBannerListSpy).toHaveBeenCalledWith(
+      "list-action-banner",
+      "todo",
+      {
+        keepHiddenVisible: false,
+      }
+    );
+  });
+
+  await waitFor(() => {
+    expect(screen.getByRole("button", { name: /to do/i })).toHaveAttribute(
+      "aria-pressed",
+      "true"
+    );
+  });
+
+  expect(
+    JSON.parse(window.localStorage.getItem(BANNERGRESS_SYNC_STORAGE_KEY))
+  ).toMatchObject({
+    bannerLists: {
+      "list-action-banner": "todo",
+    },
+  });
+});
+
+test("compact list actions toggle todo banners back to none", async () => {
+  window.__openBannersBannergressBridgePresent = true;
+  bannergressSync.saveBannergressSyncData({
+    bannerLists: {
+      "toggle-banner": "todo",
+    },
+  });
+
+  const updateBannerListSpy = vi
+    .spyOn(bannergressSync, "updateBannergressBannerListType")
+    .mockImplementation(async (bannerId, listType, options) => {
+      return bannergressSync.saveBannergressBannerListType(
+        bannerId,
+        listType,
+        options
+      );
+    });
+
+  renderWithProviders(
+    <BannerListItem
+      banner={{
+        id: "toggle-banner",
+        title: "Toggle Banner",
+        picture: "/images/toggle-banner.jpg",
+        numberOfMissions: 6,
+        lengthMeters: 2400,
+        formattedAddress: "Enschede, NL",
+        numberOfDisabledMissions: 0,
+      }}
+    />
+  );
+
+  expect(screen.getByRole("button", { name: /to do/i })).toHaveAttribute(
+    "aria-pressed",
+    "true"
+  );
+
+  await userEvent.click(screen.getByRole("button", { name: /to do/i }));
+
+  await waitFor(() => {
+    expect(updateBannerListSpy).toHaveBeenCalledWith("toggle-banner", "none", {
+      keepHiddenVisible: false,
+    });
+  });
+
+  await waitFor(() => {
+    expect(screen.getByRole("button", { name: /to do/i })).toHaveAttribute(
+      "aria-pressed",
+      "false"
+    );
+  });
+
+  expect(
+    JSON.parse(window.localStorage.getItem(BANNERGRESS_SYNC_STORAGE_KEY))
+  ).toMatchObject({
+    bannerLists: {
+      "toggle-banner": "none",
+    },
+  });
+});
+
+test("newly hidden banners stay visible in the current filtered results", () => {
+  bannergressSync.saveBannergressBannerListType("hidden-banner", "blacklist", {
+    keepHiddenVisible: true,
+  });
+
+  const filteredBanners = applyBannerFilters(
+    [
+      {
+        id: "hidden-banner",
+        title: "Hidden Banner",
+        numberOfDisabledMissions: 0,
+      },
+    ],
+    bannergressSync.loadBannergressSyncData(),
+    DEFAULT_BANNER_FILTERS
+  );
+
+  expect(filteredBanners).toHaveLength(1);
+  expect(filteredBanners[0].id).toBe("hidden-banner");
 });
 
 test("renders places list flags and browse links for aliased place names", async () => {
@@ -439,6 +594,116 @@ test("submits top menu searches, fires menu callbacks, and navigates map route",
   expect(screen.getByTestId("location-display")).toHaveTextContent("/map");
 });
 
+test("top menu gates userscript installation behind a risk acknowledgement", async () => {
+  renderWithProviders(
+    <Routes>
+      <Route
+        path="*"
+        element={
+          <TopMenu
+            onBrowseClick={vi.fn()}
+            onTitleClick={vi.fn()}
+            onSearch={vi.fn()}
+          />
+        }
+      />
+    </Routes>
+  );
+
+  const installButton = screen.getByRole("button", {
+    name: /install bannergress auth bridge userscript/i,
+  });
+
+  await userEvent.click(installButton);
+
+  expect(
+    screen.getByRole("heading", {
+      name: /install bannergress auth bridge userscript/i,
+    })
+  ).toBeInTheDocument();
+
+  const confirmInstallButton = screen.getByRole("button", {
+    name: /install userscript/i,
+  });
+
+  expect(confirmInstallButton).toBeDisabled();
+
+  await userEvent.click(
+    screen.getByRole("checkbox", {
+      name: /i understand the risks and still want to install/i,
+    })
+  );
+
+  expect(confirmInstallButton).toBeEnabled();
+
+  await userEvent.click(confirmInstallButton);
+
+  expect(window.open).toHaveBeenCalledWith(
+    "http://localhost:3000/userscripts/openbanners-bannergress-sync.user.js",
+    "_blank",
+    "noopener"
+  );
+});
+
+test("top menu shows authenticate when the userscript bridge has no valid auth", async () => {
+  window.__openBannersBannergressBridgePresent = true;
+
+  const handleBridgeMessage = (event) => {
+    if (
+      event.data?.type === BANNERGRESS_SYNC_READY &&
+      event.data?.bridge === BANNERGRESS_SYNC_BRIDGE
+    ) {
+      window.postMessage(
+        {
+          type: BANNERGRESS_SYNC_READY,
+          bridge: BANNERGRESS_SYNC_BRIDGE,
+        },
+        window.location.origin
+      );
+    }
+
+    if (
+      event.data?.type === BANNERGRESS_AUTH_STATUS_REQUEST &&
+      event.data?.bridge === BANNERGRESS_SYNC_BRIDGE
+    ) {
+      window.postMessage(
+        {
+          type: BANNERGRESS_AUTH_STATUS_RESULT,
+          bridge: BANNERGRESS_SYNC_BRIDGE,
+          requestId: event.data.requestId,
+          payload: {
+            authenticated: false,
+          },
+        },
+        window.location.origin
+      );
+    }
+  };
+
+  window.addEventListener("message", handleBridgeMessage);
+
+  renderWithProviders(
+    <Routes>
+      <Route
+        path="*"
+        element={
+          <TopMenu
+            onBrowseClick={vi.fn()}
+            onTitleClick={vi.fn()}
+            onSearch={vi.fn()}
+          />
+        }
+      />
+    </Routes>
+  );
+
+  expect(
+    await screen.findByRole("button", { name: /authenticate/i }, { timeout: 3000 })
+  ).toBeInTheDocument();
+
+  window.removeEventListener("message", handleBridgeMessage);
+});
+
 test("renders place and banner search results", async () => {
   global.fetch.mockImplementation((url) => {
     if (url.includes("/places?used=true&collapsePlaces=true&query=enschede")) {
@@ -493,7 +758,7 @@ test("persists compact banner view preference across result screens", async () =
       return jsonResponse([]);
     }
 
-    if (url.includes("/bnrs?limit=100&offset=0&orderBy=created")) {
+    if (url.includes("/bnrs?limit=9&offset=0&orderBy=created")) {
       return jsonResponse([
         {
           id: "browse-banner",
@@ -865,6 +1130,50 @@ test("renders only mission start markers on the banner details overview map", as
   expect(screen.queryByText("Navigate to portal")).not.toBeInTheDocument();
 });
 
+test("shows bannergress list action buttons on the banner overview page", async () => {
+  global.fetch.mockImplementation((url) => {
+    if (url.endsWith("/bnrs/overview-actions-banner")) {
+      return jsonResponse({
+        id: "overview-actions-banner",
+        title: "Overview Actions Banner",
+        picture: "/images/detail.jpg",
+        numberOfMissions: 2,
+        lengthMeters: 2100,
+        formattedAddress: "Amsterdam, NL",
+        missions: {
+          "mission-1": {
+            id: "mission-1",
+            steps: {
+              0: {
+                poi: {
+                  title: "Portal One",
+                  type: "portal",
+                  latitude: 52.37,
+                  longitude: 4.89,
+                },
+              },
+            },
+          },
+        },
+      });
+    }
+
+    throw new Error(`Unhandled fetch: ${url}`);
+  });
+
+  renderWithProviders(
+    <Routes>
+      <Route path="/banner/:bannerId" element={<BannerDetailsPage />} />
+    </Routes>,
+    { route: "/banner/overview-actions-banner" }
+  );
+
+  expect(await screen.findByText("Overview Actions Banner")).toBeInTheDocument();
+  expect(screen.getByRole("button", { name: /to do/i })).toBeInTheDocument();
+  expect(screen.getByRole("button", { name: /done/i })).toBeInTheDocument();
+  expect(screen.getByRole("button", { name: /hide/i })).toBeInTheDocument();
+});
+
 test("renders the guider in overview mode before a mission is selected", async () => {
   global.fetch.mockImplementation((url) => {
     if (url.endsWith("/bnrs/guide-banner")) {
@@ -933,7 +1242,10 @@ test("renders the guider in overview mode before a mission is selected", async (
 
   await waitFor(() =>
     expect(global.fetch).toHaveBeenCalledWith(
-      expect.stringContaining("/bnrs/guide-banner")
+      expect.stringContaining("/bnrs/guide-banner"),
+      expect.objectContaining({
+        headers: expect.any(Headers),
+      })
     )
   );
   expect(screen.getByTestId("marker-52.37-4.89")).toBeInTheDocument();
@@ -987,7 +1299,10 @@ test("renders a discovery map with proximity-sorted poster markers and preview l
   const bannerLink = await screen.findByRole("link", { name: /open banner/i });
   await waitFor(() =>
     expect(global.fetch).toHaveBeenCalledWith(
-      expect.stringContaining("orderBy=proximityStartPoint")
+      expect.stringContaining("orderBy=proximityStartPoint"),
+      expect.objectContaining({
+        headers: expect.any(Headers),
+      })
     )
   );
   expect(bannerLink).toHaveAttribute("href", "/banner/map-banner");

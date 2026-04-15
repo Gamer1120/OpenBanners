@@ -57,3 +57,16 @@ These tests are intentionally shallow. They are meant to catch obvious route and
 ## Recommended Next Step
 
 The core tooling migration is complete. The next maintenance project should focus on product-level cleanup: simplifying the remaining route/component structure and hardening runtime behavior around external APIs.
+
+## Bannergress Sync Prototype
+
+This repo now includes a prototype bridge for importing Bannergress `todo`, `done`, and `hidden` lists into OpenBanners, and for letting OpenBanners make authenticated Bannergress banner requests with a short-lived access token supplied by the userscript.
+
+- Install the userscript from `/userscripts/openbanners-bannergress-sync.user.js` on the deployed site.
+- Log into `https://bannergress.com/` in the same browser.
+- Click `Sync Lists` in the OpenBanners top bar.
+
+The current approach is unofficial. It relies on a userscript running on both `bannergress.com` and OpenBanners domains. The userscript keeps Bannergress auth in userscript storage, refreshes the access token when needed, and provides either:
+
+- synced list state for `todo`, `done`, and `hidden` banner badges
+- an access token that OpenBanners can use for authenticated `api.bannergress.com` banner requests

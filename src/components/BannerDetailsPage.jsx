@@ -14,6 +14,7 @@ import {
 import BannerDetailsCard from "./BannerDetailsCard";
 import BannerInfo from "./BannerInfo";
 import L from "leaflet";
+import { fetchBannergress } from "../bannergressSync";
 
 export default function BannerDetailsPage() {
   const { bannerId } = useParams();
@@ -58,7 +59,9 @@ export default function BannerDetailsPage() {
       setError("");
 
       try {
-        const response = await fetch(`https://api.bannergress.com/bnrs/${bannerId}`);
+        const response = await fetchBannergress(
+          `https://api.bannergress.com/bnrs/${bannerId}`
+        );
         const result = await response.json();
 
         if (!ignore) {

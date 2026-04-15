@@ -10,6 +10,13 @@ import {
   Typography,
   useMediaQuery,
 } from "@mui/material";
+import BannergressListActions from "./BannergressListActions";
+import {
+  getBannerListType,
+  isBannergressBridgePresent,
+  useBannergressSync,
+} from "../bannergressSync";
+import { getBannergressCardSurface } from "../bannergressCardStyles";
 
 function formatDistance(lengthMeters) {
   return Number.isFinite(lengthMeters)
@@ -19,6 +26,11 @@ function formatDistance(lengthMeters) {
 
 export default function BannerDetailsCard({ banner, loading = false }) {
   const isMobile = useMediaQuery("(max-width:768px)");
+  const syncState = useBannergressSync();
+  const effectiveListType = loading
+    ? null
+    : getBannerListType(syncState, banner.id, banner.listType);
+  const cardSurface = getBannergressCardSurface(effectiveListType);
   const lengthMeters = Number(banner.lengthMeters);
   const missions = Number(banner.numberOfMissions);
   const showImage = Boolean(banner.picture);
@@ -26,6 +38,7 @@ export default function BannerDetailsCard({ banner, loading = false }) {
     Number.isFinite(missions) && Number.isFinite(lengthMeters) && lengthMeters > 0
       ? `${((missions / lengthMeters) * 1000).toFixed(3)} /km`
       : "Unavailable";
+  const canUpdateBannerList = loading ? false : isBannergressBridgePresent();
 
   return (
     <Card
@@ -37,6 +50,10 @@ export default function BannerDetailsCard({ banner, loading = false }) {
         flexDirection: "column",
         borderRadius: 3,
         overflow: "hidden",
+        bgcolor: cardSurface.backgroundColor,
+        backgroundImage: cardSurface.backgroundImage,
+        border: `1px solid ${cardSurface.borderColor}`,
+        boxShadow: "0 16px 34px rgba(0,0,0,0.18)",
       }}
     >
       <Box sx={{ px: 2.5, pt: 2.5, pb: 1.5 }}>
@@ -134,6 +151,14 @@ export default function BannerDetailsCard({ banner, loading = false }) {
             <Typography variant="body2" color="text.secondary">
               {banner.formattedAddress || "Address unavailable"}
             </Typography>
+            <Box sx={{ mt: 2 }}>
+              <BannergressListActions
+                bannerId={banner.id}
+                effectiveListType={effectiveListType}
+                canUpdateBannerList={canUpdateBannerList}
+                layout="horizontal"
+              />
+            </Box>
           </>
         )}
       </CardContent>

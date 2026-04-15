@@ -10,6 +10,8 @@ import {
   Stack,
   Typography,
 } from "@mui/material";
+import { getBannerListType, useBannergressSync } from "../bannergressSync";
+import { getBannergressCardSurface } from "../bannergressCardStyles";
 
 function formatDistance(lengthMeters) {
   return Number.isFinite(lengthMeters)
@@ -18,6 +20,13 @@ function formatDistance(lengthMeters) {
 }
 
 export default function BannerCard({ banner }) {
+  const syncState = useBannergressSync();
+  const effectiveListType = getBannerListType(
+    syncState,
+    banner.id,
+    banner.listType
+  );
+  const cardSurface = getBannergressCardSurface(effectiveListType);
   const lengthMeters = Number(banner.lengthMeters);
   const missions = Number(banner.numberOfMissions);
   const showImage = Boolean(banner.picture);
@@ -44,6 +53,10 @@ export default function BannerCard({ banner }) {
           height: "100%",
           borderRadius: 3,
           overflow: "hidden",
+          bgcolor: cardSurface.backgroundColor,
+          backgroundImage: cardSurface.backgroundImage,
+          border: `1px solid ${cardSurface.borderColor}`,
+          boxShadow: "0 16px 34px rgba(0,0,0,0.18)",
         }}
       >
         <CardActionArea
@@ -52,9 +65,11 @@ export default function BannerCard({ banner }) {
             flexDirection: "column",
             alignItems: "stretch",
             height: "100%",
-            transition: "transform 180ms ease, box-shadow 180ms ease",
+            transition:
+              "transform 180ms ease, background-color 180ms ease, border-color 180ms ease",
             "&:hover": {
               transform: "translateY(-3px)",
+              bgcolor: cardSurface.hoverBackgroundColor,
             },
           }}
         >

@@ -7,9 +7,11 @@ import BrowsingPage from "./BrowsingPage";
 import SearchResults from "./SearchResults";
 import BannerDetailsPage from "./BannerDetailsPage";
 import Map from "./Map";
+import { DEFAULT_BANNER_FILTERS } from "../bannerFilters";
 
 export default function Home() {
   const [currentView, setCurrentView] = useState("bannersNearMe");
+  const [bannerFilters, setBannerFilters] = useState(DEFAULT_BANNER_FILTERS);
   const isMobile = useMediaQuery("(max-width:768px)");
   const { placeId } = useParams();
   const navigate = useNavigate();
@@ -62,6 +64,9 @@ export default function Home() {
         onBrowseClick={handleBrowseClick}
         onTitleClick={handleTitleClick}
         onSearch={handleSearch}
+        showBannerFilters={currentView === "map"}
+        bannerFilters={bannerFilters}
+        onBannerFiltersChange={setBannerFilters}
       />
       <Box
         component="main"
@@ -78,10 +83,16 @@ export default function Home() {
         }}
       >
         {currentView === "bannersNearMe" && <BannersNearMe />}
-        {currentView === "browsing" && <BrowsingPage placeId={placeId} />}
+        {currentView === "browsing" && (
+          <BrowsingPage
+            placeId={placeId}
+            bannerFilters={bannerFilters}
+            onBannerFiltersChange={setBannerFilters}
+          />
+        )}
         {currentView === "searching" && <SearchResults />}
         {currentView === "bannerDetails" && <BannerDetailsPage />}
-        {currentView === "map" && <Map />}
+        {currentView === "map" && <Map bannerFilters={bannerFilters} />}
       </Box>
     </Box>
   );

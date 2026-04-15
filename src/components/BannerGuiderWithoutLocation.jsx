@@ -4,6 +4,7 @@ import { useParams, useNavigate, useLocation } from "react-router-dom";
 import MapOverlay from "./MapOverlay";
 import { useState, useEffect, useMemo, useRef } from "react";
 import L from "leaflet";
+import { fetchBannergress } from "../bannergressSync";
 
 export default function Map() {
   const { bannerId } = useParams();
@@ -54,7 +55,7 @@ export default function Map() {
   const overviewMode = currentMission <= 0 || currentMission >= missions.length;
 
   useEffect(() => {
-    fetch(`https://api.bannergress.com/bnrs/${bannerId}`)
+    fetchBannergress(`https://api.bannergress.com/bnrs/${bannerId}`)
       .then((res) => res.json())
       .then(
         (result) => {

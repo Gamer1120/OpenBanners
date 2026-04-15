@@ -12,6 +12,7 @@ import {
   Stack,
   Typography,
 } from "@mui/material";
+import { fetchBannergress } from "../bannergressSync";
 
 const viewModeStorageKey = "openbanners-banner-view-mode";
 
@@ -70,7 +71,7 @@ export default function SearchResults() {
       setBannersError("");
 
       try {
-        const response = await fetch(
+        const response = await fetchBannergress(
           `https://api.bannergress.com/bnrs?orderBy=relevance&orderDirection=DESC&online=true&query=${encodeURIComponent(
             query
           )}&limit=100&offset=0`

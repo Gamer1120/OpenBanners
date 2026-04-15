@@ -9,6 +9,7 @@ import {
   Typography,
 } from "@mui/material";
 import BannerCard from "./BannerCard";
+import { fetchBannergress } from "../bannergressSync";
 
 export default function BannersNearMe() {
   const [location, setLocation] = useState(null);
@@ -100,7 +101,7 @@ export default function BannersNearMe() {
       const apiUrl = `https://api.bannergress.com/bnrs?orderBy=proximityStartPoint&orderDirection=ASC&online=true&proximityLatitude=${location.latitude}&proximityLongitude=${location.longitude}&limit=${limit}`;
 
       try {
-        const response = await fetch(apiUrl);
+        const response = await fetchBannergress(apiUrl);
         const data = await response.json();
 
         if (!ignore) {

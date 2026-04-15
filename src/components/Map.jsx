@@ -37,6 +37,7 @@ const IMAGE_SIZE_PRESETS = {
 const CUSTOM_IMAGE_SCALE_MIN = 0.7;
 const CUSTOM_IMAGE_SCALE_MAX = 5;
 const CUSTOM_IMAGE_SCALE_STEP = 0.05;
+const DISAMBIGUATION_TOUCH_PADDING = 12;
 const discoveryMapCache = new globalThis.Map();
 const discoveryMapInflightRequests = new globalThis.Map();
 const bannerMarkerIconCache = new globalThis.Map();
@@ -225,6 +226,105 @@ function getMarkerDisplay(zoom, imageScale) {
   };
 }
 
+function normalizeContainerPoint(point) {
+  if (!point) {
+    return null;
+  }
+
+  if (Number.isFinite(point.x) && Number.isFinite(point.y)) {
+    return { x: point.x, y: point.y };
+  }
+
+  return null;
+}
+
+function getMarkerHitbox(anchorPoint, markerDisplay) {
+  const width = markerDisplay.maxWidth + DISAMBIGUATION_TOUCH_PADDING * 2;
+  const height = markerDisplay.maxHeight * 3 + DISAMBIGUATION_TOUCH_PADDING * 2;
+
+  return {
+    left: anchorPoint.x - width / 2,
+    right: anchorPoint.x + width / 2,
+    top: anchorPoint.y - height,
+    bottom: anchorPoint.y + DISAMBIGUATION_TOUCH_PADDING,
+  };
+}
+
+function isPointInsideHitbox(point, hitbox) {
+  return (
+    point.x >= hitbox.left &&
+    point.x <= hitbox.right &&
+    point.y >= hitbox.top &&
+    point.y <= hitbox.bottom
+  );
+}
+
+function getInteractionPoint(event, mapInstance) {
+  const containerPoint = normalizeContainerPoint(event?.containerPoint);
+
+  if (containerPoint) {
+    return containerPoint;
+  }
+
+  if (event?.latlng && mapInstance?.latLngToContainerPoint) {
+    return normalizeContainerPoint(
+      mapInstance.latLngToContainerPoint(event.latlng)
+    );
+  }
+
+  return null;
+}
+
+function resolveDisambiguationCandidates({
+  displayedBanners,
+  interactionPoint,
+  mapInstance,
+  markerDisplay,
+}) {
+  if (!interactionPoint || !mapInstance?.latLngToContainerPoint) {
+    return [];
+  }
+
+  return displayedBanners
+    .map((banner) => {
+      const anchorPoint = normalizeContainerPoint(
+        mapInstance.latLngToContainerPoint({
+          lat: banner._latitude,
+          lng: banner._longitude,
+        })
+      );
+
+      if (!anchorPoint) {
+        return null;
+      }
+
+      const hitbox = getMarkerHitbox(anchorPoint, markerDisplay);
+
+      if (!isPointInsideHitbox(interactionPoint, hitbox)) {
+        return null;
+      }
+
+      const distanceFromAnchor = Math.hypot(
+        interactionPoint.x - anchorPoint.x,
+        interactionPoint.y - anchorPoint.y
+      );
+
+      return {
+        banner,
+        distanceFromAnchor,
+      };
+    })
+    .filter(Boolean)
+    .sort((candidateA, candidateB) => {
+      if (candidateA.distanceFromAnchor !== candidateB.distanceFromAnchor) {
+        return candidateA.distanceFromAnchor - candidateB.distanceFromAnchor;
+      }
+
+      return candidateA.banner._distanceMeters - candidateB.banner._distanceMeters;
+    })
+    .map((candidate) => candidate.banner);
+}
+
 function createBannerMarkerIcon({ banner, width, maxHeight, isSelected }) {
   const imageUrl = banner.picture
     ? `https://api.bannergress.com${banner.picture}`
@@ -294,11 +394,12 @@ function createUserLocationIcon() {
   });
 }
 
-function MapEvents({ onViewportChange }) {
+function MapEvents({ onMapClick, onViewportChange }) {
   useMapEvents({
     load: (event) => onViewportChange(event.target),
     moveend: (event) => onViewportChange(event.target),
     zoomend: (event) => onViewportChange(event.target),
+    click: (event) => onMapClick?.(event),
   });
 
   return null;
@@ -445,6 +546,194 @@ function BannerPreviewCard({ banner }) {
   );
 }
 
+function BannerDisambiguationMenu({ banners, point, onClose, onSelect }) {
+  if (!point || banners.length < 2) {
+    return null;
+  }
+
+  const topOffset = Math.max(12, Math.round(point.y));
+  const maxHeight = `max(220px, calc(100% - ${topOffset}px - 12px))`;
+  const stopMapInteraction = (event) => {
+    event.stopPropagation();
+  };
+
+  return (
+    <Paper
+      elevation={0}
+      onClick={stopMapInteraction}
+      onMouseDown={stopMapInteraction}
+      onPointerDown={stopMapInteraction}
+      onTouchStart={stopMapInteraction}
+      onTouchMove={stopMapInteraction}
+      onWheel={stopMapInteraction}
+      sx={{
+        position: "absolute",
+        left: `clamp(12px, ${Math.round(point.x)}px, calc(100% - 332px))`,
+        top: `${topOffset}px`,
+        zIndex: 1100,
+        width: "min(320px, calc(100% - 24px))",
+        p: 1,
+        display: "flex",
+        flexDirection: "column",
+        maxHeight,
+        overflow: "hidden",
+        borderRadius: 2.5,
+        bgcolor: "rgba(18,25,31,0.96)",
+        border: "1px solid rgba(255,255,255,0.1)",
+        boxShadow: "0 18px 42px rgba(0,0,0,0.28)",
+        backdropFilter: "blur(16px)",
+        pointerEvents: "auto",
+      }}
+    >
+      <Stack spacing={1} sx={{ flex: 1, minHeight: 0 }}>
+        <Stack direction="row" alignItems="center" justifyContent="space-between">
+          <Stack spacing={0.2}>
+            <Typography
+              variant="overline"
+              sx={{ color: "text.secondary", letterSpacing: "0.12em" }}
+            >
+              Multiple Banners
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              Pick the banner you meant.
+            </Typography>
+          </Stack>
+
+          <Button size="small" color="inherit" onClick={onClose}>
+            Close
+          </Button>
+        </Stack>
+
+        <Stack
+          spacing={1}
+          sx={{
+            flex: 1,
+            minHeight: 0,
+            overflowY: "auto",
+            pr: 0.25,
+            overscrollBehavior: "contain",
+            touchAction: "pan-y",
+            scrollbarGutter: "stable",
+            WebkitOverflowScrolling: "touch",
+          }}
+        >
+          {banners.map((banner) => (
+            <Box
+              key={banner.id}
+              component="button"
+              type="button"
+              onClick={() => onSelect(banner)}
+              sx={{
+                width: "100%",
+                display: "grid",
+                gridTemplateColumns: "56px minmax(0, 1fr)",
+                gap: 1,
+                p: 0.8,
+                borderRadius: 2,
+                border: "1px solid rgba(255,255,255,0.08)",
+                bgcolor: "rgba(255,255,255,0.03)",
+                color: "inherit",
+                textAlign: "left",
+                cursor: "pointer",
+                transition: "background-color 120ms ease, border-color 120ms ease",
+                "&:hover": {
+                  bgcolor: "rgba(255,255,255,0.06)",
+                  borderColor: "rgba(255,255,255,0.18)",
+                },
+              }}
+            >
+              <Box
+                sx={{
+                  width: 56,
+                  minHeight: 74,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  bgcolor: "rgba(255,255,255,0.04)",
+                  overflow: "hidden",
+                  borderRadius: 1.5,
+                }}
+              >
+                {banner.picture ? (
+                  <Box
+                    component="img"
+                    src={`https://api.bannergress.com${banner.picture}`}
+                    alt={banner.title}
+                    sx={{
+                      width: "100%",
+                      height: "auto",
+                      display: "block",
+                    }}
+                  />
+                ) : (
+                  <Typography variant="caption" color="text.secondary">
+                    No image
+                  </Typography>
+                )}
+              </Box>
+
+              <Stack spacing={0.5} sx={{ minWidth: 0 }}>
+                <Typography
+                  variant="subtitle2"
+                  sx={{
+                    lineHeight: 1.2,
+                    display: "-webkit-box",
+                    WebkitLineClamp: 2,
+                    WebkitBoxOrient: "vertical",
+                    overflow: "hidden",
+                  }}
+                >
+                  {banner.title}
+                </Typography>
+                <Typography
+                  variant="caption"
+                  color="text.secondary"
+                  sx={{
+                    display: "-webkit-box",
+                    WebkitLineClamp: 2,
+                    WebkitBoxOrient: "vertical",
+                    overflow: "hidden",
+                  }}
+                >
+                  {banner.formattedAddress || "Address unavailable"}
+                </Typography>
+                <Stack direction="row" spacing={0.6} useFlexGap flexWrap="wrap">
+                  <Chip
+                    size="small"
+                    label={`${Number(banner.numberOfMissions) || "?"} missions`}
+                    sx={{ bgcolor: "rgba(255,255,255,0.05)", borderRadius: 999 }}
+                  />
+                  <Chip
+                    size="small"
+                    label={formatDistance(banner._distanceMeters)}
+                    sx={{ bgcolor: "rgba(255,255,255,0.05)", borderRadius: 999 }}
+                  />
+                </Stack>
+              </Stack>
+            </Box>
+          ))}
+        </Stack>
+      </Stack>
+    </Paper>
+  );
+}
+
+function setMapInteractionsEnabled(mapInstance, enabled) {
+  if (!mapInstance) {
+    return;
+  }
+
+  const method = enabled ? "enable" : "disable";
+
+  mapInstance.dragging?.[method]?.();
+  mapInstance.scrollWheelZoom?.[method]?.();
+  mapInstance.touchZoom?.[method]?.();
+  mapInstance.doubleClickZoom?.[method]?.();
+  mapInstance.boxZoom?.[method]?.();
+  mapInstance.keyboard?.[method]?.();
+  mapInstance.tap?.[method]?.();
+}
+
 export default function Map() {
   const initialImageSizePreference = readInitialImageSizePreference();
   const [visibleArea, setVisibleArea] = useState(null);
@@ -462,12 +751,14 @@ export default function Map() {
     initialImageSizePreference.customScale
   );
   const [imageSizeMenuAnchor, setImageSizeMenuAnchor] = useState(null);
+  const [disambiguationState, setDisambiguationState] = useState(null);
   const mapRef = useRef(null);
   const hasCenteredOnUserRef = useRef(false);
   const iconCacheRef = useRef(bannerMarkerIconCache);
 
   const locationIcon = useMemo(() => createUserLocationIcon(), []);
   const imageSizeMenuOpen = Boolean(imageSizeMenuAnchor);
+  const isDisambiguating = Boolean(disambiguationState?.bannerIds?.length);
   const activeImageScale =
     imageSizeMode === "custom"
       ? customImageScale
@@ -572,6 +863,20 @@ export default function Map() {
     mapRef.current.setView([userLocation.latitude, userLocation.longitude], 14);
     hasCenteredOnUserRef.current = true;
   }, [userLocation]);
+
+  useEffect(() => {
+    const mapInstance = mapRef.current;
+
+    if (!mapInstance) {
+      return undefined;
+    }
+
+    setMapInteractionsEnabled(mapInstance, !isDisambiguating);
+
+    return () => {
+      setMapInteractionsEnabled(mapInstance, true);
+    };
+  }, [isDisambiguating]);
 
   const normalizedVisibleArea = useMemo(
     () => normalizeVisibleArea(visibleArea),
@@ -729,6 +1034,7 @@ export default function Map() {
   useEffect(() => {
     if (displayedBanners.length === 0) {
       setSelectedBannerId(null);
+      setDisambiguationState(null);
       return;
     }
 
@@ -741,8 +1047,115 @@ export default function Map() {
     }
   }, [displayedBanners, selectedBannerId]);
 
+  useEffect(() => {
+    if (!disambiguationState) {
+      return;
+    }
+
+    const remainingBannerIds = new Set(displayedBanners.map((banner) => banner.id));
+    const nextBannerIds = disambiguationState.bannerIds.filter((bannerId) =>
+      remainingBannerIds.has(bannerId)
+    );
+
+    if (nextBannerIds.length < 2) {
+      setDisambiguationState(null);
+      return;
+    }
+
+    if (nextBannerIds.length !== disambiguationState.bannerIds.length) {
+      setDisambiguationState((currentState) =>
+        currentState
+          ? {
+              ...currentState,
+              bannerIds: nextBannerIds,
+            }
+          : null
+      );
+    }
+  }, [disambiguationState, displayedBanners]);
+
   const selectedBanner =
     displayedBanners.find((banner) => banner.id === selectedBannerId) ?? null;
+  const disambiguationBanners = disambiguationState
+    ? disambiguationState.bannerIds
+        .map((bannerId) =>
+          displayedBanners.find((banner) => banner.id === bannerId)
+        )
+        .filter(Boolean)
+    : [];
+
+  const handleBannerSelection = (banner) => {
+    setSelectedBannerId(banner.id);
+    setDisambiguationState(null);
+  };
+
+  const handleBannerInteraction = (banner, event) => {
+    const mapInstance = mapRef.current;
+
+    if (!mapInstance) {
+      handleBannerSelection(banner);
+      return;
+    }
+
+    const interactionPoint = getInteractionPoint(event, mapInstance);
+
+    if (!interactionPoint) {
+      handleBannerSelection(banner);
+      return;
+    }
+
+    const candidates = resolveDisambiguationCandidates({
+      displayedBanners,
+      interactionPoint,
+      mapInstance,
+      markerDisplay,
+    });
+
+    if (candidates.length > 1) {
+      setSelectedBannerId(candidates[0].id);
+      setDisambiguationState({
+        point: interactionPoint,
+        bannerIds: candidates.map((candidate) => candidate.id),
+      });
+      return;
+    }
+
+    handleBannerSelection(banner);
+  };
+
+  const handleMapClick = (event) => {
+    const mapInstance = mapRef.current;
+
+    if (!mapInstance) {
+      setDisambiguationState(null);
+      return;
+    }
+
+    const interactionPoint = getInteractionPoint(event, mapInstance);
+
+    if (!interactionPoint) {
+      setDisambiguationState(null);
+      return;
+    }
+
+    const candidates = resolveDisambiguationCandidates({
+      displayedBanners,
+      interactionPoint,
+      mapInstance,
+      markerDisplay,
+    });
+
+    if (candidates.length > 1) {
+      setSelectedBannerId(candidates[0].id);
+      setDisambiguationState({
+        point: interactionPoint,
+        bannerIds: candidates.map((candidate) => candidate.id),
+      });
+      return;
+    }
+
+    setDisambiguationState(null);
+  };
 
   const markerDescriptors = useMemo(
     () =>
@@ -812,15 +1225,25 @@ export default function Map() {
             position={[banner._latitude, banner._longitude]}
             icon={icon}
             eventHandlers={{
-              click: () => {
-                setSelectedBannerId(banner.id);
+              click: (event) => {
+                handleBannerInteraction(banner, event);
               },
             }}
           />
         ))}
 
-        <MapEvents onViewportChange={updateVisibleArea} />
+        <MapEvents
+          onMapClick={handleMapClick}
+          onViewportChange={updateVisibleArea}
+        />
       </MapContainer>
+
+      <BannerDisambiguationMenu
+        banners={disambiguationBanners}
+        point={disambiguationState?.point}
+        onClose={() => setDisambiguationState(null)}
+        onSelect={handleBannerSelection}
+      />
 
       <Stack
         spacing={1}

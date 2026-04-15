@@ -58,6 +58,10 @@ vi.mock("react-leaflet", async () => {
     locate: vi.fn(),
     setView: vi.fn(),
     getZoom: vi.fn(() => 15),
+    latLngToContainerPoint: ({ lat, lng }) => ({
+      x: Math.round((lng - 6.8) * 1000),
+      y: Math.round((52.3 - lat) * 1000),
+    }),
   });
 
   const MapContainer = React.forwardRef(
@@ -87,8 +91,21 @@ vi.mock("react-leaflet", async () => {
   return {
     MapContainer,
     TileLayer: ({ children }) => <div data-testid="tile-layer">{children}</div>,
-    Marker: ({ children, position }) => (
-      <div data-testid={`marker-${position?.join("-")}`}>{children}</div>
+    Marker: ({ children, position, eventHandlers }) => (
+      <div
+        data-testid={`marker-${position?.join("-")}`}
+        onClick={() =>
+          eventHandlers?.click?.({
+            latlng: { lat: position?.[0], lng: position?.[1] },
+            containerPoint: mapInstance?.latLngToContainerPoint({
+              lat: position?.[0],
+              lng: position?.[1],
+            }),
+          })
+        }
+      >
+        {children}
+      </div>
     ),
     Polyline: ({ children }) => <div data-testid="polyline">{children}</div>,
     Popup: ({ children }) => <div>{children}</div>,
@@ -1132,6 +1149,63 @@ test("renders every fetched discovery map banner in the current view", async () 
 
   expect(await screen.findByText("2 banners in view")).toBeInTheDocument();
   expect(screen.queryByText(/showing the nearest/i)).not.toBeInTheDocument();
+});
+
+test("opens a disambiguation picker when overlapping map banners share a tap target", async () => {
+  const user = userEvent.setup();
+
+  global.fetch.mockImplementation((url) => {
+    if (url.includes("/bnrs?orderBy=proximityStartPoint")) {
+      return jsonResponse([
+        {
+          id: "map-banner-1",
+          title: "Map Banner One",
+          picture: "/images/map-1.jpg",
+          numberOfMissions: 6,
+          lengthMeters: 1800,
+          formattedAddress: "Enschede, NL",
+          numberOfDisabledMissions: 0,
+          startLatitude: "52.22",
+          startLongitude: "6.89",
+        },
+        {
+          id: "map-banner-2",
+          title: "Map Banner Two",
+          picture: "/images/map-2.jpg",
+          numberOfMissions: 12,
+          lengthMeters: 2200,
+          formattedAddress: "Enschede, NL",
+          numberOfDisabledMissions: 0,
+          startLatitude: "52.225",
+          startLongitude: "6.895",
+        },
+      ]);
+    }
+
+    throw new Error(`Unhandled fetch: ${url}`);
+  });
+
+  renderWithProviders(<Map />);
+
+  expect(await screen.findByText("2 banners in view")).toBeInTheDocument();
+
+  await user.click(screen.getByTestId("marker-52.22-6.89"));
+
+  expect(await screen.findByText("Pick the banner you meant.")).toBeInTheDocument();
+  expect(screen.getAllByText("Map Banner One").length).toBeGreaterThan(0);
+  expect(screen.getAllByText("Map Banner Two").length).toBeGreaterThan(0);
+
+  await user.click(
+    screen.getByRole("button", { name: /map banner two/i })
+  );
+
+  await waitFor(() =>
+    expect(screen.getByRole("link", { name: /open banner/i })).toHaveAttribute(
+      "href",
+      "/banner/map-banner-2"
+    )
+  );
+  expect(screen.queryByText("Pick the banner you meant.")).not.toBeInTheDocument();
 });
 
 test("renders discovery map markers even before banner image ratios load", async () => {

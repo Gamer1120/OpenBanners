@@ -2,13 +2,17 @@ import React from "react";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { ThemeProvider, createTheme } from "@mui/material/styles";
-import { MemoryRouter, Route, Routes } from "react-router-dom";
+import { MemoryRouter, Route, Routes, useLocation } from "react-router-dom";
 import { vi } from "vitest";
 import BannersNearMe from "./components/BannersNearMe";
 import BrowsingPage from "./components/BrowsingPage";
 import SearchResults from "./components/SearchResults";
 import BannerDetailsPage from "./components/BannerDetailsPage";
 import Map from "./components/Map";
+import PlacesList from "./components/PlacesList";
+import TopMenu from "./components/TopMenu";
+import { getFlagForPlace } from "./components/CountryFlags";
+import L from "leaflet";
 
 vi.mock("@mui/material", async () => {
   const actual = await vi.importActual("@mui/material");
@@ -119,6 +123,12 @@ function renderWithProviders(ui, { route = "/" } = {}) {
   );
 }
 
+function LocationDisplay() {
+  const location = useLocation();
+
+  return <div data-testid="location-display">{location.pathname}</div>;
+}
+
 beforeEach(() => {
   global.fetch = vi.fn();
   window.open = vi.fn();
@@ -177,6 +187,13 @@ test("renders nearby banners after granting location access", async () => {
   );
 });
 
+test("normalizes place aliases to the expected country flags", () => {
+  expect(getFlagForPlace("The Netherlands")).toBe("🇳🇱");
+  expect(getFlagForPlace("Curacao")).toBe("🇨🇼");
+  expect(getFlagForPlace("Republic of Korea")).toBe("🇰🇷");
+  expect(getFlagForPlace("  Reunion  ")).toBe("🇷🇪");
+});
+
 test("renders browsing results and places list", async () => {
   global.fetch.mockImplementation((url) => {
     if (url.includes("/places?used=true&type=country")) {
@@ -216,6 +233,86 @@ test("renders browsing results and places list", async () => {
   expect(await screen.findByText("Browsing")).toBeInTheDocument();
   expect(await screen.findByText("Browse Banner")).toBeInTheDocument();
   expect(await screen.findByText(/Netherlands/)).toBeInTheDocument();
+});
+
+test("renders places list flags and browse links for aliased place names", async () => {
+  global.fetch.mockImplementation((url) => {
+    if (url.includes("/places?used=true&type=country")) {
+      return jsonResponse([
+        {
+          id: "curacao",
+          formattedAddress: "Curacao",
+          numberOfBanners: 4,
+        },
+        {
+          id: "south-korea",
+          formattedAddress: "Republic of Korea",
+          numberOfBanners: 9,
+        },
+      ]);
+    }
+
+    throw new Error(`Unhandled fetch: ${url}`);
+  });
+
+  renderWithProviders(
+    <Routes>
+      <Route path="/browse/" element={<PlacesList />} />
+    </Routes>,
+    { route: "/browse/" }
+  );
+
+  expect(await screen.findByText("🇨🇼")).toBeInTheDocument();
+  expect(screen.getByText("🇰🇷")).toBeInTheDocument();
+  expect(screen.getByRole("link", { name: /Curacao \(4\)/ })).toHaveAttribute(
+    "href",
+    "/browse/curacao"
+  );
+  expect(
+    screen.getByRole("link", { name: /Republic of Korea \(9\)/ })
+  ).toHaveAttribute("href", "/browse/south-korea");
+});
+
+test("submits top menu searches, fires menu callbacks, and navigates map route", async () => {
+  const onBrowseClick = vi.fn();
+  const onTitleClick = vi.fn();
+  const onSearch = vi.fn();
+
+  renderWithProviders(
+    <Routes>
+      <Route
+        path="*"
+        element={
+          <>
+            <TopMenu
+              onBrowseClick={onBrowseClick}
+              onTitleClick={onTitleClick}
+              onSearch={onSearch}
+            />
+            <LocationDisplay />
+          </>
+        }
+      />
+      <Route path="/map" element={<LocationDisplay />} />
+    </Routes>,
+    { route: "/" }
+  );
+
+  await userEvent.click(screen.getByRole("button", { name: /browse/i }));
+  expect(onBrowseClick).toHaveBeenCalledTimes(1);
+
+  await userEvent.click(screen.getByText("OB"));
+  expect(onTitleClick).toHaveBeenCalledTimes(1);
+
+  await userEvent.type(screen.getByPlaceholderText("Search"), "enschede{enter}");
+  expect(onSearch).toHaveBeenCalledWith("enschede");
+
+  await userEvent.clear(screen.getByPlaceholderText("Search"));
+  await userEvent.type(screen.getByPlaceholderText("Search"), "{enter}");
+  expect(onSearch).toHaveBeenCalledTimes(1);
+
+  await userEvent.click(screen.getByRole("button", { name: /map/i }));
+  expect(screen.getByTestId("location-display")).toHaveTextContent("/map");
 });
 
 test("renders place and banner search results", async () => {
@@ -306,7 +403,7 @@ test("renders banner details route with actions", async () => {
   ).toBeInTheDocument();
 });
 
-test("renders map markers linking to banner details routes", async () => {
+test("renders map markers using fixed contain icons linked to banner details routes", async () => {
   global.fetch.mockImplementation((url) => {
     if (url.includes("/bnrs?orderBy=created&orderDirection=DESC&online=true")) {
       return jsonResponse([
@@ -332,4 +429,18 @@ test("renders map markers linking to banner details routes", async () => {
     )
   );
   expect(bannerLink).toHaveAttribute("href", "/banner/map-banner");
+  expect(L.icon).not.toHaveBeenCalled();
+  expect(L.divIcon).toHaveBeenCalledWith(
+    expect.objectContaining({
+      className: "banner-map-icon",
+      iconSize: [100, 150],
+      iconAnchor: [50, 150],
+      html: expect.stringContaining("object-fit:contain"),
+    })
+  );
+  expect(L.divIcon).toHaveBeenCalledWith(
+    expect.objectContaining({
+      html: expect.stringContaining("https://api.bannergress.com/images/map.jpg"),
+    })
+  );
 });

@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Box } from "@mui/material";
+import { Box, useMediaQuery } from "@mui/material";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import TopMenu from "./TopMenu";
 import BannersNearMe from "./BannersNearMe";
@@ -9,6 +9,7 @@ import BannerDetailsPage from "./BannerDetailsPage";
 
 export default function Home() {
   const [currentView, setCurrentView] = useState("bannersNearMe");
+  const isMobile = useMediaQuery("(max-width:768px)");
   const { placeId } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
@@ -45,7 +46,8 @@ export default function Home() {
       sx={{
         flexGrow: 1,
         bgcolor: "grey.900",
-        height: currentView === "bannerDetails" ? "100dvh" : "auto",
+        height:
+          currentView === "bannerDetails" && !isMobile ? "100dvh" : "auto",
         minHeight: "100dvh",
         display: "flex",
         flexDirection: "column",
@@ -64,7 +66,8 @@ export default function Home() {
           minHeight: 0,
           display: "flex",
           flexDirection: "column",
-          overflow: currentView === "bannerDetails" ? "hidden" : "visible",
+          overflow:
+            currentView === "bannerDetails" && !isMobile ? "hidden" : "visible",
         }}
       >
         {currentView === "bannersNearMe" && <BannersNearMe />}

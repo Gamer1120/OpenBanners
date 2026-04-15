@@ -1,6 +1,7 @@
 import React from "react";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { useMediaQuery } from "@mui/material";
 import { ThemeProvider, createTheme } from "@mui/material/styles";
 import { MemoryRouter, Route, Routes, useLocation } from "react-router-dom";
 import { vi } from "vitest";
@@ -144,6 +145,7 @@ function LocationDisplay() {
 
 beforeEach(() => {
   global.fetch = vi.fn();
+  useMediaQuery.mockReturnValue(false);
   window.open = vi.fn();
   window.localStorage.clear();
   Object.defineProperty(navigator, "share", {
@@ -633,6 +635,67 @@ test("renders banner details route with actions", async () => {
   expect(
     screen.getByRole("button", { name: /share banner/i })
   ).toBeInTheDocument();
+});
+
+test("shows separate overview and map tabs for banner details on mobile", async () => {
+  useMediaQuery.mockReturnValue(true);
+
+  global.fetch.mockImplementation((url) => {
+    if (url.endsWith("/bnrs/mobile-detail-banner")) {
+      return jsonResponse({
+        id: "mobile-detail-banner",
+        title: "Mobile Detail Banner",
+        picture: "/images/detail.jpg",
+        numberOfMissions: 6,
+        lengthMeters: 2100,
+        formattedAddress: "Amsterdam, NL",
+        description: "A banner used for mobile layout testing.",
+        startLatitude: 52.37,
+        startLongitude: 4.89,
+        missions: {
+          "mission-1": {
+            id: "mission-1",
+            steps: {
+              0: {
+                poi: {
+                  title: "Portal One",
+                  type: "portal",
+                  latitude: 52.37,
+                  longitude: 4.89,
+                },
+              },
+            },
+          },
+        },
+      });
+    }
+
+    throw new Error(`Unhandled fetch: ${url}`);
+  });
+
+  const user = userEvent.setup();
+
+  renderWithProviders(
+    <Routes>
+      <Route path="/banner/:bannerId" element={<BannerDetailsPage />} />
+    </Routes>,
+    { route: "/banner/mobile-detail-banner" }
+  );
+
+  expect(await screen.findByText("Mobile Detail Banner")).toBeInTheDocument();
+  expect(screen.getByRole("tab", { name: /overview/i })).toHaveAttribute(
+    "aria-selected",
+    "true"
+  );
+  expect(screen.queryByTestId("map-container")).not.toBeInTheDocument();
+
+  await user.click(screen.getByRole("tab", { name: /map/i }));
+
+  expect(screen.getByRole("tab", { name: /map/i })).toHaveAttribute(
+    "aria-selected",
+    "true"
+  );
+  expect(screen.getByTestId("map-container")).toBeInTheDocument();
 });
 
 test("renders a single visible map for banner details even with multiple missions", async () => {

@@ -2,19 +2,29 @@ import { MapContainer, TileLayer } from "react-leaflet";
 import BannerMarkers from "./BannerMarkers";
 import { useParams } from "react-router-dom";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Alert, Box, Button, Typography } from "@mui/material";
+import {
+  Alert,
+  Box,
+  Button,
+  Tab,
+  Tabs,
+  Typography,
+  useMediaQuery,
+} from "@mui/material";
 import BannerDetailsCard from "./BannerDetailsCard";
 import BannerInfo from "./BannerInfo";
 import L from "leaflet";
 
 export default function BannerDetailsPage() {
   const { bannerId } = useParams();
+  const isMobile = useMediaQuery("(max-width:768px)");
 
   const [items, setItems] = useState({});
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
   const [mapInitialized, setMapInitialized] = useState(false);
   const [reloadToken, setReloadToken] = useState(0);
+  const [mobileTab, setMobileTab] = useState("overview");
   const mapRef = useRef(null);
   const mapContainerRef = useRef(null);
   const missions = useMemo(
@@ -125,74 +135,119 @@ export default function BannerDetailsPage() {
     };
   }, [mapInitialized]);
 
+  useEffect(() => {
+    if (!isMobile && mobileTab !== "overview") {
+      setMobileTab("overview");
+    }
+  }, [isMobile, mobileTab]);
+
+  const showOverview = !isMobile || mobileTab === "overview";
+  const showMap = !isMobile || mobileTab === "map";
+
+  const overviewContent = (
+    <div className="banner-details-container">
+      <div className="banner-details-card">
+        {error ? (
+          <Box sx={{ p: 2 }}>
+            <Alert
+              severity="error"
+              action={
+                <Button
+                  color="inherit"
+                  size="small"
+                  onClick={() => setReloadToken((currentValue) => currentValue + 1)}
+                >
+                  Retry
+                </Button>
+              }
+            >
+              {error}
+            </Alert>
+          </Box>
+        ) : (
+          <>
+            <BannerDetailsCard banner={items} loading={isLoading} />
+            <BannerInfo banner={items} loading={isLoading} />
+          </>
+        )}
+      </div>
+    </div>
+  );
+
+  const mapContent = (
+    <div className="map-container" ref={mapContainerRef}>
+      {isLoading && (
+        <Box
+          sx={{
+            position: "absolute",
+            zIndex: 1000,
+            left: 16,
+            top: 16,
+            bgcolor: "rgba(18, 18, 18, 0.9)",
+            color: "#fff",
+            px: 1.5,
+            py: 0.75,
+            borderRadius: 1,
+          }}
+        >
+          <Typography variant="body2">Loading map details...</Typography>
+        </Box>
+      )}
+      <MapContainer
+        id="map"
+        center={[52.221058, 6.893297]}
+        zoom={8}
+        scrollWheelZoom={true}
+        style={{ height: "100%", width: "100%" }}
+        ref={mapRef}
+        preferCanvas={missionCoordinates.length > 200}
+        dragging={!L.Browser.mobile}
+        touchZoom={true}
+        whenReady={() => setMapInitialized(true)}
+      >
+        <TileLayer
+          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors. This website is NOT affiliated with Bannergress in any way!'
+          url="https://tile.openstreetmap.org/{z}/{x}/{y}.png"
+        />
+        <BannerMarkers missions={missions} showStepMarkers={false} />
+      </MapContainer>
+    </div>
+  );
+
   return (
     <div className="banner-details-page">
-      <div className="banner-details-container">
-        <div className="banner-details-card">
-          {error ? (
-            <Box sx={{ p: 2 }}>
-              <Alert
-                severity="error"
-                action={
-                  <Button
-                    color="inherit"
-                    size="small"
-                    onClick={() =>
-                      setReloadToken((currentValue) => currentValue + 1)
-                    }
-                  >
-                    Retry
-                  </Button>
-                }
-              >
-                {error}
-              </Alert>
-            </Box>
-          ) : (
-            <>
-              <BannerDetailsCard banner={items} loading={isLoading} />
-              <BannerInfo banner={items} loading={isLoading} />
-            </>
-          )}
-        </div>
-      </div>
-      <div className="map-container" ref={mapContainerRef}>
-        {isLoading && (
-          <Box
+      {isMobile ? (
+        <Box
+          sx={{
+            display: "flex",
+            flexDirection: "column",
+            minHeight: 0,
+            width: "100%",
+          }}
+        >
+          <Tabs
+            value={mobileTab}
+            onChange={(_, nextTab) => setMobileTab(nextTab)}
+            aria-label="Banner detail sections"
+            variant="fullWidth"
             sx={{
-              position: "absolute",
-              zIndex: 1000,
-              left: 16,
-              top: 16,
-              bgcolor: "rgba(18, 18, 18, 0.9)",
-              color: "#fff",
-              px: 1.5,
-              py: 0.75,
-              borderRadius: 1,
+              px: 1,
+              pt: 1,
+              borderBottom: "1px solid rgba(255,255,255,0.08)",
             }}
           >
-            <Typography variant="body2">Loading map details...</Typography>
-          </Box>
-        )}
-        <MapContainer
-          id="map"
-          center={[52.221058, 6.893297]}
-          zoom={8}
-          scrollWheelZoom={true}
-          style={{ height: "100%", width: "100%" }}
-          ref={mapRef}
-          preferCanvas={missionCoordinates.length > 200}
-          dragging={!L.Browser.mobile}
-          touchZoom={true}
-          whenReady={() => setMapInitialized(true)}
-        >
-          <TileLayer
-            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors. This website is NOT affiliated with Bannergress in any way!'
-            url="https://tile.openstreetmap.org/{z}/{x}/{y}.png"
-          />
-          <BannerMarkers missions={missions} showStepMarkers={false} />
-        </MapContainer>
-      </div>
+            <Tab label="Overview" value="overview" />
+            <Tab label="Map" value="map" disabled={Boolean(error)} />
+          </Tabs>
+          {showOverview ? overviewContent : null}
+          {showMap ? mapContent : null}
+        </Box>
+      ) : (
+        <>
+          {overviewContent}
+          {mapContent}
+        </>
+      )}
     </div>
   );
 }

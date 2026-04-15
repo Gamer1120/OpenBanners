@@ -136,22 +136,25 @@
 
 @media (max-width: 768px) {
   .banner-details-page {
-    display: flex;
-    flex-direction: column;
+    display: block;
+    grid-template-columns: 1fr;
+    width: 100%;
     height: auto;
     overflow: visible;
   }
 
   .banner-details-container {
-    order: 1;
     padding: 8px;
     overflow-y: visible;
   }
 
+  .banner-details-card {
+    max-width: none;
+  }
+
   .map-container {
-    order: 1;
-    height: 45vh;
-    min-height: 300px;
+    height: calc(100dvh - 180px);
+    min-height: 360px;
   }
 
   .overlay {

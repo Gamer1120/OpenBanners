@@ -8,6 +8,7 @@ import {
   Skeleton,
   Stack,
   Typography,
+  useMediaQuery,
 } from "@mui/material";
 
 function formatDistance(lengthMeters) {
@@ -17,6 +18,7 @@ function formatDistance(lengthMeters) {
 }
 
 export default function BannerDetailsCard({ banner, loading = false }) {
+  const isMobile = useMediaQuery("(max-width:768px)");
   const lengthMeters = Number(banner.lengthMeters);
   const missions = Number(banner.numberOfMissions);
   const showImage = Boolean(banner.picture);
@@ -29,8 +31,8 @@ export default function BannerDetailsCard({ banner, loading = false }) {
     <Card
       sx={{
         width: "100%",
-        maxWidth: 420,
-        m: 2,
+        maxWidth: isMobile ? "none" : 420,
+        m: isMobile ? 1 : 2,
         display: "flex",
         flexDirection: "column",
         borderRadius: 3,

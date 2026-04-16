@@ -1,0 +1,212 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>OpenBanners Bannergress Auth</title>
+    <style>
+      body {
+        margin: 0;
+        min-height: 100vh;
+        display: grid;
+        place-items: center;
+        background: #0b1014;
+        color: #f4f7fb;
+        font: 16px/1.5 system-ui, sans-serif;
+      }
+
+      main {
+        width: min(480px, calc(100vw - 32px));
+        padding: 24px;
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 16px;
+        background: rgba(255, 255, 255, 0.04);
+        box-shadow: 0 16px 40px rgba(0, 0, 0, 0.28);
+      }
+
+      h1 {
+        margin: 0 0 12px;
+        font-size: 1.2rem;
+      }
+
+      p {
+        margin: 0;
+        color: rgba(244, 247, 251, 0.82);
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1 id="title">Finishing Bannergress sign-in…</h1>
+      <p id="message">Please wait while OpenBanners stores your Bannergress session.</p>
+    </main>
+    <script>
+      const AUTH_STORAGE_KEY = "openbanners-bannergress-auth";
+      const AUTH_PENDING_STORAGE_KEY = "openbanners-bannergress-auth-pending";
+      const AUTH_COMPLETE_MESSAGE = "openbanners:bannergress-auth-complete";
+      const TOKEN_URL =
+        "https://login.bannergress.com/auth/realms/bannergress/protocol/openid-connect/token";
+      const CLIENT_ID = "openbanners-test";
+      const CALLBACK_PATH = "/bannergress-auth-callback.html";
+
+      function setStatus(title, message) {
+        document.getElementById("title").textContent = title;
+        document.getElementById("message").textContent = message;
+      }
+
+      function decodeJwtExpiryTimestamp(token) {
+        if (typeof token !== "string") {
+          return null;
+        }
+
+        try {
+          const encodedPayload = token.split(".")[1];
+
+          if (!encodedPayload) {
+            return null;
+          }
+
+          const normalizedPayload = encodedPayload
+            .replace(/-/g, "+")
+            .replace(/_/g, "/");
+          const paddingLength = (4 - (normalizedPayload.length % 4)) % 4;
+          const paddedPayload = `${normalizedPayload}${"=".repeat(paddingLength)}`;
+          const payload = JSON.parse(window.atob(paddedPayload));
+          return Number.isFinite(payload && payload.exp) ? payload.exp * 1000 : null;
+        } catch {
+          return null;
+        }
+      }
+
+      function buildStoredAuthPayload(tokenResult) {
+        const updatedAt = Date.now();
+        const accessExpiresAt = Number.isFinite(tokenResult.expires_in)
+          ? updatedAt + tokenResult.expires_in * 1000
+          : decodeJwtExpiryTimestamp(tokenResult.access_token);
+        const refreshExpiresAt = Number.isFinite(tokenResult.refresh_expires_in)
+          ? updatedAt + tokenResult.refresh_expires_in * 1000
+          : decodeJwtExpiryTimestamp(tokenResult.refresh_token);
+
+        return {
+          accessToken:
+            typeof tokenResult.access_token === "string"
+              ? tokenResult.access_token
+              : null,
+          idToken:
+            typeof tokenResult.id_token === "string" ? tokenResult.id_token : null,
+          refreshToken:
+            typeof tokenResult.refresh_token === "string"
+              ? tokenResult.refresh_token
+              : null,
+          accessExpiresAt: Number.isFinite(accessExpiresAt) ? accessExpiresAt : null,
+          refreshExpiresAt: Number.isFinite(refreshExpiresAt)
+            ? refreshExpiresAt
+            : null,
+          updatedAt,
+        };
+      }
+
+      function notifyOpener(payload) {
+        if (window.opener && window.opener !== window) {
+          window.opener.postMessage(
+            {
+              type: AUTH_COMPLETE_MESSAGE,
+              ...payload,
+            },
+            window.location.origin
+          );
+        }
+      }
+
+      async function finishAuthentication() {
+        const params = new URLSearchParams(window.location.search);
+        const error = params.get("error");
+        const errorDescription = params.get("error_description");
+
+        if (error) {
+          const message = errorDescription || `Authentication failed: ${error}`;
+          notifyOpener({ success: false, message });
+          setStatus("Bannergress sign-in failed", message);
+          return;
+        }
+
+        const code = params.get("code");
+        const state = params.get("state");
+        const pendingAuth = JSON.parse(
+          window.localStorage.getItem(AUTH_PENDING_STORAGE_KEY) || "null"
+        );
+
+        if (!code || !state || !pendingAuth) {
+          const message = "The Bannergress callback is missing required data.";
+          notifyOpener({ success: false, message });
+          setStatus("Bannergress sign-in failed", message);
+          return;
+        }
+
+        if (pendingAuth.state !== state) {
+          const message = "The Bannergress sign-in state did not match.";
+          window.localStorage.removeItem(AUTH_PENDING_STORAGE_KEY);
+          notifyOpener({ success: false, message });
+          setStatus("Bannergress sign-in failed", message);
+          return;
+        }
+
+        const redirectUri =
+          typeof pendingAuth.redirectUri === "string"
+            ? pendingAuth.redirectUri
+            : new URL(CALLBACK_PATH, window.location.origin).toString();
+
+        try {
+          const body = new URLSearchParams({
+            grant_type: "authorization_code",
+            client_id: CLIENT_ID,
+            code,
+            redirect_uri: redirectUri,
+            code_verifier: pendingAuth.codeVerifier,
+          });
+
+          const response = await fetch(TOKEN_URL, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/x-www-form-urlencoded",
+            },
+            body,
+          });
+          const tokenResult = await response.json().catch(() => null);
+
+          if (!response.ok) {
+            throw new Error(
+              tokenResult && tokenResult.error_description
+                ? tokenResult.error_description
+                : "Bannergress rejected the token exchange."
+            );
+          }
+
+          window.localStorage.setItem(
+            AUTH_STORAGE_KEY,
+            JSON.stringify(buildStoredAuthPayload(tokenResult))
+          );
+          window.localStorage.removeItem(AUTH_PENDING_STORAGE_KEY);
+          notifyOpener({ success: true });
+          setStatus(
+            "Bannergress sign-in complete",
+            "You can return to OpenBanners now."
+          );
+          window.setTimeout(() => {
+            window.close();
+          }, 150);
+        } catch (error) {
+          const message =
+            error instanceof Error
+              ? error.message
+              : "Bannergress sign-in could not be completed.";
+          window.localStorage.removeItem(AUTH_PENDING_STORAGE_KEY);
+          notifyOpener({ success: false, message });
+          setStatus("Bannergress sign-in failed", message);
+        }
+      }
+
+      void finishAuthentication();
+    </script>
+  </body>
+</html>

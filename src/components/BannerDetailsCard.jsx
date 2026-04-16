@@ -13,7 +13,7 @@ import {
 import BannergressListActions from "./BannergressListActions";
 import {
   getBannerListType,
-  isBannergressBridgePresent,
+  isBannergressAuthSupportedOrigin,
   useBannergressSync,
 } from "../bannergressSync";
 import { getBannergressCardSurface } from "../bannergressCardStyles";
@@ -38,7 +38,7 @@ export default function BannerDetailsCard({ banner, loading = false }) {
     Number.isFinite(missions) && Number.isFinite(lengthMeters) && lengthMeters > 0
       ? `${((missions / lengthMeters) * 1000).toFixed(3)} /km`
       : "Unavailable";
-  const canUpdateBannerList = loading ? false : isBannergressBridgePresent();
+  const canUpdateBannerList = loading ? false : isBannergressAuthSupportedOrigin();
 
   return (
     <Card

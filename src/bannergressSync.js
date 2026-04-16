@@ -3,36 +3,45 @@ import { useSyncExternalStore } from "react";
 export const BANNERGRESS_SYNC_STORAGE_KEY = "openbanners-bannergress-sync";
 export const BANNERGRESS_SYNC_CHANGE_EVENT =
   "openbanners:bannergress-sync-change";
-export const BANNERGRESS_SYNC_REQUEST =
-  "openbanners:bannergress-sync-request";
-export const BANNERGRESS_SYNC_READY = "openbanners:bannergress-sync-ready";
-export const BANNERGRESS_SYNC_RESULT =
-  "openbanners:bannergress-sync-result";
-export const BANNERGRESS_SYNC_ERROR = "openbanners:bannergress-sync-error";
-export const BANNERGRESS_SYNC_BRIDGE = "openbanners-bannergress-sync";
-export const BANNERGRESS_TOKEN_REQUEST =
-  "openbanners:bannergress-token-request";
-export const BANNERGRESS_TOKEN_RESULT =
-  "openbanners:bannergress-token-result";
-export const BANNERGRESS_TOKEN_ERROR =
-  "openbanners:bannergress-token-error";
-export const BANNERGRESS_AUTH_STATUS_REQUEST =
-  "openbanners:bannergress-auth-status-request";
-export const BANNERGRESS_AUTH_STATUS_RESULT =
-  "openbanners:bannergress-auth-status-result";
-export const BANNERGRESS_AUTH_STATUS_ERROR =
-  "openbanners:bannergress-auth-status-error";
+export const BANNERGRESS_AUTH_STORAGE_KEY = "openbanners-bannergress-auth";
+export const BANNERGRESS_AUTH_CHANGE_EVENT =
+  "openbanners:bannergress-auth-change";
+export const BANNERGRESS_AUTH_PENDING_STORAGE_KEY =
+  "openbanners:bannergress-auth-pending";
+export const BANNERGRESS_AUTH_COMPLETE_MESSAGE =
+  "openbanners:bannergress-auth-complete";
+
+const BANNERGRESS_OIDC_CONFIGURATION = Object.freeze({
+  authorizationUrl:
+    "https://login.bannergress.com/auth/realms/bannergress/protocol/openid-connect/auth",
+  tokenUrl:
+    "https://login.bannergress.com/auth/realms/bannergress/protocol/openid-connect/token",
+  clientId: "openbanners-test",
+  scope: "openid",
+  callbackPath: "/bannergress-auth-callback.html",
+  supportedHostname: "test.openbanners.org",
+});
 
 const TOKEN_CACHE_SAFETY_MS = 60 * 1000;
 const TOKEN_CACHE_FALLBACK_MS = 5 * 60 * 1000;
-
+const SYNC_PAGE_SIZE = 100;
 const EMPTY_SYNC_STATE = Object.freeze({
   syncedAt: null,
   bannerLists: {},
 });
+const EMPTY_AUTH_STATE = Object.freeze({
+  accessToken: null,
+  idToken: null,
+  refreshToken: null,
+  accessExpiresAt: null,
+  refreshExpiresAt: null,
+  updatedAt: null,
+});
 
 let cachedSyncStorageValue = null;
 let cachedSyncSnapshot = EMPTY_SYNC_STATE;
+let cachedAuthStorageValue = null;
+let cachedAuthSnapshot = EMPTY_AUTH_STATE;
 const temporarilyVisibleHiddenBannerIds = new Set();
 
 function normalizeListType(listType) {
@@ -74,7 +83,11 @@ function buildBannerLists(source) {
     if (normalizedKey && normalizedKey !== "none" && Array.isArray(value)) {
       value.forEach((entry) => {
         const bannerId =
-          typeof entry === "string" ? entry : typeof entry?.id === "string" ? entry.id : null;
+          typeof entry === "string"
+            ? entry
+            : typeof entry?.id === "string"
+              ? entry.id
+              : null;
 
         if (bannerId) {
           bannerLists[bannerId] = normalizedKey;
@@ -104,10 +117,98 @@ function normalizeSyncState(rawValue) {
   );
 
   return {
-    syncedAt:
-      typeof rawValue.syncedAt === "string" ? rawValue.syncedAt : null,
+    syncedAt: typeof rawValue.syncedAt === "string" ? rawValue.syncedAt : null,
     bannerLists,
   };
+}
+
+function decodeJwtExpiryTimestamp(token) {
+  if (typeof token !== "string") {
+    return null;
+  }
+
+  try {
+    const [, encodedPayload] = token.split(".");
+
+    if (!encodedPayload) {
+      return null;
+    }
+
+    const normalizedPayload = encodedPayload
+      .replace(/-/g, "+")
+      .replace(/_/g, "/");
+    const paddingLength = (4 - (normalizedPayload.length % 4)) % 4;
+    const paddedPayload = `${normalizedPayload}${"=".repeat(paddingLength)}`;
+    const payload = JSON.parse(window.atob(paddedPayload));
+    return Number.isFinite(payload?.exp) ? payload.exp * 1000 : null;
+  } catch {
+    return null;
+  }
+}
+
+function normalizeAuthState(rawValue) {
+  if (!rawValue || typeof rawValue !== "object") {
+    return EMPTY_AUTH_STATE;
+  }
+
+  const updatedAt = Number.isFinite(rawValue.updatedAt)
+    ? rawValue.updatedAt
+    : Date.now();
+  const accessToken =
+    typeof rawValue.accessToken === "string"
+      ? rawValue.accessToken
+      : typeof rawValue.access_token === "string"
+        ? rawValue.access_token
+        : null;
+  const idToken =
+    typeof rawValue.idToken === "string"
+      ? rawValue.idToken
+      : typeof rawValue.id_token === "string"
+        ? rawValue.id_token
+        : null;
+  const refreshToken =
+    typeof rawValue.refreshToken === "string"
+      ? rawValue.refreshToken
+      : typeof rawValue.refresh_token === "string"
+        ? rawValue.refresh_token
+        : null;
+  const accessExpiresAt = Number.isFinite(rawValue.accessExpiresAt)
+    ? rawValue.accessExpiresAt
+    : Number.isFinite(rawValue.expires_in)
+      ? updatedAt + rawValue.expires_in * 1000
+      : decodeJwtExpiryTimestamp(accessToken);
+  const refreshExpiresAt = Number.isFinite(rawValue.refreshExpiresAt)
+    ? rawValue.refreshExpiresAt
+    : Number.isFinite(rawValue.refresh_expires_in)
+      ? updatedAt + rawValue.refresh_expires_in * 1000
+      : decodeJwtExpiryTimestamp(refreshToken);
+
+  return {
+    accessToken,
+    idToken,
+    refreshToken,
+    accessExpiresAt: Number.isFinite(accessExpiresAt) ? accessExpiresAt : null,
+    refreshExpiresAt: Number.isFinite(refreshExpiresAt)
+      ? refreshExpiresAt
+      : null,
+    updatedAt,
+  };
+}
+
+function emitSyncChange() {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  window.dispatchEvent(new CustomEvent(BANNERGRESS_SYNC_CHANGE_EVENT));
+}
+
+function emitAuthChange() {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  window.dispatchEvent(new CustomEvent(BANNERGRESS_AUTH_CHANGE_EVENT));
 }
 
 export function loadBannergressSyncData() {
@@ -139,12 +240,33 @@ export function loadBannergressSyncData() {
   }
 }
 
-function emitSyncChange() {
+export function loadBannergressAuthData() {
   if (typeof window === "undefined") {
-    return;
+    return EMPTY_AUTH_STATE;
   }
 
-  window.dispatchEvent(new CustomEvent(BANNERGRESS_SYNC_CHANGE_EVENT));
+  try {
+    const rawValue = window.localStorage.getItem(BANNERGRESS_AUTH_STORAGE_KEY);
+
+    if (!rawValue) {
+      cachedAuthStorageValue = null;
+      cachedAuthSnapshot = EMPTY_AUTH_STATE;
+      return EMPTY_AUTH_STATE;
+    }
+
+    if (rawValue === cachedAuthStorageValue) {
+      return cachedAuthSnapshot;
+    }
+
+    cachedAuthStorageValue = rawValue;
+    cachedAuthSnapshot = normalizeAuthState(JSON.parse(rawValue));
+    return cachedAuthSnapshot;
+  } catch (error) {
+    console.error("Couldn't read Bannergress auth data.", error);
+    cachedAuthStorageValue = null;
+    cachedAuthSnapshot = EMPTY_AUTH_STATE;
+    return EMPTY_AUTH_STATE;
+  }
 }
 
 export function saveBannergressSyncData(syncPayload) {
@@ -168,6 +290,22 @@ export function saveBannergressSyncData(syncPayload) {
   return storedValue;
 }
 
+export function saveBannergressAuthData(authPayload) {
+  if (typeof window === "undefined") {
+    return EMPTY_AUTH_STATE;
+  }
+
+  const normalizedValue = normalizeAuthState(authPayload);
+  const serializedValue = JSON.stringify(normalizedValue);
+
+  window.localStorage.setItem(BANNERGRESS_AUTH_STORAGE_KEY, serializedValue);
+  cachedAuthStorageValue = serializedValue;
+  cachedAuthSnapshot = normalizedValue;
+  emitAuthChange();
+
+  return normalizedValue;
+}
+
 export function clearBannergressSyncData() {
   if (typeof window === "undefined") {
     return;
@@ -178,6 +316,18 @@ export function clearBannergressSyncData() {
   cachedSyncSnapshot = EMPTY_SYNC_STATE;
   temporarilyVisibleHiddenBannerIds.clear();
   emitSyncChange();
+}
+
+export function clearBannergressAuthData() {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  window.localStorage.removeItem(BANNERGRESS_AUTH_STORAGE_KEY);
+  window.localStorage.removeItem(BANNERGRESS_AUTH_PENDING_STORAGE_KEY);
+  cachedAuthStorageValue = null;
+  cachedAuthSnapshot = EMPTY_AUTH_STATE;
+  emitAuthChange();
 }
 
 function subscribeToSyncChanges(callback) {
@@ -240,10 +390,6 @@ export function getBannergressSyncCounts(syncState) {
   );
 }
 
-let tokenRequestCounter = 0;
-let cachedAccessTokenPayload = null;
-let cachedAuthStatusPayload = null;
-
 function getCachedDeadline(timestamp) {
   return Number.isFinite(timestamp) ? timestamp : null;
 }
@@ -263,202 +409,284 @@ function hasFreshAccessToken(payload) {
 
   return (
     isTimestampUsable(getCachedDeadline(payload.accessExpiresAt)) ||
-    (!Number.isFinite(payload.accessExpiresAt) && isRecentlyUpdated(payload.updatedAt))
-  );
-}
-
-function hasFreshAuthStatus(payload) {
-  if (!payload?.authenticated) {
-    return false;
-  }
-
-  return (
-    isTimestampUsable(getCachedDeadline(payload.accessExpiresAt)) ||
-    isTimestampUsable(getCachedDeadline(payload.refreshExpiresAt)) ||
     (!Number.isFinite(payload.accessExpiresAt) &&
-      !Number.isFinite(payload.refreshExpiresAt) &&
       isRecentlyUpdated(payload.updatedAt))
   );
 }
 
-function cacheAccessTokenPayload(payload) {
-  cachedAccessTokenPayload = payload ?? null;
-}
+function hasUsableRefreshToken(payload) {
+  if (!payload?.refreshToken) {
+    return false;
+  }
 
-function cacheAuthStatusPayload(payload) {
-  cachedAuthStatusPayload = payload ?? null;
-}
-
-function clearAuthCaches() {
-  cachedAccessTokenPayload = null;
-  cachedAuthStatusPayload = null;
-}
-
-export function isBannergressBridgePresent() {
   return (
-    typeof window !== "undefined" &&
-    window.__openBannersBannergressBridgePresent === true
+    isTimestampUsable(getCachedDeadline(payload.refreshExpiresAt)) ||
+    (!Number.isFinite(payload.refreshExpiresAt) &&
+      isRecentlyUpdated(payload.updatedAt))
   );
 }
 
-function requestBridgePayload({
-  requestType,
-  resultType,
-  errorType,
-  timeoutMs,
-  requestIdPrefix,
-}) {
+function summarizeAuthPayload(payload) {
+  if (!payload) {
+    return {
+      authenticated: false,
+      hasAccessToken: false,
+      hasRefreshToken: false,
+      accessExpiresAt: null,
+      refreshExpiresAt: null,
+      updatedAt: null,
+    };
+  }
+
+  return {
+    authenticated:
+      hasFreshAccessToken(payload) || hasUsableRefreshToken(payload),
+    hasAccessToken: Boolean(payload.accessToken),
+    hasRefreshToken: Boolean(payload.refreshToken),
+    accessExpiresAt: payload.accessExpiresAt ?? null,
+    refreshExpiresAt: payload.refreshExpiresAt ?? null,
+    updatedAt: payload.updatedAt ?? null,
+  };
+}
+
+export function isBannergressAuthSupportedOrigin() {
   if (typeof window === "undefined") {
-    return Promise.resolve(null);
+    return false;
   }
 
-  if (!isBannergressBridgePresent()) {
-    return Promise.resolve(null);
+  if (import.meta.env.MODE === "test") {
+    return true;
   }
 
-  const requestId = `${requestIdPrefix}-${Date.now()}-${tokenRequestCounter++}`;
+  return (
+    window.location.protocol === "https:" &&
+    window.location.hostname === BANNERGRESS_OIDC_CONFIGURATION.supportedHostname
+  );
+}
 
-  return new Promise((resolve) => {
-    const handleMessage = (event) => {
-      if (event.origin !== window.location.origin) {
-        return;
-      }
+export function getBannergressAuthRedirectUri() {
+  if (typeof window === "undefined") {
+    return null;
+  }
 
-      if (
-        !event.data ||
-        typeof event.data !== "object" ||
-        event.data.bridge !== BANNERGRESS_SYNC_BRIDGE ||
-        event.data.requestId !== requestId
-      ) {
-        return;
-      }
+  return new URL(
+    BANNERGRESS_OIDC_CONFIGURATION.callbackPath,
+    window.location.origin
+  ).toString();
+}
 
-      if (event.data.type === resultType) {
-        cleanup();
-        resolve({
-          ok: true,
-          payload: event.data.payload ?? null,
-          code: null,
-          message: null,
-        });
-        return;
-      }
+function toBase64Url(value) {
+  return window.btoa(String.fromCharCode(...value))
+    .replace(/\+/g, "-")
+    .replace(/\//g, "_")
+    .replace(/=+$/g, "");
+}
 
-      if (event.data.type === errorType) {
-        cleanup();
-        resolve({
-          ok: false,
-          payload: null,
-          code:
-            typeof event.data.code === "string" ? event.data.code : "BRIDGE_ERROR",
-          message:
-            typeof event.data.message === "string"
-              ? event.data.message
-              : null,
-        });
-      }
-    };
+function createRandomString(length) {
+  const values = new Uint8Array(length);
+  window.crypto.getRandomValues(values);
+  return toBase64Url(values).slice(0, length);
+}
 
-    const cleanup = () => {
-      window.clearTimeout(timeoutId);
-      window.removeEventListener("message", handleMessage);
-    };
+async function createPkceChallenge(verifier) {
+  const encodedVerifier = new TextEncoder().encode(verifier);
+  const digest = await window.crypto.subtle.digest("SHA-256", encodedVerifier);
+  return toBase64Url(new Uint8Array(digest));
+}
 
-    const timeoutId = window.setTimeout(() => {
-      cleanup();
-      resolve(null);
-    }, timeoutMs);
-
-    window.addEventListener("message", handleMessage);
-    window.postMessage(
-      {
-        type: requestType,
-        bridge: BANNERGRESS_SYNC_BRIDGE,
-        requestId,
-      },
-      window.location.origin
+export async function buildBannergressAuthorizationUrl() {
+  if (!isBannergressAuthSupportedOrigin()) {
+    throw new Error(
+      `Bannergress auth is currently only enabled on https://${BANNERGRESS_OIDC_CONFIGURATION.supportedHostname}/`
     );
+  }
+
+  const redirectUri = getBannergressAuthRedirectUri();
+  const state = createRandomString(48);
+  const codeVerifier = createRandomString(96);
+  const codeChallenge = await createPkceChallenge(codeVerifier);
+
+  window.localStorage.setItem(
+    BANNERGRESS_AUTH_PENDING_STORAGE_KEY,
+    JSON.stringify({
+      state,
+      codeVerifier,
+      redirectUri,
+      createdAt: Date.now(),
+    })
+  );
+
+  const url = new URL(BANNERGRESS_OIDC_CONFIGURATION.authorizationUrl);
+  url.searchParams.set("client_id", BANNERGRESS_OIDC_CONFIGURATION.clientId);
+  url.searchParams.set("response_type", "code");
+  url.searchParams.set("scope", BANNERGRESS_OIDC_CONFIGURATION.scope);
+  url.searchParams.set("redirect_uri", redirectUri);
+  url.searchParams.set("state", state);
+  url.searchParams.set("code_challenge", codeChallenge);
+  url.searchParams.set("code_challenge_method", "S256");
+
+  return url.toString();
+}
+
+async function refreshBannergressAuthData(currentAuthData) {
+  const payload = currentAuthData ?? loadBannergressAuthData();
+
+  if (!hasUsableRefreshToken(payload)) {
+    clearBannergressAuthData();
+    return null;
+  }
+
+  const body = new URLSearchParams({
+    grant_type: "refresh_token",
+    client_id: BANNERGRESS_OIDC_CONFIGURATION.clientId,
+    refresh_token: payload.refreshToken,
+  });
+
+  const response = await fetch(BANNERGRESS_OIDC_CONFIGURATION.tokenUrl, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/x-www-form-urlencoded",
+    },
+    body,
+  });
+
+  const result = await response.json().catch(() => null);
+
+  if (!response.ok) {
+    clearBannergressAuthData();
+    throw Object.assign(new Error("Bannergress token refresh failed."), {
+      status: response.status,
+      result,
+    });
+  }
+
+  return saveBannergressAuthData({
+    ...result,
+    refreshToken: result?.refresh_token ?? payload.refreshToken,
+    updatedAt: Date.now(),
   });
 }
 
-export async function requestBannergressAccessToken({ timeoutMs = 1800 } = {}) {
-  if (hasFreshAccessToken(cachedAccessTokenPayload)) {
-    return cachedAccessTokenPayload.accessToken;
+export async function requestBannergressAccessToken() {
+  const authData = loadBannergressAuthData();
+
+  if (hasFreshAccessToken(authData)) {
+    return authData.accessToken;
   }
 
-  const result = await requestBridgePayload({
-    requestType: BANNERGRESS_TOKEN_REQUEST,
-    resultType: BANNERGRESS_TOKEN_RESULT,
-    errorType: BANNERGRESS_TOKEN_ERROR,
-    timeoutMs,
-    requestIdPrefix: "bannergress-token",
-  });
-
-  if (result?.ok && result.payload?.accessToken) {
-    cacheAccessTokenPayload(result.payload);
-    cacheAuthStatusPayload({
-      authenticated: true,
-      hasAccessToken: true,
-      hasRefreshToken: cachedAuthStatusPayload?.hasRefreshToken ?? false,
-      accessExpiresAt: result.payload.accessExpiresAt ?? null,
-      refreshExpiresAt: cachedAuthStatusPayload?.refreshExpiresAt ?? null,
-      updatedAt: result.payload.updatedAt ?? Date.now(),
-    });
-    return result.payload.accessToken;
+  if (hasUsableRefreshToken(authData)) {
+    try {
+      const refreshedAuthData = await refreshBannergressAuthData(authData);
+      return hasFreshAccessToken(refreshedAuthData)
+        ? refreshedAuthData.accessToken
+        : null;
+    } catch (error) {
+      console.error("Couldn't refresh Bannergress access token.", error);
+      return null;
+    }
   }
 
-  clearAuthCaches();
   return null;
 }
 
 export async function requestBannergressAuthStatus({
-  timeoutMs = 1500,
   forceRefresh = false,
 } = {}) {
-  if (!forceRefresh && hasFreshAuthStatus(cachedAuthStatusPayload)) {
-    return cachedAuthStatusPayload;
+  if (!isBannergressAuthSupportedOrigin()) {
+    return null;
   }
 
-  const result = await requestBridgePayload({
-    requestType: BANNERGRESS_AUTH_STATUS_REQUEST,
-    resultType: BANNERGRESS_AUTH_STATUS_RESULT,
-    errorType: BANNERGRESS_AUTH_STATUS_ERROR,
-    timeoutMs,
-    requestIdPrefix: "bannergress-auth-status",
-  });
+  const authData = loadBannergressAuthData();
 
-  if (result?.ok && result.payload) {
-    cacheAuthStatusPayload(result.payload);
-    return result.payload;
+  if (
+    forceRefresh &&
+    !hasFreshAccessToken(authData) &&
+    hasUsableRefreshToken(authData)
+  ) {
+    try {
+      const refreshedAuthData = await refreshBannergressAuthData(authData);
+      return summarizeAuthPayload(refreshedAuthData);
+    } catch (error) {
+      console.error("Couldn't refresh Bannergress auth status.", error);
+      return summarizeAuthPayload(loadBannergressAuthData());
+    }
   }
 
-  clearAuthCaches();
-  return null;
+  return summarizeAuthPayload(authData);
 }
 
-export async function requestBannergressSyncData({ timeoutMs = 15000 } = {}) {
-  const result = await requestBridgePayload({
-    requestType: BANNERGRESS_SYNC_REQUEST,
-    resultType: BANNERGRESS_SYNC_RESULT,
-    errorType: BANNERGRESS_SYNC_ERROR,
-    timeoutMs,
-    requestIdPrefix: "bannergress-sync",
+async function assertAuthenticatedResponse(response) {
+  if (response.ok) {
+    return;
+  }
+
+  if (response.status === 401 || response.status === 403) {
+    clearBannergressAuthData();
+
+    throw Object.assign(new Error("Authenticate with Bannergress again."), {
+      code: "AUTH_REQUIRED",
+      status: response.status,
+    });
+  }
+
+  throw Object.assign(new Error("Bannergress request failed."), {
+    code: "REQUEST_FAILED",
+    status: response.status,
   });
+}
 
-  if (result?.ok) {
-    return result.payload;
+export async function requestBannergressSyncData() {
+  const accessToken = await requestBannergressAccessToken();
+
+  if (!accessToken) {
+    throw Object.assign(new Error("Authenticate with Bannergress first."), {
+      code: "AUTH_REQUIRED",
+    });
   }
 
-  if (result?.code === "AUTH_REQUIRED") {
-    clearAuthCaches();
-  }
+  const bannerLists = {};
 
-  throw Object.assign(
-    new Error(result?.message ?? "Bannergress sync failed."),
-    {
-      code: result?.code ?? "SYNC_FAILED",
+  for (const listType of ["todo", "done", "blacklist"]) {
+    let offset = 0;
+
+    for (;;) {
+      const url = new URL("https://api.bannergress.com/bnrs");
+      url.searchParams.set("listTypes", listType);
+      url.searchParams.set("limit", String(SYNC_PAGE_SIZE));
+      url.searchParams.set("offset", String(offset));
+      url.searchParams.set("orderBy", "listAdded");
+      url.searchParams.set("orderDirection", "DESC");
+      url.searchParams.append("attributes", "id");
+      url.searchParams.append("attributes", "listType");
+
+      const response = await fetchBannergress(url.toString());
+      await assertAuthenticatedResponse(response);
+      const result = await response.json();
+
+      if (!Array.isArray(result)) {
+        throw Object.assign(new Error("Unexpected Bannergress sync response."), {
+          code: "SYNC_FAILED",
+        });
+      }
+
+      result.forEach((entry) => {
+        if (typeof entry?.id === "string") {
+          bannerLists[entry.id] = normalizeListType(entry.listType) ?? listType;
+        }
+      });
+
+      if (result.length < SYNC_PAGE_SIZE) {
+        break;
+      }
+
+      offset += SYNC_PAGE_SIZE;
     }
-  );
+  }
+
+  return {
+    syncedAt: new Date().toISOString(),
+    bannerLists,
+  };
 }
 
 export async function fetchBannergress(url, options = {}) {
@@ -538,20 +766,7 @@ export async function updateBannergressBannerListType(
     }
   );
 
-  if (!response.ok) {
-    if (response.status === 401 || response.status === 403) {
-      clearAuthCaches();
-    }
-
-    const error = new Error(
-      response.status === 401 || response.status === 403
-        ? "Authenticate with Bannergress again."
-        : "Bannergress rejected the list update."
-    );
-
-    error.status = response.status;
-    throw error;
-  }
+  await assertAuthenticatedResponse(response);
 
   return saveBannergressBannerListType(bannerId, normalizedListType, {
     keepHiddenVisible,
@@ -573,12 +788,4 @@ export function formatBannergressSyncTime(syncedAt) {
     dateStyle: "medium",
     timeStyle: "short",
   }).format(date);
-}
-
-export function buildBannergressSyncPopupUrl(origin) {
-  const url = new URL("https://bannergress.com/");
-  url.searchParams.set("openbanners-sync", "1");
-  url.searchParams.set("openbanners-origin", origin);
-  url.hash = "openbanners-sync";
-  return url.toString();
 }

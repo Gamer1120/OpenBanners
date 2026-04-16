@@ -3,13 +3,7 @@ import {
   Alert,
   AppBar,
   Box,
-  Checkbox,
   Container,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogTitle,
-  FormControlLabel,
   Snackbar,
   Toolbar,
   Typography,
@@ -21,7 +15,6 @@ import {
 } from "@mui/material";
 import {
   CheckCircleOutline,
-  Download,
   Explore,
   LocationOn,
   Login,
@@ -29,9 +22,11 @@ import {
 } from "@mui/icons-material";
 import { useNavigate } from "react-router-dom";
 import {
-  BANNERGRESS_SYNC_BRIDGE,
-  BANNERGRESS_SYNC_READY,
-  isBannergressBridgePresent,
+  BANNERGRESS_AUTH_COMPLETE_MESSAGE,
+  BANNERGRESS_AUTH_STORAGE_KEY,
+  buildBannergressAuthorizationUrl,
+  getBannergressSyncCounts,
+  isBannergressAuthSupportedOrigin,
   requestBannergressAuthStatus,
   requestBannergressSyncData,
   saveBannergressSyncData,
@@ -53,19 +48,6 @@ function debugLog(...args) {
   console.log("[OpenBanners TopMenu]", ...args);
 }
 
-function getUserscriptInstallUrl() {
-  return new URL(
-    "/userscripts/openbanners-bannergress-sync.user.js",
-    window.location.origin
-  ).toString();
-}
-
-function getBannergressAuthUrl(origin) {
-  const url = new URL("https://bannergress.com/");
-  url.searchParams.set("openbanners-origin", origin);
-  return url.toString();
-}
-
 export default function TopMenu({
   onBrowseClick,
   onTitleClick,
@@ -74,17 +56,11 @@ export default function TopMenu({
   bannerFilters = DEFAULT_BANNER_FILTERS,
   onBannerFiltersChange,
 }) {
+  const authSupportedOrigin = isBannergressAuthSupportedOrigin();
   const [searchQuery, setSearchQuery] = useState("");
   const [feedback, setFeedback] = useState(null);
-  const [bridgeAvailable, setBridgeAvailable] = useState(
-    isBannergressBridgePresent()
-  );
   const [authStatus, setAuthStatus] = useState(null);
-  const [isCheckingAuth, setIsCheckingAuth] = useState(
-    isBannergressBridgePresent()
-  );
-  const [isInstallDialogOpen, setIsInstallDialogOpen] = useState(false);
-  const [hasAcceptedInstallRisk, setHasAcceptedInstallRisk] = useState(false);
+  const [isCheckingAuth, setIsCheckingAuth] = useState(authSupportedOrigin);
   const [isAuthenticating, setIsAuthenticating] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
   const navigate = useNavigate();
@@ -106,22 +82,6 @@ export default function TopMenu({
     navigate("/map");
   };
 
-  const closeInstallDialog = () => {
-    setIsInstallDialogOpen(false);
-    setHasAcceptedInstallRisk(false);
-  };
-
-  const handleUserscriptInstall = () => {
-    const installUrl = getUserscriptInstallUrl();
-    const installWindow = window.open(installUrl, "_blank", "noopener");
-
-    if (installWindow === null) {
-      window.location.assign(installUrl);
-    }
-
-    closeInstallDialog();
-  };
-
   const stopAuthPolling = () => {
     window.clearInterval(authIntervalRef.current);
     window.clearTimeout(authTimeoutRef.current);
@@ -140,9 +100,9 @@ export default function TopMenu({
   };
 
   async function syncBannergressLists({ silent = true } = {}) {
-    if (!isBannergressBridgePresent() || syncInFlightRef.current) {
+    if (!authSupportedOrigin || syncInFlightRef.current) {
       debugLog("Skipped list sync.", {
-        bridgePresent: isBannergressBridgePresent(),
+        authSupportedOrigin,
         syncInFlight: syncInFlightRef.current,
       });
       return null;
@@ -210,17 +170,15 @@ export default function TopMenu({
       suppressLoading,
       announceAuthenticated,
       forceRefresh,
-      bridgePresent: isBannergressBridgePresent(),
+      authSupportedOrigin,
     });
-    if (!isBannergressBridgePresent()) {
-      setBridgeAvailable(false);
+
+    if (!authSupportedOrigin) {
       setAuthStatus(null);
       setIsCheckingAuth(false);
       hasAutoSyncedRef.current = false;
       return null;
     }
-
-    setBridgeAvailable(true);
 
     if (!suppressLoading) {
       setIsCheckingAuth(true);
@@ -250,14 +208,22 @@ export default function TopMenu({
     return nextStatus;
   }
 
-  const openAuthenticationPopup = () => {
-    const popupUrl = getBannergressAuthUrl(window.location.origin);
-    debugLog("Opening Bannergress authentication popup.", { popupUrl });
+  const openAuthenticationPopup = async () => {
+    if (!authSupportedOrigin) {
+      setFeedback({
+        severity: "warning",
+        message:
+          "Bannergress auth is currently only available on test.openbanners.org.",
+      });
+      return;
+    }
+
+    debugLog("Opening Bannergress authentication popup.");
     const popup =
       authPopupRef.current && !authPopupRef.current.closed
         ? authPopupRef.current
         : window.open(
-            popupUrl,
+            "about:blank",
             "openbanners-bannergress-auth",
             "popup=yes,width=580,height=780"
           );
@@ -265,8 +231,7 @@ export default function TopMenu({
     if (!popup) {
       setFeedback({
         severity: "error",
-        message:
-          "Couldn't open Bannergress. Allow popups and try again.",
+        message: "Couldn't open Bannergress. Allow popups and try again.",
       });
       return;
     }
@@ -275,28 +240,31 @@ export default function TopMenu({
     authPopupRef.current = popup;
     setIsAuthenticating(true);
 
+    try {
+      const authUrl = await buildBannergressAuthorizationUrl();
+      popup.location.href = authUrl;
+    } catch (error) {
+      closeAuthPopup();
+      setIsAuthenticating(false);
+      setFeedback({
+        severity: "error",
+        message:
+          error instanceof Error
+            ? error.message
+            : "Bannergress authentication couldn't be started.",
+      });
+      return;
+    }
+
     stopAuthPolling();
 
     authIntervalRef.current = window.setInterval(() => {
-      debugLog("Polling for Bannergress authentication state.");
+      debugLog("Polling popup closure state.");
       if (!authPopupRef.current || authPopupRef.current.closed) {
         stopAuthPolling();
         setIsAuthenticating(false);
-        void refreshAuthStatus({ suppressLoading: true });
-        return;
+        void refreshAuthStatus({ suppressLoading: true, forceRefresh: true });
       }
-
-      void refreshAuthStatus({
-        suppressLoading: true,
-        announceAuthenticated: true,
-        forceRefresh: true,
-      }).then((nextStatus) => {
-        if (nextStatus?.authenticated) {
-          debugLog("Authentication confirmed during popup polling.");
-          closeAuthPopup();
-          setIsAuthenticating(false);
-        }
-      });
     }, AUTH_POLL_INTERVAL_MS);
 
     authTimeoutRef.current = window.setTimeout(() => {
@@ -311,28 +279,33 @@ export default function TopMenu({
     }, AUTH_POLL_TIMEOUT_MS);
   };
 
-  const handleBridgeButtonClick = () => {
-    debugLog("Bridge button clicked.", {
-      bridgeAvailable,
+  const handleAuthButtonClick = () => {
+    debugLog("Auth button clicked.", {
+      authSupportedOrigin,
       authenticated: authStatus?.authenticated ?? null,
       isCheckingAuth,
       isAuthenticating,
     });
     setFeedback(null);
 
-    if (!bridgeAvailable) {
-      setIsInstallDialogOpen(true);
-      return;
-    }
-
     if (authStatus?.authenticated || isCheckingAuth || isAuthenticating) {
       return;
     }
 
-    openAuthenticationPopup();
+    void openAuthenticationPopup();
   };
 
   useEffect(() => {
+    const handleStorage = (event) => {
+      if (
+        event.key === BANNERGRESS_AUTH_STORAGE_KEY ||
+        event.key === null
+      ) {
+        debugLog("Observed auth storage change.");
+        void refreshAuthStatus({ suppressLoading: true });
+      }
+    };
+
     const handleMessage = (event) => {
       if (event.origin !== window.location.origin) {
         return;
@@ -341,61 +314,67 @@ export default function TopMenu({
       if (
         !event.data ||
         typeof event.data !== "object" ||
-        event.data.bridge !== BANNERGRESS_SYNC_BRIDGE
+        event.data.type !== BANNERGRESS_AUTH_COMPLETE_MESSAGE
       ) {
         return;
       }
 
-      if (event.data.type === BANNERGRESS_SYNC_READY) {
-        debugLog("Received bridge ready event.");
-        setBridgeAvailable(true);
-        void refreshAuthStatus({ suppressLoading: true });
+      debugLog("Received auth completion message.", event.data);
+      closeAuthPopup();
+      setIsAuthenticating(false);
+
+      if (event.data.success) {
+        void refreshAuthStatus({
+          suppressLoading: true,
+          announceAuthenticated: true,
+          forceRefresh: true,
+        });
+        return;
       }
+
+      setFeedback({
+        severity: "error",
+        message:
+          typeof event.data.message === "string"
+            ? event.data.message
+            : "Bannergress authentication failed.",
+      });
+      void refreshAuthStatus({ suppressLoading: true, forceRefresh: true });
     };
 
+    window.addEventListener("storage", handleStorage);
     window.addEventListener("message", handleMessage);
 
-    if (isBannergressBridgePresent()) {
+    if (authSupportedOrigin) {
       void refreshAuthStatus({ suppressLoading: true });
     } else {
       setIsCheckingAuth(false);
     }
 
-    window.postMessage(
-      {
-        type: BANNERGRESS_SYNC_READY,
-        bridge: BANNERGRESS_SYNC_BRIDGE,
-      },
-      window.location.origin
-    );
-
     return () => {
+      window.removeEventListener("storage", handleStorage);
       window.removeEventListener("message", handleMessage);
       closeAuthPopup();
     };
-  }, []);
+  }, [authSupportedOrigin]);
 
-  let bridgeButtonLabel = "Install Bannergress Auth Bridge Userscript";
-  let bridgeButtonIcon = <Download />;
-  let bridgeButtonDisabled = false;
+  let authButtonLabel = "Authenticate";
+  let authButtonIcon = <Login />;
+  let authButtonDisabled = false;
 
-  if (bridgeAvailable) {
-    if (authStatus?.authenticated) {
-      bridgeButtonLabel = "Authenticated";
-      bridgeButtonIcon = <CheckCircleOutline />;
-      bridgeButtonDisabled = true;
-    } else if (isCheckingAuth) {
-      bridgeButtonLabel = "Checking...";
-      bridgeButtonIcon = <Login />;
-      bridgeButtonDisabled = true;
-    } else if (isAuthenticating) {
-      bridgeButtonLabel = "Authenticating...";
-      bridgeButtonIcon = <Login />;
-      bridgeButtonDisabled = true;
-    } else {
-      bridgeButtonLabel = "Authenticate";
-      bridgeButtonIcon = <Login />;
-    }
+  if (!authSupportedOrigin) {
+    authButtonLabel = "Auth Unavailable Here";
+    authButtonDisabled = true;
+  } else if (authStatus?.authenticated) {
+    authButtonLabel = "Authenticated";
+    authButtonIcon = <CheckCircleOutline />;
+    authButtonDisabled = true;
+  } else if (isCheckingAuth) {
+    authButtonLabel = "Checking...";
+    authButtonDisabled = true;
+  } else if (isAuthenticating) {
+    authButtonLabel = "Authenticating...";
+    authButtonDisabled = true;
   }
 
   return (
@@ -494,9 +473,9 @@ export default function TopMenu({
             </Button>
             <Button
               color="inherit"
-              startIcon={bridgeButtonIcon}
-              onClick={handleBridgeButtonClick}
-              disabled={bridgeButtonDisabled}
+              startIcon={authButtonIcon}
+              onClick={handleAuthButtonClick}
+              disabled={authButtonDisabled}
               sx={{
                 minHeight: 44,
                 px: 1.75,
@@ -504,7 +483,7 @@ export default function TopMenu({
                 border: "1px solid rgba(255,255,255,0.08)",
               }}
             >
-              {bridgeButtonLabel}
+              {authButtonLabel}
             </Button>
             {showBannerFilters ? (
               <BannerFilterButton
@@ -583,90 +562,6 @@ export default function TopMenu({
           </Alert>
         ) : null}
       </Snackbar>
-      <Dialog
-        open={isInstallDialogOpen}
-        onClose={closeInstallDialog}
-        fullWidth
-        maxWidth="sm"
-      >
-        <DialogTitle>Install Bannergress Auth Bridge Userscript</DialogTitle>
-        <DialogContent dividers>
-          <Typography variant="body2" sx={{ mb: 2 }}>
-            This userscript is unofficial and gives OpenBanners a bridge into your
-            logged-in Bannergress session. Install it only if you understand the
-            tradeoffs.
-          </Typography>
-          <Typography variant="subtitle2" sx={{ mb: 1 }}>
-            Installing it enables:
-          </Typography>
-          <Box component="ul" sx={{ pl: 2.5, mt: 0, mb: 2.5, display: "grid", gap: 1 }}>
-            <Typography component="li" variant="body2">
-              authenticated Bannergress API requests from OpenBanners
-            </Typography>
-            <Typography component="li" variant="body2">
-              syncing your Bannergress `To do`, `Done`, and `Hidden` states into OpenBanners
-            </Typography>
-            <Typography component="li" variant="body2">
-              setting banner status directly from OpenBanners with the Bannergress action buttons
-            </Typography>
-            <Typography component="li" variant="body2">
-              using your Bannergress-authenticated view when browsing banners in OpenBanners
-            </Typography>
-          </Box>
-          <Typography variant="subtitle2" sx={{ mb: 1 }}>
-            Risks and tradeoffs:
-          </Typography>
-          <Box component="ul" sx={{ pl: 2.5, m: 0, display: "grid", gap: 1 }}>
-            <Typography component="li" variant="body2">
-              It runs custom JavaScript in pages you visit on `bannergress.com`
-              and OpenBanners.
-            </Typography>
-            <Typography component="li" variant="body2">
-              It can access Bannergress authentication material in your browser in
-              order to make authenticated Bannergress API requests.
-            </Typography>
-            <Typography component="li" variant="body2">
-              If this userscript or this site is compromised, your Bannergress
-              account data could be exposed or misused.
-            </Typography>
-            <Typography component="li" variant="body2">
-              Bannergress may change its site or API at any time, which can break
-              this integration.
-            </Typography>
-            <Typography component="li" variant="body2">
-              You should review the userscript and only install it if you trust
-              this setup.
-            </Typography>
-          </Box>
-          <Typography variant="body2" sx={{ mt: 2.5 }}>
-            This userscript is provided as-is, with no warranty of any kind, and
-            no liability is accepted for any loss, damage, account issues, or
-            other problems that may result from installing or using it.
-          </Typography>
-          <FormControlLabel
-            sx={{ mt: 2.5, alignItems: "flex-start" }}
-            control={
-              <Checkbox
-                checked={hasAcceptedInstallRisk}
-                onChange={(event) => {
-                  setHasAcceptedInstallRisk(event.target.checked);
-                }}
-              />
-            }
-            label="I understand the risks and tradeoffs and still want to install the Bannergress Auth Bridge userscript."
-          />
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={closeInstallDialog}>Cancel</Button>
-          <Button
-            variant="contained"
-            onClick={handleUserscriptInstall}
-            disabled={!hasAcceptedInstallRisk}
-          >
-            Install userscript
-          </Button>
-        </DialogActions>
-      </Dialog>
     </>
   );
 }

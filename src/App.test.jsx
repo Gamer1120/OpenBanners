@@ -18,11 +18,8 @@ import TopMenu from "./components/TopMenu";
 import { getFlagForPlace } from "./components/CountryFlags";
 import { applyBannerFilters, DEFAULT_BANNER_FILTERS } from "./bannerFilters";
 import {
-  BANNERGRESS_AUTH_STATUS_REQUEST,
-  BANNERGRESS_AUTH_STATUS_RESULT,
-  BANNERGRESS_SYNC_BRIDGE,
+  BANNERGRESS_AUTH_STORAGE_KEY,
   BANNERGRESS_SYNC_STORAGE_KEY,
-  BANNERGRESS_SYNC_READY,
 } from "./bannergressSync";
 import L from "leaflet";
 
@@ -174,7 +171,6 @@ beforeEach(() => {
   __resetDiscoveryMapCacheForTests();
   global.fetch = vi.fn();
   useMediaQuery.mockReturnValue(false);
-  delete window.__openBannersBannergressBridgePresent;
   global.IntersectionObserver = class MockIntersectionObserver {
     constructor() {}
 
@@ -351,7 +347,6 @@ test("renders browsing results and places list", async () => {
 });
 
 test("compact list actions update the Bannergress list through the API", async () => {
-  window.__openBannersBannergressBridgePresent = true;
   const updateBannerListSpy = vi
     .spyOn(bannergressSync, "updateBannergressBannerListType")
     .mockImplementation(async (bannerId, listType) => {
@@ -401,7 +396,6 @@ test("compact list actions update the Bannergress list through the API", async (
 });
 
 test("compact list actions toggle todo banners back to none", async () => {
-  window.__openBannersBannergressBridgePresent = true;
   bannergressSync.saveBannergressSyncData({
     bannerLists: {
       "toggle-banner": "todo",
@@ -594,94 +588,7 @@ test("submits top menu searches, fires menu callbacks, and navigates map route",
   expect(screen.getByTestId("location-display")).toHaveTextContent("/map");
 });
 
-test("top menu gates userscript installation behind a risk acknowledgement", async () => {
-  renderWithProviders(
-    <Routes>
-      <Route
-        path="*"
-        element={
-          <TopMenu
-            onBrowseClick={vi.fn()}
-            onTitleClick={vi.fn()}
-            onSearch={vi.fn()}
-          />
-        }
-      />
-    </Routes>
-  );
-
-  const installButton = screen.getByRole("button", {
-    name: /install bannergress auth bridge userscript/i,
-  });
-
-  await userEvent.click(installButton);
-
-  expect(
-    screen.getByRole("heading", {
-      name: /install bannergress auth bridge userscript/i,
-    })
-  ).toBeInTheDocument();
-
-  const confirmInstallButton = screen.getByRole("button", {
-    name: /install userscript/i,
-  });
-
-  expect(confirmInstallButton).toBeDisabled();
-
-  await userEvent.click(
-    screen.getByRole("checkbox", {
-      name: /i understand the risks and still want to install/i,
-    })
-  );
-
-  expect(confirmInstallButton).toBeEnabled();
-
-  await userEvent.click(confirmInstallButton);
-
-  expect(window.open).toHaveBeenCalledWith(
-    "http://localhost:3000/userscripts/openbanners-bannergress-sync.user.js",
-    "_blank",
-    "noopener"
-  );
-});
-
-test("top menu shows authenticate when the userscript bridge has no valid auth", async () => {
-  window.__openBannersBannergressBridgePresent = true;
-
-  const handleBridgeMessage = (event) => {
-    if (
-      event.data?.type === BANNERGRESS_SYNC_READY &&
-      event.data?.bridge === BANNERGRESS_SYNC_BRIDGE
-    ) {
-      window.postMessage(
-        {
-          type: BANNERGRESS_SYNC_READY,
-          bridge: BANNERGRESS_SYNC_BRIDGE,
-        },
-        window.location.origin
-      );
-    }
-
-    if (
-      event.data?.type === BANNERGRESS_AUTH_STATUS_REQUEST &&
-      event.data?.bridge === BANNERGRESS_SYNC_BRIDGE
-    ) {
-      window.postMessage(
-        {
-          type: BANNERGRESS_AUTH_STATUS_RESULT,
-          bridge: BANNERGRESS_SYNC_BRIDGE,
-          requestId: event.data.requestId,
-          payload: {
-            authenticated: false,
-          },
-        },
-        window.location.origin
-      );
-    }
-  };
-
-  window.addEventListener("message", handleBridgeMessage);
-
+test("top menu shows authenticate when bannergress auth has no valid session", async () => {
   renderWithProviders(
     <Routes>
       <Route
@@ -700,8 +607,43 @@ test("top menu shows authenticate when the userscript bridge has no valid auth",
   expect(
     await screen.findByRole("button", { name: /authenticate/i }, { timeout: 3000 })
   ).toBeInTheDocument();
+});
 
-  window.removeEventListener("message", handleBridgeMessage);
+test("top menu shows authenticated when bannergress auth is stored locally", async () => {
+  vi.spyOn(bannergressSync, "requestBannergressSyncData").mockResolvedValue({
+    syncedAt: new Date().toISOString(),
+    bannerLists: {},
+  });
+
+  window.localStorage.setItem(
+    BANNERGRESS_AUTH_STORAGE_KEY,
+    JSON.stringify({
+      accessToken: "test-access-token",
+      refreshToken: "test-refresh-token",
+      accessExpiresAt: Date.now() + 5 * 60 * 1000,
+      refreshExpiresAt: Date.now() + 30 * 60 * 1000,
+      updatedAt: Date.now(),
+    })
+  );
+
+  renderWithProviders(
+    <Routes>
+      <Route
+        path="*"
+        element={
+          <TopMenu
+            onBrowseClick={vi.fn()}
+            onTitleClick={vi.fn()}
+            onSearch={vi.fn()}
+          />
+        }
+      />
+    </Routes>
+  );
+
+  expect(
+    await screen.findByRole("button", { name: /authenticated/i }, { timeout: 3000 })
+  ).toBeInTheDocument();
 });
 
 test("renders place and banner search results", async () => {

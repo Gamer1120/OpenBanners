@@ -51,6 +51,22 @@ export default function BannerDetailsPage() {
     [missions]
   );
 
+  const refreshMapLayout = () => {
+    if (!mapInitialized || !mapRef.current) {
+      return;
+    }
+
+    mapRef.current.invalidateSize?.(false);
+
+    if (!isLoading && missionCoordinates.length > 0) {
+      const bounds = L.latLngBounds(missionCoordinates);
+      mapRef.current.fitBounds?.(bounds, {
+        padding: [50, 50],
+        animate: missionCoordinates.length <= 100,
+      });
+    }
+  };
+
   useEffect(() => {
     let ignore = false;
 
@@ -94,15 +110,7 @@ export default function BannerDetailsPage() {
   }, [bannerId, reloadToken]);
 
   useEffect(() => {
-    if (!isLoading && missionCoordinates.length > 0 && mapInitialized) {
-      if (missionCoordinates.length > 0) {
-        const bounds = L.latLngBounds(missionCoordinates);
-        mapRef.current?.fitBounds(bounds, {
-          padding: [50, 50],
-          animate: missionCoordinates.length <= 100,
-        });
-      }
-    }
+    refreshMapLayout();
   }, [isLoading, mapInitialized, missionCoordinates]);
 
   useEffect(() => {
@@ -111,7 +119,7 @@ export default function BannerDetailsPage() {
     }
 
     const invalidateMapSize = () => {
-      mapRef.current?.invalidateSize?.(false);
+      refreshMapLayout();
     };
 
     const animationFrameId = window.requestAnimationFrame(invalidateMapSize);
@@ -136,7 +144,7 @@ export default function BannerDetailsPage() {
       resizeObserver?.disconnect();
       window.removeEventListener("resize", invalidateMapSize);
     };
-  }, [mapInitialized]);
+  }, [mapInitialized, isLoading, missionCoordinates]);
 
   useEffect(() => {
     if (!isMobile && mobileTab !== "overview") {
@@ -146,6 +154,22 @@ export default function BannerDetailsPage() {
 
   const showOverview = !isMobile || mobileTab === "overview";
   const showMap = !isMobile || mobileTab === "map";
+
+  useEffect(() => {
+    if (!showMap || !mapInitialized) {
+      return undefined;
+    }
+
+    const animationFrameId = window.requestAnimationFrame(refreshMapLayout);
+    const timeoutId = window.setTimeout(refreshMapLayout, 120);
+    const secondTimeoutId = window.setTimeout(refreshMapLayout, 320);
+
+    return () => {
+      window.cancelAnimationFrame(animationFrameId);
+      window.clearTimeout(timeoutId);
+      window.clearTimeout(secondTimeoutId);
+    };
+  }, [showMap, mapInitialized, isLoading, missionCoordinates]);
 
   const overviewContent = (
     <div className="banner-details-container">
@@ -206,7 +230,10 @@ export default function BannerDetailsPage() {
         preferCanvas={missionCoordinates.length > 200}
         dragging={!L.Browser.mobile}
         touchZoom={true}
-        whenReady={() => setMapInitialized(true)}
+        whenReady={({ target }) => {
+          mapRef.current = target;
+          setMapInitialized(true);
+        }}
       >
         <TileLayer
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors. This website is NOT affiliated with Bannergress in any way!'

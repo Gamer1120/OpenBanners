@@ -4,9 +4,13 @@ import "leaflet-easybutton/src/easy-button.js";
 import "leaflet-easybutton/src/easy-button.css";
 import "font-awesome/css/font-awesome.min.css";
 import icon, { locationIcon } from "../constants";
+import L from "leaflet";
 
 const MIN_DIRECTION_DISTANCE_METERS = 5;
-const MIN_DIRECTION_CHANGE_DEGREES = 3;
+const MIN_DIRECTION_CHANGE_DEGREES = 8;
+const MIN_POSITION_CHANGE_METERS = 8;
+const MAX_TRACKED_ACCURACY_METERS = 75;
+const ORIENTATION_UPDATE_INTERVAL_MS = 250;
 const GEOLOCATION_OPTIONS = {
   enableHighAccuracy: false,
   maximumAge: 5000,
@@ -88,11 +92,47 @@ function extractGeolocationHeading(coords) {
   return normalizeHeading(Number(coords?.heading));
 }
 
+function shouldAcceptPositionUpdate({
+  previousPosition,
+  previousAccuracy,
+  nextPosition,
+  nextAccuracy,
+  map,
+}) {
+  if (!previousPosition) {
+    return true;
+  }
+
+  if (Number.isFinite(nextAccuracy) && nextAccuracy > MAX_TRACKED_ACCURACY_METERS) {
+    return false;
+  }
+
+  const distance = map.distance(previousPosition, nextPosition);
+  const accuracyThreshold = Math.max(
+    MIN_POSITION_CHANGE_METERS,
+    Math.min(
+      Number.isFinite(nextAccuracy) ? nextAccuracy * 0.5 : MIN_POSITION_CHANGE_METERS,
+      24
+    ),
+    Math.min(
+      Number.isFinite(previousAccuracy)
+        ? previousAccuracy * 0.35
+        : MIN_POSITION_CHANGE_METERS,
+      16
+    )
+  );
+
+  return distance >= accuracyThreshold;
+}
+
 export default function LocationMarker() {
   const [position, setPosition] = useState(null);
   const [direction, setDirection] = useState(null);
   const map = useMap();
   const previousPositionRef = useRef(null);
+  const previousAccuracyRef = useRef(null);
+  const hasCenteredRef = useRef(false);
+  const lastOrientationUpdateAtRef = useRef(0);
   const headingSourcesRef = useRef({
     orientation: null,
     geolocation: null,
@@ -138,9 +178,39 @@ export default function LocationMarker() {
           lng: coords.longitude,
         };
         const previousPosition = previousPositionRef.current;
+        const nextAccuracy = Number(coords.accuracy);
+
+        if (
+          !shouldAcceptPositionUpdate({
+            previousPosition,
+            previousAccuracy: previousAccuracyRef.current,
+            nextPosition,
+            nextAccuracy,
+            map,
+          })
+        ) {
+          return;
+        }
 
         setPosition(nextPosition);
-        map.setView(nextPosition, map.getZoom());
+
+        if (!hasCenteredRef.current) {
+          map.setView(nextPosition, map.getZoom());
+          hasCenteredRef.current = true;
+        } else {
+          const currentBounds = map.getBounds?.();
+          const paddedBounds =
+            currentBounds && typeof currentBounds.pad === "function"
+              ? currentBounds.pad(-0.25)
+              : null;
+
+          if (paddedBounds && !paddedBounds.contains(L.latLng(nextPosition))) {
+            map.panTo(nextPosition, {
+              animate: true,
+              duration: 0.35,
+            });
+          }
+        }
 
         const geolocationHeading = extractGeolocationHeading(coords);
 
@@ -159,6 +229,9 @@ export default function LocationMarker() {
         }
 
         previousPositionRef.current = nextPosition;
+        previousAccuracyRef.current = Number.isFinite(nextAccuracy)
+          ? nextAccuracy
+          : previousAccuracyRef.current;
         updateEffectiveHeading();
       },
       (error) => {
@@ -178,12 +251,22 @@ export default function LocationMarker() {
     }
 
     const handleOrientation = (event) => {
+      const now = Date.now();
+
+      if (
+        now - lastOrientationUpdateAtRef.current <
+        ORIENTATION_UPDATE_INTERVAL_MS
+      ) {
+        return;
+      }
+
       const orientationHeading = extractOrientationHeading(event);
 
       if (!Number.isFinite(orientationHeading)) {
         return;
       }
 
+      lastOrientationUpdateAtRef.current = now;
       headingSourcesRef.current.orientation = orientationHeading;
       updateEffectiveHeading();
     };

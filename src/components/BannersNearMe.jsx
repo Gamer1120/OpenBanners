@@ -121,10 +121,6 @@ export default function BannersNearMe() {
     let ignore = false;
     const cachedLocation = loadCachedNearbyLocation();
 
-    if (cachedLocation) {
-      setLocation(cachedLocation);
-    }
-
     const handlePermission = (status) => {
       if (ignore) {
         return;
@@ -134,6 +130,9 @@ export default function BannersNearMe() {
 
       if (status === "granted") {
         setShowPermissionPrompt(false);
+        if (cachedLocation) {
+          setLocation(cachedLocation);
+        }
         if (!cachedLocation) {
           setError("");
           setLoading(true);

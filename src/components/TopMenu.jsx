@@ -33,8 +33,6 @@ import {
   saveBannergressSyncData,
   serializeBannergressPendingAuth,
 } from "../bannergressSync";
-import BannerFilterButton from "./BannerFilterButton";
-import { DEFAULT_BANNER_FILTERS } from "../bannerFilters";
 
 const AUTH_POLL_INTERVAL_MS = 1500;
 const AUTH_POLL_TIMEOUT_MS = 120000;
@@ -76,9 +74,6 @@ export default function TopMenu({
   onBrowseClick,
   onTitleClick,
   onSearch,
-  showBannerFilters = false,
-  bannerFilters = DEFAULT_BANNER_FILTERS,
-  onBannerFiltersChange,
 }) {
   const authSupportedOrigin = isBannergressAuthSupportedOrigin();
   const shouldShowAndroidDownloadButton =
@@ -530,19 +525,6 @@ export default function TopMenu({
             >
               {authButtonLabel}
             </Button>
-            {showBannerFilters ? (
-              <BannerFilterButton
-                filters={bannerFilters}
-                onChange={onBannerFiltersChange}
-                color="inherit"
-                sx={{
-                  minHeight: 44,
-                  px: 1.75,
-                  bgcolor: "rgba(255,255,255,0.03)",
-                  border: "1px solid rgba(255,255,255,0.08)",
-                }}
-              />
-            ) : null}
           </Container>
 
           <Container

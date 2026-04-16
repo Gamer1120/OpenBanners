@@ -66,9 +66,6 @@ export default function Home() {
         onBrowseClick={handleBrowseClick}
         onTitleClick={handleTitleClick}
         onSearch={handleSearch}
-        showBannerFilters={currentView === "map"}
-        bannerFilters={bannerFilters}
-        onBannerFiltersChange={setBannerFilters}
       />
       <Box
         component="main"
@@ -101,7 +98,12 @@ export default function Home() {
         )}
         {currentView === "searching" && <SearchResults />}
         {currentView === "bannerDetails" && <BannerDetailsPage />}
-        {currentView === "map" && <Map bannerFilters={bannerFilters} />}
+        {currentView === "map" && (
+          <Map
+            bannerFilters={bannerFilters}
+            onBannerFiltersChange={setBannerFilters}
+          />
+        )}
       </Box>
     </Box>
   );

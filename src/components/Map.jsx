@@ -15,8 +15,6 @@ import {
   Paper,
   Slider,
   Stack,
-  ToggleButton,
-  ToggleButtonGroup,
   Typography,
 } from "@mui/material";
 import MyLocationRoundedIcon from "@mui/icons-material/MyLocationRounded";
@@ -24,9 +22,11 @@ import L from "leaflet";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { fetchBannergress, useBannergressSync } from "../bannergressSync";
+import BannerFilterButton from "./BannerFilterButton";
 import {
   applyBannerFilters,
   DEFAULT_BANNER_FILTERS,
+  getMissionCountBounds,
 } from "../bannerFilters";
 
 const DEFAULT_CENTER = [52.221058, 6.893297];
@@ -743,6 +743,7 @@ function setMapInteractionsEnabled(mapInstance, enabled) {
 
 export default function Map({
   bannerFilters = DEFAULT_BANNER_FILTERS,
+  onBannerFiltersChange,
 }) {
   const initialImageSizePreference = readInitialImageSizePreference();
   const [visibleArea, setVisibleArea] = useState(null);
@@ -754,7 +755,6 @@ export default function Map({
   const [locationError, setLocationError] = useState("");
   const [userLocation, setUserLocation] = useState(null);
   const [currentZoom, setCurrentZoom] = useState(DEFAULT_ZOOM);
-  const [minimumMissions, setMinimumMissions] = useState(0);
   const syncState = useBannergressSync();
   const [imageSizeMode, setImageSizeMode] = useState(initialImageSizePreference.mode);
   const [customImageScale, setCustomImageScale] = useState(
@@ -1051,12 +1051,29 @@ export default function Map({
     });
   };
 
+  const { minimumMissions, maximumMissions } = getMissionCountBounds(
+    bannerFilters
+  );
   const filteredBanners = useMemo(
     () =>
-      applyBannerFilters(banners, syncState, bannerFilters).filter(
-        (banner) => Number(banner.numberOfMissions) >= minimumMissions
-      ),
-    [bannerFilters, banners, minimumMissions, syncState]
+      applyBannerFilters(banners, syncState, bannerFilters).filter((banner) => {
+        const missionCount = Number(banner?.numberOfMissions);
+
+        if (!Number.isFinite(missionCount)) {
+          return minimumMissions === null && maximumMissions === null;
+        }
+
+        if (minimumMissions !== null && missionCount < minimumMissions) {
+          return false;
+        }
+
+        if (maximumMissions !== null && missionCount > maximumMissions) {
+          return false;
+        }
+
+        return true;
+      }),
+    [bannerFilters, banners, maximumMissions, minimumMissions, syncState]
   );
 
   const displayedBanners = filteredBanners;
@@ -1340,22 +1357,17 @@ export default function Map({
               Image size: {activeImageSizeLabel}
             </Button>
 
-            <ToggleButtonGroup
-              size="small"
-              exclusive
-              value={minimumMissions}
-              onChange={(_, nextValue) => {
-                if (nextValue !== null) {
-                  setMinimumMissions(nextValue);
-                }
+            <BannerFilterButton
+              filters={bannerFilters}
+              onChange={onBannerFiltersChange}
+              color="inherit"
+              showMinimumMissionsFilter
+              sx={{
+                justifyContent: "space-between",
+                borderColor: "rgba(255,255,255,0.16)",
+                color: "inherit",
               }}
-              sx={{ display: "flex", flexWrap: "wrap" }}
-            >
-              <ToggleButton value={0}>Any</ToggleButton>
-              <ToggleButton value={6}>6+</ToggleButton>
-              <ToggleButton value={12}>12+</ToggleButton>
-              <ToggleButton value={18}>18+</ToggleButton>
-            </ToggleButtonGroup>
+            />
           </Stack>
 
           <Menu

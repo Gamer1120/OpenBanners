@@ -134,11 +134,16 @@ export default function BannersNearMe() {
 
       if (status === "granted") {
         setShowPermissionPrompt(false);
+        if (!cachedLocation) {
+          setError("");
+          setLoading(true);
+        }
+
         requestCurrentPosition(CACHED_LOCATION_OPTIONS, {
-          silent: Boolean(cachedLocation),
+          silent: true,
         });
         requestCurrentPosition(FRESH_LOCATION_OPTIONS, {
-          silent: true,
+          silent: Boolean(cachedLocation),
         });
       } else if (status === "prompt") {
         setShowPermissionPrompt(true);

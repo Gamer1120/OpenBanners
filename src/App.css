@@ -224,8 +224,8 @@
   }
 
   .map-container {
-    height: calc(100dvh - 180px);
-    min-height: 360px;
+    height: 100%;
+    min-height: 0;
   }
 
   .overlay-controls > p {

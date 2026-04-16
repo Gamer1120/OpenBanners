@@ -97,6 +97,7 @@ export default function Map() {
         id="map"
         center={[52.221058, 6.893297]}
         zoom={15}
+        zoomControl={!L.Browser.mobile}
         scrollWheelZoom={true}
         whenReady={handleMapContainerReady}
         preferCanvas={missionCoordinates.length > 200}

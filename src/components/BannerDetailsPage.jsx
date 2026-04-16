@@ -319,6 +319,7 @@ export default function BannerDetailsPage() {
         id="map"
         center={[52.221058, 6.893297]}
         zoom={8}
+        zoomControl={!isMobile}
         scrollWheelZoom={true}
         style={{ height: "100%", width: "100%" }}
         ref={mapRef}

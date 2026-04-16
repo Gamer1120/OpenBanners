@@ -1232,6 +1232,7 @@ export default function Map({
         id="map"
         center={DEFAULT_CENTER}
         zoom={DEFAULT_ZOOM}
+        zoomControl={!L.Browser.mobile}
         scrollWheelZoom
         ref={mapRef}
         style={{ height: "100%", width: "100%" }}

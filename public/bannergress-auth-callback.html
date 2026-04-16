@@ -54,6 +54,114 @@
         document.getElementById("message").textContent = message;
       }
 
+      function parseLocationParams() {
+        const searchParams = new URLSearchParams(window.location.search);
+        const hashSource = window.location.hash.startsWith("#")
+          ? window.location.hash.slice(1)
+          : window.location.hash;
+        const hashParams = new URLSearchParams(hashSource);
+
+        const getParam = (name) =>
+          searchParams.get(name) ?? hashParams.get(name) ?? null;
+
+        return {
+          code: getParam("code"),
+          state: getParam("state"),
+          error: getParam("error"),
+          errorDescription: getParam("error_description"),
+        };
+      }
+
+      function readStorageValue(storage, key) {
+        if (!storage) {
+          return null;
+        }
+
+        try {
+          return storage.getItem(key);
+        } catch {
+          return null;
+        }
+      }
+
+      function writeStorageValue(storage, key, value) {
+        if (!storage) {
+          return;
+        }
+
+        try {
+          storage.setItem(key, value);
+        } catch {}
+      }
+
+      function removeStorageValue(storage, key) {
+        if (!storage) {
+          return;
+        }
+
+        try {
+          storage.removeItem(key);
+        } catch {}
+      }
+
+      function parseJson(value) {
+        if (typeof value !== "string") {
+          return null;
+        }
+
+        try {
+          return JSON.parse(value);
+        } catch {
+          return null;
+        }
+      }
+
+      function getOpenerLocalStorage() {
+        if (!window.opener || window.opener === window) {
+          return null;
+        }
+
+        try {
+          if (window.opener.location.origin !== window.location.origin) {
+            return null;
+          }
+
+          return window.opener.localStorage;
+        } catch {
+          return null;
+        }
+      }
+
+      function loadPendingAuth() {
+        const localValue = readStorageValue(
+          window.localStorage,
+          AUTH_PENDING_STORAGE_KEY
+        );
+        const openerStorage = getOpenerLocalStorage();
+        const openerValue = readStorageValue(openerStorage, AUTH_PENDING_STORAGE_KEY);
+        const pendingAuth = parseJson(localValue) ?? parseJson(openerValue);
+
+        if (pendingAuth && !localValue) {
+          writeStorageValue(
+            window.localStorage,
+            AUTH_PENDING_STORAGE_KEY,
+            JSON.stringify(pendingAuth)
+          );
+        }
+
+        return pendingAuth;
+      }
+
+      function saveCompletedAuth(authPayload) {
+        const serializedValue = JSON.stringify(authPayload);
+        const openerStorage = getOpenerLocalStorage();
+
+        writeStorageValue(window.localStorage, AUTH_STORAGE_KEY, serializedValue);
+        writeStorageValue(openerStorage, AUTH_STORAGE_KEY, serializedValue);
+        removeStorageValue(window.localStorage, AUTH_PENDING_STORAGE_KEY);
+        removeStorageValue(openerStorage, AUTH_PENDING_STORAGE_KEY);
+      }
+
       function decodeJwtExpiryTimestamp(token) {
         if (typeof token !== "string") {
           return null;
@@ -119,9 +227,7 @@
       }
 
       async function finishAuthentication() {
-        const params = new URLSearchParams(window.location.search);
-        const error = params.get("error");
-        const errorDescription = params.get("error_description");
+        const { code, state, error, errorDescription } = parseLocationParams();
 
         if (error) {
           const message = errorDescription || `Authentication failed: ${error}`;
@@ -130,14 +236,26 @@
           return;
         }
 
-        const code = params.get("code");
-        const state = params.get("state");
-        const pendingAuth = JSON.parse(
-          window.localStorage.getItem(AUTH_PENDING_STORAGE_KEY) || "null"
-        );
+        const pendingAuth = loadPendingAuth();
 
         if (!code || !state || !pendingAuth) {
-          const message = "The Bannergress callback is missing required data.";
+          const missingParts = [];
+
+          if (!code) {
+            missingParts.push("authorization code");
+          }
+
+          if (!state) {
+            missingParts.push("sign-in state");
+          }
+
+          if (!pendingAuth) {
+            missingParts.push("saved PKCE session");
+          }
+
+          const message = `The Bannergress callback is missing required data${
+            missingParts.length > 0 ? `: ${missingParts.join(", ")}.` : "."
+          }`;
           notifyOpener({ success: false, message });
           setStatus("Bannergress sign-in failed", message);
           return;
@@ -145,7 +263,8 @@
 
         if (pendingAuth.state !== state) {
           const message = "The Bannergress sign-in state did not match.";
-          window.localStorage.removeItem(AUTH_PENDING_STORAGE_KEY);
+          removeStorageValue(window.localStorage, AUTH_PENDING_STORAGE_KEY);
+          removeStorageValue(getOpenerLocalStorage(), AUTH_PENDING_STORAGE_KEY);
           notifyOpener({ success: false, message });
           setStatus("Bannergress sign-in failed", message);
           return;
@@ -182,11 +301,7 @@
             );
           }
 
-          window.localStorage.setItem(
-            AUTH_STORAGE_KEY,
-            JSON.stringify(buildStoredAuthPayload(tokenResult))
-          );
-          window.localStorage.removeItem(AUTH_PENDING_STORAGE_KEY);
+          saveCompletedAuth(buildStoredAuthPayload(tokenResult));
           notifyOpener({ success: true });
           setStatus(
             "Bannergress sign-in complete",
@@ -200,7 +315,8 @@
             error instanceof Error
               ? error.message
               : "Bannergress sign-in could not be completed.";
-          window.localStorage.removeItem(AUTH_PENDING_STORAGE_KEY);
+          removeStorageValue(window.localStorage, AUTH_PENDING_STORAGE_KEY);
+          removeStorageValue(getOpenerLocalStorage(), AUTH_PENDING_STORAGE_KEY);
           notifyOpener({ success: false, message });
           setStatus("Bannergress sign-in failed", message);
         }

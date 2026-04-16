@@ -151,6 +151,7 @@ export default function LocationMarker() {
   const previousAccuracyRef = useRef(null);
   const hasCenteredRef = useRef(false);
   const lastOrientationUpdateAtRef = useRef(0);
+  const hasNativeOrientationRef = useRef(false);
   const headingSourcesRef = useRef({
     orientation: null,
     geolocation: null,
@@ -226,32 +227,36 @@ export default function LocationMarker() {
         }
       }
 
-      const geolocationHeading = extractGeolocationHeading(coords);
+      if (!hasNativeOrientationRef.current) {
+        const geolocationHeading = extractGeolocationHeading(coords);
 
-      if (
-        Number.isFinite(geolocationHeading) &&
-        (!Number.isFinite(nextAccuracy) || nextAccuracy <= MAX_HEADING_ACCURACY_METERS) &&
-        Number.isFinite(speedMetersPerSecond) &&
-        speedMetersPerSecond >= MIN_TRUSTED_GEO_HEADING_SPEED_MPS
-      ) {
-        headingSourcesRef.current.geolocation = geolocationHeading;
-      }
+        if (
+          Number.isFinite(geolocationHeading) &&
+          (!Number.isFinite(nextAccuracy) ||
+            nextAccuracy <= MAX_HEADING_ACCURACY_METERS) &&
+          Number.isFinite(speedMetersPerSecond) &&
+          speedMetersPerSecond >= MIN_TRUSTED_GEO_HEADING_SPEED_MPS
+        ) {
+          headingSourcesRef.current.geolocation = geolocationHeading;
+        }
 
-      if (
-        previousPosition &&
-        map.distance(previousPosition, nextPosition) >=
-          Math.max(
-            MIN_MOVEMENT_HEADING_DISTANCE_METERS,
-            Number.isFinite(nextAccuracy) ? nextAccuracy * 0.75 : 0
-          ) &&
-        (!Number.isFinite(nextAccuracy) || nextAccuracy <= MAX_HEADING_ACCURACY_METERS) &&
-        (!Number.isFinite(speedMetersPerSecond) ||
-          speedMetersPerSecond >= MIN_TRUSTED_MOVEMENT_SPEED_MPS)
-      ) {
-        headingSourcesRef.current.movement = calculateBearing(
-          previousPosition,
-          nextPosition
-        );
+        if (
+          previousPosition &&
+          map.distance(previousPosition, nextPosition) >=
+            Math.max(
+              MIN_MOVEMENT_HEADING_DISTANCE_METERS,
+              Number.isFinite(nextAccuracy) ? nextAccuracy * 0.75 : 0
+            ) &&
+          (!Number.isFinite(nextAccuracy) ||
+            nextAccuracy <= MAX_HEADING_ACCURACY_METERS) &&
+          (!Number.isFinite(speedMetersPerSecond) ||
+            speedMetersPerSecond >= MIN_TRUSTED_MOVEMENT_SPEED_MPS)
+        ) {
+          headingSourcesRef.current.movement = calculateBearing(
+            previousPosition,
+            nextPosition
+          );
+        }
       }
 
       previousPositionRef.current = nextPosition;
@@ -321,6 +326,7 @@ export default function LocationMarker() {
       }
 
       lastOrientationUpdateAtRef.current = now;
+      hasNativeOrientationRef.current = true;
       headingSourcesRef.current.orientation = orientationHeading;
       updateEffectiveHeading();
     };

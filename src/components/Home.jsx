@@ -52,7 +52,7 @@ export default function Home() {
         flexGrow: 1,
         bgcolor: "grey.900",
         height:
-          (currentView === "bannerDetails" || currentView === "map") && !isMobile
+          currentView === "bannerDetails" || currentView === "map"
             ? "100dvh"
             : "auto",
         minHeight: "100dvh",

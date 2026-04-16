@@ -279,8 +279,13 @@ export default function BannerDetailsPage() {
             aria-label="Banner detail sections"
             variant="fullWidth"
             sx={{
+              position: "sticky",
+              top: 0,
+              zIndex: 2,
               px: 1,
               pt: 1,
+              bgcolor: "rgba(11, 16, 20, 0.96)",
+              backdropFilter: "blur(10px)",
               borderBottom: "1px solid rgba(255,255,255,0.08)",
             }}
           >

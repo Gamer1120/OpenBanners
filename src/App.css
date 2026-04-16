@@ -9,6 +9,20 @@
   min-height: 320px;
 }
 
+.banner-guider-shell {
+  position: relative;
+  height: 100vh;
+  height: 100dvh;
+  min-height: 320px;
+  overflow: hidden;
+}
+
+.banner-guider-shell > .leaflet-container,
+.banner-guider-shell #map {
+  height: 100% !important;
+  width: 100%;
+}
+
 .custom-icon {
   border-radius: 50%;
   width: 24px !important;

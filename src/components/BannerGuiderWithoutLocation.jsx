@@ -84,7 +84,7 @@ export default function Map() {
   }, [isLoading, mapInitialized, missionCoordinates]);
 
   if (isLoading) {
-    return <div>Loading...</div>;
+    return <div className="banner-guider-shell">Loading...</div>;
   }
 
   const handleMapContainerReady = () => {
@@ -92,7 +92,7 @@ export default function Map() {
   };
 
   return (
-    <div>
+    <div className="banner-guider-shell">
       <MapContainer
         ref={mapRef}
         id="map"

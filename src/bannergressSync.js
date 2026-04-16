@@ -18,7 +18,7 @@ const BANNERGRESS_OIDC_CONFIGURATION = Object.freeze({
     "https://login.bannergress.com/auth/realms/bannergress/protocol/openid-connect/auth",
   tokenUrl:
     "https://login.bannergress.com/auth/realms/bannergress/protocol/openid-connect/token",
-  clientId: "openbanners-test",
+  clientId: "openbanners",
   scope: "openid",
   callbackPath: "/bannergress-auth-callback.html",
   supportedHostname: "test.openbanners.org",

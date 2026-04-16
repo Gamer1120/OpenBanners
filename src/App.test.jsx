@@ -1580,6 +1580,40 @@ test("shows a retryable error when banner details fail to load", async () => {
   consoleErrorSpy.mockRestore();
 });
 
+test("home map view keeps discovery filters in the map panel instead of duplicating them in the top bar", async () => {
+  global.fetch.mockImplementation((url) => {
+    if (url.includes("/bnrs?orderBy=proximityStartPoint")) {
+      return jsonResponse([
+        {
+          id: "map-home-banner",
+          title: "Map Home Banner",
+          picture: "/images/map-home.jpg",
+          numberOfMissions: 6,
+          lengthMeters: 1800,
+          formattedAddress: "Enschede, NL",
+          numberOfDisabledMissions: 0,
+          startLatitude: "52.22",
+          startLongitude: "6.89",
+        },
+      ]);
+    }
+
+    throw new Error(`Unhandled fetch: ${url}`);
+  });
+
+  renderWithProviders(
+    <Routes>
+      <Route path="*" element={<Home />} />
+    </Routes>,
+    { route: "/map" }
+  );
+
+  await screen.findByRole("link", { name: /open banner/i });
+
+  expect(screen.getAllByRole("button", { name: /^filters$/i })).toHaveLength(1);
+});
+
+
 test("renders a discovery map with proximity-sorted poster markers and preview links", async () => {
   global.fetch.mockImplementation((url) => {
     if (url.includes("/bnrs?orderBy=proximityStartPoint")) {

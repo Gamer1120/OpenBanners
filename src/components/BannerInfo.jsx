@@ -37,7 +37,7 @@ const BannerInfo = ({ banner, loading = false }) => {
   };
 
   const handleShareBanner = () => {
-    const bannerURL = `https://opnb.org/${banner.id}`;
+    const bannerURL = `https://openbanners.org/${banner.id}`;
 
     if (navigator.share) {
       navigator

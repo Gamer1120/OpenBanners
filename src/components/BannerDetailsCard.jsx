@@ -54,6 +54,29 @@ function getBannerAuthors(missionMap) {
   });
 }
 
+function getAuthorChipStyles(faction) {
+  if (faction === "enlightened") {
+    return {
+      bgcolor: "rgba(46, 125, 50, 0.32)",
+      borderRadius: 1,
+      color: "#e8f5e9",
+    };
+  }
+
+  if (faction === "resistance") {
+    return {
+      bgcolor: "rgba(21, 101, 192, 0.32)",
+      borderRadius: 1,
+      color: "#e3f2fd",
+    };
+  }
+
+  return {
+    bgcolor: "rgba(255,255,255,0.04)",
+    borderRadius: 1,
+  };
+}
+
 export default function BannerDetailsCard({ banner, loading = false }) {
   const isMobile = useMediaQuery("(max-width:768px)");
   const syncState = useBannergressSync();
@@ -199,8 +222,8 @@ export default function BannerDetailsCard({ banner, loading = false }) {
                     <Chip
                       key={`${author.name}-${author.faction || "unknown"}`}
                       size="small"
-                      label={author.faction ? `${author.name} (${author.faction})` : author.name}
-                      sx={{ bgcolor: "rgba(255,255,255,0.04)", borderRadius: 1 }}
+                      label={author.name}
+                      sx={getAuthorChipStyles(author.faction)}
                     />
                   ))}
                 </Stack>

@@ -52,15 +52,12 @@
   padding: 5px;
   border-radius: 4px;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
-  width: min(320px, calc(100vw - 20px));
-  max-width: 100%;
 }
 
 .overlay-controls {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  width: 100%;
 }
 
 .overlay-input {
@@ -92,7 +89,6 @@
   border: none;
   border-radius: 0;
   cursor: pointer;
-  min-height: 44px;
 }
 
 .disable-click {
@@ -155,14 +151,6 @@
   .map-container {
     height: calc(100dvh - 180px);
     min-height: 360px;
-  }
-
-  .overlay {
-    top: auto;
-    bottom: 10px;
-    left: 50%;
-    transform: translateX(-50%);
-    width: calc(100vw - 20px);
   }
 
   .overlay-controls > p {

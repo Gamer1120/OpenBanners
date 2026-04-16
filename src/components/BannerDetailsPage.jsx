@@ -269,8 +269,11 @@ export default function BannerDetailsPage() {
           sx={{
             display: "flex",
             flexDirection: "column",
+            flex: 1,
+            height: "100%",
             minHeight: 0,
             width: "100%",
+            overflow: "hidden",
           }}
         >
           <Tabs
@@ -292,8 +295,25 @@ export default function BannerDetailsPage() {
             <Tab label="Overview" value="overview" />
             <Tab label="Map" value="map" disabled={Boolean(error)} />
           </Tabs>
-          {showOverview ? overviewContent : null}
-          {showMap ? mapContent : null}
+          <Box
+            sx={{
+              flex: 1,
+              minHeight: 0,
+              overflowY: showOverview ? "auto" : "hidden",
+            }}
+          >
+            {showOverview ? overviewContent : null}
+          </Box>
+          <Box
+            sx={{
+              flex: showMap ? 1 : 0,
+              minHeight: 0,
+              display: showMap ? "block" : "none",
+              overflow: "hidden",
+            }}
+          >
+            {showMap ? mapContent : null}
+          </Box>
         </Box>
       ) : (
         <>

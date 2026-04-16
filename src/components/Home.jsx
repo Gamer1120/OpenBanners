@@ -77,7 +77,7 @@ export default function Home() {
           display: "flex",
           flexDirection: "column",
           overflow:
-            (currentView === "bannerDetails" || currentView === "map") && !isMobile
+            (currentView === "bannerDetails" || currentView === "map")
               ? "hidden"
               : "visible",
         }}

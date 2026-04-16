@@ -257,7 +257,7 @@ export default function BannerDetailsPage() {
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors. This website is NOT affiliated with Bannergress in any way!'
           url="https://tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
-        <BannerMarkers missions={missions} showStepMarkers={false} />
+        <BannerMarkers missions={missions} showStepMarkers={true} />
       </MapContainer>
     </div>
   );

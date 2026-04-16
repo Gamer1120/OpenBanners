@@ -22,7 +22,8 @@
     "start": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "test": "vitest run"
+    "test": "vitest run",
+    "prerender:banner": "node scripts/prerender-banner-pages.mjs"
   },
   "browserslist": {
     "production": [

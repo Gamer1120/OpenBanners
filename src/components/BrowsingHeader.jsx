@@ -1,7 +1,12 @@
 import React from "react";
 import { Box, Typography } from "@mui/material";
 
-export default function BrowsingHeader() {
+export default function BrowsingHeader({
+  eyebrow = "Explore",
+  title = "Browsing",
+  description =
+    "This website is not associated with Bannergress, Ingress and/or Niantic. This website is an alternative, open-source front-end for Bannergress's back-end.",
+}) {
   return (
     <Box
       sx={{
@@ -20,15 +25,13 @@ export default function BrowsingHeader() {
         variant="overline"
         sx={{ color: "text.secondary", letterSpacing: "0.16em" }}
       >
-        Explore
+        {eyebrow}
       </Typography>
       <Typography variant="h5" component="h1" sx={{ mb: 1 }}>
-        Browsing
+        {title}
       </Typography>
       <Typography variant="subtitle2" color="text.secondary">
-        This website is not associated with Bannergress, Ingress and/or Niantic.
-        This website is an alternative, open-source front-end for Bannergress's
-        back-end.
+        {description}
       </Typography>
     </Box>
   );

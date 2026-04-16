@@ -12,6 +12,7 @@ import BrowsingPage from "./components/BrowsingPage";
 import SearchResults from "./components/SearchResults";
 import BannerDetailsPage from "./components/BannerDetailsPage";
 import BannerGuiderWithoutLocation from "./components/BannerGuiderWithoutLocation";
+import Home from "./components/Home";
 import Map, { __resetDiscoveryMapCacheForTests } from "./components/Map";
 import PlacesList from "./components/PlacesList";
 import TopMenu from "./components/TopMenu";
@@ -343,6 +344,48 @@ test("renders browsing results and places list", async () => {
   expect(screen.getByRole("link", { name: /browse banner/i })).toHaveAttribute(
     "href",
     "/banner/browse-banner"
+  );
+});
+
+
+test("renders an agent page and fetches banners by author", async () => {
+  global.fetch.mockImplementation((url) => {
+    if (
+      url.includes("/bnrs?") &&
+      url.includes("author=Indicatrix") &&
+      url.includes("orderBy=created")
+    ) {
+      return jsonResponse([
+        {
+          id: "agent-banner",
+          title: "Agent Banner",
+          picture: "/images/agent.jpg",
+          numberOfMissions: 6,
+          lengthMeters: 2400,
+          formattedAddress: "Oulu, Finland",
+          numberOfDisabledMissions: 0,
+        },
+      ]);
+    }
+
+    throw new Error(`Unhandled fetch: ${url}`);
+  });
+
+  renderWithProviders(
+    <Routes>
+      <Route path="/agent/:agentName" element={<Home />} />
+    </Routes>,
+    { route: "/agent/Indicatrix" }
+  );
+
+  expect(await screen.findByText("Indicatrix")).toBeInTheDocument();
+  expect(await screen.findByText("Banners created by Indicatrix.")).toBeInTheDocument();
+  expect(await screen.findByText("Agent Banner")).toBeInTheDocument();
+  expect(global.fetch).toHaveBeenCalledWith(
+    expect.stringContaining("author=Indicatrix"),
+    expect.objectContaining({
+      headers: expect.any(Headers),
+    })
   );
 });
 
@@ -1195,8 +1238,14 @@ test("shows unique mission authors on the banner details page when the api retur
 
   expect(await screen.findByText("Authored Banner")).toBeInTheDocument();
   expect(screen.getByText("Authors")).toBeInTheDocument();
-  expect(screen.getByText("Indicatrix")).toBeInTheDocument();
-  expect(screen.getByText("SecondAgent")).toBeInTheDocument();
+  expect(screen.getByRole("link", { name: "Indicatrix" })).toHaveAttribute(
+    "href",
+    "/agent/Indicatrix"
+  );
+  expect(screen.getByRole("link", { name: "SecondAgent" })).toHaveAttribute(
+    "href",
+    "/agent/SecondAgent"
+  );
 });
 
 test("renders the guider with waypoint dots before a mission is selected", async () => {

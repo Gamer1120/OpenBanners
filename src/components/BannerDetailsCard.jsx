@@ -1,4 +1,5 @@
 import React from "react";
+import { Link } from "react-router-dom";
 import {
   Box,
   Card,
@@ -221,9 +222,18 @@ export default function BannerDetailsCard({ banner, loading = false }) {
                   {bannerAuthors.map((author) => (
                     <Chip
                       key={`${author.name}-${author.faction || "unknown"}`}
+                      component={Link}
+                      to={`/agent/${encodeURIComponent(author.name)}`}
+                      clickable
                       size="small"
                       label={author.name}
-                      sx={getAuthorChipStyles(author.faction)}
+                      sx={{
+                        ...getAuthorChipStyles(author.faction),
+                        textDecoration: "none",
+                        "&:hover": {
+                          filter: "brightness(1.08)",
+                        },
+                      }}
                     />
                   ))}
                 </Stack>

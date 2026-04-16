@@ -13,7 +13,7 @@ export default function Home() {
   const [currentView, setCurrentView] = useState("bannersNearMe");
   const [bannerFilters, setBannerFilters] = useState(DEFAULT_BANNER_FILTERS);
   const isMobile = useMediaQuery("(max-width:768px)");
-  const { placeId } = useParams();
+  const { placeId, agentName } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -39,6 +39,8 @@ export default function Home() {
       setCurrentView("browsing");
     } else if (location.pathname.startsWith("/banner/")) {
       setCurrentView("bannerDetails");
+    } else if (location.pathname.startsWith("/agent/")) {
+      setCurrentView("agentBrowsing");
     } else if (location.pathname.startsWith("/map")) {
       setCurrentView("map");
     } else {
@@ -86,6 +88,13 @@ export default function Home() {
         {currentView === "browsing" && (
           <BrowsingPage
             placeId={placeId}
+            bannerFilters={bannerFilters}
+            onBannerFiltersChange={setBannerFilters}
+          />
+        )}
+        {currentView === "agentBrowsing" && (
+          <BrowsingPage
+            authorName={agentName}
             bannerFilters={bannerFilters}
             onBannerFiltersChange={setBannerFilters}
           />

@@ -19,6 +19,7 @@ import { fetchBannergress, useBannergressSync } from "../bannergressSync";
 import {
   applyBannerFilters,
   DEFAULT_BANNER_FILTERS,
+  getMissionCountBounds,
 } from "../bannerFilters";
 
 function sortJsonByMissionsPerLength(data, sortOrder) {
@@ -302,20 +303,36 @@ export default function BrowsingPage({
     bannersFetchedForEfficiency,
   ]);
 
-  const minimumMissions = Number(bannerFilters?.minimumMissions) || 0;
+  const { minimumMissions, maximumMissions, hasMissionCountFilter } =
+    getMissionCountBounds(bannerFilters);
   const nextOffset = banners.length;
   const displayedBanners = useMemo(
     () =>
-      applyBannerFilters(banners, syncState, bannerFilters).filter(
-        (banner) => Number(banner?.numberOfMissions) >= minimumMissions
-      ),
-    [banners, bannerFilters, minimumMissions, syncState]
+      applyBannerFilters(banners, syncState, bannerFilters).filter((banner) => {
+        const missionCount = Number(banner?.numberOfMissions);
+
+        if (!Number.isFinite(missionCount)) {
+          return minimumMissions === null && maximumMissions === null;
+        }
+
+        if (minimumMissions !== null && missionCount < minimumMissions) {
+          return false;
+        }
+
+        if (maximumMissions !== null && missionCount > maximumMissions) {
+          return false;
+        }
+
+        return true;
+      }),
+    [banners, bannerFilters, maximumMissions, minimumMissions, syncState]
   );
-  const filteredPrefetchTarget =
-    minimumMissions > 0 ? FILTERED_BROWSE_PREFETCH_TARGET : BROWSE_PAGE_SIZE;
+  const filteredPrefetchTarget = hasMissionCountFilter
+    ? FILTERED_BROWSE_PREFETCH_TARGET
+    : BROWSE_PAGE_SIZE;
   const needsFilteredBackfill =
     displayedBanners.length === 0 ||
-    (minimumMissions > 0 &&
+    (hasMissionCountFilter &&
       displayedBanners.length < Math.min(filteredPrefetchTarget, banners.length));
   const isAgentView = Boolean(authorName);
   const headerEyebrow = isAgentView ? "Agent" : "Explore";

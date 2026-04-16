@@ -440,6 +440,67 @@ test("browse results respect the minimum mission filter", async () => {
 });
 
 
+test("browse results respect a custom mission range filter", async () => {
+  global.fetch.mockImplementation((url) => {
+    if (
+      url.includes("/bnrs?") &&
+      url.includes("author=MissionRangeAgent") &&
+      url.includes("orderBy=created")
+    ) {
+      return jsonResponse([
+        {
+          id: "range-small-banner",
+          title: "Range Small Banner",
+          picture: "/images/range-small.jpg",
+          numberOfMissions: 6,
+          lengthMeters: 1200,
+          formattedAddress: "Enschede, NL",
+          numberOfDisabledMissions: 0,
+        },
+        {
+          id: "range-middle-banner",
+          title: "Range Middle Banner",
+          picture: "/images/range-middle.jpg",
+          numberOfMissions: 12,
+          lengthMeters: 2400,
+          formattedAddress: "Enschede, NL",
+          numberOfDisabledMissions: 0,
+        },
+        {
+          id: "range-large-banner",
+          title: "Range Large Banner",
+          picture: "/images/range-large.jpg",
+          numberOfMissions: 18,
+          lengthMeters: 3600,
+          formattedAddress: "Enschede, NL",
+          numberOfDisabledMissions: 0,
+        },
+      ]);
+    }
+
+    throw new Error(`Unhandled fetch: ${url}`);
+  });
+
+  renderWithProviders(
+    <BrowsingPage
+      authorName="MissionRangeAgent"
+      bannerFilters={{
+        ...DEFAULT_BANNER_FILTERS,
+        missionCountFilterMode: "custom",
+        customMinimumMissions: "7",
+        customMaximumMissions: "12",
+      }}
+      onBannerFiltersChange={vi.fn()}
+    />
+  );
+
+  expect(await screen.findByText("Range Middle Banner")).toBeInTheDocument();
+  expect(screen.queryByText("Range Small Banner")).not.toBeInTheDocument();
+  expect(screen.queryByText("Range Large Banner")).not.toBeInTheDocument();
+  expect(screen.getByText("Filters (1)")).toBeInTheDocument();
+});
+
+
 test("browse mission filtering backfills extra pages before scroll gets sparse", async () => {
   const buildMostlyFilteredPage = (pageNumber, visibleBanner) => [
     ...Array.from({ length: 8 }, (_, itemIndex) => ({
@@ -658,7 +719,7 @@ test("newly hidden banners stay visible in the current filtered results", () => 
 });
 
 
-test("banner filter button exposes browse mission count thresholds", async () => {
+test("banner filter button exposes browse mission count thresholds and a custom range", async () => {
   function FilterHarness() {
     const [filters, setFilters] = React.useState(DEFAULT_BANNER_FILTERS);
 
@@ -676,13 +737,19 @@ test("banner filter button exposes browse mission count thresholds", async () =>
   renderWithProviders(<FilterHarness />);
 
   await user.click(screen.getByRole("button", { name: /^filters$/i }));
-  await user.click(screen.getByRole("button", { name: "12+" }));
+  await user.click(screen.getByRole("button", { name: "Custom" }));
 
-  expect(screen.getByText("Filters (1)", { selector: "button" })).toBeInTheDocument();
-  expect(screen.getByRole("button", { name: "12+" })).toHaveAttribute(
+  expect(screen.getByRole("button", { name: "Custom" })).toHaveAttribute(
     "aria-pressed",
     "true"
   );
+
+  await user.type(screen.getByLabelText("Minimum"), "7");
+  await user.type(screen.getByLabelText("Maximum"), "12");
+
+  expect(screen.getByText("Filters (1)", { selector: "button" })).toBeInTheDocument();
+  expect(screen.getByDisplayValue("7")).toBeInTheDocument();
+  expect(screen.getByDisplayValue("12")).toBeInTheDocument();
 });
 
 test("renders places list flags and browse links for aliased place names", async () => {

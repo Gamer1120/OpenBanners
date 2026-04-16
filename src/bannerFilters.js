@@ -3,19 +3,64 @@ import {
   shouldKeepHiddenBannerVisible,
 } from "./bannergressSync";
 
+export const PRESET_MISSION_COUNT_FILTERS = Object.freeze([0, 6, 12, 18]);
+
 export const DEFAULT_BANNER_FILTERS = Object.freeze({
   showOfflineBanners: false,
   showHiddenBanners: false,
   hideDoneBanners: false,
   minimumMissions: 0,
+  missionCountFilterMode: "preset",
+  customMinimumMissions: "",
+  customMaximumMissions: "",
 });
+
+export function parseMissionCountInput(value) {
+  if (value === "" || value === null || value === undefined) {
+    return null;
+  }
+
+  const parsedValue = Number(value);
+
+  if (!Number.isFinite(parsedValue)) {
+    return null;
+  }
+
+  return Math.max(0, Math.floor(parsedValue));
+}
+
+export function getMissionCountBounds(filters) {
+  if (filters?.missionCountFilterMode === "custom") {
+    const minimumMissions = parseMissionCountInput(
+      filters?.customMinimumMissions
+    );
+    const maximumMissions = parseMissionCountInput(
+      filters?.customMaximumMissions
+    );
+
+    return {
+      minimumMissions,
+      maximumMissions,
+      hasMissionCountFilter:
+        minimumMissions !== null || maximumMissions !== null,
+    };
+  }
+
+  const minimumMissions = parseMissionCountInput(filters?.minimumMissions) ?? 0;
+
+  return {
+    minimumMissions,
+    maximumMissions: null,
+    hasMissionCountFilter: minimumMissions > 0,
+  };
+}
 
 export function countActiveBannerFilters(filters) {
   return [
     filters?.showOfflineBanners,
     filters?.showHiddenBanners,
     filters?.hideDoneBanners,
-    Number(filters?.minimumMissions) > 0,
+    getMissionCountBounds(filters).hasMissionCountFilter,
   ].filter(Boolean).length;
 }
 

@@ -1195,8 +1195,8 @@ test("shows unique mission authors on the banner details page when the api retur
 
   expect(await screen.findByText("Authored Banner")).toBeInTheDocument();
   expect(screen.getByText("Authors")).toBeInTheDocument();
-  expect(screen.getByText("Indicatrix (resistance)")).toBeInTheDocument();
-  expect(screen.getByText("SecondAgent (enlightened)")).toBeInTheDocument();
+  expect(screen.getByText("Indicatrix")).toBeInTheDocument();
+  expect(screen.getByText("SecondAgent")).toBeInTheDocument();
 });
 
 test("renders the guider with waypoint dots before a mission is selected", async () => {

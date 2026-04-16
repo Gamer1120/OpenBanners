@@ -1524,3 +1524,61 @@ test("renders discovery map markers even before banner image ratios load", async
     expect(bannerIconCalls.length).toBeGreaterThanOrEqual(2);
   });
 });
+
+test("updates banner metadata tags when banner details load", async () => {
+  global.fetch.mockImplementation((url) => {
+    if (url.endsWith("/bnrs/meta-banner")) {
+      return jsonResponse({
+        id: "meta-banner",
+        title: "Meta Banner",
+        picture: "/images/meta.jpg",
+        numberOfMissions: 6,
+        lengthMeters: 2100,
+        formattedAddress: "Amsterdam, NL",
+        missions: {
+          "mission-1": {
+            id: "mission-1",
+            steps: {
+              0: {
+                poi: {
+                  title: "Portal One",
+                  type: "portal",
+                  latitude: 52.37,
+                  longitude: 4.89,
+                },
+              },
+            },
+          },
+        },
+      });
+    }
+
+    throw new Error(`Unhandled fetch: ${url}`);
+  });
+
+  renderWithProviders(
+    <Routes>
+      <Route path="/banner/:bannerId" element={<BannerDetailsPage />} />
+    </Routes>,
+    { route: "/banner/meta-banner" }
+  );
+
+  expect(await screen.findByText("Meta Banner")).toBeInTheDocument();
+
+  await waitFor(() => {
+    expect(document.title).toBe("Meta Banner");
+    expect(
+      document.head.querySelector('meta[property="og:title"]')
+    ).toHaveAttribute("content", "Meta Banner");
+    expect(
+      document.head.querySelector('meta[property="og:description"]')
+    ).toHaveAttribute("content", "6 Missions, 2.1 km, Amsterdam, NL");
+    expect(
+      document.head.querySelector('meta[property="og:image"]')
+    ).toHaveAttribute("content", "https://api.bannergress.com/images/meta.jpg");
+    expect(document.head.querySelector('link[rel="canonical"]')).toHaveAttribute(
+      "href",
+      "http://localhost:3000/banner/meta-banner"
+    );
+  });
+});

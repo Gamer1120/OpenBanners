@@ -9,9 +9,127 @@
     />
     <meta name="theme-color" content="#000000" />
     <meta name="description" content="An open-source front-end for banners" />
+    <meta property="og:site_name" content="OpenBanners" />
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="OpenBanners" />
+    <meta
+      property="og:description"
+      content="An open-source front-end for banners"
+    />
+    <meta property="og:url" content="https://openbanners.org/" />
+    <meta property="og:image" content="https://openbanners.org/logo512.png" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="OpenBanners" />
+    <meta
+      name="twitter:description"
+      content="An open-source front-end for banners"
+    />
+    <meta
+      name="twitter:image"
+      content="https://openbanners.org/logo512.png"
+    />
+    <link rel="canonical" href="https://openbanners.org/" />
     <link rel="apple-touch-icon" href="/logo192.png" />
     <link rel="manifest" href="/manifest.json" />
     <title>OpenBanners</title>
+    <script>
+      (function () {
+        const DEFAULT_DESCRIPTION = "An open-source front-end for banners";
+        const DEFAULT_IMAGE = "https://openbanners.org/logo512.png";
+        const BANNERGRESS_IMAGE_ORIGIN = "https://api.bannergress.com";
+        const origin = window.location.origin || "https://openbanners.org";
+        const currentUrl = new URL(
+          `${window.location.pathname}${window.location.search}`,
+          origin
+        ).toString();
+
+        const ensureMeta = (attribute, name) => {
+          let element = document.head.querySelector(
+            `meta[${attribute}="${name}"]`
+          );
+
+          if (!element) {
+            element = document.createElement("meta");
+            element.setAttribute(attribute, name);
+            document.head.appendChild(element);
+          }
+
+          return element;
+        };
+
+        const setMeta = (attribute, name, content) => {
+          ensureMeta(attribute, name).setAttribute("content", content);
+        };
+
+        let canonicalLink = document.head.querySelector('link[rel="canonical"]');
+        if (!canonicalLink) {
+          canonicalLink = document.createElement("link");
+          canonicalLink.setAttribute("rel", "canonical");
+          document.head.appendChild(canonicalLink);
+        }
+        canonicalLink.setAttribute("href", currentUrl);
+        setMeta("property", "og:url", currentUrl);
+
+        const bannerMatch = window.location.pathname.match(/^\/banner\/([^/?#]+)/);
+        if (!bannerMatch) {
+          return;
+        }
+
+        const bannerId = decodeURIComponent(bannerMatch[1]);
+
+        fetch(`https://api.bannergress.com/bnrs/${encodeURIComponent(bannerId)}`)
+          .then((response) => (response.ok ? response.json() : null))
+          .then((banner) => {
+            if (!banner || !banner.id || !banner.title) {
+              return;
+            }
+
+            const missionCount = Number(banner.numberOfMissions);
+            const lengthMeters = Number(banner.lengthMeters);
+            const formattedDistance = Number.isFinite(lengthMeters)
+              ? `${Math.round((lengthMeters / 1000) * 10) / 10} km`
+              : null;
+            const formattedMissions = Number.isFinite(missionCount)
+              ? `${missionCount} ${missionCount === 1 ? "Mission" : "Missions"}`
+              : null;
+            const formattedAddress =
+              typeof banner.formattedAddress === "string"
+                ? banner.formattedAddress.trim()
+                : "";
+            const description = [
+              formattedMissions,
+              formattedDistance,
+              formattedAddress,
+            ]
+              .filter(Boolean)
+              .join(", ");
+            const image = banner.picture
+              ? new URL(banner.picture, BANNERGRESS_IMAGE_ORIGIN).toString()
+              : DEFAULT_IMAGE;
+
+            document.title = banner.title;
+            setMeta("name", "description", description || DEFAULT_DESCRIPTION);
+            setMeta("property", "og:type", "article");
+            setMeta("property", "og:title", banner.title);
+            setMeta(
+              "property",
+              "og:description",
+              description || DEFAULT_DESCRIPTION
+            );
+            setMeta("property", "og:url", currentUrl);
+            setMeta("property", "og:image", image);
+            setMeta("name", "twitter:card", "summary_large_image");
+            setMeta("name", "twitter:title", banner.title);
+            setMeta(
+              "name",
+              "twitter:description",
+              description || DEFAULT_DESCRIPTION
+            );
+            setMeta("name", "twitter:image", image);
+          })
+          .catch(() => {});
+      })();
+    </script>
   </head>
   <body>
     <noscript>You need to enable JavaScript to run this app.</noscript>

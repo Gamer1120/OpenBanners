@@ -15,6 +15,7 @@ import BannerDetailsCard from "./BannerDetailsCard";
 import BannerInfo from "./BannerInfo";
 import L from "leaflet";
 import { fetchBannergress } from "../bannergressSync";
+import { applyPageMetadata, buildBannerMetadata, resetPageMetadata } from "../seo";
 import userLocationIcon from "../constants";
 import "leaflet-easybutton/src/easy-button.css";
 
@@ -178,6 +179,34 @@ export default function BannerDetailsPage() {
       ignore = true;
     };
   }, [bannerId, reloadToken]);
+
+  useEffect(() => {
+    resetPageMetadata();
+  }, [bannerId]);
+
+  useEffect(() => {
+    if (isLoading) {
+      return undefined;
+    }
+
+    if (error || !items?.id) {
+      resetPageMetadata();
+      return undefined;
+    }
+
+    const metadata = buildBannerMetadata(items);
+
+    if (metadata) {
+      applyPageMetadata({
+        ...metadata,
+        type: "article",
+      });
+    }
+
+    return () => {
+      resetPageMetadata();
+    };
+  }, [error, isLoading, items]);
 
   useEffect(() => {
     refreshMapLayout();

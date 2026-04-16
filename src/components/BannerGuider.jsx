@@ -41,10 +41,10 @@ export default function Map() {
           if (!poi) {
             return null;
           }
-          const latitude = poi.latitude;
-          const longitude = poi.longitude;
+          const latitude = Number(poi.latitude);
+          const longitude = Number(poi.longitude);
 
-          if (latitude && longitude) {
+          if (Number.isFinite(latitude) && Number.isFinite(longitude)) {
             return [latitude, longitude];
           }
 

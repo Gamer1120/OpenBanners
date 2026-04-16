@@ -37,10 +37,10 @@ export default function BannerDetailsPage() {
       missions.flatMap((mission) =>
         Object.values(mission.steps ?? {})
           .map((step) => {
-            const latitude = step?.poi?.latitude;
-            const longitude = step?.poi?.longitude;
+            const latitude = Number(step?.poi?.latitude);
+            const longitude = Number(step?.poi?.longitude);
 
-            if (latitude && longitude) {
+            if (Number.isFinite(latitude) && Number.isFinite(longitude)) {
               return [latitude, longitude];
             }
 
@@ -50,6 +50,7 @@ export default function BannerDetailsPage() {
       ),
     [missions]
   );
+  const mapRenderKey = `${bannerId}-${missions.length}-${isMobile ? mobileTab : "desktop"}`;
 
   const refreshMapLayout = () => {
     if (!mapInitialized || !mapRef.current) {
@@ -112,6 +113,11 @@ export default function BannerDetailsPage() {
   useEffect(() => {
     refreshMapLayout();
   }, [isLoading, mapInitialized, missionCoordinates]);
+
+  useEffect(() => {
+    mapRef.current = null;
+    setMapInitialized(false);
+  }, [mapRenderKey]);
 
   useEffect(() => {
     if (!mapInitialized) {
@@ -221,6 +227,7 @@ export default function BannerDetailsPage() {
         </Box>
       )}
       <MapContainer
+        key={mapRenderKey}
         id="map"
         center={[52.221058, 6.893297]}
         zoom={8}
@@ -233,6 +240,17 @@ export default function BannerDetailsPage() {
         whenReady={({ target }) => {
           mapRef.current = target;
           setMapInitialized(true);
+          window.requestAnimationFrame(() => {
+            target.invalidateSize?.(false);
+
+            if (!isLoading && missionCoordinates.length > 0) {
+              const bounds = L.latLngBounds(missionCoordinates);
+              target.fitBounds?.(bounds, {
+                padding: [50, 50],
+                animate: missionCoordinates.length <= 100,
+              });
+            }
+          });
         }}
       >
         <TileLayer

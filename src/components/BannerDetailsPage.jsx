@@ -20,6 +20,18 @@ import "leaflet-easybutton/src/easy-button.css";
 
 function BannerDetailsLocationControl({ onLocate, disabled = false }) {
   const map = useMap();
+  const locationIconMarkup = `
+    <svg
+      aria-hidden="true"
+      viewBox="0 0 24 24"
+      width="18"
+      height="18"
+      fill="#1976d2"
+      xmlns="http://www.w3.org/2000/svg"
+    >
+      <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7Zm0 9.5A2.5 2.5 0 1 1 12 6.5a2.5 2.5 0 0 1 0 5Z" />
+    </svg>
+  `;
 
   useEffect(() => {
     if (typeof L.control !== "function") {
@@ -39,14 +51,12 @@ function BannerDetailsLocationControl({ onLocate, disabled = false }) {
       button.title = "Show my location";
       button.setAttribute("role", "button");
       button.setAttribute("aria-label", "Show my location");
-      button.innerHTML = "⌖";
+      button.innerHTML = locationIconMarkup;
       button.style.width = "30px";
       button.style.height = "30px";
-      button.style.lineHeight = "30px";
-      button.style.textAlign = "center";
-      button.style.fontSize = "18px";
-      button.style.fontWeight = "700";
-      button.style.color = "#222";
+      button.style.display = "flex";
+      button.style.alignItems = "center";
+      button.style.justifyContent = "center";
       button.style.background = "#fff";
       button.style.textDecoration = "none";
       button.style.cursor = disabled ? "progress" : "pointer";
@@ -67,7 +77,7 @@ function BannerDetailsLocationControl({ onLocate, disabled = false }) {
     return () => {
       control.remove();
     };
-  }, [map, onLocate, disabled]);
+  }, [map, onLocate, disabled, locationIconMarkup]);
 
   return null;
 }

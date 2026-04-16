@@ -1,13 +1,30 @@
 import "./App.css";
 import BannerGuider from "./components/BannerGuider";
 import BannerGuiderWithoutLocation from "./components/BannerGuiderWithoutLocation";
-import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
+import {
+  BrowserRouter as Router,
+  Routes,
+  Route,
+  useLocation,
+} from "react-router-dom";
+import { useLayoutEffect } from "react";
 import Home from "./components/Home";
+
+function ScrollToTopOnNavigation() {
+  const location = useLocation();
+
+  useLayoutEffect(() => {
+    window.scrollTo(0, 0);
+  }, [location.pathname, location.search]);
+
+  return null;
+}
 
 function App() {
   return (
     <div className="App">
       <Router>
+        <ScrollToTopOnNavigation />
         <Routes>
           <Route path="/" element={<Home />} />
           <Route exact path="/browse/" element={<Home />} />

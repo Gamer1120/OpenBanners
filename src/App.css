@@ -10,11 +10,15 @@
 }
 
 .banner-guider-shell {
-  position: relative;
+  position: fixed;
+  inset: 0;
+  width: 100vw;
   height: 100vh;
   height: 100dvh;
   min-height: 320px;
   overflow: hidden;
+  background: #0b1014;
+  z-index: 1200;
 }
 
 .banner-guider-shell > .leaflet-container,

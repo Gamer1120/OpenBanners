@@ -11,6 +11,11 @@ const MIN_DIRECTION_CHANGE_DEGREES = 8;
 const MIN_POSITION_CHANGE_METERS = 8;
 const MAX_TRACKED_ACCURACY_METERS = 75;
 const ORIENTATION_UPDATE_INTERVAL_MS = 250;
+const INITIAL_GEOLOCATION_OPTIONS = {
+  enableHighAccuracy: false,
+  maximumAge: 30000,
+  timeout: 4000,
+};
 const GEOLOCATION_OPTIONS = {
   enableHighAccuracy: false,
   maximumAge: 5000,
@@ -162,77 +167,92 @@ export default function LocationMarker() {
     });
   }, []);
 
+  const processLocationCoords = useCallback(
+    (coords) => {
+      if (!Number.isFinite(coords?.latitude) || !Number.isFinite(coords?.longitude)) {
+        return;
+      }
+
+      const nextPosition = {
+        lat: coords.latitude,
+        lng: coords.longitude,
+      };
+      const previousPosition = previousPositionRef.current;
+      const nextAccuracy = Number(coords.accuracy);
+
+      if (
+        !shouldAcceptPositionUpdate({
+          previousPosition,
+          previousAccuracy: previousAccuracyRef.current,
+          nextPosition,
+          nextAccuracy,
+          map,
+        })
+      ) {
+        return;
+      }
+
+      setPosition(nextPosition);
+
+      if (!hasCenteredRef.current) {
+        map.setView(nextPosition, map.getZoom());
+        hasCenteredRef.current = true;
+      } else {
+        const currentBounds = map.getBounds?.();
+        const paddedBounds =
+          currentBounds && typeof currentBounds.pad === "function"
+            ? currentBounds.pad(-0.25)
+            : null;
+
+        if (paddedBounds && !paddedBounds.contains(L.latLng(nextPosition))) {
+          map.panTo(nextPosition, {
+            animate: true,
+            duration: 0.35,
+          });
+        }
+      }
+
+      const geolocationHeading = extractGeolocationHeading(coords);
+
+      if (Number.isFinite(geolocationHeading)) {
+        headingSourcesRef.current.geolocation = geolocationHeading;
+      }
+
+      if (
+        previousPosition &&
+        map.distance(previousPosition, nextPosition) >= MIN_DIRECTION_DISTANCE_METERS
+      ) {
+        headingSourcesRef.current.movement = calculateBearing(
+          previousPosition,
+          nextPosition
+        );
+      }
+
+      previousPositionRef.current = nextPosition;
+      previousAccuracyRef.current = Number.isFinite(nextAccuracy)
+        ? nextAccuracy
+        : previousAccuracyRef.current;
+      updateEffectiveHeading();
+    },
+    [map, updateEffectiveHeading]
+  );
+
   useEffect(() => {
     if (!navigator.geolocation) {
       return () => {};
     }
 
+    navigator.geolocation.getCurrentPosition(
+      ({ coords }) => {
+        processLocationCoords(coords);
+      },
+      () => {},
+      INITIAL_GEOLOCATION_OPTIONS
+    );
+
     const watchId = navigator.geolocation.watchPosition(
       ({ coords }) => {
-        if (!Number.isFinite(coords?.latitude) || !Number.isFinite(coords?.longitude)) {
-          return;
-        }
-
-        const nextPosition = {
-          lat: coords.latitude,
-          lng: coords.longitude,
-        };
-        const previousPosition = previousPositionRef.current;
-        const nextAccuracy = Number(coords.accuracy);
-
-        if (
-          !shouldAcceptPositionUpdate({
-            previousPosition,
-            previousAccuracy: previousAccuracyRef.current,
-            nextPosition,
-            nextAccuracy,
-            map,
-          })
-        ) {
-          return;
-        }
-
-        setPosition(nextPosition);
-
-        if (!hasCenteredRef.current) {
-          map.setView(nextPosition, map.getZoom());
-          hasCenteredRef.current = true;
-        } else {
-          const currentBounds = map.getBounds?.();
-          const paddedBounds =
-            currentBounds && typeof currentBounds.pad === "function"
-              ? currentBounds.pad(-0.25)
-              : null;
-
-          if (paddedBounds && !paddedBounds.contains(L.latLng(nextPosition))) {
-            map.panTo(nextPosition, {
-              animate: true,
-              duration: 0.35,
-            });
-          }
-        }
-
-        const geolocationHeading = extractGeolocationHeading(coords);
-
-        if (Number.isFinite(geolocationHeading)) {
-          headingSourcesRef.current.geolocation = geolocationHeading;
-        }
-
-        if (
-          previousPosition &&
-          map.distance(previousPosition, nextPosition) >= MIN_DIRECTION_DISTANCE_METERS
-        ) {
-          headingSourcesRef.current.movement = calculateBearing(
-            previousPosition,
-            nextPosition
-          );
-        }
-
-        previousPositionRef.current = nextPosition;
-        previousAccuracyRef.current = Number.isFinite(nextAccuracy)
-          ? nextAccuracy
-          : previousAccuracyRef.current;
-        updateEffectiveHeading();
+        processLocationCoords(coords);
       },
       (error) => {
         console.error("Couldn't watch user location in BannerGuider.", error);
@@ -243,7 +263,7 @@ export default function LocationMarker() {
     return () => {
       navigator.geolocation.clearWatch(watchId);
     };
-  }, [map, updateEffectiveHeading]);
+  }, [processLocationCoords]);
 
   useEffect(() => {
     if (typeof window === "undefined") {

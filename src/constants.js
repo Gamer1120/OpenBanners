@@ -2,7 +2,7 @@ import L from "leaflet";
 
 function createUserLocationIcon(rotation = null) {
   const headingMarkup = Number.isFinite(rotation)
-    ? `<div class="user-location-heading" style="transform: translateX(-50%) rotate(${rotation}deg);"></div>`
+    ? `<div class="user-location-heading" style="transform: translateX(-50%) rotate(${rotation}deg);"><div class="user-location-heading-tip"></div></div>`
     : "";
 
   return L.divIcon({

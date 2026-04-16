@@ -214,7 +214,7 @@ export default function TopMenu({
       setFeedback({
         severity: "warning",
         message:
-          "Bannergress auth is currently only available on test.openbanners.org.",
+          "Bannergress auth is currently only available on supported OpenBanners domains.",
       });
       return;
     }

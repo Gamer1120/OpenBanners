@@ -21,7 +21,11 @@ const BANNERGRESS_OIDC_CONFIGURATION = Object.freeze({
   clientId: "openbanners",
   scope: "openid",
   callbackPath: "/bannergress-auth-callback.html",
-  supportedHostname: "test.openbanners.org",
+  supportedHostnames: [
+    "test.openbanners.org",
+    "openbanners.org",
+    "www.openbanners.org",
+  ],
 });
 
 const TOKEN_CACHE_SAFETY_MS = 60 * 1000;
@@ -462,7 +466,9 @@ export function isBannergressAuthSupportedOrigin() {
 
   return (
     window.location.protocol === "https:" &&
-    window.location.hostname === BANNERGRESS_OIDC_CONFIGURATION.supportedHostname
+    BANNERGRESS_OIDC_CONFIGURATION.supportedHostnames.includes(
+      window.location.hostname
+    )
   );
 }
 
@@ -505,7 +511,9 @@ export function serializeBannergressPendingAuth(pendingAuth) {
 export async function buildBannergressAuthorizationUrl() {
   if (!isBannergressAuthSupportedOrigin()) {
     throw new Error(
-      `Bannergress auth is currently only enabled on https://${BANNERGRESS_OIDC_CONFIGURATION.supportedHostname}/`
+      `Bannergress auth is currently only enabled on ${BANNERGRESS_OIDC_CONFIGURATION.supportedHostnames
+        .map((hostname) => `https://${hostname}/`)
+        .join(", ")}`
     );
   }
 

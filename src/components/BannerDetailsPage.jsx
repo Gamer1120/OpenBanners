@@ -1,4 +1,4 @@
-import { MapContainer, TileLayer } from "react-leaflet";
+import { MapContainer, Marker, TileLayer } from "react-leaflet";
 import BannerMarkers from "./BannerMarkers";
 import { useParams } from "react-router-dom";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -6,15 +6,18 @@ import {
   Alert,
   Box,
   Button,
+  IconButton,
   Tab,
   Tabs,
   Typography,
   useMediaQuery,
 } from "@mui/material";
+import MyLocationRoundedIcon from "@mui/icons-material/MyLocationRounded";
 import BannerDetailsCard from "./BannerDetailsCard";
 import BannerInfo from "./BannerInfo";
 import L from "leaflet";
 import { fetchBannergress } from "../bannergressSync";
+import userLocationIcon from "../constants";
 
 export default function BannerDetailsPage() {
   const { bannerId } = useParams();
@@ -26,6 +29,9 @@ export default function BannerDetailsPage() {
   const [mapInitialized, setMapInitialized] = useState(false);
   const [reloadToken, setReloadToken] = useState(0);
   const [mobileTab, setMobileTab] = useState("overview");
+  const [userLocation, setUserLocation] = useState(null);
+  const [isLocatingUser, setIsLocatingUser] = useState(false);
+  const [locationError, setLocationError] = useState("");
   const mapRef = useRef(null);
   const mapContainerRef = useRef(null);
   const missions = useMemo(
@@ -209,6 +215,83 @@ export default function BannerDetailsPage() {
 
   const mapContent = (
     <div className="map-container" ref={mapContainerRef}>
+      <IconButton
+        aria-label="Show my location"
+        onClick={() => {
+          if (!navigator.geolocation || isLocatingUser) {
+            return;
+          }
+
+          setLocationError("");
+          setIsLocatingUser(true);
+
+          navigator.geolocation.getCurrentPosition(
+            ({ coords }) => {
+              const latitude = Number(coords?.latitude);
+              const longitude = Number(coords?.longitude);
+
+              if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
+                setLocationError("Couldn't determine your location.");
+                setIsLocatingUser(false);
+                return;
+              }
+
+              const nextLocation = { latitude, longitude };
+              setUserLocation(nextLocation);
+              setIsLocatingUser(false);
+              mapRef.current?.panTo?.([latitude, longitude], {
+                animate: true,
+                duration: 0.35,
+              });
+            },
+            () => {
+              setLocationError(
+                "Couldn't determine your location. Please check browser location access."
+              );
+              setIsLocatingUser(false);
+            },
+            {
+              enableHighAccuracy: true,
+              maximumAge: 10000,
+              timeout: 10000,
+            }
+          );
+        }}
+        disabled={isLocatingUser}
+        sx={{
+          position: "absolute",
+          zIndex: 1001,
+          right: 16,
+          top: 16,
+          bgcolor: "rgba(18, 18, 18, 0.9)",
+          color: "#fff",
+          border: "1px solid rgba(255,255,255,0.12)",
+          "&:hover": {
+            bgcolor: "rgba(28, 28, 28, 0.96)",
+          },
+        }}
+      >
+        <MyLocationRoundedIcon />
+      </IconButton>
+      {locationError ? (
+        <Box
+          sx={{
+            position: "absolute",
+            zIndex: 1001,
+            right: 16,
+            top: 72,
+            maxWidth: 260,
+            bgcolor: "rgba(18, 18, 18, 0.92)",
+            color: "#fff",
+            px: 1.25,
+            py: 0.9,
+            borderRadius: 1,
+            border: "1px solid rgba(255,255,255,0.12)",
+          }}
+        >
+          <Typography variant="caption">{locationError}</Typography>
+        </Box>
+      ) : null}
       {isLoading && (
         <Box
           sx={{
@@ -258,6 +341,13 @@ export default function BannerDetailsPage() {
           url="https://tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
         <BannerMarkers missions={missions} showStepMarkers={true} />
+        {userLocation ? (
+          <Marker
+            position={[userLocation.latitude, userLocation.longitude]}
+            icon={userLocationIcon}
+            zIndexOffset={2000}
+          />
+        ) : null}
       </MapContainer>
     </div>
   );

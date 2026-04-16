@@ -11,14 +11,19 @@ const MIN_DIRECTION_CHANGE_DEGREES = 8;
 const MIN_POSITION_CHANGE_METERS = 8;
 const MAX_TRACKED_ACCURACY_METERS = 75;
 const ORIENTATION_UPDATE_INTERVAL_MS = 250;
-const INITIAL_GEOLOCATION_OPTIONS = {
+const CACHED_INITIAL_GEOLOCATION_OPTIONS = {
   enableHighAccuracy: false,
-  maximumAge: 30000,
-  timeout: 4000,
+  maximumAge: Infinity,
+  timeout: 1000,
+};
+const FRESH_INITIAL_GEOLOCATION_OPTIONS = {
+  enableHighAccuracy: true,
+  maximumAge: 0,
+  timeout: 3500,
 };
 const GEOLOCATION_OPTIONS = {
   enableHighAccuracy: false,
-  maximumAge: 5000,
+  maximumAge: 2000,
   timeout: 15000,
 };
 
@@ -247,7 +252,15 @@ export default function LocationMarker() {
         processLocationCoords(coords);
       },
       () => {},
-      INITIAL_GEOLOCATION_OPTIONS
+      CACHED_INITIAL_GEOLOCATION_OPTIONS
+    );
+
+    navigator.geolocation.getCurrentPosition(
+      ({ coords }) => {
+        processLocationCoords(coords);
+      },
+      () => {},
+      FRESH_INITIAL_GEOLOCATION_OPTIONS
     );
 
     const watchId = navigator.geolocation.watchPosition(

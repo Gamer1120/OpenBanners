@@ -1116,6 +1116,89 @@ test("shows bannergress list action buttons on the banner overview page", async 
   expect(screen.getByRole("button", { name: /hide/i })).toBeInTheDocument();
 });
 
+
+test("shows unique mission authors on the banner details page when the api returns them", async () => {
+  global.fetch.mockImplementation((url) => {
+    if (url.endsWith("/bnrs/authored-banner")) {
+      return jsonResponse({
+        id: "authored-banner",
+        title: "Authored Banner",
+        picture: "/images/detail.jpg",
+        numberOfMissions: 3,
+        lengthMeters: 1800,
+        formattedAddress: "Oulu, Finland",
+        missions: {
+          "mission-1": {
+            id: "mission-1",
+            author: {
+              name: "Indicatrix",
+              faction: "resistance",
+            },
+            steps: {
+              0: {
+                poi: {
+                  title: "Portal One",
+                  type: "portal",
+                  latitude: 65.01,
+                  longitude: 25.47,
+                },
+              },
+            },
+          },
+          "mission-2": {
+            id: "mission-2",
+            author: {
+              name: "Indicatrix",
+              faction: "resistance",
+            },
+            steps: {
+              0: {
+                poi: {
+                  title: "Portal Two",
+                  type: "portal",
+                  latitude: 65.011,
+                  longitude: 25.471,
+                },
+              },
+            },
+          },
+          "mission-3": {
+            id: "mission-3",
+            author: {
+              name: "SecondAgent",
+              faction: "enlightened",
+            },
+            steps: {
+              0: {
+                poi: {
+                  title: "Portal Three",
+                  type: "portal",
+                  latitude: 65.012,
+                  longitude: 25.472,
+                },
+              },
+            },
+          },
+        },
+      });
+    }
+
+    throw new Error(`Unhandled fetch: ${url}`);
+  });
+
+  renderWithProviders(
+    <Routes>
+      <Route path="/banner/:bannerId" element={<BannerDetailsPage />} />
+    </Routes>,
+    { route: "/banner/authored-banner" }
+  );
+
+  expect(await screen.findByText("Authored Banner")).toBeInTheDocument();
+  expect(screen.getByText("Authors")).toBeInTheDocument();
+  expect(screen.getByText("Indicatrix (resistance)")).toBeInTheDocument();
+  expect(screen.getByText("SecondAgent (enlightened)")).toBeInTheDocument();
+});
+
 test("renders the guider with waypoint dots before a mission is selected", async () => {
   global.fetch.mockImplementation((url) => {
     if (url.endsWith("/bnrs/guide-banner")) {

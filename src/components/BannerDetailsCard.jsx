@@ -24,6 +24,36 @@ function formatDistance(lengthMeters) {
     : "Unknown distance";
 }
 
+function getBannerAuthors(missionMap) {
+  const seenAuthors = new Set();
+
+  return Object.values(missionMap ?? {}).flatMap((mission) => {
+    const authorName =
+      typeof mission?.author?.name === "string" ? mission.author.name.trim() : "";
+
+    if (!authorName) {
+      return [];
+    }
+
+    const faction =
+      typeof mission?.author?.faction === "string" ? mission.author.faction.trim() : "";
+    const authorKey = `${authorName.toLowerCase()}::${faction.toLowerCase()}`;
+
+    if (seenAuthors.has(authorKey)) {
+      return [];
+    }
+
+    seenAuthors.add(authorKey);
+
+    return [
+      {
+        name: authorName,
+        faction,
+      },
+    ];
+  });
+}
+
 export default function BannerDetailsCard({ banner, loading = false }) {
   const isMobile = useMediaQuery("(max-width:768px)");
   const syncState = useBannergressSync();
@@ -34,6 +64,7 @@ export default function BannerDetailsCard({ banner, loading = false }) {
   const lengthMeters = Number(banner.lengthMeters);
   const missions = Number(banner.numberOfMissions);
   const showImage = Boolean(banner.picture);
+  const bannerAuthors = loading ? [] : getBannerAuthors(banner.missions);
   const efficiency =
     Number.isFinite(missions) && Number.isFinite(lengthMeters) && lengthMeters > 0
       ? `${((missions / lengthMeters) * 1000).toFixed(3)} /km`
@@ -151,6 +182,30 @@ export default function BannerDetailsCard({ banner, loading = false }) {
             <Typography variant="body2" color="text.secondary">
               {banner.formattedAddress || "Address unavailable"}
             </Typography>
+            {bannerAuthors.length > 0 ? (
+              <Box sx={{ mt: 1.5 }}>
+                <Typography
+                  variant="overline"
+                  sx={{
+                    display: "block",
+                    color: "text.secondary",
+                    letterSpacing: "0.12em",
+                  }}
+                >
+                  {bannerAuthors.length === 1 ? "Author" : "Authors"}
+                </Typography>
+                <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap" sx={{ mt: 0.75 }}>
+                  {bannerAuthors.map((author) => (
+                    <Chip
+                      key={`${author.name}-${author.faction || "unknown"}`}
+                      size="small"
+                      label={author.faction ? `${author.name} (${author.faction})` : author.name}
+                      sx={{ bgcolor: "rgba(255,255,255,0.04)", borderRadius: 1 }}
+                    />
+                  ))}
+                </Stack>
+              </Box>
+            ) : null}
             <Box sx={{ mt: 2 }}>
               <BannergressListActions
                 bannerId={banner.id}

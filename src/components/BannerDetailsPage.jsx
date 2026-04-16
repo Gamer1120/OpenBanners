@@ -297,8 +297,9 @@ export default function BannerDetailsPage() {
           </Tabs>
           <Box
             sx={{
-              flex: 1,
+              flex: showOverview ? 1 : 0,
               minHeight: 0,
+              display: showOverview ? "block" : "none",
               overflowY: showOverview ? "auto" : "hidden",
             }}
           >

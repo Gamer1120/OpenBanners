@@ -53,8 +53,6 @@ export default function Map() {
         .filter(Boolean),
     [missions]
   );
-  const overviewMode = currentMission <= 0 || currentMission >= missions.length;
-
   useEffect(() => {
     fetchBannergress(`https://api.bannergress.com/bnrs/${bannerId}`)
       .then((res) => res.json())
@@ -110,7 +108,7 @@ export default function Map() {
         <BannerMarkers
           missions={missions}
           currentMission={currentMission}
-          showStepMarkers={!overviewMode}
+          showStepMarkers={true}
         />
         <LocationMarker />
       </MapContainer>

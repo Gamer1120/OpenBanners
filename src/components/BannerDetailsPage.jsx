@@ -1,4 +1,4 @@
-import { MapContainer, Marker, TileLayer } from "react-leaflet";
+import { MapContainer, Marker, TileLayer, useMap } from "react-leaflet";
 import BannerMarkers from "./BannerMarkers";
 import { useParams } from "react-router-dom";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -6,18 +6,71 @@ import {
   Alert,
   Box,
   Button,
-  IconButton,
   Tab,
   Tabs,
   Typography,
   useMediaQuery,
 } from "@mui/material";
-import MyLocationRoundedIcon from "@mui/icons-material/MyLocationRounded";
 import BannerDetailsCard from "./BannerDetailsCard";
 import BannerInfo from "./BannerInfo";
 import L from "leaflet";
 import { fetchBannergress } from "../bannergressSync";
 import userLocationIcon from "../constants";
+import "leaflet-easybutton/src/easy-button.css";
+
+function BannerDetailsLocationControl({ onLocate, disabled = false }) {
+  const map = useMap();
+
+  useEffect(() => {
+    if (typeof L.control !== "function") {
+      return undefined;
+    }
+
+    const control = L.control({ position: "topleft" });
+
+    control.onAdd = () => {
+      const container = L.DomUtil.create(
+        "div",
+        "leaflet-bar leaflet-control leaflet-control-custom"
+      );
+      const button = L.DomUtil.create("a", "", container);
+
+      button.href = "#";
+      button.title = "Show my location";
+      button.setAttribute("role", "button");
+      button.setAttribute("aria-label", "Show my location");
+      button.innerHTML = "⌖";
+      button.style.width = "30px";
+      button.style.height = "30px";
+      button.style.lineHeight = "30px";
+      button.style.textAlign = "center";
+      button.style.fontSize = "18px";
+      button.style.fontWeight = "700";
+      button.style.color = "#222";
+      button.style.background = "#fff";
+      button.style.textDecoration = "none";
+      button.style.cursor = disabled ? "progress" : "pointer";
+      button.style.opacity = disabled ? "0.55" : "1";
+      button.style.pointerEvents = disabled ? "none" : "auto";
+
+      L.DomEvent.disableClickPropagation(container);
+      L.DomEvent.on(button, "click", (event) => {
+        L.DomEvent.stop(event);
+        onLocate();
+      });
+
+      return container;
+    };
+
+    control.addTo(map);
+
+    return () => {
+      control.remove();
+    };
+  }, [map, onLocate, disabled]);
+
+  return null;
+}
 
 export default function BannerDetailsPage() {
   const { bannerId } = useParams();
@@ -215,64 +268,6 @@ export default function BannerDetailsPage() {
 
   const mapContent = (
     <div className="map-container" ref={mapContainerRef}>
-      <IconButton
-        aria-label="Show my location"
-        onClick={() => {
-          if (!navigator.geolocation || isLocatingUser) {
-            return;
-          }
-
-          setLocationError("");
-          setIsLocatingUser(true);
-
-          navigator.geolocation.getCurrentPosition(
-            ({ coords }) => {
-              const latitude = Number(coords?.latitude);
-              const longitude = Number(coords?.longitude);
-
-              if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
-                setLocationError("Couldn't determine your location.");
-                setIsLocatingUser(false);
-                return;
-              }
-
-              const nextLocation = { latitude, longitude };
-              setUserLocation(nextLocation);
-              setIsLocatingUser(false);
-              mapRef.current?.panTo?.([latitude, longitude], {
-                animate: true,
-                duration: 0.35,
-              });
-            },
-            () => {
-              setLocationError(
-                "Couldn't determine your location. Please check browser location access."
-              );
-              setIsLocatingUser(false);
-            },
-            {
-              enableHighAccuracy: true,
-              maximumAge: 10000,
-              timeout: 10000,
-            }
-          );
-        }}
-        disabled={isLocatingUser}
-        sx={{
-          position: "absolute",
-          zIndex: 1001,
-          right: 16,
-          top: 16,
-          bgcolor: "rgba(18, 18, 18, 0.9)",
-          color: "#fff",
-          border: "1px solid rgba(255,255,255,0.12)",
-          "&:hover": {
-            bgcolor: "rgba(28, 28, 28, 0.96)",
-          },
-        }}
-      >
-        <MyLocationRoundedIcon />
-      </IconButton>
       {locationError ? (
         <Box
           sx={{
@@ -339,6 +334,49 @@ export default function BannerDetailsPage() {
         <TileLayer
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors. This website is NOT affiliated with Bannergress in any way!'
           url="https://tile.openstreetmap.org/{z}/{x}/{y}.png"
+        />
+        <BannerDetailsLocationControl
+          disabled={isLocatingUser}
+          onLocate={() => {
+            if (!navigator.geolocation || isLocatingUser) {
+              return;
+            }
+
+            setLocationError("");
+            setIsLocatingUser(true);
+
+            navigator.geolocation.getCurrentPosition(
+              ({ coords }) => {
+                const latitude = Number(coords?.latitude);
+                const longitude = Number(coords?.longitude);
+
+                if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
+                  setLocationError("Couldn't determine your location.");
+                  setIsLocatingUser(false);
+                  return;
+                }
+
+                const nextLocation = { latitude, longitude };
+                setUserLocation(nextLocation);
+                setIsLocatingUser(false);
+                mapRef.current?.panTo?.([latitude, longitude], {
+                  animate: true,
+                  duration: 0.35,
+                });
+              },
+              () => {
+                setLocationError(
+                  "Couldn't determine your location. Please check browser location access."
+                );
+                setIsLocatingUser(false);
+              },
+              {
+                enableHighAccuracy: true,
+                maximumAge: 10000,
+                timeout: 10000,
+              }
+            );
+          }}
         />
         <BannerMarkers missions={missions} showStepMarkers={true} />
         {userLocation ? (

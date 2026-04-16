@@ -1116,7 +1116,7 @@ test("shows bannergress list action buttons on the banner overview page", async 
   expect(screen.getByRole("button", { name: /hide/i })).toBeInTheDocument();
 });
 
-test("renders the guider in overview mode before a mission is selected", async () => {
+test("renders the guider with waypoint dots before a mission is selected", async () => {
   global.fetch.mockImplementation((url) => {
     if (url.endsWith("/bnrs/guide-banner")) {
       return jsonResponse({
@@ -1192,9 +1192,9 @@ test("renders the guider in overview mode before a mission is selected", async (
   );
   expect(screen.getByTestId("marker-52.37-4.89")).toBeInTheDocument();
   expect(screen.getByTestId("marker-52.38-4.9")).toBeInTheDocument();
-  expect(screen.queryByTestId("marker-52.371-4.891")).not.toBeInTheDocument();
-  expect(screen.queryByTestId("marker-52.381-4.901")).not.toBeInTheDocument();
-  expect(screen.queryByText("Navigate to portal")).not.toBeInTheDocument();
+  expect(screen.getByTestId("marker-52.371-4.891")).toBeInTheDocument();
+  expect(screen.getByTestId("marker-52.381-4.901")).toBeInTheDocument();
+  expect(screen.getAllByText("Navigate to portal").length).toBeGreaterThan(0);
 });
 
 test("shows a retryable error when banner details fail to load", async () => {

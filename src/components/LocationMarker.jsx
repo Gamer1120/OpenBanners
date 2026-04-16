@@ -6,10 +6,13 @@ import "font-awesome/css/font-awesome.min.css";
 import icon, { locationIcon } from "../constants";
 import L from "leaflet";
 
-const MIN_DIRECTION_DISTANCE_METERS = 5;
+const MIN_MOVEMENT_HEADING_DISTANCE_METERS = 18;
 const MIN_DIRECTION_CHANGE_DEGREES = 8;
 const MIN_POSITION_CHANGE_METERS = 8;
 const MAX_TRACKED_ACCURACY_METERS = 75;
+const MAX_HEADING_ACCURACY_METERS = 30;
+const MIN_TRUSTED_GEO_HEADING_SPEED_MPS = 1.4;
+const MIN_TRUSTED_MOVEMENT_SPEED_MPS = 0.9;
 const ORIENTATION_UPDATE_INTERVAL_MS = 250;
 const CACHED_INITIAL_GEOLOCATION_OPTIONS = {
   enableHighAccuracy: false,
@@ -102,6 +105,11 @@ function extractGeolocationHeading(coords) {
   return normalizeHeading(Number(coords?.heading));
 }
 
+function extractTrustedSpeed(coords) {
+  const speed = Number(coords?.speed);
+  return Number.isFinite(speed) && speed >= 0 ? speed : null;
+}
+
 function shouldAcceptPositionUpdate({
   previousPosition,
   previousAccuracy,
@@ -184,6 +192,7 @@ export default function LocationMarker() {
       };
       const previousPosition = previousPositionRef.current;
       const nextAccuracy = Number(coords.accuracy);
+      const speedMetersPerSecond = extractTrustedSpeed(coords);
 
       if (
         !shouldAcceptPositionUpdate({
@@ -219,13 +228,25 @@ export default function LocationMarker() {
 
       const geolocationHeading = extractGeolocationHeading(coords);
 
-      if (Number.isFinite(geolocationHeading)) {
+      if (
+        Number.isFinite(geolocationHeading) &&
+        (!Number.isFinite(nextAccuracy) || nextAccuracy <= MAX_HEADING_ACCURACY_METERS) &&
+        Number.isFinite(speedMetersPerSecond) &&
+        speedMetersPerSecond >= MIN_TRUSTED_GEO_HEADING_SPEED_MPS
+      ) {
         headingSourcesRef.current.geolocation = geolocationHeading;
       }
 
       if (
         previousPosition &&
-        map.distance(previousPosition, nextPosition) >= MIN_DIRECTION_DISTANCE_METERS
+        map.distance(previousPosition, nextPosition) >=
+          Math.max(
+            MIN_MOVEMENT_HEADING_DISTANCE_METERS,
+            Number.isFinite(nextAccuracy) ? nextAccuracy * 0.75 : 0
+          ) &&
+        (!Number.isFinite(nextAccuracy) || nextAccuracy <= MAX_HEADING_ACCURACY_METERS) &&
+        (!Number.isFinite(speedMetersPerSecond) ||
+          speedMetersPerSecond >= MIN_TRUSTED_MOVEMENT_SPEED_MPS)
       ) {
         headingSourcesRef.current.movement = calculateBearing(
           previousPosition,

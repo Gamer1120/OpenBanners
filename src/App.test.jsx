@@ -997,7 +997,7 @@ test("renders a single visible map for banner details even with multiple mission
   expect(screen.getAllByTestId("map-container")).toHaveLength(1);
 });
 
-test("renders only mission start markers on the banner details overview map", async () => {
+test("renders mission waypoint dots on the banner details overview map", async () => {
   global.fetch.mockImplementation((url) => {
     if (url.endsWith("/bnrs/overview-banner")) {
       return jsonResponse({
@@ -1067,9 +1067,9 @@ test("renders only mission start markers on the banner details overview map", as
   expect(await screen.findByText("Overview Banner")).toBeInTheDocument();
   expect(screen.getByTestId("marker-52.37-4.89")).toBeInTheDocument();
   expect(screen.getByTestId("marker-52.38-4.9")).toBeInTheDocument();
-  expect(screen.queryByTestId("marker-52.371-4.891")).not.toBeInTheDocument();
-  expect(screen.queryByTestId("marker-52.381-4.901")).not.toBeInTheDocument();
-  expect(screen.queryByText("Navigate to portal")).not.toBeInTheDocument();
+  expect(screen.getByTestId("marker-52.371-4.891")).toBeInTheDocument();
+  expect(screen.getByTestId("marker-52.381-4.901")).toBeInTheDocument();
+  expect(screen.getAllByText("Navigate to portal").length).toBeGreaterThan(0);
 });
 
 test("shows bannergress list action buttons on the banner overview page", async () => {

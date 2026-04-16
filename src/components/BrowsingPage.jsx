@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import BannerListItem from "./BannerListItem";
 import BannerCard from "./BannerCard";
 import BannerResultsViewToggle from "./BannerResultsViewToggle";
@@ -74,6 +74,7 @@ const sortOptionsMap = {
 };
 const viewModeStorageKey = "openbanners-banner-view-mode";
 const BROWSE_PAGE_SIZE = 9;
+const FILTERED_BROWSE_PREFETCH_TARGET = BROWSE_PAGE_SIZE * 2;
 
 export default function BrowsingPage({
   placeId,
@@ -90,7 +91,6 @@ export default function BrowsingPage({
   const [loadingMore, setLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(true);
   const [requestedOffset, setRequestedOffset] = useState(0);
-  const [nextOffset, setNextOffset] = useState(0);
   const [isPlacesListExpanded, setIsPlacesListExpanded] = useState(false);
   const [error, setError] = useState("");
   const [reloadToken, setReloadToken] = useState(0);
@@ -151,7 +151,6 @@ export default function BrowsingPage({
     setLoadingMore(false);
     setHasMore(true);
     setRequestedOffset(0);
-    setNextOffset(0);
     setError("");
   }, [browseQueryKey]);
 
@@ -256,7 +255,6 @@ export default function BrowsingPage({
               requestedOffset === 0 ? data : [...currentBanners, ...data]
             );
             setHasMore(data.length === BROWSE_PAGE_SIZE);
-            setNextOffset(requestedOffset + data.length);
           } else {
             console.error("Invalid response data:", data);
             if (requestedOffset === 0) {
@@ -304,11 +302,21 @@ export default function BrowsingPage({
     bannersFetchedForEfficiency,
   ]);
 
-  const displayedBanners = applyBannerFilters(
-    banners,
-    syncState,
-    bannerFilters
+  const minimumMissions = Number(bannerFilters?.minimumMissions) || 0;
+  const nextOffset = banners.length;
+  const displayedBanners = useMemo(
+    () =>
+      applyBannerFilters(banners, syncState, bannerFilters).filter(
+        (banner) => Number(banner?.numberOfMissions) >= minimumMissions
+      ),
+    [banners, bannerFilters, minimumMissions, syncState]
   );
+  const filteredPrefetchTarget =
+    minimumMissions > 0 ? FILTERED_BROWSE_PREFETCH_TARGET : BROWSE_PAGE_SIZE;
+  const needsFilteredBackfill =
+    displayedBanners.length === 0 ||
+    (minimumMissions > 0 &&
+      displayedBanners.length < Math.min(filteredPrefetchTarget, banners.length));
   const isAgentView = Boolean(authorName);
   const headerEyebrow = isAgentView ? "Agent" : "Explore";
   const headerTitle = isAgentView ? authorName : "Browsing";
@@ -322,20 +330,24 @@ export default function BrowsingPage({
       !hasMore ||
       loading ||
       loadingMore ||
-      displayedBanners.length > 0 ||
-      banners.length === 0
+      banners.length === 0 ||
+      !needsFilteredBackfill ||
+      nextOffset <= requestedOffset
     ) {
       return;
     }
 
-    setRequestedOffset(nextOffset);
+    setRequestedOffset((currentOffset) =>
+      currentOffset === nextOffset ? currentOffset : nextOffset
+    );
   }, [
     banners.length,
-    displayedBanners.length,
     hasMore,
     loading,
     loadingMore,
+    needsFilteredBackfill,
     nextOffset,
+    requestedOffset,
     sortOption,
   ]);
 

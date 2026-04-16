@@ -7,6 +7,7 @@ export const DEFAULT_BANNER_FILTERS = Object.freeze({
   showOfflineBanners: false,
   showHiddenBanners: false,
   hideDoneBanners: false,
+  minimumMissions: 0,
 });
 
 export function countActiveBannerFilters(filters) {
@@ -14,6 +15,7 @@ export function countActiveBannerFilters(filters) {
     filters?.showOfflineBanners,
     filters?.showHiddenBanners,
     filters?.hideDoneBanners,
+    Number(filters?.minimumMissions) > 0,
   ].filter(Boolean).length;
 }
 

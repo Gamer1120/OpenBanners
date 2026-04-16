@@ -6,6 +6,8 @@ import {
   FormControlLabel,
   FormGroup,
   Menu,
+  ToggleButton,
+  ToggleButtonGroup,
   Typography,
 } from "@mui/material";
 import FilterListRoundedIcon from "@mui/icons-material/FilterListRounded";
@@ -43,6 +45,7 @@ export default function BannerFilterButton({
   color = "inherit",
   size = "small",
   sx,
+  showMinimumMissionsFilter = false,
 }) {
   const [anchorEl, setAnchorEl] = useState(null);
   const activeFilterCount = useMemo(
@@ -52,6 +55,7 @@ export default function BannerFilterButton({
   const hasExclusiveFilterEnabled = MUTUALLY_EXCLUSIVE_FILTER_KEYS.some(
     (key) => Boolean(filters?.[key])
   );
+  const minimumMissions = Number(filters?.minimumMissions) || 0;
 
   return (
     <>
@@ -139,6 +143,36 @@ export default function BannerFilterButton({
               );
             })}
           </FormGroup>
+
+          {showMinimumMissionsFilter ? (
+            <Box sx={{ mt: 1.5 }}>
+              <Typography
+                variant="overline"
+                sx={{ color: "text.secondary", letterSpacing: "0.12em" }}
+              >
+                Mission Count
+              </Typography>
+              <ToggleButtonGroup
+                size="small"
+                exclusive
+                value={minimumMissions}
+                onChange={(_, nextValue) => {
+                  if (nextValue !== null) {
+                    onChange?.({
+                      ...filters,
+                      minimumMissions: nextValue,
+                    });
+                  }
+                }}
+                sx={{ mt: 0.75, display: "flex", flexWrap: "wrap" }}
+              >
+                <ToggleButton value={0}>Any</ToggleButton>
+                <ToggleButton value={6}>6+</ToggleButton>
+                <ToggleButton value={12}>12+</ToggleButton>
+                <ToggleButton value={18}>18+</ToggleButton>
+              </ToggleButtonGroup>
+            </Box>
+          ) : null}
         </Box>
       </Menu>
     </>

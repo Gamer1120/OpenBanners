@@ -8,6 +8,7 @@ import { vi } from "vitest";
 import * as bannergressSync from "./bannergressSync";
 import BannersNearMe from "./components/BannersNearMe";
 import BannerListItem from "./components/BannerListItem";
+import BannerFilterButton from "./components/BannerFilterButton";
 import BrowsingPage from "./components/BrowsingPage";
 import SearchResults from "./components/SearchResults";
 import BannerDetailsPage from "./components/BannerDetailsPage";
@@ -389,6 +390,143 @@ test("renders an agent page and fetches banners by author", async () => {
   );
 });
 
+
+test("browse results respect the minimum mission filter", async () => {
+  global.fetch.mockImplementation((url) => {
+    if (
+      url.includes("/bnrs?") &&
+      url.includes("author=MissionFilterAgent") &&
+      url.includes("orderBy=created")
+    ) {
+      return jsonResponse([
+        {
+          id: "small-banner",
+          title: "Small Banner",
+          picture: "/images/small.jpg",
+          numberOfMissions: 6,
+          lengthMeters: 1200,
+          formattedAddress: "Enschede, NL",
+          numberOfDisabledMissions: 0,
+        },
+        {
+          id: "big-banner",
+          title: "Big Banner",
+          picture: "/images/big.jpg",
+          numberOfMissions: 18,
+          lengthMeters: 4200,
+          formattedAddress: "Enschede, NL",
+          numberOfDisabledMissions: 0,
+        },
+      ]);
+    }
+
+    throw new Error(`Unhandled fetch: ${url}`);
+  });
+
+  renderWithProviders(
+    <BrowsingPage
+      authorName="MissionFilterAgent"
+      bannerFilters={{
+        ...DEFAULT_BANNER_FILTERS,
+        minimumMissions: 12,
+      }}
+      onBannerFiltersChange={vi.fn()}
+    />
+  );
+
+  expect(await screen.findByText("Big Banner")).toBeInTheDocument();
+  expect(screen.queryByText("Small Banner")).not.toBeInTheDocument();
+  expect(screen.getByText("Filters (1)")).toBeInTheDocument();
+});
+
+
+test("browse mission filtering backfills extra pages before scroll gets sparse", async () => {
+  const buildMostlyFilteredPage = (pageNumber, visibleBanner) => [
+    ...Array.from({ length: 8 }, (_, itemIndex) => ({
+      id: `backfill-small-${pageNumber}-${itemIndex + 1}`,
+      title: `Backfill Small ${pageNumber}-${itemIndex + 1}`,
+      picture: `/images/backfill-small-${pageNumber}-${itemIndex + 1}.jpg`,
+      numberOfMissions: 6,
+      lengthMeters: 1200 + itemIndex * 50,
+      formattedAddress: "Enschede, NL",
+      numberOfDisabledMissions: 0,
+    })),
+    visibleBanner,
+  ];
+
+  global.fetch.mockImplementation((url) => {
+    if (
+      url.includes("/bnrs?") &&
+      url.includes("author=BackfillAgent") &&
+      url.includes("offset=0")
+    ) {
+      return jsonResponse(
+        buildMostlyFilteredPage(1, {
+          id: "backfill-big-1",
+          title: "Backfill Big 1",
+          picture: "/images/backfill-big-1.jpg",
+          numberOfMissions: 12,
+          lengthMeters: 2200,
+          formattedAddress: "Enschede, NL",
+          numberOfDisabledMissions: 0,
+        })
+      );
+    }
+
+    if (
+      url.includes("/bnrs?") &&
+      url.includes("author=BackfillAgent") &&
+      url.includes("offset=9")
+    ) {
+      return jsonResponse(
+        buildMostlyFilteredPage(2, {
+          id: "backfill-big-2",
+          title: "Backfill Big 2",
+          picture: "/images/backfill-big-2.jpg",
+          numberOfMissions: 18,
+          lengthMeters: 3200,
+          formattedAddress: "Enschede, NL",
+          numberOfDisabledMissions: 0,
+        })
+      );
+    }
+
+    if (
+      url.includes("/bnrs?") &&
+      url.includes("author=BackfillAgent") &&
+      url.includes("offset=18")
+    ) {
+      return jsonResponse([
+        {
+          id: "backfill-big-3",
+          title: "Backfill Big 3",
+          picture: "/images/backfill-big-3.jpg",
+          numberOfMissions: 18,
+          lengthMeters: 3600,
+          formattedAddress: "Enschede, NL",
+          numberOfDisabledMissions: 0,
+        },
+      ]);
+    }
+
+    throw new Error("Unhandled fetch: " + url);
+  });
+
+  renderWithProviders(
+    <BrowsingPage
+      authorName="BackfillAgent"
+      bannerFilters={{
+        ...DEFAULT_BANNER_FILTERS,
+        minimumMissions: 12,
+      }}
+      onBannerFiltersChange={vi.fn()}
+    />
+  );
+
+  expect(await screen.findByText("Backfill Big 3")).toBeInTheDocument();
+  expect(global.fetch).toHaveBeenCalledTimes(3);
+});
+
 test("compact list actions update the Bannergress list through the API", async () => {
   const updateBannerListSpy = vi
     .spyOn(bannergressSync, "updateBannergressBannerListType")
@@ -517,6 +655,34 @@ test("newly hidden banners stay visible in the current filtered results", () => 
 
   expect(filteredBanners).toHaveLength(1);
   expect(filteredBanners[0].id).toBe("hidden-banner");
+});
+
+
+test("banner filter button exposes browse mission count thresholds", async () => {
+  function FilterHarness() {
+    const [filters, setFilters] = React.useState(DEFAULT_BANNER_FILTERS);
+
+    return (
+      <BannerFilterButton
+        filters={filters}
+        onChange={setFilters}
+        showMinimumMissionsFilter
+      />
+    );
+  }
+
+  const user = userEvent.setup();
+
+  renderWithProviders(<FilterHarness />);
+
+  await user.click(screen.getByRole("button", { name: /^filters$/i }));
+  await user.click(screen.getByRole("button", { name: "12+" }));
+
+  expect(screen.getByText("Filters (1)", { selector: "button" })).toBeInTheDocument();
+  expect(screen.getByRole("button", { name: "12+" })).toHaveAttribute(
+    "aria-pressed",
+    "true"
+  );
 });
 
 test("renders places list flags and browse links for aliased place names", async () => {

@@ -10,6 +10,8 @@ export const BANNERGRESS_AUTH_PENDING_STORAGE_KEY =
   "openbanners:bannergress-auth-pending";
 export const BANNERGRESS_AUTH_COMPLETE_MESSAGE =
   "openbanners:bannergress-auth-complete";
+export const BANNERGRESS_AUTH_PENDING_WINDOW_NAME_PREFIX =
+  "openbanners:bannergress-auth-pending:";
 
 const BANNERGRESS_OIDC_CONFIGURATION = Object.freeze({
   authorizationUrl:
@@ -494,6 +496,12 @@ async function createPkceChallenge(verifier) {
   return toBase64Url(new Uint8Array(digest));
 }
 
+export function serializeBannergressPendingAuth(pendingAuth) {
+  return `${BANNERGRESS_AUTH_PENDING_WINDOW_NAME_PREFIX}${window.encodeURIComponent(
+    JSON.stringify(pendingAuth)
+  )}`;
+}
+
 export async function buildBannergressAuthorizationUrl() {
   if (!isBannergressAuthSupportedOrigin()) {
     throw new Error(
@@ -505,15 +513,16 @@ export async function buildBannergressAuthorizationUrl() {
   const state = createRandomString(48);
   const codeVerifier = createRandomString(96);
   const codeChallenge = await createPkceChallenge(codeVerifier);
+  const pendingAuth = {
+    state,
+    codeVerifier,
+    redirectUri,
+    createdAt: Date.now(),
+  };
 
   window.localStorage.setItem(
     BANNERGRESS_AUTH_PENDING_STORAGE_KEY,
-    JSON.stringify({
-      state,
-      codeVerifier,
-      redirectUri,
-      createdAt: Date.now(),
-    })
+    JSON.stringify(pendingAuth)
   );
 
   const url = new URL(BANNERGRESS_OIDC_CONFIGURATION.authorizationUrl);
@@ -525,7 +534,10 @@ export async function buildBannergressAuthorizationUrl() {
   url.searchParams.set("code_challenge", codeChallenge);
   url.searchParams.set("code_challenge_method", "S256");
 
-  return url.toString();
+  return {
+    authorizationUrl: url.toString(),
+    pendingAuth,
+  };
 }
 
 async function refreshBannergressAuthData(currentAuthData) {

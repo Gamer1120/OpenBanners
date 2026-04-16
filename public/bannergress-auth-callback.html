@@ -44,6 +44,8 @@
       const AUTH_STORAGE_KEY = "openbanners-bannergress-auth";
       const AUTH_PENDING_STORAGE_KEY = "openbanners-bannergress-auth-pending";
       const AUTH_COMPLETE_MESSAGE = "openbanners:bannergress-auth-complete";
+      const AUTH_PENDING_WINDOW_NAME_PREFIX =
+        "openbanners:bannergress-auth-pending:";
       const TOKEN_URL =
         "https://login.bannergress.com/auth/realms/bannergress/protocol/openid-connect/token";
       const CLIENT_ID = "openbanners-test";
@@ -116,6 +118,21 @@
         }
       }
 
+      function parsePendingAuthFromWindowName() {
+        if (
+          typeof window.name !== "string" ||
+          !window.name.startsWith(AUTH_PENDING_WINDOW_NAME_PREFIX)
+        ) {
+          return null;
+        }
+
+        return parseJson(
+          window.decodeURIComponent(
+            window.name.slice(AUTH_PENDING_WINDOW_NAME_PREFIX.length)
+          )
+        );
+      }
+
       function getOpenerLocalStorage() {
         if (!window.opener || window.opener === window) {
           return null;
@@ -139,7 +156,10 @@
         );
         const openerStorage = getOpenerLocalStorage();
         const openerValue = readStorageValue(openerStorage, AUTH_PENDING_STORAGE_KEY);
-        const pendingAuth = parseJson(localValue) ?? parseJson(openerValue);
+        const pendingAuth =
+          parseJson(localValue) ??
+          parseJson(openerValue) ??
+          parsePendingAuthFromWindowName();
 
         if (pendingAuth && !localValue) {
           writeStorageValue(
@@ -160,6 +180,7 @@
         writeStorageValue(openerStorage, AUTH_STORAGE_KEY, serializedValue);
         removeStorageValue(window.localStorage, AUTH_PENDING_STORAGE_KEY);
         removeStorageValue(openerStorage, AUTH_PENDING_STORAGE_KEY);
+        window.name = "";
       }
 
       function decodeJwtExpiryTimestamp(token) {
@@ -265,6 +286,7 @@
           const message = "The Bannergress sign-in state did not match.";
           removeStorageValue(window.localStorage, AUTH_PENDING_STORAGE_KEY);
           removeStorageValue(getOpenerLocalStorage(), AUTH_PENDING_STORAGE_KEY);
+          window.name = "";
           notifyOpener({ success: false, message });
           setStatus("Bannergress sign-in failed", message);
           return;
@@ -317,6 +339,7 @@
               : "Bannergress sign-in could not be completed.";
           removeStorageValue(window.localStorage, AUTH_PENDING_STORAGE_KEY);
           removeStorageValue(getOpenerLocalStorage(), AUTH_PENDING_STORAGE_KEY);
+          window.name = "";
           notifyOpener({ success: false, message });
           setStatus("Bannergress sign-in failed", message);
         }

@@ -30,6 +30,7 @@ import {
   requestBannergressAuthStatus,
   requestBannergressSyncData,
   saveBannergressSyncData,
+  serializeBannergressPendingAuth,
 } from "../bannergressSync";
 import BannerFilterButton from "./BannerFilterButton";
 import { DEFAULT_BANNER_FILTERS } from "../bannerFilters";
@@ -241,8 +242,10 @@ export default function TopMenu({
     setIsAuthenticating(true);
 
     try {
-      const authUrl = await buildBannergressAuthorizationUrl();
-      popup.location.href = authUrl;
+      const { authorizationUrl, pendingAuth } =
+        await buildBannergressAuthorizationUrl();
+      popup.name = serializeBannergressPendingAuth(pendingAuth);
+      popup.location.href = authorizationUrl;
     } catch (error) {
       closeAuthPopup();
       setIsAuthenticating(false);

@@ -15,6 +15,7 @@ import {
 } from "@mui/material";
 import {
   CheckCircleOutline,
+  Download,
   Explore,
   LocationOn,
   Login,
@@ -49,6 +50,28 @@ function debugLog(...args) {
   console.log("[OpenBanners TopMenu]", ...args);
 }
 
+function isAndroidUserAgent() {
+  return /Android/i.test(window.navigator?.userAgent ?? "");
+}
+
+function isRunningInAndroidApp() {
+  const userAgent = window.navigator?.userAgent ?? "";
+  const isStandalone =
+    (typeof window.matchMedia === "function" &&
+      window.matchMedia("(display-mode: standalone)").matches) ||
+    window.navigator?.standalone === true;
+  const launchedFromAndroidApp =
+    typeof document !== "undefined" &&
+    document.referrer.startsWith("android-app://");
+
+  return (
+    isStandalone ||
+    /\bwv\b/i.test(userAgent) ||
+    /OpenBannersApp/i.test(userAgent) ||
+    launchedFromAndroidApp
+  );
+}
+
 export default function TopMenu({
   onBrowseClick,
   onTitleClick,
@@ -58,6 +81,8 @@ export default function TopMenu({
   onBannerFiltersChange,
 }) {
   const authSupportedOrigin = isBannergressAuthSupportedOrigin();
+  const shouldShowAndroidDownloadButton =
+    isAndroidUserAgent() && !isRunningInAndroidApp();
   const [searchQuery, setSearchQuery] = useState("");
   const [feedback, setFeedback] = useState(null);
   const [authStatus, setAuthStatus] = useState(null);
@@ -474,6 +499,23 @@ export default function TopMenu({
             >
               Map
             </Button>
+            {shouldShowAndroidDownloadButton ? (
+              <Button
+                color="inherit"
+                startIcon={<Download />}
+                component="a"
+                href="/OpenBanners.apk"
+                download="OpenBanners.apk"
+                sx={{
+                  minHeight: 44,
+                  px: 1.75,
+                  bgcolor: "rgba(255,255,255,0.03)",
+                  border: "1px solid rgba(255,255,255,0.08)",
+                }}
+              >
+                Download App
+              </Button>
+            ) : null}
             <Button
               color="inherit"
               startIcon={authButtonIcon}

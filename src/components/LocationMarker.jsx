@@ -110,14 +110,19 @@ function extractTrustedSpeed(coords) {
   return Number.isFinite(speed) && speed >= 0 ? speed : null;
 }
 
-function getFollowCenter(nextPosition, centerOffset) {
-  if (!centerOffset) {
+function getFollowCenter(map, previousPosition, nextPosition) {
+  if (!previousPosition || typeof map.getCenter !== "function") {
+    return nextPosition;
+  }
+
+  const currentCenter = map.getCenter();
+  if (!currentCenter) {
     return nextPosition;
   }
 
   return {
-    lat: nextPosition.lat + centerOffset.lat,
-    lng: nextPosition.lng + centerOffset.lng,
+    lat: currentCenter.lat + (nextPosition.lat - previousPosition.lat),
+    lng: currentCenter.lng + (nextPosition.lng - previousPosition.lng),
   };
 }
 
@@ -161,7 +166,6 @@ export default function LocationMarker() {
   const previousPositionRef = useRef(null);
   const previousAccuracyRef = useRef(null);
   const hasCenteredRef = useRef(false);
-  const centerOffsetRef = useRef(null);
   const lastOrientationUpdateAtRef = useRef(0);
   const hasNativeOrientationRef = useRef(false);
   const headingSourcesRef = useRef({
@@ -223,20 +227,9 @@ export default function LocationMarker() {
 
       if (!hasCenteredRef.current) {
         map.setView(nextPosition, map.getZoom());
-        centerOffsetRef.current = { lat: 0, lng: 0 };
         hasCenteredRef.current = true;
       } else {
-        if (typeof map.getCenter === "function") {
-          const currentCenter = map.getCenter();
-          if (currentCenter) {
-            centerOffsetRef.current = {
-              lat: currentCenter.lat - previousPosition.lat,
-              lng: currentCenter.lng - previousPosition.lng,
-            };
-          }
-        }
-
-        map.panTo(getFollowCenter(nextPosition, centerOffsetRef.current), {
+        map.panTo(getFollowCenter(map, previousPosition, nextPosition), {
           animate: true,
           duration: 0.35,
         });

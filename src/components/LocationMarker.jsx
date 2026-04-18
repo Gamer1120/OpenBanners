@@ -13,6 +13,7 @@ const MAX_HEADING_ACCURACY_METERS = 30;
 const MIN_TRUSTED_GEO_HEADING_SPEED_MPS = 1.4;
 const MIN_TRUSTED_MOVEMENT_SPEED_MPS = 0.9;
 const ORIENTATION_UPDATE_INTERVAL_MS = 250;
+const MAX_SINGLE_NATIVE_ORIENTATION_JUMP_DEGREES = 35;
 const CACHED_INITIAL_GEOLOCATION_OPTIONS = {
   enableHighAccuracy: false,
   maximumAge: Infinity,
@@ -152,6 +153,7 @@ export default function LocationMarker() {
   const hasCenteredRef = useRef(false);
   const lastOrientationUpdateAtRef = useRef(0);
   const hasNativeOrientationRef = useRef(false);
+  const pendingOrientationHeadingRef = useRef(null);
   const headingSourcesRef = useRef({
     orientation: null,
     geolocation: null,
@@ -408,6 +410,28 @@ export default function LocationMarker() {
         return;
       }
 
+      const currentOrientation = headingSourcesRef.current.orientation;
+      const headingDifference = Number.isFinite(currentOrientation)
+        ? getHeadingDifferenceDegrees(currentOrientation, orientationHeading)
+        : 0;
+
+      if (
+        Number.isFinite(currentOrientation) &&
+        headingDifference > MAX_SINGLE_NATIVE_ORIENTATION_JUMP_DEGREES
+      ) {
+        if (
+          !Number.isFinite(pendingOrientationHeadingRef.current) ||
+          getHeadingDifferenceDegrees(
+            pendingOrientationHeadingRef.current,
+            orientationHeading
+          ) > MIN_DIRECTION_CHANGE_DEGREES
+        ) {
+          pendingOrientationHeadingRef.current = orientationHeading;
+          return;
+        }
+      }
+
+      pendingOrientationHeadingRef.current = null;
       lastOrientationUpdateAtRef.current = now;
       hasNativeOrientationRef.current = true;
       headingSourcesRef.current.geolocation = null;

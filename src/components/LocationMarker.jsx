@@ -335,6 +335,8 @@ export default function LocationMarker() {
 
       lastOrientationUpdateAtRef.current = now;
       hasNativeOrientationRef.current = true;
+      headingSourcesRef.current.geolocation = null;
+      headingSourcesRef.current.movement = null;
       headingSourcesRef.current.orientation = orientationHeading;
       updateEffectiveHeading();
     };

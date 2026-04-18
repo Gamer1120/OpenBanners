@@ -278,13 +278,14 @@ export default function LocationMarker() {
             nextPosition
           );
         }
+
+        updateEffectiveHeading();
       }
 
       previousPositionRef.current = nextPosition;
       previousAccuracyRef.current = Number.isFinite(nextAccuracy)
         ? nextAccuracy
         : previousAccuracyRef.current;
-      updateEffectiveHeading();
     },
     [map, updateEffectiveHeading]
   );

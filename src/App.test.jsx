@@ -1396,9 +1396,7 @@ test("keeps the user-chosen viewport offset while following movement", async () 
 
   const { useMap } = await import("react-leaflet");
   const map = useMap();
-  map.getCenter
-    .mockReturnValueOnce({ lat: 52.2, lng: 6.85 })
-    .mockReturnValueOnce({ lat: 52.2002, lng: 6.8501 });
+  map.getCenter.mockImplementation(() => ({ lat: 52.2, lng: 6.85 }));
 
   await act(async () => {
     geoSuccessCallbacks[0]({
@@ -1526,6 +1524,105 @@ test.skip("keeps the BannerGuider user marker visible in the safe area on small 
   expect(point.x).toBeLessThan(360);
   expect(point.y).toBeGreaterThan(110);
   expect(point.y).toBeLessThan(640);
+});
+
+test("does not accumulate westward drift while following repeated tiny-screen updates", async () => {
+  const geoSuccessCallbacks = [];
+  const geolocation = {
+    getCurrentPosition: vi.fn((success) => {
+      geoSuccessCallbacks.push(success);
+    }),
+    watchPosition: vi.fn((success) => {
+      geoSuccessCallbacks.push(success);
+      return 1;
+    }),
+    clearWatch: vi.fn(),
+  };
+
+  Object.defineProperty(globalThis.navigator, "geolocation", {
+    configurable: true,
+    value: geolocation,
+  });
+
+  global.fetch.mockImplementation((url) => {
+    if (url.endsWith("/bnrs/no-drift-banner")) {
+      return jsonResponse({
+        id: "no-drift-banner",
+        title: "No Drift Banner",
+        missions: {
+          "mission-1": {
+            id: "mission-1",
+            steps: {
+              0: {
+                poi: {
+                  title: "Portal One",
+                  type: "portal",
+                  latitude: 52.37,
+                  longitude: 4.89,
+                },
+              },
+            },
+          },
+        },
+      });
+    }
+
+    throw new Error(`Unhandled fetch: ${url}`);
+  });
+
+  renderWithProviders(
+    <Routes>
+      <Route path="/bannerguider/:bannerId" element={<BannerGuider />} />
+    </Routes>,
+    { route: "/bannerguider/no-drift-banner" }
+  );
+
+  await screen.findByTestId("map-container");
+
+  const { useMap } = await import("react-leaflet");
+  const map = useMap();
+  map.getCenter.mockImplementation(() => ({ lat: 52.2, lng: 6.85 }));
+
+  await act(async () => {
+    geoSuccessCallbacks[0]({
+      coords: {
+        latitude: 52.37,
+        longitude: 4.89,
+        accuracy: 10,
+        heading: null,
+        speed: 0,
+      },
+    });
+  });
+
+  await act(async () => {
+    geoSuccessCallbacks.at(-1)({
+      coords: {
+        latitude: 52.37018,
+        longitude: 4.88995,
+        accuracy: 8,
+        heading: null,
+        speed: 1,
+      },
+    });
+  });
+
+  await act(async () => {
+    geoSuccessCallbacks.at(-1)({
+      coords: {
+        latitude: 52.37036,
+        longitude: 4.8899,
+        accuracy: 8,
+        heading: null,
+        speed: 1,
+      },
+    });
+  });
+
+  expect(map.panTo.mock.calls.at(-1)?.[0]).toEqual({
+    lat: 52.20018,
+    lng: 6.84995,
+  });
 });
 
 test.skip("repositions the BannerGuider center after resize and zoom so the user marker stays visible", async () => {

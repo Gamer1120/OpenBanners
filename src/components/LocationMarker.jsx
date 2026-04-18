@@ -162,7 +162,6 @@ export default function LocationMarker() {
   const previousAccuracyRef = useRef(null);
   const hasCenteredRef = useRef(false);
   const centerOffsetRef = useRef(null);
-  const latestPositionRef = useRef(null);
   const lastOrientationUpdateAtRef = useRef(0);
   const hasNativeOrientationRef = useRef(false);
   const headingSourcesRef = useRef({
@@ -221,7 +220,6 @@ export default function LocationMarker() {
       }
 
       setPosition(nextPosition);
-      latestPositionRef.current = nextPosition;
 
       if (!hasCenteredRef.current) {
         map.setView(nextPosition, map.getZoom());
@@ -230,7 +228,7 @@ export default function LocationMarker() {
       } else {
         if (typeof map.getCenter === "function") {
           const currentCenter = map.getCenter();
-          if (currentCenter && previousPosition) {
+          if (currentCenter) {
             centerOffsetRef.current = {
               lat: currentCenter.lat - previousPosition.lat,
               lng: currentCenter.lng - previousPosition.lng,
@@ -284,47 +282,6 @@ export default function LocationMarker() {
     },
     [map, updateEffectiveHeading]
   );
-
-  useEffect(() => {
-    const refreshFollowOffset = () => {
-      const latestPosition = latestPositionRef.current;
-      if (!latestPosition || typeof map.getCenter !== "function") {
-        return;
-      }
-
-      const currentCenter = map.getCenter();
-      if (!currentCenter) {
-        return;
-      }
-
-      centerOffsetRef.current = {
-        lat: currentCenter.lat - latestPosition.lat,
-        lng: currentCenter.lng - latestPosition.lng,
-      };
-    };
-
-    if (typeof window !== "undefined") {
-      window.addEventListener("resize", refreshFollowOffset);
-    }
-
-    if (typeof map.on === "function") {
-      map.on("resize", refreshFollowOffset);
-      map.on("zoomend", refreshFollowOffset);
-      map.on("moveend", refreshFollowOffset);
-    }
-
-    return () => {
-      if (typeof window !== "undefined") {
-        window.removeEventListener("resize", refreshFollowOffset);
-      }
-
-      if (typeof map.off === "function") {
-        map.off("resize", refreshFollowOffset);
-        map.off("zoomend", refreshFollowOffset);
-        map.off("moveend", refreshFollowOffset);
-      }
-    };
-  }, [map]);
 
   useEffect(() => {
     if (!navigator.geolocation) {

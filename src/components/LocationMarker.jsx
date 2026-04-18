@@ -8,8 +8,8 @@ import L from "leaflet";
 
 const MIN_MOVEMENT_HEADING_DISTANCE_METERS = 18;
 const MIN_DIRECTION_CHANGE_DEGREES = 8;
-const MIN_POSITION_CHANGE_METERS = 8;
-const MAX_TRACKED_ACCURACY_METERS = 75;
+const MIN_POSITION_CHANGE_METERS = 3;
+const MAX_TRACKED_ACCURACY_METERS = 100;
 const MAX_HEADING_ACCURACY_METERS = 30;
 const MIN_TRUSTED_GEO_HEADING_SPEED_MPS = 1.4;
 const MIN_TRUSTED_MOVEMENT_SPEED_MPS = 0.9;
@@ -129,14 +129,14 @@ function shouldAcceptPositionUpdate({
   const accuracyThreshold = Math.max(
     MIN_POSITION_CHANGE_METERS,
     Math.min(
-      Number.isFinite(nextAccuracy) ? nextAccuracy * 0.5 : MIN_POSITION_CHANGE_METERS,
-      24
+      Number.isFinite(nextAccuracy) ? nextAccuracy * 0.2 : MIN_POSITION_CHANGE_METERS,
+      8
     ),
     Math.min(
       Number.isFinite(previousAccuracy)
-        ? previousAccuracy * 0.35
+        ? previousAccuracy * 0.15
         : MIN_POSITION_CHANGE_METERS,
-      16
+      6
     )
   );
 

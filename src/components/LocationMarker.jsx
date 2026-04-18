@@ -209,16 +209,30 @@ export default function LocationMarker() {
 
       setPosition(nextPosition);
 
-      const mapSize = typeof map.getSize === "function" ? map.getSize() : null;
+      const mapContainer = typeof map.getContainer === "function" ? map.getContainer() : null;
+      const overlay = mapContainer?.querySelector('[data-map-overlay="mission-controls"]');
+      const mapRect = mapContainer?.getBoundingClientRect?.();
+      const overlayRect = overlay?.getBoundingClientRect?.();
       const targetPoint = map.latLngToContainerPoint(nextPosition);
-      const desiredPoint = mapSize
-        ? L.point(mapSize.x * 0.55, mapSize.y * 0.32)
-        : L.point(targetPoint.x + 90, targetPoint.y - 140);
-      const offsetTargetPoint = L.point(
-        targetPoint.x + (desiredPoint.x - targetPoint.x),
-        targetPoint.y + (desiredPoint.y - targetPoint.y)
-      );
-      const offsetTargetLatLng = map.containerPointToLatLng(offsetTargetPoint);
+
+      let desiredPoint;
+      if (mapRect && overlayRect) {
+        const overlayRight = overlayRect.right - mapRect.left;
+        const overlayBottom = overlayRect.bottom - mapRect.top;
+        const safeLeft = Math.min(mapRect.width - 40, overlayRight + 24);
+        const safeTop = Math.min(mapRect.height - 40, overlayBottom + 24);
+        desiredPoint = L.point(
+          safeLeft + Math.max(0, (mapRect.width - safeLeft) / 2),
+          safeTop + Math.max(0, (mapRect.height - safeTop) * 0.28)
+        );
+      } else {
+        const mapSize = typeof map.getSize === "function" ? map.getSize() : null;
+        desiredPoint = mapSize
+          ? L.point(mapSize.x * 0.55, mapSize.y * 0.32)
+          : L.point(targetPoint.x + 90, targetPoint.y - 140);
+      }
+
+      const offsetTargetLatLng = map.containerPointToLatLng(desiredPoint);
 
       if (!hasCenteredRef.current) {
         map.setView(offsetTargetLatLng, map.getZoom());

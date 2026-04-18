@@ -43,6 +43,7 @@ export default function MapOverlay({
     <div
       ref={overlayRef}
       className="overlay"
+      data-map-overlay="mission-controls"
       role="group"
       aria-label="Mission controls"
       onMouseDown={stopPropagation}

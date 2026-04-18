@@ -145,6 +145,7 @@ function shouldAcceptPositionUpdate({
 export default function LocationMarker() {
   const [position, setPosition] = useState(null);
   const [direction, setDirection] = useState(null);
+  const [headingSource, setHeadingSource] = useState(null);
   const map = useMap();
   const previousPositionRef = useRef(null);
   const previousAccuracyRef = useRef(null);
@@ -162,10 +163,21 @@ export default function LocationMarker() {
   const followEnabledRef = useRef(true);
 
   const updateEffectiveHeading = useCallback(() => {
-    const nextDirection =
-      headingSourcesRef.current.orientation ??
-      headingSourcesRef.current.geolocation ??
-      headingSourcesRef.current.movement;
+    let nextDirection = null;
+    let nextSource = null;
+
+    if (Number.isFinite(headingSourcesRef.current.orientation)) {
+      nextDirection = headingSourcesRef.current.orientation;
+      nextSource = "orientation";
+    } else if (Number.isFinite(headingSourcesRef.current.geolocation)) {
+      nextDirection = headingSourcesRef.current.geolocation;
+      nextSource = "geolocation";
+    } else if (Number.isFinite(headingSourcesRef.current.movement)) {
+      nextDirection = headingSourcesRef.current.movement;
+      nextSource = "movement";
+    }
+
+    setHeadingSource((currentSource) => nextSource ?? currentSource ?? null);
 
     setDirection((currentDirection) => {
       if (!Number.isFinite(nextDirection)) {
@@ -420,7 +432,7 @@ export default function LocationMarker() {
   return position === null ? null : (
     <Marker
       position={position}
-      icon={locationIcon(direction) || icon}
+      icon={locationIcon(direction, headingSource) || icon}
       zIndexOffset={2000}
     />
   );

@@ -209,11 +209,15 @@ export default function LocationMarker() {
 
       setPosition(nextPosition);
 
+      const targetPoint = map.latLngToContainerPoint(nextPosition);
+      const offsetTargetPoint = L.point(targetPoint.x - 80, targetPoint.y);
+      const offsetTargetLatLng = map.containerPointToLatLng(offsetTargetPoint);
+
       if (!hasCenteredRef.current) {
-        map.setView(nextPosition, map.getZoom());
+        map.setView(offsetTargetLatLng, map.getZoom());
         hasCenteredRef.current = true;
       } else {
-        map.panTo(nextPosition, {
+        map.panTo(offsetTargetLatLng, {
           animate: true,
           duration: 0.35,
         });

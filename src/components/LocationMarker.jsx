@@ -4,7 +4,6 @@ import "leaflet-easybutton/src/easy-button.js";
 import "leaflet-easybutton/src/easy-button.css";
 import "font-awesome/css/font-awesome.min.css";
 import icon, { locationIcon } from "../constants";
-import L from "leaflet";
 
 const MIN_MOVEMENT_HEADING_DISTANCE_METERS = 18;
 const MIN_DIRECTION_CHANGE_DEGREES = 8;
@@ -110,38 +109,6 @@ function extractTrustedSpeed(coords) {
   return Number.isFinite(speed) && speed >= 0 ? speed : null;
 }
 
-function getDesiredVisiblePoint(map) {
-  const mapContainer = typeof map.getContainer === "function" ? map.getContainer() : null;
-  const overlay = mapContainer?.querySelector('[data-map-overlay="mission-controls"]');
-  const mapRect = mapContainer?.getBoundingClientRect?.();
-  const overlayRect = overlay?.getBoundingClientRect?.();
-
-  const bottomReservedSpace = mapRect
-    ? Math.max(56, Math.min(mapRect.height * 0.22, 120))
-    : 72;
-
-  if (mapRect && overlayRect) {
-    const overlayRight = overlayRect.right - mapRect.left;
-    const overlayBottom = overlayRect.bottom - mapRect.top;
-    const safeLeft = Math.min(mapRect.width - 40, overlayRight + 24);
-    const safeTop = Math.min(mapRect.height - 40, overlayBottom + 24);
-    const safeBottom = Math.max(safeTop + 40, mapRect.height - bottomReservedSpace);
-
-    return L.point(
-      safeLeft + Math.max(0, (mapRect.width - safeLeft) / 2),
-      safeTop + Math.max(24, (safeBottom - safeTop) * 0.62)
-    );
-  }
-
-  const mapSize = typeof map.getSize === "function" ? map.getSize() : null;
-  return mapSize
-    ? L.point(
-        mapSize.x * 0.55,
-        Math.min(mapSize.y * 0.5, Math.max(56, mapSize.y - bottomReservedSpace - 12))
-      )
-    : null;
-}
-
 function shouldAcceptPositionUpdate({
   previousPosition,
   previousAccuracy,
@@ -182,7 +149,6 @@ export default function LocationMarker() {
   const previousPositionRef = useRef(null);
   const previousAccuracyRef = useRef(null);
   const hasCenteredRef = useRef(false);
-  const latestPositionRef = useRef(null);
   const lastOrientationUpdateAtRef = useRef(0);
   const hasNativeOrientationRef = useRef(false);
   const headingSourcesRef = useRef({
@@ -190,6 +156,9 @@ export default function LocationMarker() {
     geolocation: null,
     movement: null,
   });
+  const followOffsetRef = useRef({ lat: 0, lng: 0 });
+  const latestPositionRef = useRef(null);
+  const suppressProgrammaticMoveRef = useRef(false);
 
   const updateEffectiveHeading = useCallback(() => {
     const nextDirection =
@@ -213,6 +182,23 @@ export default function LocationMarker() {
       return nextDirection;
     });
   }, []);
+
+  const refreshFollowOffsetFromCurrentView = useCallback(() => {
+    const latestPosition = latestPositionRef.current;
+    if (!latestPosition || typeof map.getCenter !== "function") {
+      return;
+    }
+
+    const currentCenter = map.getCenter();
+    if (!currentCenter) {
+      return;
+    }
+
+    followOffsetRef.current = {
+      lat: currentCenter.lat - latestPosition.lat,
+      lng: currentCenter.lng - latestPosition.lng,
+    };
+  }, [map]);
 
   const processLocationCoords = useCallback(
     (coords) => {
@@ -243,21 +229,22 @@ export default function LocationMarker() {
       setPosition(nextPosition);
       latestPositionRef.current = nextPosition;
 
-      const desiredPoint = getDesiredVisiblePoint(map);
-      if (!desiredPoint || typeof map.containerPointToLatLng !== "function") {
-        return;
-      }
-
-      const offsetTargetLatLng = map.containerPointToLatLng(desiredPoint);
-
       if (!hasCenteredRef.current) {
-        map.setView(offsetTargetLatLng, map.getZoom());
+        map.setView(nextPosition, map.getZoom());
+        followOffsetRef.current = { lat: 0, lng: 0 };
         hasCenteredRef.current = true;
       } else {
-        map.panTo(offsetTargetLatLng, {
-          animate: true,
-          duration: 0.35,
-        });
+        suppressProgrammaticMoveRef.current = true;
+        map.panTo(
+          {
+            lat: nextPosition.lat + followOffsetRef.current.lat,
+            lng: nextPosition.lng + followOffsetRef.current.lng,
+          },
+          {
+            animate: true,
+            duration: 0.35,
+          }
+        );
       }
 
       if (!hasNativeOrientationRef.current) {
@@ -302,41 +289,37 @@ export default function LocationMarker() {
   );
 
   useEffect(() => {
-    const recenterToLatestPosition = () => {
-      const latestPosition = latestPositionRef.current;
-      if (!latestPosition) {
+    const handleViewportChanged = () => {
+      if (suppressProgrammaticMoveRef.current) {
+        suppressProgrammaticMoveRef.current = false;
         return;
       }
 
-      const desiredPoint = getDesiredVisiblePoint(map);
-      if (!desiredPoint || typeof map.containerPointToLatLng !== "function") {
-        return;
-      }
-
-      const nextCenter = map.containerPointToLatLng(desiredPoint);
-      map.setView(nextCenter, map.getZoom(), { animate: false });
+      refreshFollowOffsetFromCurrentView();
     };
 
     if (typeof window !== "undefined") {
-      window.addEventListener("resize", recenterToLatestPosition);
+      window.addEventListener("resize", handleViewportChanged);
     }
 
     if (typeof map.on === "function") {
-      map.on("resize", recenterToLatestPosition);
-      map.on("zoomend", recenterToLatestPosition);
+      map.on("resize", handleViewportChanged);
+      map.on("zoomend", handleViewportChanged);
+      map.on("moveend", handleViewportChanged);
     }
 
     return () => {
       if (typeof window !== "undefined") {
-        window.removeEventListener("resize", recenterToLatestPosition);
+        window.removeEventListener("resize", handleViewportChanged);
       }
 
       if (typeof map.off === "function") {
-        map.off("resize", recenterToLatestPosition);
-        map.off("zoomend", recenterToLatestPosition);
+        map.off("resize", handleViewportChanged);
+        map.off("zoomend", handleViewportChanged);
+        map.off("moveend", handleViewportChanged);
       }
     };
-  }, [map]);
+  }, [map, refreshFollowOffsetFromCurrentView]);
 
   useEffect(() => {
     if (!navigator.geolocation) {

@@ -110,20 +110,36 @@ function extractTrustedSpeed(coords) {
   return Number.isFinite(speed) && speed >= 0 ? speed : null;
 }
 
-function getFollowCenter(map, previousPosition, nextPosition) {
-  if (!previousPosition || typeof map.getCenter !== "function") {
-    return nextPosition;
+function getDesiredVisiblePoint(map) {
+  const mapContainer = typeof map.getContainer === "function" ? map.getContainer() : null;
+  const overlay = mapContainer?.querySelector('[data-map-overlay="mission-controls"]');
+  const mapRect = mapContainer?.getBoundingClientRect?.();
+  const overlayRect = overlay?.getBoundingClientRect?.();
+
+  const bottomReservedSpace = mapRect
+    ? Math.max(56, Math.min(mapRect.height * 0.22, 120))
+    : 72;
+
+  if (mapRect && overlayRect) {
+    const overlayRight = overlayRect.right - mapRect.left;
+    const overlayBottom = overlayRect.bottom - mapRect.top;
+    const safeLeft = Math.min(mapRect.width - 40, overlayRight + 24);
+    const safeTop = Math.min(mapRect.height - 40, overlayBottom + 24);
+    const safeBottom = Math.max(safeTop + 40, mapRect.height - bottomReservedSpace);
+
+    return L.point(
+      safeLeft + Math.max(0, (mapRect.width - safeLeft) / 2),
+      safeTop + Math.max(24, (safeBottom - safeTop) * 0.62)
+    );
   }
 
-  const currentCenter = map.getCenter();
-  if (!currentCenter) {
-    return nextPosition;
-  }
-
-  return {
-    lat: currentCenter.lat + (nextPosition.lat - previousPosition.lat),
-    lng: currentCenter.lng + (nextPosition.lng - previousPosition.lng),
-  };
+  const mapSize = typeof map.getSize === "function" ? map.getSize() : null;
+  return mapSize
+    ? L.point(
+        mapSize.x * 0.55,
+        Math.min(mapSize.y * 0.5, Math.max(56, mapSize.y - bottomReservedSpace - 12))
+      )
+    : null;
 }
 
 function shouldAcceptPositionUpdate({
@@ -166,6 +182,7 @@ export default function LocationMarker() {
   const previousPositionRef = useRef(null);
   const previousAccuracyRef = useRef(null);
   const hasCenteredRef = useRef(false);
+  const latestPositionRef = useRef(null);
   const lastOrientationUpdateAtRef = useRef(0);
   const hasNativeOrientationRef = useRef(false);
   const headingSourcesRef = useRef({
@@ -224,12 +241,20 @@ export default function LocationMarker() {
       }
 
       setPosition(nextPosition);
+      latestPositionRef.current = nextPosition;
+
+      const desiredPoint = getDesiredVisiblePoint(map);
+      if (!desiredPoint || typeof map.containerPointToLatLng !== "function") {
+        return;
+      }
+
+      const offsetTargetLatLng = map.containerPointToLatLng(desiredPoint);
 
       if (!hasCenteredRef.current) {
-        map.setView(nextPosition, map.getZoom());
+        map.setView(offsetTargetLatLng, map.getZoom());
         hasCenteredRef.current = true;
       } else {
-        map.panTo(getFollowCenter(map, previousPosition, nextPosition), {
+        map.panTo(offsetTargetLatLng, {
           animate: true,
           duration: 0.35,
         });
@@ -275,6 +300,43 @@ export default function LocationMarker() {
     },
     [map, updateEffectiveHeading]
   );
+
+  useEffect(() => {
+    const recenterToLatestPosition = () => {
+      const latestPosition = latestPositionRef.current;
+      if (!latestPosition) {
+        return;
+      }
+
+      const desiredPoint = getDesiredVisiblePoint(map);
+      if (!desiredPoint || typeof map.containerPointToLatLng !== "function") {
+        return;
+      }
+
+      const nextCenter = map.containerPointToLatLng(desiredPoint);
+      map.setView(nextCenter, map.getZoom(), { animate: false });
+    };
+
+    if (typeof window !== "undefined") {
+      window.addEventListener("resize", recenterToLatestPosition);
+    }
+
+    if (typeof map.on === "function") {
+      map.on("resize", recenterToLatestPosition);
+      map.on("zoomend", recenterToLatestPosition);
+    }
+
+    return () => {
+      if (typeof window !== "undefined") {
+        window.removeEventListener("resize", recenterToLatestPosition);
+      }
+
+      if (typeof map.off === "function") {
+        map.off("resize", recenterToLatestPosition);
+        map.off("zoomend", recenterToLatestPosition);
+      }
+    };
+  }, [map]);
 
   useEffect(() => {
     if (!navigator.geolocation) {

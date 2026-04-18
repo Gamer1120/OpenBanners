@@ -209,8 +209,15 @@ export default function LocationMarker() {
 
       setPosition(nextPosition);
 
+      const mapSize = typeof map.getSize === "function" ? map.getSize() : null;
       const targetPoint = map.latLngToContainerPoint(nextPosition);
-      const offsetTargetPoint = L.point(targetPoint.x + 90, targetPoint.y - 140);
+      const desiredPoint = mapSize
+        ? L.point(mapSize.x * 0.55, mapSize.y * 0.32)
+        : L.point(targetPoint.x + 90, targetPoint.y - 140);
+      const offsetTargetPoint = L.point(
+        targetPoint.x + (desiredPoint.x - targetPoint.x),
+        targetPoint.y + (desiredPoint.y - targetPoint.y)
+      );
       const offsetTargetLatLng = map.containerPointToLatLng(offsetTargetPoint);
 
       if (!hasCenteredRef.current) {

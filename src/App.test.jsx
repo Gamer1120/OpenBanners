@@ -1,5 +1,5 @@
 import React from "react";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { useMediaQuery } from "@mui/material";
 import { ThemeProvider, createTheme } from "@mui/material/styles";
@@ -12,6 +12,7 @@ import BannerFilterButton from "./components/BannerFilterButton";
 import BrowsingPage from "./components/BrowsingPage";
 import SearchResults from "./components/SearchResults";
 import BannerDetailsPage from "./components/BannerDetailsPage";
+import BannerGuider from "./components/BannerGuider";
 import BannerGuiderWithoutLocation from "./components/BannerGuiderWithoutLocation";
 import Home from "./components/Home";
 import Map, { __resetDiscoveryMapCacheForTests } from "./components/Map";
@@ -39,8 +40,25 @@ vi.mock("leaflet", () => {
     icon: vi.fn((options) => options),
     divIcon: vi.fn((options) => options),
     latLngBounds: vi.fn((coordinates) => ({ coordinates })),
+    point: vi.fn((x, y) => ({ x, y })),
     Browser: {
       mobile: false,
+    },
+  };
+
+  globalThis.L = {
+    ...leaflet,
+    Control: {
+      extend: vi.fn(() => vi.fn()),
+    },
+    control: {},
+    DomUtil: {
+      create: vi.fn(() => document.createElement("div")),
+    },
+    DomEvent: {
+      addListener: vi.fn(),
+      stopPropagation: vi.fn(),
+      preventDefault: vi.fn(),
     },
   };
 
@@ -55,23 +73,49 @@ vi.mock("react-leaflet", async () => {
 
   let mapInstance = null;
 
-  const createMapInstance = () => ({
-    fitBounds: vi.fn(),
-    getBounds: () => ({
-      _southWest: { lat: 52.1, lng: 6.8 },
-      _northEast: { lat: 52.3, lng: 6.9 },
-    }),
-    eachLayer: vi.fn(),
-    on: vi.fn(),
-    off: vi.fn(),
-    locate: vi.fn(),
-    setView: vi.fn(),
-    getZoom: vi.fn(() => 15),
-    latLngToContainerPoint: ({ lat, lng }) => ({
-      x: Math.round((lng - 6.8) * 1000),
-      y: Math.round((52.3 - lat) * 1000),
-    }),
-  });
+  const createMapInstance = () => {
+    const container = document.createElement("div");
+    Object.defineProperty(container, "getBoundingClientRect", {
+      value: () => ({
+        left: 0,
+        top: 0,
+        right: 360,
+        bottom: 640,
+        width: 360,
+        height: 640,
+      }),
+    });
+
+    return {
+      fitBounds: vi.fn(),
+      getBounds: () => ({
+        _southWest: { lat: 52.1, lng: 6.8 },
+        _northEast: { lat: 52.3, lng: 6.9 },
+      }),
+      eachLayer: vi.fn(),
+      on: vi.fn(),
+      off: vi.fn(),
+      locate: vi.fn(),
+      setView: vi.fn(),
+      panTo: vi.fn(),
+      getZoom: vi.fn(() => 15),
+      getContainer: vi.fn(() => container),
+      getSize: vi.fn(() => ({ x: 360, y: 640 })),
+      distance: vi.fn((a, b) => {
+        const dx = (b.lng - a.lng) * 111000;
+        const dy = (b.lat - a.lat) * 111000;
+        return Math.sqrt(dx * dx + dy * dy);
+      }),
+      latLngToContainerPoint: ({ lat, lng }) => ({
+        x: Math.round((lng - 6.8) * 1000),
+        y: Math.round((52.3 - lat) * 1000),
+      }),
+      containerPointToLatLng: ({ x, y }) => ({
+        lat: 52.3 - y / 1000,
+        lng: 6.8 + x / 1000,
+      }),
+    };
+  };
 
   const MapContainer = React.forwardRef(
     ({ children, whenReady, ...props }, ref) => {
@@ -102,14 +146,17 @@ vi.mock("react-leaflet", async () => {
     TileLayer: ({ children }) => <div data-testid="tile-layer">{children}</div>,
     Marker: ({ children, position, eventHandlers }) => (
       <div
-        data-testid={`marker-${position?.join("-")}`}
+        data-testid={`marker-${Array.isArray(position) ? position.join("-") : `${position?.lat}-${position?.lng}`}`}
         onClick={() =>
           eventHandlers?.click?.({
-            latlng: { lat: position?.[0], lng: position?.[1] },
-            containerPoint: mapInstance?.latLngToContainerPoint({
-              lat: position?.[0],
-              lng: position?.[1],
-            }),
+            latlng: Array.isArray(position)
+              ? { lat: position?.[0], lng: position?.[1] }
+              : { lat: position?.lat, lng: position?.lng },
+            containerPoint: mapInstance?.latLngToContainerPoint(
+              Array.isArray(position)
+                ? { lat: position?.[0], lng: position?.[1] }
+                : { lat: position?.lat, lng: position?.lng }
+            ),
           })
         }
       >
@@ -173,6 +220,14 @@ beforeEach(() => {
   __resetDiscoveryMapCacheForTests();
   global.fetch = vi.fn();
   useMediaQuery.mockReturnValue(false);
+  Object.defineProperty(globalThis.navigator, "geolocation", {
+    configurable: true,
+    value: {
+      getCurrentPosition: vi.fn(),
+      watchPosition: vi.fn(() => 1),
+      clearWatch: vi.fn(),
+    },
+  });
   global.IntersectionObserver = class MockIntersectionObserver {
     constructor() {}
 
@@ -1271,6 +1326,103 @@ test("renders a single visible map for banner details even with multiple mission
 
   expect(await screen.findByText("Large Banner")).toBeInTheDocument();
   expect(screen.getAllByTestId("map-container")).toHaveLength(1);
+});
+
+test("keeps the BannerGuider user marker visible in the safe area on small screens", async () => {
+  const geoSuccessCallbacks = [];
+  const geolocation = {
+    getCurrentPosition: vi.fn((success) => {
+      geoSuccessCallbacks.push(success);
+    }),
+    watchPosition: vi.fn((success) => {
+      geoSuccessCallbacks.push(success);
+      return 1;
+    }),
+    clearWatch: vi.fn(),
+  };
+
+  Object.defineProperty(globalThis.navigator, "geolocation", {
+    configurable: true,
+    value: geolocation,
+  });
+
+  global.fetch.mockImplementation((url) => {
+    if (url.endsWith("/bnrs/safe-area-banner")) {
+      return jsonResponse({
+        id: "safe-area-banner",
+        title: "Safe Area Banner",
+        missions: {
+          "mission-1": {
+            id: "mission-1",
+            steps: {
+              0: {
+                poi: {
+                  title: "Portal One",
+                  type: "portal",
+                  latitude: 52.37,
+                  longitude: 4.89,
+                },
+              },
+            },
+          },
+        },
+      });
+    }
+
+    throw new Error(`Unhandled fetch: ${url}`);
+  });
+
+  renderWithProviders(
+    <Routes>
+      <Route path="/bannerguider/:bannerId" element={<BannerGuider />} />
+    </Routes>,
+    { route: "/bannerguider/safe-area-banner" }
+  );
+
+  await screen.findByTestId("map-container");
+
+  const overlay = document.querySelector('[data-map-overlay="mission-controls"]');
+  expect(overlay).toBeTruthy();
+  Object.defineProperty(overlay, "getBoundingClientRect", {
+    value: () => ({ left: 10, top: 10, right: 150, bottom: 110, width: 140, height: 100 }),
+  });
+
+  expect(geoSuccessCallbacks.length).toBeGreaterThanOrEqual(3);
+
+  await act(async () => {
+    geoSuccessCallbacks[0]({
+      coords: {
+        latitude: 52.37,
+        longitude: 4.89,
+        accuracy: 10,
+        heading: null,
+        speed: 0,
+      },
+    });
+  });
+
+  await act(async () => {
+    geoSuccessCallbacks.at(-1)({
+      coords: {
+        latitude: 52.3702,
+        longitude: 4.8902,
+        accuracy: 8,
+        heading: null,
+        speed: 1,
+      },
+    });
+  });
+
+  const { useMap } = await import("react-leaflet");
+  const map = useMap();
+  expect(map.panTo).toHaveBeenCalled();
+  const target = map.panTo.mock.calls.at(-1)?.[0];
+  const point = map.latLngToContainerPoint(target);
+
+  expect(point.x).toBeGreaterThan(150);
+  expect(point.x).toBeLessThan(360);
+  expect(point.y).toBeGreaterThan(110);
+  expect(point.y).toBeLessThan(640);
 });
 
 test("renders mission waypoint dots on the banner details overview map", async () => {

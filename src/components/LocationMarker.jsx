@@ -116,20 +116,30 @@ function getDesiredVisiblePoint(map) {
   const mapRect = mapContainer?.getBoundingClientRect?.();
   const overlayRect = overlay?.getBoundingClientRect?.();
 
+  const bottomReservedSpace = mapRect
+    ? Math.max(56, Math.min(mapRect.height * 0.22, 120))
+    : 72;
+
   if (mapRect && overlayRect) {
     const overlayRight = overlayRect.right - mapRect.left;
     const overlayBottom = overlayRect.bottom - mapRect.top;
     const safeLeft = Math.min(mapRect.width - 40, overlayRight + 24);
     const safeTop = Math.min(mapRect.height - 40, overlayBottom + 24);
+    const safeBottom = Math.max(safeTop + 40, mapRect.height - bottomReservedSpace);
 
     return L.point(
       safeLeft + Math.max(0, (mapRect.width - safeLeft) / 2),
-      safeTop + Math.max(0, (mapRect.height - safeTop) * 0.28)
+      safeTop + Math.max(24, (safeBottom - safeTop) * 0.62)
     );
   }
 
   const mapSize = typeof map.getSize === "function" ? map.getSize() : null;
-  return mapSize ? L.point(mapSize.x * 0.55, mapSize.y * 0.32) : null;
+  return mapSize
+    ? L.point(
+        mapSize.x * 0.55,
+        Math.min(mapSize.y * 0.5, Math.max(56, mapSize.y - bottomReservedSpace - 12))
+      )
+    : null;
 }
 
 function shouldAcceptPositionUpdate({

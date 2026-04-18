@@ -1542,6 +1542,112 @@ test("repositions the BannerGuider center after resize and zoom so the user mark
   expect(resizedPoint.y).toBeLessThan(520);
 });
 
+test("keeps the BannerGuider user marker above the bottom reserved area on very short screens", async () => {
+  const geoSuccessCallbacks = [];
+  const geolocation = {
+    getCurrentPosition: vi.fn((success) => {
+      geoSuccessCallbacks.push(success);
+    }),
+    watchPosition: vi.fn((success) => {
+      geoSuccessCallbacks.push(success);
+      return 1;
+    }),
+    clearWatch: vi.fn(),
+  };
+
+  Object.defineProperty(globalThis.navigator, "geolocation", {
+    configurable: true,
+    value: geolocation,
+  });
+
+  global.fetch.mockImplementation((url) => {
+    if (url.endsWith("/bnrs/short-safe-area-banner")) {
+      return jsonResponse({
+        id: "short-safe-area-banner",
+        title: "Short Safe Area Banner",
+        missions: {
+          "mission-1": {
+            id: "mission-1",
+            steps: {
+              0: {
+                poi: {
+                  title: "Portal One",
+                  type: "portal",
+                  latitude: 52.37,
+                  longitude: 4.89,
+                },
+              },
+            },
+          },
+        },
+      });
+    }
+
+    throw new Error(`Unhandled fetch: ${url}`);
+  });
+
+  renderWithProviders(
+    <Routes>
+      <Route path="/bannerguider/:bannerId" element={<BannerGuider />} />
+    </Routes>,
+    { route: "/bannerguider/short-safe-area-banner" }
+  );
+
+  await screen.findByTestId("map-container");
+
+  const overlay = document.querySelector('[data-map-overlay="mission-controls"]');
+  expect(overlay).toBeTruthy();
+  Object.defineProperty(overlay, "getBoundingClientRect", {
+    value: () => ({ left: 10, top: 10, right: 130, bottom: 92, width: 120, height: 82 }),
+    configurable: true,
+  });
+
+  const { useMap } = await import("react-leaflet");
+  const map = useMap();
+  const container = map.getContainer();
+  container.__setRect({
+    left: 0,
+    top: 0,
+    right: 320,
+    bottom: 180,
+    width: 320,
+    height: 180,
+  });
+  map.getSize.mockReturnValue({ x: 320, y: 180 });
+
+  await act(async () => {
+    geoSuccessCallbacks[0]({
+      coords: {
+        latitude: 52.37,
+        longitude: 4.89,
+        accuracy: 10,
+        heading: null,
+        speed: 0,
+      },
+    });
+  });
+
+  await act(async () => {
+    geoSuccessCallbacks.at(-1)({
+      coords: {
+        latitude: 52.3702,
+        longitude: 4.8902,
+        accuracy: 8,
+        heading: null,
+        speed: 1,
+      },
+    });
+  });
+
+  const target = map.panTo.mock.calls.at(-1)?.[0];
+  const point = map.latLngToContainerPoint(target);
+
+  expect(point.x).toBeGreaterThan(130);
+  expect(point.x).toBeLessThan(320);
+  expect(point.y).toBeLessThan(92);
+  expect(point.y).toBeGreaterThan(40);
+});
+
 test("renders mission waypoint dots on the banner details overview map", async () => {
   global.fetch.mockImplementation((url) => {
     if (url.endsWith("/bnrs/overview-banner")) {

@@ -1625,6 +1625,102 @@ test("does not accumulate westward drift while following repeated tiny-screen up
   });
 });
 
+test("refreshes the preserved follow offset after a resize event in split-screen sized viewports", async () => {
+  const geoSuccessCallbacks = [];
+  const geolocation = {
+    getCurrentPosition: vi.fn((success) => {
+      geoSuccessCallbacks.push(success);
+    }),
+    watchPosition: vi.fn((success) => {
+      geoSuccessCallbacks.push(success);
+      return 1;
+    }),
+    clearWatch: vi.fn(),
+  };
+
+  Object.defineProperty(globalThis.navigator, "geolocation", {
+    configurable: true,
+    value: geolocation,
+  });
+
+  global.fetch.mockImplementation((url) => {
+    if (url.endsWith("/bnrs/resize-follow-banner")) {
+      return jsonResponse({
+        id: "resize-follow-banner",
+        title: "Resize Follow Banner",
+        missions: {
+          "mission-1": {
+            id: "mission-1",
+            steps: {
+              0: {
+                poi: {
+                  title: "Portal One",
+                  type: "portal",
+                  latitude: 52.37,
+                  longitude: 4.89,
+                },
+              },
+            },
+          },
+        },
+      });
+    }
+
+    throw new Error(`Unhandled fetch: ${url}`);
+  });
+
+  renderWithProviders(
+    <Routes>
+      <Route path="/bannerguider/:bannerId" element={<BannerGuider />} />
+    </Routes>,
+    { route: "/bannerguider/resize-follow-banner" }
+  );
+
+  await screen.findByTestId("map-container");
+
+  const { useMap } = await import("react-leaflet");
+  const map = useMap();
+  map.getCenter
+    .mockReturnValueOnce({ lat: 52.2, lng: 6.85 })
+    .mockReturnValueOnce({ lat: 52.25, lng: 6.8 })
+    .mockReturnValueOnce({ lat: 52.25, lng: 6.8 });
+
+  const container = map.getContainer();
+
+  await act(async () => {
+    geoSuccessCallbacks[0]({
+      coords: {
+        latitude: 52.37,
+        longitude: 4.89,
+        accuracy: 10,
+        heading: null,
+        speed: 0,
+      },
+    });
+  });
+
+  await act(async () => {
+    container.__handlers.resize?.();
+  });
+
+  await act(async () => {
+    geoSuccessCallbacks.at(-1)({
+      coords: {
+        latitude: 52.37018,
+        longitude: 4.88995,
+        accuracy: 8,
+        heading: null,
+        speed: 1,
+      },
+    });
+  });
+
+  expect(map.panTo.mock.calls.at(-1)?.[0]).toEqual({
+    lat: 52.25018,
+    lng: 6.79995,
+  });
+});
+
 test.skip("repositions the BannerGuider center after resize and zoom so the user marker stays visible", async () => {
   const geoSuccessCallbacks = [];
   const geolocation = {

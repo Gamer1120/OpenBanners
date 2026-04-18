@@ -99,7 +99,7 @@ const BannerInfo = ({ banner, loading = false }) => {
 
   const handleShareBannergressOverlay = () => {
     shareBannerUrl(
-      `https://bannergress.com/${banner.id}`,
+      `https://bannergress.com/banner/${banner.id}`,
       "Bannergress Overlay link copied to clipboard."
     );
   };

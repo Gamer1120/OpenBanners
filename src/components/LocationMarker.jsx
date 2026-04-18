@@ -289,13 +289,24 @@ export default function LocationMarker() {
   );
 
   useEffect(() => {
+    let refreshTimeoutId = null;
+
     const handleViewportChanged = () => {
       if (suppressProgrammaticMoveRef.current) {
         suppressProgrammaticMoveRef.current = false;
         return;
       }
 
-      refreshFollowOffsetFromCurrentView();
+      if (refreshTimeoutId !== null && typeof window !== "undefined") {
+        window.clearTimeout(refreshTimeoutId);
+      }
+
+      refreshTimeoutId = typeof window !== "undefined"
+        ? window.setTimeout(() => {
+            refreshFollowOffsetFromCurrentView();
+            refreshTimeoutId = null;
+          }, 0)
+        : null;
     };
 
     if (typeof window !== "undefined") {
@@ -309,6 +320,10 @@ export default function LocationMarker() {
     }
 
     return () => {
+      if (refreshTimeoutId !== null && typeof window !== "undefined") {
+        window.clearTimeout(refreshTimeoutId);
+      }
+
       if (typeof window !== "undefined") {
         window.removeEventListener("resize", handleViewportChanged);
       }

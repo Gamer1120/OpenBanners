@@ -213,30 +213,10 @@ export default function LocationMarker() {
         map.setView(nextPosition, map.getZoom());
         hasCenteredRef.current = true;
       } else {
-        const distanceFromPreviousPosition = previousPosition
-          ? map.distance(previousPosition, nextPosition)
-          : 0;
-        const currentCenter = typeof map.getCenter === "function" ? map.getCenter() : null;
-        const distanceFromCenter = currentCenter
-          ? map.distance(currentCenter, nextPosition)
-          : Infinity;
-        const currentBounds = map.getBounds?.();
-        const paddedBounds =
-          currentBounds && typeof currentBounds.pad === "function"
-            ? currentBounds.pad(-0.35)
-            : null;
-        const isOutsideFollowArea = paddedBounds
-          ? !paddedBounds.contains(L.latLng(nextPosition))
-          : true;
-        const shouldFollowMovement =
-          distanceFromPreviousPosition >= 12 && distanceFromCenter >= 10;
-
-        if (isOutsideFollowArea || shouldFollowMovement) {
-          map.panTo(nextPosition, {
-            animate: true,
-            duration: 0.35,
-          });
-        }
+        map.panTo(nextPosition, {
+          animate: true,
+          duration: 0.35,
+        });
       }
 
       if (!hasNativeOrientationRef.current) {

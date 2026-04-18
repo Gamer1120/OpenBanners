@@ -110,6 +110,7 @@ vi.mock("react-leaflet", async () => {
       locate: vi.fn(),
       setView: vi.fn(),
       panTo: vi.fn(),
+      getCenter: vi.fn(() => ({ lat: 52.2, lng: 6.85 })),
       getZoom: vi.fn(() => 15),
       getContainer: vi.fn(() => container),
       getSize: vi.fn(() => ({ x: 360, y: 640 })),
@@ -1435,6 +1436,97 @@ test.skip("keeps the BannerGuider user marker visible in the safe area on small 
   expect(point.x).toBeLessThan(360);
   expect(point.y).toBeGreaterThan(110);
   expect(point.y).toBeLessThan(640);
+});
+
+test("stops moving the map after the user manually zooms or pans", async () => {
+  const geoSuccessCallbacks = [];
+  const geolocation = {
+    getCurrentPosition: vi.fn((success) => {
+      geoSuccessCallbacks.push(success);
+    }),
+    watchPosition: vi.fn((success) => {
+      geoSuccessCallbacks.push(success);
+      return 1;
+    }),
+    clearWatch: vi.fn(),
+  };
+
+  Object.defineProperty(globalThis.navigator, "geolocation", {
+    configurable: true,
+    value: geolocation,
+  });
+
+  global.fetch.mockImplementation((url) => {
+    if (url.endsWith("/bnrs/manual-interaction-banner")) {
+      return jsonResponse({
+        id: "manual-interaction-banner",
+        title: "Manual Interaction Banner",
+        missions: {
+          "mission-1": {
+            id: "mission-1",
+            steps: {
+              0: {
+                poi: {
+                  title: "Portal One",
+                  type: "portal",
+                  latitude: 52.37,
+                  longitude: 4.89,
+                },
+              },
+            },
+          },
+        },
+      });
+    }
+
+    throw new Error(`Unhandled fetch: ${url}`);
+  });
+
+  renderWithProviders(
+    <Routes>
+      <Route path="/bannerguider/:bannerId" element={<BannerGuider />} />
+    </Routes>,
+    { route: "/bannerguider/manual-interaction-banner" }
+  );
+
+  await screen.findByTestId("map-container");
+
+  const { useMap } = await import("react-leaflet");
+  const map = useMap();
+  const container = map.getContainer();
+  map.getCenter.mockImplementation(() => ({ lat: 52.25, lng: 6.8 }));
+
+  await act(async () => {
+    geoSuccessCallbacks[0]({
+      coords: {
+        latitude: 52.37,
+        longitude: 4.89,
+        accuracy: 10,
+        heading: null,
+        speed: 0,
+      },
+    });
+  });
+
+  await act(async () => {
+    container.__handlers.zoomend?.();
+  });
+
+  await new Promise((resolve) => setTimeout(resolve, 0));
+
+  await act(async () => {
+    geoSuccessCallbacks.at(-1)({
+      coords: {
+        latitude: 52.37018,
+        longitude: 4.88995,
+        accuracy: 8,
+        heading: null,
+        speed: 1,
+      },
+    });
+  });
+
+  expect(map.panTo).not.toHaveBeenCalled();
 });
 
 test.skip("repositions the BannerGuider center after resize and zoom so the user marker stays visible", async () => {

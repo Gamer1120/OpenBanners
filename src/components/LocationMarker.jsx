@@ -159,6 +159,7 @@ export default function LocationMarker() {
   const followOffsetRef = useRef({ lat: 0, lng: 0 });
   const latestPositionRef = useRef(null);
   const suppressProgrammaticMoveRef = useRef(false);
+  const followEnabledRef = useRef(true);
 
   const updateEffectiveHeading = useCallback(() => {
     const nextDirection =
@@ -233,7 +234,7 @@ export default function LocationMarker() {
         map.setView(nextPosition, map.getZoom());
         followOffsetRef.current = { lat: 0, lng: 0 };
         hasCenteredRef.current = true;
-      } else {
+      } else if (followEnabledRef.current) {
         suppressProgrammaticMoveRef.current = true;
         map.panTo(
           {
@@ -303,6 +304,7 @@ export default function LocationMarker() {
 
       refreshTimeoutId = typeof window !== "undefined"
         ? window.setTimeout(() => {
+            followEnabledRef.current = false;
             refreshFollowOffsetFromCurrentView();
             refreshTimeoutId = null;
           }, 0)

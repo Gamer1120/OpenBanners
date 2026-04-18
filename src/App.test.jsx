@@ -75,16 +75,21 @@ vi.mock("react-leaflet", async () => {
 
   const createMapInstance = () => {
     const container = document.createElement("div");
+    let containerRect = {
+      left: 0,
+      top: 0,
+      right: 360,
+      bottom: 640,
+      width: 360,
+      height: 640,
+    };
     Object.defineProperty(container, "getBoundingClientRect", {
-      value: () => ({
-        left: 0,
-        top: 0,
-        right: 360,
-        bottom: 640,
-        width: 360,
-        height: 640,
-      }),
+      configurable: true,
+      value: () => containerRect,
     });
+    container.__setRect = (nextRect) => {
+      containerRect = nextRect;
+    };
 
     return {
       fitBounds: vi.fn(),
@@ -93,8 +98,15 @@ vi.mock("react-leaflet", async () => {
         _northEast: { lat: 52.3, lng: 6.9 },
       }),
       eachLayer: vi.fn(),
-      on: vi.fn(),
-      off: vi.fn(),
+      on: vi.fn((event, handler) => {
+        container.__handlers = container.__handlers ?? {};
+        container.__handlers[event] = handler;
+      }),
+      off: vi.fn((event) => {
+        if (container.__handlers) {
+          delete container.__handlers[event];
+        }
+      }),
       locate: vi.fn(),
       setView: vi.fn(),
       panTo: vi.fn(),
@@ -1423,6 +1435,111 @@ test("keeps the BannerGuider user marker visible in the safe area on small scree
   expect(point.x).toBeLessThan(360);
   expect(point.y).toBeGreaterThan(110);
   expect(point.y).toBeLessThan(640);
+});
+
+test("repositions the BannerGuider center after resize and zoom so the user marker stays visible", async () => {
+  const geoSuccessCallbacks = [];
+  const geolocation = {
+    getCurrentPosition: vi.fn((success) => {
+      geoSuccessCallbacks.push(success);
+    }),
+    watchPosition: vi.fn((success) => {
+      geoSuccessCallbacks.push(success);
+      return 1;
+    }),
+    clearWatch: vi.fn(),
+  };
+
+  Object.defineProperty(globalThis.navigator, "geolocation", {
+    configurable: true,
+    value: geolocation,
+  });
+
+  global.fetch.mockImplementation((url) => {
+    if (url.endsWith("/bnrs/responsive-safe-area-banner")) {
+      return jsonResponse({
+        id: "responsive-safe-area-banner",
+        title: "Responsive Safe Area Banner",
+        missions: {
+          "mission-1": {
+            id: "mission-1",
+            steps: {
+              0: {
+                poi: {
+                  title: "Portal One",
+                  type: "portal",
+                  latitude: 52.37,
+                  longitude: 4.89,
+                },
+              },
+            },
+          },
+        },
+      });
+    }
+
+    throw new Error(`Unhandled fetch: ${url}`);
+  });
+
+  renderWithProviders(
+    <Routes>
+      <Route path="/bannerguider/:bannerId" element={<BannerGuider />} />
+    </Routes>,
+    { route: "/bannerguider/responsive-safe-area-banner" }
+  );
+
+  await screen.findByTestId("map-container");
+
+  const overlay = document.querySelector('[data-map-overlay="mission-controls"]');
+  expect(overlay).toBeTruthy();
+
+  const { useMap } = await import("react-leaflet");
+  const map = useMap();
+  const container = map.getContainer();
+
+  Object.defineProperty(overlay, "getBoundingClientRect", {
+    value: () => ({ left: 10, top: 10, right: 150, bottom: 110, width: 140, height: 100 }),
+    configurable: true,
+  });
+
+  await act(async () => {
+    geoSuccessCallbacks[0]({
+      coords: {
+        latitude: 52.37,
+        longitude: 4.89,
+        accuracy: 10,
+        heading: null,
+        speed: 0,
+      },
+    });
+  });
+
+  container.__setRect({
+    left: 0,
+    top: 0,
+    right: 280,
+    bottom: 520,
+    width: 280,
+    height: 520,
+  });
+  map.getSize.mockReturnValue({ x: 280, y: 520 });
+  Object.defineProperty(overlay, "getBoundingClientRect", {
+    value: () => ({ left: 10, top: 10, right: 130, bottom: 100, width: 120, height: 90 }),
+    configurable: true,
+  });
+
+  await act(async () => {
+    container.__handlers.resize?.();
+    container.__handlers.zoomend?.();
+  });
+
+  const resizedTarget = map.setView.mock.calls.at(-1)?.[0];
+  const resizedPoint = map.latLngToContainerPoint(resizedTarget);
+
+  expect(resizedPoint.x).toBeGreaterThan(130);
+  expect(resizedPoint.x).toBeLessThan(280);
+  expect(resizedPoint.y).toBeGreaterThan(100);
+  expect(resizedPoint.y).toBeLessThan(520);
 });
 
 test("renders mission waypoint dots on the banner details overview map", async () => {

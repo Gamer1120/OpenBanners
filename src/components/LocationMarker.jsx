@@ -110,6 +110,28 @@ function extractTrustedSpeed(coords) {
   return Number.isFinite(speed) && speed >= 0 ? speed : null;
 }
 
+function getDesiredVisiblePoint(map) {
+  const mapContainer = typeof map.getContainer === "function" ? map.getContainer() : null;
+  const overlay = mapContainer?.querySelector('[data-map-overlay="mission-controls"]');
+  const mapRect = mapContainer?.getBoundingClientRect?.();
+  const overlayRect = overlay?.getBoundingClientRect?.();
+
+  if (mapRect && overlayRect) {
+    const overlayRight = overlayRect.right - mapRect.left;
+    const overlayBottom = overlayRect.bottom - mapRect.top;
+    const safeLeft = Math.min(mapRect.width - 40, overlayRight + 24);
+    const safeTop = Math.min(mapRect.height - 40, overlayBottom + 24);
+
+    return L.point(
+      safeLeft + Math.max(0, (mapRect.width - safeLeft) / 2),
+      safeTop + Math.max(0, (mapRect.height - safeTop) * 0.28)
+    );
+  }
+
+  const mapSize = typeof map.getSize === "function" ? map.getSize() : null;
+  return mapSize ? L.point(mapSize.x * 0.55, mapSize.y * 0.32) : null;
+}
+
 function shouldAcceptPositionUpdate({
   previousPosition,
   previousAccuracy,
@@ -150,6 +172,7 @@ export default function LocationMarker() {
   const previousPositionRef = useRef(null);
   const previousAccuracyRef = useRef(null);
   const hasCenteredRef = useRef(false);
+  const latestPositionRef = useRef(null);
   const lastOrientationUpdateAtRef = useRef(0);
   const hasNativeOrientationRef = useRef(false);
   const headingSourcesRef = useRef({
@@ -208,28 +231,11 @@ export default function LocationMarker() {
       }
 
       setPosition(nextPosition);
+      latestPositionRef.current = nextPosition;
 
-      const mapContainer = typeof map.getContainer === "function" ? map.getContainer() : null;
-      const overlay = mapContainer?.querySelector('[data-map-overlay="mission-controls"]');
-      const mapRect = mapContainer?.getBoundingClientRect?.();
-      const overlayRect = overlay?.getBoundingClientRect?.();
-      const targetPoint = map.latLngToContainerPoint(nextPosition);
-
-      let desiredPoint;
-      if (mapRect && overlayRect) {
-        const overlayRight = overlayRect.right - mapRect.left;
-        const overlayBottom = overlayRect.bottom - mapRect.top;
-        const safeLeft = Math.min(mapRect.width - 40, overlayRight + 24);
-        const safeTop = Math.min(mapRect.height - 40, overlayBottom + 24);
-        desiredPoint = L.point(
-          safeLeft + Math.max(0, (mapRect.width - safeLeft) / 2),
-          safeTop + Math.max(0, (mapRect.height - safeTop) * 0.28)
-        );
-      } else {
-        const mapSize = typeof map.getSize === "function" ? map.getSize() : null;
-        desiredPoint = mapSize
-          ? L.point(mapSize.x * 0.55, mapSize.y * 0.32)
-          : L.point(targetPoint.x + 90, targetPoint.y - 140);
+      const desiredPoint = getDesiredVisiblePoint(map);
+      if (!desiredPoint || typeof map.containerPointToLatLng !== "function") {
+        return;
       }
 
       const offsetTargetLatLng = map.containerPointToLatLng(desiredPoint);
@@ -284,6 +290,43 @@ export default function LocationMarker() {
     },
     [map, updateEffectiveHeading]
   );
+
+  useEffect(() => {
+    const recenterToLatestPosition = () => {
+      const latestPosition = latestPositionRef.current;
+      if (!latestPosition) {
+        return;
+      }
+
+      const desiredPoint = getDesiredVisiblePoint(map);
+      if (!desiredPoint || typeof map.containerPointToLatLng !== "function") {
+        return;
+      }
+
+      const nextCenter = map.containerPointToLatLng(desiredPoint);
+      map.setView(nextCenter, map.getZoom(), { animate: false });
+    };
+
+    if (typeof window !== "undefined") {
+      window.addEventListener("resize", recenterToLatestPosition);
+    }
+
+    if (typeof map.on === "function") {
+      map.on("resize", recenterToLatestPosition);
+      map.on("zoomend", recenterToLatestPosition);
+    }
+
+    return () => {
+      if (typeof window !== "undefined") {
+        window.removeEventListener("resize", recenterToLatestPosition);
+      }
+
+      if (typeof map.off === "function") {
+        map.off("resize", recenterToLatestPosition);
+        map.off("zoomend", recenterToLatestPosition);
+      }
+    };
+  }, [map]);
 
   useEffect(() => {
     if (!navigator.geolocation) {

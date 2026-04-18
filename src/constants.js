@@ -1,19 +1,6 @@
 import L from "leaflet";
 
-function getUserLocationFill(source = null) {
-  switch (source) {
-    case "orientation":
-      return "rgba(66, 133, 244, 0.48)";
-    case "geolocation":
-      return "rgba(52, 168, 83, 0.52)";
-    case "movement":
-      return "rgba(251, 188, 5, 0.56)";
-    default:
-      return "rgba(234, 67, 53, 0.48)";
-  }
-}
-
-function createUserLocationIcon(rotation = null, source = null) {
+function createUserLocationIcon(rotation = null) {
   const lineLength = 19;
   const lineGap = 56;
   const line1Angle = Number.isFinite(rotation) ? rotation - lineGap / 2 : null;
@@ -70,7 +57,7 @@ function createUserLocationIcon(rotation = null, source = null) {
           cx="30"
           cy="30"
           r="13"
-          fill="${getUserLocationFill(source)}"
+          fill="rgba(66, 133, 244, 0.48)"
           stroke="rgba(255,255,255,0.92)"
           stroke-width="2.5"
         />
@@ -91,7 +78,5 @@ function createUserLocationIcon(rotation = null, source = null) {
 const userLocationIcon = createUserLocationIcon();
 
 export default userLocationIcon;
-export const locationIcon = (rotation = null, source = null) =>
-  Number.isFinite(rotation) || source
-    ? createUserLocationIcon(rotation, source)
-    : userLocationIcon;
+export const locationIcon = (rotation = null) =>
+  Number.isFinite(rotation) ? createUserLocationIcon(rotation) : userLocationIcon;

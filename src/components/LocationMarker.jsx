@@ -133,7 +133,6 @@ export default function LocationMarker() {
   const previousAccuracyRef = useRef(null);
   const hasCenteredRef = useRef(false);
   const lastOrientationUpdateAtRef = useRef(0);
-  const hasNativeOrientationRef = useRef(false);
   const headingSourcesRef = useRef({
     orientation: null,
     geolocation: null,
@@ -213,30 +212,27 @@ export default function LocationMarker() {
           }
         }
 
-        if (!hasNativeOrientationRef.current) {
-          const geolocationHeading = extractGeolocationHeading(coords);
+        const geolocationHeading = extractGeolocationHeading(coords);
 
-          if (Number.isFinite(geolocationHeading)) {
-            headingSourcesRef.current.geolocation = geolocationHeading;
-          }
+        if (Number.isFinite(geolocationHeading)) {
+          headingSourcesRef.current.geolocation = geolocationHeading;
+        }
 
-          if (
-            previousPosition &&
-            map.distance(previousPosition, nextPosition) >= MIN_DIRECTION_DISTANCE_METERS
-          ) {
-            headingSourcesRef.current.movement = calculateBearing(
-              previousPosition,
-              nextPosition
-            );
-          }
-
-          updateEffectiveHeading();
+        if (
+          previousPosition &&
+          map.distance(previousPosition, nextPosition) >= MIN_DIRECTION_DISTANCE_METERS
+        ) {
+          headingSourcesRef.current.movement = calculateBearing(
+            previousPosition,
+            nextPosition
+          );
         }
 
         previousPositionRef.current = nextPosition;
         previousAccuracyRef.current = Number.isFinite(nextAccuracy)
           ? nextAccuracy
           : previousAccuracyRef.current;
+        updateEffectiveHeading();
       },
       (error) => {
         console.error("Couldn't watch user location in BannerGuider.", error);
@@ -271,9 +267,6 @@ export default function LocationMarker() {
       }
 
       lastOrientationUpdateAtRef.current = now;
-      hasNativeOrientationRef.current = true;
-      headingSourcesRef.current.geolocation = null;
-      headingSourcesRef.current.movement = null;
       headingSourcesRef.current.orientation = orientationHeading;
       updateEffectiveHeading();
     };

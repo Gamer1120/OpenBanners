@@ -1341,6 +1341,83 @@ test("renders a single visible map for banner details even with multiple mission
   expect(screen.getAllByTestId("map-container")).toHaveLength(1);
 });
 
+test("polls the BannerGuider user location every 5 seconds", async () => {
+  const intervalCallbacks = [];
+  const setIntervalSpy = vi
+    .spyOn(window, "setInterval")
+    .mockImplementation((callback, delay) => {
+      intervalCallbacks.push({ callback, delay });
+      return 1;
+    });
+
+  const geoSuccessCallbacks = [];
+  const geolocation = {
+    getCurrentPosition: vi.fn((success) => {
+      geoSuccessCallbacks.push(success);
+    }),
+  };
+
+  Object.defineProperty(globalThis.navigator, "geolocation", {
+    configurable: true,
+    value: geolocation,
+  });
+
+  global.fetch.mockImplementation((url) => {
+    if (url.endsWith("/bnrs/recenter-banner")) {
+      return jsonResponse({
+        id: "recenter-banner",
+        title: "Recenter Banner",
+        missions: {
+          "mission-1": {
+            id: "mission-1",
+            steps: {
+              0: {
+                poi: {
+                  title: "Portal One",
+                  type: "portal",
+                  latitude: 52.37,
+                  longitude: 4.89,
+                },
+              },
+            },
+          },
+        },
+      });
+    }
+
+    throw new Error(`Unhandled fetch: ${url}`);
+  });
+
+  try {
+    renderWithProviders(
+      <Routes>
+        <Route path="/bannerguider/:bannerId" element={<BannerGuider />} />
+      </Routes>,
+      { route: "/bannerguider/recenter-banner" }
+    );
+
+    await screen.findByTestId("map-container");
+
+    expect(geolocation.getCurrentPosition).toHaveBeenCalled();
+    expect(geoSuccessCallbacks.length).toBeGreaterThanOrEqual(1);
+    expect(intervalCallbacks.length).toBeGreaterThanOrEqual(1);
+    expect(intervalCallbacks.at(-1)?.delay).toBe(5000);
+
+    const initialPollCount = geolocation.getCurrentPosition.mock.calls.length;
+
+    await act(async () => {
+      intervalCallbacks.at(-1)?.callback();
+    });
+
+    expect(geolocation.getCurrentPosition.mock.calls.length).toBe(
+      initialPollCount + 1
+    );
+    expect(geoSuccessCallbacks.length).toBeGreaterThanOrEqual(2);
+  } finally {
+    setIntervalSpy.mockRestore();
+  }
+});
+
 test.skip("keeps the BannerGuider user marker visible in the safe area on small screens", async () => {
   const geoSuccessCallbacks = [];
   const geolocation = {

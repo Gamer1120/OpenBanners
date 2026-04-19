@@ -4,13 +4,13 @@ import "leaflet-easybutton/src/easy-button.js";
 import "leaflet-easybutton/src/easy-button.css";
 import "font-awesome/css/font-awesome.min.css";
 import icon, { locationIcon } from "../constants";
-import L from "leaflet";
 
 const MIN_DIRECTION_DISTANCE_METERS = 5;
 const MIN_DIRECTION_CHANGE_DEGREES = 8;
 const MIN_POSITION_CHANGE_METERS = 8;
 const MAX_TRACKED_ACCURACY_METERS = 75;
 const ORIENTATION_UPDATE_INTERVAL_MS = 250;
+const GEOLOCATION_POLL_INTERVAL_MS = 5000;
 const GEOLOCATION_OPTIONS = {
   enableHighAccuracy: false,
   maximumAge: 5000,
@@ -167,81 +167,85 @@ export default function LocationMarker() {
       return () => {};
     }
 
-    const watchId = navigator.geolocation.watchPosition(
-      ({ coords }) => {
-        if (!Number.isFinite(coords?.latitude) || !Number.isFinite(coords?.longitude)) {
-          return;
-        }
+    const handlePositionUpdate = ({ coords }) => {
+      if (!Number.isFinite(coords?.latitude) || !Number.isFinite(coords?.longitude)) {
+        return;
+      }
 
-        const nextPosition = {
-          lat: coords.latitude,
-          lng: coords.longitude,
-        };
-        const previousPosition = previousPositionRef.current;
-        const nextAccuracy = Number(coords.accuracy);
+      const nextPosition = {
+        lat: coords.latitude,
+        lng: coords.longitude,
+      };
+      const previousPosition = previousPositionRef.current;
+      const nextAccuracy = Number(coords.accuracy);
 
-        if (
-          !shouldAcceptPositionUpdate({
-            previousPosition,
-            previousAccuracy: previousAccuracyRef.current,
-            nextPosition,
-            nextAccuracy,
-            map,
-          })
-        ) {
-          return;
-        }
+      if (
+        !shouldAcceptPositionUpdate({
+          previousPosition,
+          previousAccuracy: previousAccuracyRef.current,
+          nextPosition,
+          nextAccuracy,
+          map,
+        })
+      ) {
+        return;
+      }
 
-        setPosition(nextPosition);
+      setPosition(nextPosition);
 
-        if (!hasCenteredRef.current) {
-          map.setView(nextPosition, map.getZoom());
-          hasCenteredRef.current = true;
-        } else {
-          const currentBounds = map.getBounds?.();
-          const paddedBounds =
-            currentBounds && typeof currentBounds.pad === "function"
-              ? currentBounds.pad(-0.25)
-              : null;
+      if (!hasCenteredRef.current) {
+        map.setView(nextPosition, map.getZoom());
+        hasCenteredRef.current = true;
+      } else {
+        map.panTo(nextPosition, {
+          animate: true,
+          duration: 0.35,
+        });
+      }
 
-          if (paddedBounds && !paddedBounds.contains(L.latLng(nextPosition))) {
-            map.panTo(nextPosition, {
-              animate: true,
-              duration: 0.35,
-            });
-          }
-        }
+      const geolocationHeading = extractGeolocationHeading(coords);
 
-        const geolocationHeading = extractGeolocationHeading(coords);
+      if (Number.isFinite(geolocationHeading)) {
+        headingSourcesRef.current.geolocation = geolocationHeading;
+      }
 
-        if (Number.isFinite(geolocationHeading)) {
-          headingSourcesRef.current.geolocation = geolocationHeading;
-        }
+      if (
+        previousPosition &&
+        map.distance(previousPosition, nextPosition) >= MIN_DIRECTION_DISTANCE_METERS
+      ) {
+        headingSourcesRef.current.movement = calculateBearing(
+          previousPosition,
+          nextPosition
+        );
+      }
 
-        if (
-          previousPosition &&
-          map.distance(previousPosition, nextPosition) >= MIN_DIRECTION_DISTANCE_METERS
-        ) {
-          headingSourcesRef.current.movement = calculateBearing(
-            previousPosition,
-            nextPosition
-          );
-        }
+      previousPositionRef.current = nextPosition;
+      previousAccuracyRef.current = Number.isFinite(nextAccuracy)
+        ? nextAccuracy
+        : previousAccuracyRef.current;
+      updateEffectiveHeading();
+    };
 
-        previousPositionRef.current = nextPosition;
-        previousAccuracyRef.current = Number.isFinite(nextAccuracy)
-          ? nextAccuracy
-          : previousAccuracyRef.current;
-        updateEffectiveHeading();
-      },
-      (error) => {
-        console.error("Couldn't watch user location in BannerGuider.", error);
-      },
-      GEOLOCATION_OPTIONS
+    const handlePositionError = (error) => {
+      console.error("Couldn't fetch user location in BannerGuider.", error);
+    };
+
+    const pollCurrentPosition = () => {
+      navigator.geolocation.getCurrentPosition(
+        handlePositionUpdate,
+        handlePositionError,
+        GEOLOCATION_OPTIONS
+      );
+    };
+
+    pollCurrentPosition();
+    const intervalId = window.setInterval(
+      pollCurrentPosition,
+      GEOLOCATION_POLL_INTERVAL_MS
     );
 
     return () => {
-      navigator.geolocation.clearWatch(watchId);
+      window.clearInterval(intervalId);
     };
   }, [map, updateEffectiveHeading]);
 

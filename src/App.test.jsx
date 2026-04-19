@@ -1384,7 +1384,7 @@ test("renders a single visible map for banner details even with multiple mission
   expect(screen.getAllByTestId("map-container")).toHaveLength(1);
 });
 
-test("polls the BannerGuider user location every 5 seconds without recentering repeated identical fixes", async () => {
+test("polls the BannerGuider user location every 5 seconds and resets view for repeated identical fixes", async () => {
   const intervalCallbacks = [];
   const setIntervalSpy = vi
     .spyOn(window, "setInterval")
@@ -1480,6 +1480,12 @@ test("polls the BannerGuider user location every 5 seconds without recentering r
     expect(initialCenter?.lat).toBeCloseTo(52.37, 5);
     expect(initialCenter?.lng).toBeCloseTo(4.89, 5);
     expect(map.setView.mock.calls.at(-1)?.[1]).toEqual(expect.any(Number));
+    expect(map.setView.mock.calls.at(-1)?.[2]).toEqual(
+      expect.objectContaining({
+        animate: false,
+        reset: true,
+      })
+    );
 
     const initialPollCount = geolocation.getCurrentPosition.mock.calls.length;
 
@@ -1504,8 +1510,18 @@ test("polls the BannerGuider user location every 5 seconds without recentering r
       });
     });
 
-    expect(map.invalidateSize).toHaveBeenCalledTimes(1);
+    expect(map.invalidateSize).toHaveBeenCalledTimes(2);
     expect(map.panTo).not.toHaveBeenCalled();
+    expect(map.setView).toHaveBeenCalledTimes(2);
+    const repeatedCenter = map.setView.mock.calls.at(-1)?.[0];
+    expect(repeatedCenter?.lat).toBeCloseTo(52.37, 5);
+    expect(repeatedCenter?.lng).toBeCloseTo(4.89, 5);
+    expect(map.setView.mock.calls.at(-1)?.[2]).toEqual(
+      expect.objectContaining({
+        animate: false,
+        reset: true,
+      })
+    );
   } finally {
     setIntervalSpy.mockRestore();
   }
@@ -1896,8 +1912,8 @@ test("keeps the BannerGuider user marker visible in the safe area on small scree
 
   const { useMap } = await import("react-leaflet");
   const map = useMap();
-  expect(map.panTo).toHaveBeenCalled();
-  const target = map.panTo.mock.calls.at(-1)?.[0];
+  expect(map.setView).toHaveBeenCalled();
+  const target = map.setView.mock.calls.at(-1)?.[0];
   const point = map.latLngToContainerPoint(target);
 
   expect(point.x).toBeGreaterThan(150);
@@ -2012,7 +2028,7 @@ test("keeps the BannerGuider centered within the visible viewport when the map c
       });
     });
 
-    const target = map.panTo.mock.calls.at(-1)?.[0];
+    const target = map.setView.mock.calls.at(-1)?.[0];
     const point = map.latLngToContainerPoint(target);
 
     expect(point.x).toBeGreaterThan(130);

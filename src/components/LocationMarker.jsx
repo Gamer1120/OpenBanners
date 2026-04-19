@@ -505,30 +505,17 @@ export default function LocationMarker() {
         pan: false,
       });
       const centeredTarget = getCenteredMapTarget(map, nextPosition);
-
-      if (!hasCenteredRef.current || forceSetView) {
-        debugBannerGuider("recenterMap setView", {
-          centeredTarget: serializeLatLng(centeredTarget),
-          nextPosition: serializeLatLng(nextPosition),
-          forceSetView,
-          map: getDebugMapMetrics(map),
-        });
-        map.setView(centeredTarget, map.getZoom(), {
-          animate: false,
-        });
-        hasCenteredRef.current = true;
-        return;
-      }
-
-      debugBannerGuider("recenterMap panTo", {
+      debugBannerGuider("recenterMap setView", {
         centeredTarget: serializeLatLng(centeredTarget),
         nextPosition: serializeLatLng(nextPosition),
         forceSetView,
         map: getDebugMapMetrics(map),
       });
-      map.panTo(centeredTarget, {
+      map.setView(centeredTarget, map.getZoom(), {
         animate: false,
+        reset: true,
       });
+      hasCenteredRef.current = true;
     },
     [map]
   );
@@ -602,36 +589,25 @@ export default function LocationMarker() {
         manualInteractionAnchorRef.current = null;
       }
 
-      const shouldAcceptCurrentPosition = shouldAcceptPositionUpdate({
-        previousPosition,
-        previousAccuracy: previousAccuracyRef.current,
-        nextPosition,
-        nextAccuracy,
-        map,
-      });
-      const shouldRecenterMap =
-        !followSuspendedRef.current &&
-        (!previousPosition || shouldResumeFollow || shouldAcceptCurrentPosition);
-
-      if (shouldRecenterMap) {
+      if (!followSuspendedRef.current) {
         recenterMap(nextPosition);
-      } else if (followSuspendedRef.current) {
+      } else {
         debugBannerGuider("handlePositionUpdate follow-suspended", {
           nextPosition: serializeLatLng(nextPosition),
           manualInteractionAnchor: serializeLatLng(manualInteractionAnchorRef.current),
           map: getDebugMapMetrics(map),
         });
-      } else {
-        debugBannerGuider("handlePositionUpdate skipped-recenter-stable-fix", {
-          nextPosition: serializeLatLng(nextPosition),
-          previousPosition: serializeLatLng(previousPosition),
-          nextAccuracy: roundDebugNumber(nextAccuracy),
-          previousAccuracy: roundDebugNumber(previousAccuracyRef.current),
-          map: getDebugMapMetrics(map),
-        });
       }
 
-      if (!shouldAcceptCurrentPosition) {
+      if (
+        !shouldAcceptPositionUpdate({
+          previousPosition,
+          previousAccuracy: previousAccuracyRef.current,
+          nextPosition,
+          nextAccuracy,
+          map,
+        })
+      ) {
         debugBannerGuider("handlePositionUpdate skipped-no-meaningful-movement", {
           nextPosition: serializeLatLng(nextPosition),
           previousPosition: serializeLatLng(previousPosition),

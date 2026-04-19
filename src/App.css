@@ -15,7 +15,7 @@
   width: 100vw;
   height: 100vh;
   height: 100dvh;
-  min-height: 320px;
+  min-height: 0;
   overflow: hidden;
   background: #0b1014;
   z-index: 1200;
@@ -25,6 +25,7 @@
 .banner-guider-shell #map {
   height: 100% !important;
   width: 100%;
+  min-height: 0 !important;
 }
 
 .custom-icon {

@@ -1,8 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
-import {
-  getBannerGuiderDebugLogText,
-  logBannerGuiderDebug,
-} from "../bannerGuiderDebug";
+import React from "react";
 
 export default function MapOverlay({
   missions,
@@ -11,31 +7,9 @@ export default function MapOverlay({
   bannerId,
 }) {
   const missionCount = missions.length;
-  const overlayRef = useRef(null);
-  const copyResetTimeoutRef = useRef(null);
-  const [copyState, setCopyState] = useState("idle");
 
   const stopPropagation = (event) => {
     event.stopPropagation();
-  };
-
-  useEffect(() => {
-    return () => {
-      if (copyResetTimeoutRef.current) {
-        window.clearTimeout(copyResetTimeoutRef.current);
-      }
-    };
-  }, []);
-
-  const scheduleCopyStateReset = () => {
-    if (copyResetTimeoutRef.current) {
-      window.clearTimeout(copyResetTimeoutRef.current);
-    }
-
-    copyResetTimeoutRef.current = window.setTimeout(() => {
-      setCopyState("idle");
-      copyResetTimeoutRef.current = null;
-    }, 2000);
   };
 
   const handleDecrement = () => {
@@ -64,50 +38,8 @@ export default function MapOverlay({
     }
   };
 
-  const handleCopyLogs = async () => {
-    const debugText = getBannerGuiderDebugLogText();
-
-    logBannerGuiderDebug("copyDebugLogs requested", {
-      bannerId,
-      missionCount,
-      currentMission,
-      characters: debugText.length,
-    });
-
-    try {
-      if (navigator.clipboard?.writeText) {
-        await navigator.clipboard.writeText(debugText);
-      } else {
-        throw new Error("Clipboard API unavailable");
-      }
-
-      logBannerGuiderDebug("copyDebugLogs success", {
-        bannerId,
-        characters: debugText.length,
-      });
-      setCopyState("copied");
-    } catch (error) {
-      console.error("Couldn't copy BannerGuider debug logs.", error);
-      logBannerGuiderDebug("copyDebugLogs error", {
-        bannerId,
-        error: error?.message ?? String(error),
-      });
-      setCopyState("error");
-    }
-
-    scheduleCopyStateReset();
-  };
-
-  const copyLabel =
-    copyState === "copied"
-      ? "COPIED"
-      : copyState === "error"
-      ? "COPY FAILED"
-      : "COPY LOGS";
-
   return (
     <div
-      ref={overlayRef}
       className="overlay"
       data-map-overlay="mission-controls"
       role="group"
@@ -155,13 +87,6 @@ export default function MapOverlay({
         }
       >
         {currentMission === missionCount ? "OPEN BG" : "NEXT"}
-      </button>
-      <button
-        className="start-button"
-        onClick={handleCopyLogs}
-        aria-label="Copy BannerGuider debug logs"
-      >
-        {copyLabel}
       </button>
     </div>
   );

@@ -499,11 +499,16 @@ export default function LocationMarker() {
         map: getDebugMapMetrics(map),
       });
 
-      map.stop?.();
-      map.invalidateSize?.({
-        animate: false,
-        pan: false,
-      });
+      const shouldResetView = forceSetView || !hasCenteredRef.current;
+
+      if (shouldResetView) {
+        map.stop?.();
+        map.invalidateSize?.({
+          animate: false,
+          pan: false,
+        });
+      }
+
       const centeredTarget = getCenteredMapTarget(map, nextPosition);
       const currentCenter = map.getCenter?.();
       const recenterDistance =
@@ -531,14 +536,19 @@ export default function LocationMarker() {
         centeredTarget: serializeLatLng(centeredTarget),
         nextPosition: serializeLatLng(nextPosition),
         forceSetView,
+        shouldResetView,
         currentCenter: serializeLatLng(currentCenter),
         recenterDistance: roundDebugNumber(recenterDistance),
         map: getDebugMapMetrics(map),
       });
-      map.setView(centeredTarget, map.getZoom(), {
-        animate: false,
-        reset: true,
-      });
+      map.setView(centeredTarget, map.getZoom(), shouldResetView
+        ? {
+            animate: false,
+            reset: true,
+          }
+        : {
+            animate: false,
+          });
       hasCenteredRef.current = true;
     },
     [map]

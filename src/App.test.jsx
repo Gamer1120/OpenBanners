@@ -1510,7 +1510,7 @@ test("polls the BannerGuider user location every 5 seconds without resetting an 
       });
     });
 
-    expect(map.invalidateSize).toHaveBeenCalledTimes(2);
+    expect(map.invalidateSize).toHaveBeenCalledTimes(1);
     expect(map.panTo).not.toHaveBeenCalled();
     expect(map.setView).toHaveBeenCalledTimes(1);
   } finally {
@@ -1804,6 +1804,7 @@ test("does not snap the BannerGuider back on the next stationary poll after a ma
     reset: true,
   });
   map.setView.mockClear();
+  map.invalidateSize.mockClear();
   container.__handlers.dragstart?.();
 
   await act(async () => {
@@ -1822,6 +1823,13 @@ test("does not snap the BannerGuider back on the next stationary poll after a ma
   const recenteredTarget = map.setView.mock.calls.at(-1)?.[0];
   expect(recenteredTarget?.lat).toBeCloseTo(52.37, 5);
   expect(recenteredTarget?.lng).toBeCloseTo(4.89, 5);
+  expect(map.setView.mock.calls.at(-1)?.[2]).toEqual(
+    expect.objectContaining({
+      animate: false,
+    })
+  );
+  expect(map.setView.mock.calls.at(-1)?.[2]).not.toHaveProperty("reset");
+  expect(map.invalidateSize).not.toHaveBeenCalled();
   expect(map.panTo).not.toHaveBeenCalled();
 });
 

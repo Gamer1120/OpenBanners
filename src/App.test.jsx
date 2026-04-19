@@ -1455,7 +1455,7 @@ test("polls the BannerGuider user location every 5 seconds and recenters after r
     );
     const initialCenter = map.setView.mock.calls.at(-1)?.[0];
     expect(initialCenter?.lat).toBeCloseTo(52.37, 5);
-    expect(initialCenter?.lng).toBeGreaterThan(4.89);
+    expect(initialCenter?.lng).toBeCloseTo(4.89, 5);
     expect(map.setView.mock.calls.at(-1)?.[1]).toEqual(expect.any(Number));
 
     const initialPollCount = geolocation.getCurrentPosition.mock.calls.length;
@@ -1487,7 +1487,7 @@ test("polls the BannerGuider user location every 5 seconds and recenters after r
     );
     const repeatedCenter = map.panTo.mock.calls.at(-1)?.[0];
     expect(repeatedCenter?.lat).toBeCloseTo(52.37, 5);
-    expect(repeatedCenter?.lng).toBeGreaterThan(4.89);
+    expect(repeatedCenter?.lng).toBeCloseTo(4.89, 5);
     expect(map.panTo.mock.calls.at(-1)?.[1]).toEqual(
       expect.objectContaining({
         animate: true,

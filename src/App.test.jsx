@@ -108,6 +108,7 @@ vi.mock("react-leaflet", async () => {
         }
       }),
       locate: vi.fn(),
+      invalidateSize: vi.fn(),
       setView: vi.fn(),
       panTo: vi.fn(),
       getCenter: vi.fn(() => ({ lat: 52.2, lng: 6.85 })),
@@ -1419,6 +1420,10 @@ test("polls the BannerGuider user location every 5 seconds and recenters after r
       });
     });
 
+    expect(map.invalidateSize).toHaveBeenCalledWith(false);
+    expect(map.invalidateSize.mock.invocationCallOrder.at(-1)).toBeLessThan(
+      map.setView.mock.invocationCallOrder.at(-1)
+    );
     expect(map.setView).toHaveBeenCalledWith(
       { lat: 52.37, lng: 4.89 },
       expect.any(Number)
@@ -1447,6 +1452,10 @@ test("polls the BannerGuider user location every 5 seconds and recenters after r
       });
     });
 
+    expect(map.invalidateSize).toHaveBeenCalledTimes(2);
+    expect(map.invalidateSize.mock.invocationCallOrder.at(-1)).toBeLessThan(
+      map.panTo.mock.invocationCallOrder.at(-1)
+    );
     expect(map.panTo).toHaveBeenCalledWith(
       { lat: 52.37, lng: 4.89 },
       expect.objectContaining({

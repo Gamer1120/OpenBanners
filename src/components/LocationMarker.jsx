@@ -179,6 +179,8 @@ export default function LocationMarker() {
         return;
       }
 
+      map.invalidateSize?.(false);
+
       if (!hasCenteredRef.current) {
         map.setView(nextPosition, map.getZoom());
         hasCenteredRef.current = true;

@@ -1429,6 +1429,13 @@ test("polls the BannerGuider user location every 5 seconds and recenters after r
 
     await screen.findByTestId("map-container");
 
+    const overlay = document.querySelector('[data-map-overlay="mission-controls"]');
+    expect(overlay).toBeTruthy();
+    Object.defineProperty(overlay, "getBoundingClientRect", {
+      configurable: true,
+      value: () => ({ left: 10, top: 10, right: 150, bottom: 110, width: 140, height: 100 }),
+    });
+
     expect(geolocation.getCurrentPosition).toHaveBeenCalled();
     expect(geoSuccessCallbacks.length).toBeGreaterThanOrEqual(1);
     expect(intervalCallbacks.length).toBeGreaterThanOrEqual(1);
@@ -1491,8 +1498,7 @@ test("polls the BannerGuider user location every 5 seconds and recenters after r
     expect(repeatedCenter?.lng).toBeCloseTo(4.89, 5);
     expect(map.panTo.mock.calls.at(-1)?.[1]).toEqual(
       expect.objectContaining({
-        animate: true,
-        duration: 0.35,
+        animate: false,
       })
     );
   } finally {

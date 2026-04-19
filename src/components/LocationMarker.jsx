@@ -335,10 +335,6 @@ function getIntersectionRect(firstRect, secondRect) {
   };
 }
 
-function getRectArea(rect) {
-  return rect ? rect.width * rect.height : 0;
-}
-
 function getRectCenter(rect) {
   return {
     x: rect.left + rect.width / 2,
@@ -359,56 +355,7 @@ function getPreferredTargetPoint(map) {
   const viewportRect = getViewportRect();
   const visibleRect =
     getIntersectionRect(containerRect, viewportRect) ?? containerRect;
-
-  let targetRect = visibleRect;
-  let overlayRect = null;
-  let overlappingOverlayRect = null;
-  let candidateRects = [];
-
-  if (typeof document !== "undefined") {
-    overlayRect = normalizeRect(
-      document
-        .querySelector('[data-map-overlay="mission-controls"]')
-        ?.getBoundingClientRect?.()
-    );
-    overlappingOverlayRect = getIntersectionRect(visibleRect, overlayRect);
-
-    if (overlappingOverlayRect) {
-      candidateRects = [
-        {
-          left: visibleRect.left,
-          top: visibleRect.top,
-          right: overlappingOverlayRect.left,
-          bottom: visibleRect.bottom,
-        },
-        {
-          left: overlappingOverlayRect.right,
-          top: visibleRect.top,
-          right: visibleRect.right,
-          bottom: visibleRect.bottom,
-        },
-        {
-          left: visibleRect.left,
-          top: visibleRect.top,
-          right: visibleRect.right,
-          bottom: overlappingOverlayRect.top,
-        },
-        {
-          left: visibleRect.left,
-          top: overlappingOverlayRect.bottom,
-          right: visibleRect.right,
-          bottom: visibleRect.bottom,
-        },
-      ]
-        .map((candidateRect) => normalizeRect(candidateRect))
-        .filter(Boolean)
-        .sort((firstRect, secondRect) => getRectArea(secondRect) - getRectArea(firstRect));
-
-      if (candidateRects.length > 0) {
-        targetRect = candidateRects[0];
-      }
-    }
-  }
+  const targetRect = visibleRect;
 
   const targetCenter = getRectCenter(targetRect);
   const mapSize = map.getSize?.();
@@ -423,9 +370,6 @@ function getPreferredTargetPoint(map) {
     map: getDebugMapMetrics(map),
     viewportRect: serializeRect(viewportRect),
     visibleRect: serializeRect(visibleRect),
-    overlayRect: serializeRect(overlayRect),
-    overlappingOverlayRect: serializeRect(overlappingOverlayRect),
-    candidateRects: candidateRects.map((candidateRect) => serializeRect(candidateRect)),
     targetRect: serializeRect(targetRect),
     targetCenter: serializePoint(targetCenter),
     targetPoint: serializePoint(targetPoint),
@@ -580,8 +524,7 @@ export default function LocationMarker() {
         map: getDebugMapMetrics(map),
       });
       map.panTo(centeredTarget, {
-        animate: true,
-        duration: 0.35,
+        animate: false,
       });
     },
     [map]

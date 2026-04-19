@@ -99,12 +99,19 @@ export default function Map() {
   useEffect(() => {
     if (!isLoading && mapRef.current && mapInitialized && missionCoordinates.length > 0) {
         const bounds = L.latLngBounds(missionCoordinates);
+        logBannerGuiderDebug("fitBounds", {
+          bannerId,
+          guiderMode: "with-location",
+          missionCoordinateCount: missionCoordinates.length,
+          animated: false,
+        });
+        mapRef.current.stop?.();
         mapRef.current.fitBounds(bounds, {
           padding: [50, 50],
-          animate: missionCoordinates.length <= 100,
+          animate: false,
         });
     }
-  }, [isLoading, mapInitialized, missionCoordinates]);
+  }, [bannerId, isLoading, mapInitialized, missionCoordinates]);
 
   if (isLoading) {
     return <div className="banner-guider-shell">Loading...</div>;

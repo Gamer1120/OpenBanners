@@ -555,6 +555,7 @@ export default function LocationMarker() {
         map: getDebugMapMetrics(map),
       });
 
+      map.stop?.();
       map.invalidateSize?.(false);
       const centeredTarget = getCenteredMapTarget(map, nextPosition);
 
@@ -565,7 +566,9 @@ export default function LocationMarker() {
           forceSetView,
           map: getDebugMapMetrics(map),
         });
-        map.setView(centeredTarget, map.getZoom());
+        map.setView(centeredTarget, map.getZoom(), {
+          animate: false,
+        });
         hasCenteredRef.current = true;
         return;
       }
@@ -633,6 +636,7 @@ export default function LocationMarker() {
 
       const shouldResumeFollow =
         followSuspendedRef.current &&
+        manualInteractionAnchorRef.current &&
         shouldAcceptPositionUpdate({
           previousPosition: manualInteractionAnchorRef.current,
           previousAccuracy: previousAccuracyRef.current,
@@ -792,6 +796,15 @@ export default function LocationMarker() {
         followSuspendedBefore: followSuspendedRef.current,
         map: getDebugMapMetrics(map),
       });
+
+      if (!latestProcessedPositionRef.current) {
+        debugBannerGuider("handleManualViewportChange ignored-no-position", {
+          previousPosition: serializeLatLng(previousPositionRef.current),
+          map: getDebugMapMetrics(map),
+        });
+        return;
+      }
+
       followSuspendedRef.current = true;
       manualInteractionAnchorRef.current = latestProcessedPositionRef.current;
     };

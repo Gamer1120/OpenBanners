@@ -126,6 +126,7 @@ vi.mock("react-leaflet", async () => {
         }
       }),
       locate: vi.fn(),
+      stop: vi.fn(),
       invalidateSize: vi.fn(),
       setView: vi.fn((nextCenter, nextZoom = currentZoom) => {
         currentCenter = normalizeLatLng(nextCenter);
@@ -1497,6 +1498,148 @@ test("polls the BannerGuider user location every 5 seconds and recenters after r
   } finally {
     setIntervalSpy.mockRestore();
   }
+});
+
+test("BannerGuider fits bounds without animation after banner load", async () => {
+  global.fetch.mockImplementation((url) => {
+    if (url.endsWith("/bnrs/non-animated-fitbounds-banner")) {
+      return jsonResponse({
+        id: "non-animated-fitbounds-banner",
+        title: "Non Animated FitBounds Banner",
+        missions: {
+          "mission-1": {
+            id: "mission-1",
+            steps: {
+              0: {
+                poi: {
+                  title: "Portal One",
+                  type: "portal",
+                  latitude: 52.37,
+                  longitude: 4.89,
+                },
+              },
+            },
+          },
+          "mission-2": {
+            id: "mission-2",
+            steps: {
+              0: {
+                poi: {
+                  title: "Portal Two",
+                  type: "portal",
+                  latitude: 52.375,
+                  longitude: 4.895,
+                },
+              },
+            },
+          },
+        },
+      });
+    }
+
+    throw new Error(`Unhandled fetch: ${url}`);
+  });
+
+  renderWithProviders(
+    <Routes>
+      <Route path="/bannerguider/:bannerId" element={<BannerGuider />} />
+    </Routes>,
+    { route: "/bannerguider/non-animated-fitbounds-banner" }
+  );
+
+  await screen.findByTestId("map-container");
+
+  const { useMap } = await import("react-leaflet");
+  const map = useMap();
+
+  await waitFor(() => {
+    expect(map.fitBounds).toHaveBeenCalled();
+  });
+
+  expect(map.stop).toHaveBeenCalled();
+  expect(map.fitBounds.mock.calls.at(-1)?.[1]).toEqual(
+    expect.objectContaining({
+      animate: false,
+      padding: [50, 50],
+    })
+  );
+});
+
+test("copies the BannerGuider debug log buffer from the overlay", async () => {
+  const geoSuccessCallbacks = [];
+  const geolocation = {
+    getCurrentPosition: vi.fn((success) => {
+      geoSuccessCallbacks.push(success);
+    }),
+  };
+
+  Object.defineProperty(globalThis.navigator, "geolocation", {
+    configurable: true,
+    value: geolocation,
+  });
+
+  navigator.clipboard.writeText.mockClear();
+
+  global.fetch.mockImplementation((url) => {
+    if (url.endsWith("/bnrs/debug-copy-banner")) {
+      return jsonResponse({
+        id: "debug-copy-banner",
+        title: "Debug Copy Banner",
+        missions: {
+          "mission-1": {
+            id: "mission-1",
+            steps: {
+              0: {
+                poi: {
+                  title: "Portal One",
+                  type: "portal",
+                  latitude: 52.37,
+                  longitude: 4.89,
+                },
+              },
+            },
+          },
+        },
+      });
+    }
+
+    throw new Error(`Unhandled fetch: ${url}`);
+  });
+
+  renderWithProviders(
+    <Routes>
+      <Route path="/bannerguider/:bannerId" element={<BannerGuider />} />
+    </Routes>,
+    { route: "/bannerguider/debug-copy-banner" }
+  );
+
+  await screen.findByTestId("map-container");
+  expect(geoSuccessCallbacks.length).toBeGreaterThanOrEqual(1);
+
+  await act(async () => {
+    geoSuccessCallbacks.at(-1)({
+      coords: {
+        latitude: 52.37,
+        longitude: 4.89,
+        accuracy: 10,
+        heading: null,
+        speed: 0,
+      },
+    });
+  });
+
+  await userEvent.click(
+    screen.getByRole("button", { name: /copy bannerguider debug logs/i })
+  );
+
+  await waitFor(() => {
+    expect(navigator.clipboard.writeText).toHaveBeenCalledTimes(1);
+  });
+
+  const copiedText = navigator.clipboard.writeText.mock.calls.at(-1)?.[0] ?? "";
+  expect(copiedText).toContain("debug-log-cleared");
+  expect(copiedText).toContain("pollCurrentPosition");
+  expect(copiedText).toContain("handlePositionUpdate raw");
 });
 
 test("does not snap the BannerGuider back on the next stationary poll after a manual pan", async () => {

@@ -811,6 +811,10 @@ export default function LocationMarker() {
       position={position}
       icon={locationIcon(direction) || icon}
       zIndexOffset={2000}
+      interactive={false}
+      keyboard={false}
+      autoPanOnFocus={false}
+      bubblingMouseEvents={false}
     />
   );
 }

@@ -188,9 +188,21 @@ vi.mock("react-leaflet", async () => {
   return {
     MapContainer,
     TileLayer: ({ children }) => <div data-testid="tile-layer">{children}</div>,
-    Marker: ({ children, position, eventHandlers }) => (
+    Marker: ({
+      children,
+      position,
+      eventHandlers,
+      interactive,
+      keyboard,
+      autoPanOnFocus,
+      bubblingMouseEvents,
+    }) => (
       <div
         data-testid={`marker-${Array.isArray(position) ? position.join("-") : `${position?.lat}-${position?.lng}`}`}
+        data-interactive={String(interactive ?? true)}
+        data-keyboard={String(keyboard ?? true)}
+        data-autopan-on-focus={String(autoPanOnFocus ?? true)}
+        data-bubbling-mouse-events={String(bubblingMouseEvents ?? true)}
         onClick={() =>
           eventHandlers?.click?.({
             latlng: Array.isArray(position)
@@ -1504,6 +1516,77 @@ test("polls the BannerGuider user location every 5 seconds and recenters after r
   } finally {
     setIntervalSpy.mockRestore();
   }
+});
+
+test("renders the BannerGuider user location marker as non-interactive", async () => {
+  const geoSuccessCallbacks = [];
+  const geolocation = {
+    getCurrentPosition: vi.fn((success) => {
+      geoSuccessCallbacks.push(success);
+    }),
+  };
+
+  Object.defineProperty(globalThis.navigator, "geolocation", {
+    configurable: true,
+    value: geolocation,
+  });
+
+  global.fetch.mockImplementation((url) => {
+    if (url.endsWith("/bnrs/passive-location-marker-banner")) {
+      return jsonResponse({
+        id: "passive-location-marker-banner",
+        title: "Passive Location Marker Banner",
+        missions: {
+          "mission-1": {
+            id: "mission-1",
+            steps: {
+              0: {
+                poi: {
+                  title: "Portal One",
+                  type: "portal",
+                  latitude: 52.37,
+                  longitude: 4.89,
+                },
+              },
+            },
+          },
+        },
+      });
+    }
+
+    throw new Error(`Unhandled fetch: ${url}`);
+  });
+
+  renderWithProviders(
+    <Routes>
+      <Route path="/bannerguider/:bannerId" element={<BannerGuider />} />
+    </Routes>,
+    { route: "/bannerguider/passive-location-marker-banner" }
+  );
+
+  await screen.findByTestId("map-container");
+  expect(geoSuccessCallbacks.length).toBeGreaterThanOrEqual(1);
+
+  await act(async () => {
+    geoSuccessCallbacks.at(-1)({
+      coords: {
+        latitude: 52.37,
+        longitude: 4.89,
+        accuracy: 10,
+        heading: null,
+        speed: 0,
+      },
+    });
+  });
+
+  const userMarker = screen
+    .getAllByTestId("marker-52.37-4.89")
+    .find((element) => element.getAttribute("data-interactive") === "false");
+  expect(userMarker).toBeTruthy();
+  expect(userMarker).toHaveAttribute("data-interactive", "false");
+  expect(userMarker).toHaveAttribute("data-keyboard", "false");
+  expect(userMarker).toHaveAttribute("data-autopan-on-focus", "false");
+  expect(userMarker).toHaveAttribute("data-bubbling-mouse-events", "false");
 });
 
 test("BannerGuider fits bounds without animation after banner load", async () => {

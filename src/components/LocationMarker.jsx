@@ -602,25 +602,36 @@ export default function LocationMarker() {
         manualInteractionAnchorRef.current = null;
       }
 
-      if (!followSuspendedRef.current) {
+      const shouldAcceptCurrentPosition = shouldAcceptPositionUpdate({
+        previousPosition,
+        previousAccuracy: previousAccuracyRef.current,
+        nextPosition,
+        nextAccuracy,
+        map,
+      });
+      const shouldRecenterMap =
+        !followSuspendedRef.current &&
+        (!previousPosition || shouldResumeFollow || shouldAcceptCurrentPosition);
+
+      if (shouldRecenterMap) {
         recenterMap(nextPosition);
-      } else {
+      } else if (followSuspendedRef.current) {
         debugBannerGuider("handlePositionUpdate follow-suspended", {
           nextPosition: serializeLatLng(nextPosition),
           manualInteractionAnchor: serializeLatLng(manualInteractionAnchorRef.current),
           map: getDebugMapMetrics(map),
         });
+      } else {
+        debugBannerGuider("handlePositionUpdate skipped-recenter-stable-fix", {
+          nextPosition: serializeLatLng(nextPosition),
+          previousPosition: serializeLatLng(previousPosition),
+          nextAccuracy: roundDebugNumber(nextAccuracy),
+          previousAccuracy: roundDebugNumber(previousAccuracyRef.current),
+          map: getDebugMapMetrics(map),
+        });
       }
 
-      if (
-        !shouldAcceptPositionUpdate({
-          previousPosition,
-          previousAccuracy: previousAccuracyRef.current,
-          nextPosition,
-          nextAccuracy,
-          map,
-        })
-      ) {
+      if (!shouldAcceptCurrentPosition) {
         debugBannerGuider("handlePositionUpdate skipped-no-meaningful-movement", {
           nextPosition: serializeLatLng(nextPosition),
           previousPosition: serializeLatLng(previousPosition),

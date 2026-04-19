@@ -1384,7 +1384,7 @@ test("renders a single visible map for banner details even with multiple mission
   expect(screen.getAllByTestId("map-container")).toHaveLength(1);
 });
 
-test("polls the BannerGuider user location every 5 seconds and recenters after repeated identical fixes", async () => {
+test("polls the BannerGuider user location every 5 seconds without recentering repeated identical fixes", async () => {
   const intervalCallbacks = [];
   const setIntervalSpy = vi
     .spyOn(window, "setInterval")
@@ -1504,18 +1504,8 @@ test("polls the BannerGuider user location every 5 seconds and recenters after r
       });
     });
 
-    expect(map.invalidateSize).toHaveBeenCalledTimes(2);
-    expect(map.invalidateSize.mock.invocationCallOrder.at(-1)).toBeLessThan(
-      map.panTo.mock.invocationCallOrder.at(-1)
-    );
-    const repeatedCenter = map.panTo.mock.calls.at(-1)?.[0];
-    expect(repeatedCenter?.lat).toBeCloseTo(52.37, 5);
-    expect(repeatedCenter?.lng).toBeCloseTo(4.89, 5);
-    expect(map.panTo.mock.calls.at(-1)?.[1]).toEqual(
-      expect.objectContaining({
-        animate: false,
-      })
-    );
+    expect(map.invalidateSize).toHaveBeenCalledTimes(1);
+    expect(map.panTo).not.toHaveBeenCalled();
   } finally {
     setIntervalSpy.mockRestore();
   }

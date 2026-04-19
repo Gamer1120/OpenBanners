@@ -500,7 +500,10 @@ export default function LocationMarker() {
       });
 
       map.stop?.();
-      map.invalidateSize?.(false);
+      map.invalidateSize?.({
+        animate: false,
+        pan: false,
+      });
       const centeredTarget = getCenteredMapTarget(map, nextPosition);
 
       if (!hasCenteredRef.current || forceSetView) {

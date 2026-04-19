@@ -1469,7 +1469,10 @@ test("polls the BannerGuider user location every 5 seconds and recenters after r
       });
     });
 
-    expect(map.invalidateSize).toHaveBeenCalledWith(false);
+    expect(map.invalidateSize).toHaveBeenCalledWith({
+      animate: false,
+      pan: false,
+    });
     expect(map.invalidateSize.mock.invocationCallOrder.at(-1)).toBeLessThan(
       map.setView.mock.invocationCallOrder.at(-1)
     );

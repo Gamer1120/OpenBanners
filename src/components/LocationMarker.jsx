@@ -505,10 +505,34 @@ export default function LocationMarker() {
         pan: false,
       });
       const centeredTarget = getCenteredMapTarget(map, nextPosition);
+      const currentCenter = map.getCenter?.();
+      const recenterDistance =
+        currentCenter && typeof map.distance === "function"
+          ? map.distance(currentCenter, centeredTarget)
+          : Infinity;
+
+      if (
+        !forceSetView &&
+        hasCenteredRef.current &&
+        Number.isFinite(recenterDistance) &&
+        recenterDistance < 1
+      ) {
+        debugBannerGuider("recenterMap skipped-already-centered", {
+          centeredTarget: serializeLatLng(centeredTarget),
+          nextPosition: serializeLatLng(nextPosition),
+          currentCenter: serializeLatLng(currentCenter),
+          recenterDistance: roundDebugNumber(recenterDistance),
+          map: getDebugMapMetrics(map),
+        });
+        return;
+      }
+
       debugBannerGuider("recenterMap setView", {
         centeredTarget: serializeLatLng(centeredTarget),
         nextPosition: serializeLatLng(nextPosition),
         forceSetView,
+        currentCenter: serializeLatLng(currentCenter),
+        recenterDistance: roundDebugNumber(recenterDistance),
         map: getDebugMapMetrics(map),
       });
       map.setView(centeredTarget, map.getZoom(), {
@@ -738,8 +762,12 @@ export default function LocationMarker() {
         return;
       }
 
-      followSuspendedRef.current = true;
-      manualInteractionAnchorRef.current = latestProcessedPositionRef.current;
+      followSuspendedRef.current = false;
+      manualInteractionAnchorRef.current = null;
+      debugBannerGuider("handleManualViewportChange keeping-follow-active", {
+        latestProcessedPosition: serializeLatLng(latestProcessedPositionRef.current),
+        map: getDebugMapMetrics(map),
+      });
     };
 
     map.on?.("dragstart", handleManualViewportChange);

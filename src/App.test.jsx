@@ -1384,7 +1384,7 @@ test("renders a single visible map for banner details even with multiple mission
   expect(screen.getAllByTestId("map-container")).toHaveLength(1);
 });
 
-test("polls the BannerGuider user location every 5 seconds and resets view for repeated identical fixes", async () => {
+test("polls the BannerGuider user location every 5 seconds without resetting an already-centered map", async () => {
   const intervalCallbacks = [];
   const setIntervalSpy = vi
     .spyOn(window, "setInterval")
@@ -1512,16 +1512,7 @@ test("polls the BannerGuider user location every 5 seconds and resets view for r
 
     expect(map.invalidateSize).toHaveBeenCalledTimes(2);
     expect(map.panTo).not.toHaveBeenCalled();
-    expect(map.setView).toHaveBeenCalledTimes(2);
-    const repeatedCenter = map.setView.mock.calls.at(-1)?.[0];
-    expect(repeatedCenter?.lat).toBeCloseTo(52.37, 5);
-    expect(repeatedCenter?.lng).toBeCloseTo(4.89, 5);
-    expect(map.setView.mock.calls.at(-1)?.[2]).toEqual(
-      expect.objectContaining({
-        animate: false,
-        reset: true,
-      })
-    );
+    expect(map.setView).toHaveBeenCalledTimes(1);
   } finally {
     setIntervalSpy.mockRestore();
   }
@@ -1808,6 +1799,11 @@ test("does not snap the BannerGuider back on the next stationary poll after a ma
 
   expect(map.setView).toHaveBeenCalledTimes(1);
 
+  map.setView({ lat: 52.39, lng: 4.91 }, map.getZoom(), {
+    animate: false,
+    reset: true,
+  });
+  map.setView.mockClear();
   container.__handlers.dragstart?.();
 
   await act(async () => {
@@ -1822,6 +1818,10 @@ test("does not snap the BannerGuider back on the next stationary poll after a ma
     });
   });
 
+  expect(map.setView).toHaveBeenCalledTimes(1);
+  const recenteredTarget = map.setView.mock.calls.at(-1)?.[0];
+  expect(recenteredTarget?.lat).toBeCloseTo(52.37, 5);
+  expect(recenteredTarget?.lng).toBeCloseTo(4.89, 5);
   expect(map.panTo).not.toHaveBeenCalled();
 });
 

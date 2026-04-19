@@ -11,6 +11,7 @@ const MIN_POSITION_CHANGE_METERS = 8;
 const MAX_TRACKED_ACCURACY_METERS = 75;
 const ORIENTATION_UPDATE_INTERVAL_MS = 250;
 const GEOLOCATION_POLL_INTERVAL_MS = 5000;
+const RECENTER_EASTWARD_VIEWPORT_WIDTHS = 1;
 const GEOLOCATION_OPTIONS = {
   enableHighAccuracy: false,
   maximumAge: 5000,
@@ -278,7 +279,10 @@ function getPreferredTargetPoint(map) {
   const maxY = Number.isFinite(mapSize?.y) ? mapSize.y : containerRect.height;
 
   return {
-    x: clamp(targetCenter.x - containerRect.left, 0, maxX),
+    x:
+      targetCenter.x -
+      containerRect.left -
+      visibleRect.width * RECENTER_EASTWARD_VIEWPORT_WIDTHS,
     y: clamp(targetCenter.y - containerRect.top, 0, maxY),
   };
 }

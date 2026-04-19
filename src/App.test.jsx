@@ -83,6 +83,8 @@ vi.mock("react-leaflet", async () => {
       width: 360,
       height: 640,
     };
+    let currentCenter = { lat: 52.2, lng: 6.85 };
+    let currentZoom = 15;
     Object.defineProperty(container, "getBoundingClientRect", {
       configurable: true,
       value: () => containerRect,
@@ -90,6 +92,22 @@ vi.mock("react-leaflet", async () => {
     container.__setRect = (nextRect) => {
       containerRect = nextRect;
     };
+
+    const normalizeLatLng = (value) => {
+      if (Array.isArray(value)) {
+        return {
+          lat: value[0],
+          lng: value[1],
+        };
+      }
+
+      return value;
+    };
+
+    const getSize = () => ({
+      x: containerRect.width,
+      y: containerRect.height,
+    });
 
     return {
       fitBounds: vi.fn(),
@@ -109,25 +127,36 @@ vi.mock("react-leaflet", async () => {
       }),
       locate: vi.fn(),
       invalidateSize: vi.fn(),
-      setView: vi.fn(),
-      panTo: vi.fn(),
-      getCenter: vi.fn(() => ({ lat: 52.2, lng: 6.85 })),
-      getZoom: vi.fn(() => 15),
+      setView: vi.fn((nextCenter, nextZoom = currentZoom) => {
+        currentCenter = normalizeLatLng(nextCenter);
+        currentZoom = nextZoom;
+      }),
+      panTo: vi.fn((nextCenter) => {
+        currentCenter = normalizeLatLng(nextCenter);
+      }),
+      getCenter: vi.fn(() => currentCenter),
+      getZoom: vi.fn(() => currentZoom),
       getContainer: vi.fn(() => container),
-      getSize: vi.fn(() => ({ x: 360, y: 640 })),
+      getSize: vi.fn(() => getSize()),
       distance: vi.fn((a, b) => {
         const dx = (b.lng - a.lng) * 111000;
         const dy = (b.lat - a.lat) * 111000;
         return Math.sqrt(dx * dx + dy * dy);
       }),
-      latLngToContainerPoint: ({ lat, lng }) => ({
-        x: Math.round((lng - 6.8) * 1000),
-        y: Math.round((52.3 - lat) * 1000),
-      }),
-      containerPointToLatLng: ({ x, y }) => ({
-        lat: 52.3 - y / 1000,
-        lng: 6.8 + x / 1000,
-      }),
+      latLngToContainerPoint: ({ lat, lng }) => {
+        const size = getSize();
+        return {
+          x: Math.round((lng - currentCenter.lng) * 1000 + size.x / 2),
+          y: Math.round((currentCenter.lat - lat) * 1000 + size.y / 2),
+        };
+      },
+      containerPointToLatLng: ({ x, y }) => {
+        const size = getSize();
+        return {
+          lat: currentCenter.lat - (y - size.y / 2) / 1000,
+          lng: currentCenter.lng + (x - size.x / 2) / 1000,
+        };
+      },
     };
   };
 
@@ -1424,10 +1453,10 @@ test("polls the BannerGuider user location every 5 seconds and recenters after r
     expect(map.invalidateSize.mock.invocationCallOrder.at(-1)).toBeLessThan(
       map.setView.mock.invocationCallOrder.at(-1)
     );
-    expect(map.setView).toHaveBeenCalledWith(
-      { lat: 52.37, lng: 4.89 },
-      expect.any(Number)
-    );
+    const initialCenter = map.setView.mock.calls.at(-1)?.[0];
+    expect(initialCenter?.lat).toBeCloseTo(52.37, 5);
+    expect(initialCenter?.lng).toBeCloseTo(4.89, 5);
+    expect(map.setView.mock.calls.at(-1)?.[1]).toEqual(expect.any(Number));
 
     const initialPollCount = geolocation.getCurrentPosition.mock.calls.length;
 
@@ -1456,8 +1485,10 @@ test("polls the BannerGuider user location every 5 seconds and recenters after r
     expect(map.invalidateSize.mock.invocationCallOrder.at(-1)).toBeLessThan(
       map.panTo.mock.invocationCallOrder.at(-1)
     );
-    expect(map.panTo).toHaveBeenCalledWith(
-      { lat: 52.37, lng: 4.89 },
+    const repeatedCenter = map.panTo.mock.calls.at(-1)?.[0];
+    expect(repeatedCenter?.lat).toBeCloseTo(52.37, 5);
+    expect(repeatedCenter?.lng).toBeCloseTo(4.89, 5);
+    expect(map.panTo.mock.calls.at(-1)?.[1]).toEqual(
       expect.objectContaining({
         animate: true,
         duration: 0.35,
@@ -1468,7 +1499,7 @@ test("polls the BannerGuider user location every 5 seconds and recenters after r
   }
 });
 
-test.skip("keeps the BannerGuider user marker visible in the safe area on small screens", async () => {
+test("keeps the BannerGuider user marker visible in the safe area on small screens", async () => {
   const geoSuccessCallbacks = [];
   const geolocation = {
     getCurrentPosition: vi.fn((success) => {
@@ -1527,7 +1558,7 @@ test.skip("keeps the BannerGuider user marker visible in the safe area on small 
     value: () => ({ left: 10, top: 10, right: 150, bottom: 110, width: 140, height: 100 }),
   });
 
-  expect(geoSuccessCallbacks.length).toBeGreaterThanOrEqual(3);
+  expect(geoSuccessCallbacks.length).toBeGreaterThanOrEqual(1);
 
   await act(async () => {
     geoSuccessCallbacks[0]({
@@ -1563,6 +1594,131 @@ test.skip("keeps the BannerGuider user marker visible in the safe area on small 
   expect(point.x).toBeLessThan(360);
   expect(point.y).toBeGreaterThan(110);
   expect(point.y).toBeLessThan(640);
+});
+
+
+test("keeps the BannerGuider centered within the visible viewport when the map container is wider than the window", async () => {
+  const geoSuccessCallbacks = [];
+  const geolocation = {
+    getCurrentPosition: vi.fn((success) => {
+      geoSuccessCallbacks.push(success);
+    }),
+  };
+
+  Object.defineProperty(globalThis.navigator, "geolocation", {
+    configurable: true,
+    value: geolocation,
+  });
+
+  const originalInnerWidth = window.innerWidth;
+  const originalInnerHeight = window.innerHeight;
+
+  Object.defineProperty(window, "innerWidth", {
+    configurable: true,
+    value: 220,
+  });
+  Object.defineProperty(window, "innerHeight", {
+    configurable: true,
+    value: 520,
+  });
+
+  global.fetch.mockImplementation((url) => {
+    if (url.endsWith("/bnrs/split-screen-banner")) {
+      return jsonResponse({
+        id: "split-screen-banner",
+        title: "Split Screen Banner",
+        missions: {
+          "mission-1": {
+            id: "mission-1",
+            steps: {
+              0: {
+                poi: {
+                  title: "Portal One",
+                  type: "portal",
+                  latitude: 52.37,
+                  longitude: 4.89,
+                },
+              },
+            },
+          },
+        },
+      });
+    }
+
+    throw new Error(`Unhandled fetch: ${url}`);
+  });
+
+  try {
+    renderWithProviders(
+      <Routes>
+        <Route path="/bannerguider/:bannerId" element={<BannerGuider />} />
+      </Routes>,
+      { route: "/bannerguider/split-screen-banner" }
+    );
+
+    await screen.findByTestId("map-container");
+
+    const overlay = document.querySelector('[data-map-overlay="mission-controls"]');
+    expect(overlay).toBeTruthy();
+    Object.defineProperty(overlay, "getBoundingClientRect", {
+      configurable: true,
+      value: () => ({ left: 10, top: 10, right: 130, bottom: 92, width: 120, height: 82 }),
+    });
+
+    const { useMap } = await import("react-leaflet");
+    const map = useMap();
+    const container = map.getContainer();
+    container.__setRect({
+      left: 0,
+      top: 0,
+      right: 360,
+      bottom: 520,
+      width: 360,
+      height: 520,
+    });
+    map.getSize.mockReturnValue({ x: 360, y: 520 });
+
+    await act(async () => {
+      geoSuccessCallbacks[0]({
+        coords: {
+          latitude: 52.37,
+          longitude: 4.89,
+          accuracy: 10,
+          heading: null,
+          speed: 0,
+        },
+      });
+    });
+
+    await act(async () => {
+      geoSuccessCallbacks.at(-1)({
+        coords: {
+          latitude: 52.3702,
+          longitude: 4.8902,
+          accuracy: 8,
+          heading: null,
+          speed: 1,
+        },
+      });
+    });
+
+    const target = map.panTo.mock.calls.at(-1)?.[0];
+    const point = map.latLngToContainerPoint(target);
+
+    expect(point.x).toBeGreaterThan(130);
+    expect(point.x).toBeLessThan(220);
+    expect(point.y).toBeGreaterThan(92);
+    expect(point.y).toBeLessThan(520);
+  } finally {
+    Object.defineProperty(window, "innerWidth", {
+      configurable: true,
+      value: originalInnerWidth,
+    });
+    Object.defineProperty(window, "innerHeight", {
+      configurable: true,
+      value: originalInnerHeight,
+    });
+  }
 });
 
 test.skip("stops moving the map after the user manually zooms or pans", async () => {

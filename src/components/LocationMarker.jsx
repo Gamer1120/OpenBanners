@@ -4,6 +4,7 @@ import "leaflet-easybutton/src/easy-button.js";
 import "leaflet-easybutton/src/easy-button.css";
 import "font-awesome/css/font-awesome.min.css";
 import icon, { locationIcon } from "../constants";
+import { logBannerGuiderDebug } from "../bannerGuiderDebug";
 
 const MIN_DIRECTION_DISTANCE_METERS = 5;
 const MIN_DIRECTION_CHANGE_DEGREES = 8;
@@ -16,6 +17,114 @@ const GEOLOCATION_OPTIONS = {
   maximumAge: 5000,
   timeout: 15000,
 };
+
+function roundDebugNumber(value) {
+  if (!Number.isFinite(value)) {
+    return value ?? null;
+  }
+
+  return Math.round(value * 1000) / 1000;
+}
+
+function serializeLatLng(value) {
+  if (!value) {
+    return null;
+  }
+
+  const latitude = Number(value.lat ?? value.latitude);
+  const longitude = Number(value.lng ?? value.longitude);
+
+  if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
+    return null;
+  }
+
+  return {
+    lat: roundDebugNumber(latitude),
+    lng: roundDebugNumber(longitude),
+  };
+}
+
+function serializePoint(point) {
+  if (!point) {
+    return null;
+  }
+
+  const x = Number(point.x);
+  const y = Number(point.y);
+
+  if (!Number.isFinite(x) || !Number.isFinite(y)) {
+    return null;
+  }
+
+  return {
+    x: roundDebugNumber(x),
+    y: roundDebugNumber(y),
+  };
+}
+
+function serializeRect(rect) {
+  if (!rect) {
+    return null;
+  }
+
+  return {
+    left: roundDebugNumber(rect.left),
+    top: roundDebugNumber(rect.top),
+    right: roundDebugNumber(rect.right),
+    bottom: roundDebugNumber(rect.bottom),
+    width: roundDebugNumber(rect.width),
+    height: roundDebugNumber(rect.height),
+  };
+}
+
+function getDebugWindowMetrics() {
+  if (typeof window === "undefined") {
+    return null;
+  }
+
+  return {
+    innerWidth: roundDebugNumber(window.innerWidth),
+    innerHeight: roundDebugNumber(window.innerHeight),
+    outerWidth: roundDebugNumber(window.outerWidth),
+    outerHeight: roundDebugNumber(window.outerHeight),
+    visualViewport: window.visualViewport
+      ? {
+          width: roundDebugNumber(window.visualViewport.width),
+          height: roundDebugNumber(window.visualViewport.height),
+          offsetLeft: roundDebugNumber(window.visualViewport.offsetLeft),
+          offsetTop: roundDebugNumber(window.visualViewport.offsetTop),
+          pageLeft: roundDebugNumber(window.visualViewport.pageLeft),
+          pageTop: roundDebugNumber(window.visualViewport.pageTop),
+          scale: roundDebugNumber(window.visualViewport.scale),
+        }
+      : null,
+  };
+}
+
+function getDebugMapMetrics(map) {
+  const container = map?.getContainer?.();
+  const containerRect = normalizeRect(container?.getBoundingClientRect?.());
+  const mapSize = map?.getSize?.();
+
+  return {
+    center: serializeLatLng(map?.getCenter?.()),
+    zoom: roundDebugNumber(map?.getZoom?.()),
+    size: mapSize
+      ? {
+          x: roundDebugNumber(mapSize.x),
+          y: roundDebugNumber(mapSize.y),
+        }
+      : null,
+    containerRect: serializeRect(containerRect),
+  };
+}
+
+function debugBannerGuider(label, details = {}) {
+  logBannerGuiderDebug(label, {
+    ...details,
+    window: details.window ?? getDebugWindowMetrics(),
+  });
+}
 
 function toRadians(degrees) {
   return (degrees * Math.PI) / 180;
@@ -117,8 +226,20 @@ function shouldAcceptPositionUpdate({
       16
     )
   );
+  const shouldAccept = distance >= accuracyThreshold;
 
-  return distance >= accuracyThreshold;
+  debugBannerGuider("shouldAcceptPositionUpdate", {
+    previousPosition: serializeLatLng(previousPosition),
+    nextPosition: serializeLatLng(nextPosition),
+    previousAccuracy: roundDebugNumber(previousAccuracy),
+    nextAccuracy: roundDebugNumber(nextAccuracy),
+    distance: roundDebugNumber(distance),
+    accuracyThreshold: roundDebugNumber(accuracyThreshold),
+    shouldAccept,
+    map: getDebugMapMetrics(map),
+  });
+
+  return shouldAccept;
 }
 
 function clamp(value, min, max) {
@@ -165,10 +286,14 @@ function getViewportRect() {
   const height = Number(window.visualViewport?.height ?? window.innerHeight);
 
   if (!Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) {
+    debugBannerGuider("getViewportRect invalid", {
+      width: roundDebugNumber(width),
+      height: roundDebugNumber(height),
+    });
     return null;
   }
 
-  return {
+  const viewportRect = {
     left: 0,
     top: 0,
     right: width,
@@ -176,6 +301,12 @@ function getViewportRect() {
     width,
     height,
   };
+
+  debugBannerGuider("getViewportRect", {
+    viewportRect: serializeRect(viewportRect),
+  });
+
+  return viewportRect;
 }
 
 function getIntersectionRect(firstRect, secondRect) {
@@ -219,24 +350,31 @@ function getPreferredTargetPoint(map) {
   const containerRect = normalizeRect(map.getContainer?.()?.getBoundingClientRect?.());
 
   if (!containerRect) {
+    debugBannerGuider("getPreferredTargetPoint missing-container-rect", {
+      map: getDebugMapMetrics(map),
+    });
     return null;
   }
 
+  const viewportRect = getViewportRect();
   const visibleRect =
-    getIntersectionRect(containerRect, getViewportRect()) ?? containerRect;
+    getIntersectionRect(containerRect, viewportRect) ?? containerRect;
 
   let targetRect = visibleRect;
+  let overlayRect = null;
+  let overlappingOverlayRect = null;
+  let candidateRects = [];
 
   if (typeof document !== "undefined") {
-    const overlayRect = normalizeRect(
+    overlayRect = normalizeRect(
       document
         .querySelector('[data-map-overlay="mission-controls"]')
         ?.getBoundingClientRect?.()
     );
-    const overlappingOverlayRect = getIntersectionRect(visibleRect, overlayRect);
+    overlappingOverlayRect = getIntersectionRect(visibleRect, overlayRect);
 
     if (overlappingOverlayRect) {
-      const candidates = [
+      candidateRects = [
         {
           left: visibleRect.left,
           top: visibleRect.top,
@@ -266,8 +404,8 @@ function getPreferredTargetPoint(map) {
         .filter(Boolean)
         .sort((firstRect, secondRect) => getRectArea(secondRect) - getRectArea(firstRect));
 
-      if (candidates.length > 0) {
-        targetRect = candidates[0];
+      if (candidateRects.length > 0) {
+        targetRect = candidateRects[0];
       }
     }
   }
@@ -276,11 +414,24 @@ function getPreferredTargetPoint(map) {
   const mapSize = map.getSize?.();
   const maxX = Number.isFinite(mapSize?.x) ? mapSize.x : containerRect.width;
   const maxY = Number.isFinite(mapSize?.y) ? mapSize.y : containerRect.height;
-
-  return {
+  const targetPoint = {
     x: clamp(targetCenter.x - containerRect.left, 0, maxX),
     y: clamp(targetCenter.y - containerRect.top, 0, maxY),
   };
+
+  debugBannerGuider("getPreferredTargetPoint", {
+    map: getDebugMapMetrics(map),
+    viewportRect: serializeRect(viewportRect),
+    visibleRect: serializeRect(visibleRect),
+    overlayRect: serializeRect(overlayRect),
+    overlappingOverlayRect: serializeRect(overlappingOverlayRect),
+    candidateRects: candidateRects.map((candidateRect) => serializeRect(candidateRect)),
+    targetRect: serializeRect(targetRect),
+    targetCenter: serializePoint(targetCenter),
+    targetPoint: serializePoint(targetPoint),
+  });
+
+  return targetPoint;
 }
 
 function getCenteredMapTarget(map, nextPosition) {
@@ -297,6 +448,16 @@ function getCenteredMapTarget(map, nextPosition) {
     !currentCenterPoint ||
     typeof map.containerPointToLatLng !== "function"
   ) {
+    debugBannerGuider("getCenteredMapTarget fallback-nextPosition", {
+      nextPosition: serializeLatLng(nextPosition),
+      targetPoint: serializePoint(targetPoint),
+      userPoint: serializePoint(userPoint),
+      currentCenter: serializeLatLng(currentCenter),
+      currentCenterPoint: serializePoint(currentCenterPoint),
+      hasContainerPointToLatLng:
+        typeof map.containerPointToLatLng === "function",
+      map: getDebugMapMetrics(map),
+    });
     return nextPosition;
   }
 
@@ -307,8 +468,29 @@ function getCenteredMapTarget(map, nextPosition) {
   const desiredCenter = map.containerPointToLatLng(desiredCenterPoint);
 
   if (!Number.isFinite(desiredCenter?.lat) || !Number.isFinite(desiredCenter?.lng)) {
+    debugBannerGuider("getCenteredMapTarget invalid-desiredCenter", {
+      nextPosition: serializeLatLng(nextPosition),
+      targetPoint: serializePoint(targetPoint),
+      userPoint: serializePoint(userPoint),
+      currentCenter: serializeLatLng(currentCenter),
+      currentCenterPoint: serializePoint(currentCenterPoint),
+      desiredCenterPoint: serializePoint(desiredCenterPoint),
+      desiredCenter,
+      map: getDebugMapMetrics(map),
+    });
     return nextPosition;
   }
+
+  debugBannerGuider("getCenteredMapTarget", {
+    nextPosition: serializeLatLng(nextPosition),
+    targetPoint: serializePoint(targetPoint),
+    userPoint: serializePoint(userPoint),
+    currentCenter: serializeLatLng(currentCenter),
+    currentCenterPoint: serializePoint(currentCenterPoint),
+    desiredCenterPoint: serializePoint(desiredCenterPoint),
+    desiredCenter: serializeLatLng(desiredCenter),
+    map: getDebugMapMetrics(map),
+  });
 
   return desiredCenter;
 }
@@ -356,18 +538,44 @@ export default function LocationMarker() {
   const recenterMap = useCallback(
     (nextPosition, { forceSetView = false } = {}) => {
       if (!nextPosition) {
+        debugBannerGuider("recenterMap skipped-missing-position", {
+          forceSetView,
+          map: getDebugMapMetrics(map),
+        });
         return;
       }
+
+      debugBannerGuider("recenterMap start", {
+        nextPosition: serializeLatLng(nextPosition),
+        forceSetView,
+        hasCentered: hasCenteredRef.current,
+        followSuspended: followSuspendedRef.current,
+        manualInteractionAnchor: serializeLatLng(manualInteractionAnchorRef.current),
+        latestProcessedPosition: serializeLatLng(latestProcessedPositionRef.current),
+        map: getDebugMapMetrics(map),
+      });
 
       map.invalidateSize?.(false);
       const centeredTarget = getCenteredMapTarget(map, nextPosition);
 
       if (!hasCenteredRef.current || forceSetView) {
+        debugBannerGuider("recenterMap setView", {
+          centeredTarget: serializeLatLng(centeredTarget),
+          nextPosition: serializeLatLng(nextPosition),
+          forceSetView,
+          map: getDebugMapMetrics(map),
+        });
         map.setView(centeredTarget, map.getZoom());
         hasCenteredRef.current = true;
         return;
       }
 
+      debugBannerGuider("recenterMap panTo", {
+        centeredTarget: serializeLatLng(centeredTarget),
+        nextPosition: serializeLatLng(nextPosition),
+        forceSetView,
+        map: getDebugMapMetrics(map),
+      });
       map.panTo(centeredTarget, {
         animate: true,
         duration: 0.35,
@@ -382,7 +590,25 @@ export default function LocationMarker() {
     }
 
     const handlePositionUpdate = ({ coords }) => {
+      debugBannerGuider("handlePositionUpdate raw", {
+        coords: {
+          latitude: roundDebugNumber(coords?.latitude),
+          longitude: roundDebugNumber(coords?.longitude),
+          accuracy: roundDebugNumber(coords?.accuracy),
+          heading: roundDebugNumber(coords?.heading),
+          speed: roundDebugNumber(coords?.speed),
+        },
+        map: getDebugMapMetrics(map),
+        previousPosition: serializeLatLng(previousPositionRef.current),
+        previousAccuracy: roundDebugNumber(previousAccuracyRef.current),
+        followSuspended: followSuspendedRef.current,
+        manualInteractionAnchor: serializeLatLng(manualInteractionAnchorRef.current),
+      });
+
       if (!Number.isFinite(coords?.latitude) || !Number.isFinite(coords?.longitude)) {
+        debugBannerGuider("handlePositionUpdate skipped-invalid-coordinates", {
+          coords,
+        });
         return;
       }
 
@@ -394,6 +620,12 @@ export default function LocationMarker() {
       const nextAccuracy = Number(coords.accuracy);
 
       if (Number.isFinite(nextAccuracy) && nextAccuracy > MAX_TRACKED_ACCURACY_METERS) {
+        debugBannerGuider("handlePositionUpdate skipped-poor-accuracy", {
+          nextPosition: serializeLatLng(nextPosition),
+          nextAccuracy: roundDebugNumber(nextAccuracy),
+          maxTrackedAccuracyMeters: MAX_TRACKED_ACCURACY_METERS,
+          map: getDebugMapMetrics(map),
+        });
         return;
       }
 
@@ -410,12 +642,24 @@ export default function LocationMarker() {
         });
 
       if (shouldResumeFollow) {
+        debugBannerGuider("handlePositionUpdate resume-follow", {
+          nextPosition: serializeLatLng(nextPosition),
+          manualInteractionAnchor: serializeLatLng(manualInteractionAnchorRef.current),
+          nextAccuracy: roundDebugNumber(nextAccuracy),
+          map: getDebugMapMetrics(map),
+        });
         followSuspendedRef.current = false;
         manualInteractionAnchorRef.current = null;
       }
 
       if (!followSuspendedRef.current) {
         recenterMap(nextPosition);
+      } else {
+        debugBannerGuider("handlePositionUpdate follow-suspended", {
+          nextPosition: serializeLatLng(nextPosition),
+          manualInteractionAnchor: serializeLatLng(manualInteractionAnchorRef.current),
+          map: getDebugMapMetrics(map),
+        });
       }
 
       if (
@@ -427,6 +671,13 @@ export default function LocationMarker() {
           map,
         })
       ) {
+        debugBannerGuider("handlePositionUpdate skipped-no-meaningful-movement", {
+          nextPosition: serializeLatLng(nextPosition),
+          previousPosition: serializeLatLng(previousPosition),
+          nextAccuracy: roundDebugNumber(nextAccuracy),
+          previousAccuracy: roundDebugNumber(previousAccuracyRef.current),
+          map: getDebugMapMetrics(map),
+        });
         return;
       }
 
@@ -452,14 +703,35 @@ export default function LocationMarker() {
       previousAccuracyRef.current = Number.isFinite(nextAccuracy)
         ? nextAccuracy
         : previousAccuracyRef.current;
+      debugBannerGuider("handlePositionUpdate accepted", {
+        nextPosition: serializeLatLng(nextPosition),
+        nextAccuracy: roundDebugNumber(nextAccuracy),
+        geolocationHeading: roundDebugNumber(geolocationHeading),
+        movementHeading: roundDebugNumber(headingSourcesRef.current.movement),
+        orientationHeading: roundDebugNumber(headingSourcesRef.current.orientation),
+        geolocationHeadingSource: roundDebugNumber(
+          headingSourcesRef.current.geolocation
+        ),
+        map: getDebugMapMetrics(map),
+      });
       updateEffectiveHeading();
     };
 
     const handlePositionError = (error) => {
       console.error("Couldn't fetch user location in BannerGuider.", error);
+      debugBannerGuider("handlePositionError", {
+        error: error?.message ?? String(error),
+        map: getDebugMapMetrics(map),
+      });
     };
 
     const pollCurrentPosition = () => {
+      debugBannerGuider("pollCurrentPosition", {
+        geolocationOptions: GEOLOCATION_OPTIONS,
+        followSuspended: followSuspendedRef.current,
+        latestProcessedPosition: serializeLatLng(latestProcessedPositionRef.current),
+        map: getDebugMapMetrics(map),
+      });
       navigator.geolocation.getCurrentPosition(
         handlePositionUpdate,
         handlePositionError,
@@ -484,6 +756,13 @@ export default function LocationMarker() {
     }
 
     const handleLayoutChange = () => {
+      debugBannerGuider("handleLayoutChange", {
+        latestProcessedPosition: serializeLatLng(latestProcessedPositionRef.current),
+        followSuspended: followSuspendedRef.current,
+        manualInteractionAnchor: serializeLatLng(manualInteractionAnchorRef.current),
+        map: getDebugMapMetrics(map),
+      });
+
       if (!latestProcessedPositionRef.current || followSuspendedRef.current) {
         return;
       }
@@ -507,6 +786,12 @@ export default function LocationMarker() {
 
   useEffect(() => {
     const handleManualViewportChange = () => {
+      debugBannerGuider("handleManualViewportChange", {
+        latestProcessedPosition: serializeLatLng(latestProcessedPositionRef.current),
+        previousPosition: serializeLatLng(previousPositionRef.current),
+        followSuspendedBefore: followSuspendedRef.current,
+        map: getDebugMapMetrics(map),
+      });
       followSuspendedRef.current = true;
       manualInteractionAnchorRef.current = latestProcessedPositionRef.current;
     };
@@ -543,6 +828,12 @@ export default function LocationMarker() {
 
       lastOrientationUpdateAtRef.current = now;
       headingSourcesRef.current.orientation = orientationHeading;
+      debugBannerGuider("handleOrientation", {
+        orientationHeading: roundDebugNumber(orientationHeading),
+        alpha: roundDebugNumber(event.alpha),
+        webkitCompassHeading: roundDebugNumber(event.webkitCompassHeading),
+        map: getDebugMapMetrics(map),
+      });
       updateEffectiveHeading();
     };
 

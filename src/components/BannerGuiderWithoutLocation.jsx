@@ -5,6 +5,7 @@ import MapOverlay from "./MapOverlay";
 import { useState, useEffect, useMemo, useRef } from "react";
 import L from "leaflet";
 import { fetchBannergress } from "../bannergressSync";
+import { clearBannerGuiderDebugLog, logBannerGuiderDebug } from "../bannerGuiderDebug";
 
 export default function Map() {
   const { bannerId } = useParams();
@@ -32,6 +33,13 @@ export default function Map() {
     () => Object.values(items.missions ?? {}),
     [items.missions]
   );
+  useEffect(() => {
+    clearBannerGuiderDebugLog({
+      bannerId,
+      guiderMode: "without-location",
+    });
+  }, [bannerId]);
+
   const missionCoordinates = useMemo(
     () =>
       missions
@@ -53,15 +61,31 @@ export default function Map() {
     [missions]
   );
   useEffect(() => {
+    logBannerGuiderDebug("loadBanner start", {
+      bannerId,
+      guiderMode: "without-location",
+    });
+
     fetchBannergress(`https://api.bannergress.com/bnrs/${bannerId}`)
       .then((res) => res.json())
       .then(
         (result) => {
+          logBannerGuiderDebug("loadBanner success", {
+            bannerId,
+            guiderMode: "without-location",
+            missionCount: Object.values(result?.missions ?? {}).length,
+            title: result?.title ?? null,
+          });
           setItems(result);
           setIsLoading(false);
         },
         (error) => {
           console.log(error);
+          logBannerGuiderDebug("loadBanner error", {
+            bannerId,
+            guiderMode: "without-location",
+            error: error?.message ?? String(error),
+          });
         }
       );
   }, [bannerId]);
@@ -86,6 +110,11 @@ export default function Map() {
   }
 
   const handleMapContainerReady = () => {
+    logBannerGuiderDebug("handleMapContainerReady", {
+      bannerId,
+      guiderMode: "without-location",
+      missionCoordinateCount: missionCoordinates.length,
+    });
     setMapInitialized(true);
   };
 

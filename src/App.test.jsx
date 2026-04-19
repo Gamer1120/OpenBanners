@@ -1499,6 +1499,91 @@ test("polls the BannerGuider user location every 5 seconds and recenters after r
   }
 });
 
+test("does not snap the BannerGuider back on the next stationary poll after a manual pan", async () => {
+  const geoSuccessCallbacks = [];
+  const geolocation = {
+    getCurrentPosition: vi.fn((success) => {
+      geoSuccessCallbacks.push(success);
+    }),
+  };
+
+  Object.defineProperty(globalThis.navigator, "geolocation", {
+    configurable: true,
+    value: geolocation,
+  });
+
+  global.fetch.mockImplementation((url) => {
+    if (url.endsWith("/bnrs/manual-pan-banner")) {
+      return jsonResponse({
+        id: "manual-pan-banner",
+        title: "Manual Pan Banner",
+        missions: {
+          "mission-1": {
+            id: "mission-1",
+            steps: {
+              0: {
+                poi: {
+                  title: "Portal One",
+                  type: "portal",
+                  latitude: 52.37,
+                  longitude: 4.89,
+                },
+              },
+            },
+          },
+        },
+      });
+    }
+
+    throw new Error(`Unhandled fetch: ${url}`);
+  });
+
+  renderWithProviders(
+    <Routes>
+      <Route path="/bannerguider/:bannerId" element={<BannerGuider />} />
+    </Routes>,
+    { route: "/bannerguider/manual-pan-banner" }
+  );
+
+  await screen.findByTestId("map-container");
+
+  const { useMap } = await import("react-leaflet");
+  const map = useMap();
+  const container = map.getContainer();
+
+  expect(geoSuccessCallbacks.length).toBeGreaterThanOrEqual(1);
+
+  await act(async () => {
+    geoSuccessCallbacks.at(-1)({
+      coords: {
+        latitude: 52.37,
+        longitude: 4.89,
+        accuracy: 10,
+        heading: null,
+        speed: 0,
+      },
+    });
+  });
+
+  expect(map.setView).toHaveBeenCalledTimes(1);
+
+  container.__handlers.dragstart?.();
+
+  await act(async () => {
+    geoSuccessCallbacks.at(-1)({
+      coords: {
+        latitude: 52.37,
+        longitude: 4.89,
+        accuracy: 10,
+        heading: null,
+        speed: 0,
+      },
+    });
+  });
+
+  expect(map.panTo).not.toHaveBeenCalled();
+});
+
 test("keeps the BannerGuider user marker visible in the safe area on small screens", async () => {
   const geoSuccessCallbacks = [];
   const geolocation = {

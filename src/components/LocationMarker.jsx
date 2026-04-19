@@ -320,6 +320,8 @@ export default function LocationMarker() {
   const previousPositionRef = useRef(null);
   const previousAccuracyRef = useRef(null);
   const latestProcessedPositionRef = useRef(null);
+  const manualInteractionAnchorRef = useRef(null);
+  const followSuspendedRef = useRef(false);
   const hasCenteredRef = useRef(false);
   const lastOrientationUpdateAtRef = useRef(0);
   const headingSourcesRef = useRef({
@@ -396,7 +398,25 @@ export default function LocationMarker() {
       }
 
       latestProcessedPositionRef.current = nextPosition;
-      recenterMap(nextPosition);
+
+      const shouldResumeFollow =
+        followSuspendedRef.current &&
+        shouldAcceptPositionUpdate({
+          previousPosition: manualInteractionAnchorRef.current,
+          previousAccuracy: previousAccuracyRef.current,
+          nextPosition,
+          nextAccuracy,
+          map,
+        });
+
+      if (shouldResumeFollow) {
+        followSuspendedRef.current = false;
+        manualInteractionAnchorRef.current = null;
+      }
+
+      if (!followSuspendedRef.current) {
+        recenterMap(nextPosition);
+      }
 
       if (
         !shouldAcceptPositionUpdate({
@@ -464,7 +484,7 @@ export default function LocationMarker() {
     }
 
     const handleLayoutChange = () => {
-      if (!latestProcessedPositionRef.current) {
+      if (!latestProcessedPositionRef.current || followSuspendedRef.current) {
         return;
       }
 
@@ -484,6 +504,21 @@ export default function LocationMarker() {
       map.off?.("resize", handleLayoutChange);
     };
   }, [map, recenterMap]);
+
+  useEffect(() => {
+    const handleManualViewportChange = () => {
+      followSuspendedRef.current = true;
+      manualInteractionAnchorRef.current = latestProcessedPositionRef.current;
+    };
+
+    map.on?.("dragstart", handleManualViewportChange);
+    map.on?.("zoomstart", handleManualViewportChange);
+
+    return () => {
+      map.off?.("dragstart", handleManualViewportChange);
+      map.off?.("zoomstart", handleManualViewportChange);
+    };
+  }, [map]);
 
   useEffect(() => {
     if (typeof window === "undefined") {

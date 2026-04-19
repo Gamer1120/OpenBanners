@@ -1341,7 +1341,7 @@ test("renders a single visible map for banner details even with multiple mission
   expect(screen.getAllByTestId("map-container")).toHaveLength(1);
 });
 
-test("polls the BannerGuider user location every 5 seconds", async () => {
+test("polls the BannerGuider user location every 5 seconds and recenters after repeated identical fixes", async () => {
   const intervalCallbacks = [];
   const setIntervalSpy = vi
     .spyOn(window, "setInterval")
@@ -1403,16 +1403,57 @@ test("polls the BannerGuider user location every 5 seconds", async () => {
     expect(intervalCallbacks.length).toBeGreaterThanOrEqual(1);
     expect(intervalCallbacks.at(-1)?.delay).toBe(5000);
 
+    const { useMap } = await import("react-leaflet");
+    const map = useMap();
+    const activeIntervalCallback = intervalCallbacks.at(-1)?.callback;
+
+    await act(async () => {
+      geoSuccessCallbacks.at(-1)({
+        coords: {
+          latitude: 52.37,
+          longitude: 4.89,
+          accuracy: 10,
+          heading: null,
+          speed: 0,
+        },
+      });
+    });
+
+    expect(map.setView).toHaveBeenCalledWith(
+      { lat: 52.37, lng: 4.89 },
+      expect.any(Number)
+    );
+
     const initialPollCount = geolocation.getCurrentPosition.mock.calls.length;
 
     await act(async () => {
-      intervalCallbacks.at(-1)?.callback();
+      activeIntervalCallback?.();
     });
 
     expect(geolocation.getCurrentPosition.mock.calls.length).toBe(
       initialPollCount + 1
     );
     expect(geoSuccessCallbacks.length).toBeGreaterThanOrEqual(2);
+
+    await act(async () => {
+      geoSuccessCallbacks.at(-1)({
+        coords: {
+          latitude: 52.37,
+          longitude: 4.89,
+          accuracy: 10,
+          heading: null,
+          speed: 0,
+        },
+      });
+    });
+
+    expect(map.panTo).toHaveBeenCalledWith(
+      { lat: 52.37, lng: 4.89 },
+      expect.objectContaining({
+        animate: true,
+        duration: 0.35,
+      })
+    );
   } finally {
     setIntervalSpy.mockRestore();
   }

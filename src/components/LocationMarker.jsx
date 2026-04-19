@@ -103,10 +103,6 @@ function shouldAcceptPositionUpdate({
     return true;
   }
 
-  if (Number.isFinite(nextAccuracy) && nextAccuracy > MAX_TRACKED_ACCURACY_METERS) {
-    return false;
-  }
-
   const distance = map.distance(previousPosition, nextPosition);
   const accuracyThreshold = Math.max(
     MIN_POSITION_CHANGE_METERS,
@@ -179,6 +175,20 @@ export default function LocationMarker() {
       const previousPosition = previousPositionRef.current;
       const nextAccuracy = Number(coords.accuracy);
 
+      if (Number.isFinite(nextAccuracy) && nextAccuracy > MAX_TRACKED_ACCURACY_METERS) {
+        return;
+      }
+
+      if (!hasCenteredRef.current) {
+        map.setView(nextPosition, map.getZoom());
+        hasCenteredRef.current = true;
+      } else {
+        map.panTo(nextPosition, {
+          animate: true,
+          duration: 0.35,
+        });
+      }
+
       if (
         !shouldAcceptPositionUpdate({
           previousPosition,
@@ -192,16 +202,6 @@ export default function LocationMarker() {
       }
 
       setPosition(nextPosition);
-
-      if (!hasCenteredRef.current) {
-        map.setView(nextPosition, map.getZoom());
-        hasCenteredRef.current = true;
-      } else {
-        map.panTo(nextPosition, {
-          animate: true,
-          duration: 0.35,
-        });
-      }
 
       const geolocationHeading = extractGeolocationHeading(coords);
 

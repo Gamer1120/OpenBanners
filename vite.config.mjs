@@ -6,10 +6,10 @@ export default defineConfig({
   plugins: [react()],
   server: {
     host: "0.0.0.0",
-    https: {
-      cert: fs.readFileSync("/etc/letsencrypt/live/b.m5l.nl/fullchain.pem"),
-      key: fs.readFileSync("/etc/letsencrypt/live/b.m5l.nl/privkey.pem"),
-    },
+    // https: {
+    //   cert: fs.readFileSync("/etc/letsencrypt/live/b.m5l.nl/fullchain.pem"),
+    //   key: fs.readFileSync("/etc/letsencrypt/live/b.m5l.nl/privkey.pem"),
+    // },
     allowedHosts: ["openbanners.org"],
   },
   build: {

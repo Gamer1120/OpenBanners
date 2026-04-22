@@ -31,6 +31,7 @@ function App() {
           <Route exact path="/browse/:placeId" element={<Home />} />
           <Route path="/banner/:bannerId" element={<Home />} />
           <Route path="/agent/:agentName" element={<Home />} />
+          <Route path="/rerouter" element={<Home />} />
           <Route path="/bannerguider/:bannerId" element={<BannerGuider />} />
           <Route
             path="/bannerguiderwithoutlocation/:bannerId"

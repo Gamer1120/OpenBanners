@@ -7,6 +7,7 @@ import BrowsingPage from "./BrowsingPage";
 import SearchResults from "./SearchResults";
 import BannerDetailsPage from "./BannerDetailsPage";
 import Map from "./Map";
+import BannerRerouterPage from "./BannerRerouterPage";
 import { DEFAULT_BANNER_FILTERS } from "../bannerFilters";
 
 export default function Home() {
@@ -32,6 +33,11 @@ export default function Home() {
     navigate("/");
   };
 
+  const handleRerouterClick = () => {
+    setCurrentView("rerouter");
+    navigate("/rerouter");
+  };
+
   useEffect(() => {
     if (location.pathname.startsWith("/search/")) {
       setCurrentView("searching");
@@ -43,6 +49,8 @@ export default function Home() {
       setCurrentView("agentBrowsing");
     } else if (location.pathname.startsWith("/map")) {
       setCurrentView("map");
+    } else if (location.pathname.startsWith("/rerouter")) {
+      setCurrentView("rerouter");
     } else {
       setCurrentView("bannersNearMe");
     }
@@ -64,6 +72,7 @@ export default function Home() {
     >
       <TopMenu
         onBrowseClick={handleBrowseClick}
+        onRerouterClick={handleRerouterClick}
         onTitleClick={handleTitleClick}
         onSearch={handleSearch}
       />
@@ -104,6 +113,7 @@ export default function Home() {
             onBannerFiltersChange={setBannerFilters}
           />
         )}
+        {currentView === "rerouter" && <BannerRerouterPage />}
       </Box>
     </Box>
   );

@@ -1142,7 +1142,9 @@ test("confirms before clearing the rerouter workspace", async () => {
       screen.queryByRole("button", { name: /clear workspace/i })
     ).not.toBeInTheDocument();
   });
-  expect(screen.getByText("Start with an existing banner")).toBeInTheDocument();
+  expect(
+    screen.getByRole("button", { name: /import banner umm/i })
+  ).toBeInTheDocument();
   expect(window.localStorage.getItem(BANNER_REROUTER_STORAGE_KEY)).toBeNull();
 });
 

@@ -1328,30 +1328,7 @@ export default function BannerRerouterPage() {
           </Alert>
         ) : null}
 
-        {!activeDraft ? (
-          <Paper
-            elevation={0}
-            sx={{
-              p: { xs: 2.25, sm: 3 },
-              border: "1px solid rgba(255,255,255,0.08)",
-            }}
-          >
-            <Stack spacing={2}>
-              <Typography variant="h5">Start with an existing banner</Typography>
-              <Typography color="text.secondary">
-                The rerouter expects a UMM mission-set file. It turns the imported
-                banner into a local portal pool and rebuilds it with the same
-                style of route generator used in the Telegram bot.
-              </Typography>
-              <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
-                <Chip label="Local-only processing" />
-                <Chip label="BannerCreator-style routing" />
-                <Chip label="Route history" />
-                <Chip label="UMM export" />
-              </Stack>
-            </Stack>
-          </Paper>
-        ) : (
+        {activeDraft ? (
           <Stack spacing={2.5}>
             <Box
               sx={{
@@ -2026,7 +2003,7 @@ export default function BannerRerouterPage() {
               </Stack>
             </Box>
           </Stack>
-        )}
+        ) : null}
       </Stack>
     </Box>
   );

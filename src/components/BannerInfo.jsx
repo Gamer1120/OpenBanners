@@ -36,9 +36,7 @@ const BannerInfo = ({ banner, loading = false }) => {
     );
   };
 
-  const handleShareBanner = () => {
-    const bannerURL = `https://openbanners.org/${banner.id}`;
-
+  const shareBannerUrl = (bannerURL, successMessage = "Banner link copied to clipboard.") => {
     if (navigator.share) {
       navigator
         .share({
@@ -60,7 +58,7 @@ const BannerInfo = ({ banner, loading = false }) => {
         .then(() => {
           setShareFeedback({
             severity: "success",
-            message: "Banner link copied to clipboard.",
+            message: successMessage,
           });
         })
         .catch((error) => {
@@ -82,7 +80,7 @@ const BannerInfo = ({ banner, loading = false }) => {
       document.execCommand("copy");
       setShareFeedback({
         severity: "success",
-        message: "Banner link copied to clipboard.",
+        message: successMessage,
       });
     } catch (error) {
       console.error("Error copying banner URL:", error);
@@ -93,6 +91,17 @@ const BannerInfo = ({ banner, loading = false }) => {
     } finally {
       document.body.removeChild(textarea);
     }
+  };
+
+  const handleShareBanner = () => {
+    shareBannerUrl(`https://openbanners.org/${banner.id}`);
+  };
+
+  const handleShareBannergressOverlay = () => {
+    shareBannerUrl(
+      `https://bannergress.com/banner/${banner.id}`,
+      "Bannergress Overlay link copied to clipboard."
+    );
   };
 
   return (
@@ -124,6 +133,14 @@ const BannerInfo = ({ banner, loading = false }) => {
           disabled={loading}
         >
           Share banner
+        </Button>
+        <Button
+          variant="contained"
+          color="primary"
+          onClick={handleShareBannergressOverlay}
+          disabled={loading}
+        >
+          Open with Bannergress Overlay
         </Button>
         <Button
           variant="contained"

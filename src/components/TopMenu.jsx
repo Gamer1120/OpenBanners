@@ -15,6 +15,7 @@ import {
 } from "@mui/material";
 import {
   CheckCircleOutline,
+  Download,
   Explore,
   LocationOn,
   Login,
@@ -32,8 +33,6 @@ import {
   saveBannergressSyncData,
   serializeBannergressPendingAuth,
 } from "../bannergressSync";
-import BannerFilterButton from "./BannerFilterButton";
-import { DEFAULT_BANNER_FILTERS } from "../bannerFilters";
 
 const AUTH_POLL_INTERVAL_MS = 1500;
 const AUTH_POLL_TIMEOUT_MS = 120000;
@@ -49,15 +48,36 @@ function debugLog(...args) {
   console.log("[OpenBanners TopMenu]", ...args);
 }
 
+function isAndroidUserAgent() {
+  return /Android/i.test(window.navigator?.userAgent ?? "");
+}
+
+function isRunningInAndroidApp() {
+  const userAgent = window.navigator?.userAgent ?? "";
+  const isStandalone =
+    (typeof window.matchMedia === "function" &&
+      window.matchMedia("(display-mode: standalone)").matches) ||
+    window.navigator?.standalone === true;
+  const launchedFromAndroidApp =
+    typeof document !== "undefined" &&
+    document.referrer.startsWith("android-app://");
+
+  return (
+    isStandalone ||
+    /\bwv\b/i.test(userAgent) ||
+    /OpenBannersApp/i.test(userAgent) ||
+    launchedFromAndroidApp
+  );
+}
+
 export default function TopMenu({
   onBrowseClick,
   onTitleClick,
   onSearch,
-  showBannerFilters = false,
-  bannerFilters = DEFAULT_BANNER_FILTERS,
-  onBannerFiltersChange,
 }) {
   const authSupportedOrigin = isBannergressAuthSupportedOrigin();
+  const shouldShowAndroidDownloadButton =
+    isAndroidUserAgent() && !isRunningInAndroidApp();
   const [searchQuery, setSearchQuery] = useState("");
   const [feedback, setFeedback] = useState(null);
   const [authStatus, setAuthStatus] = useState(null);
@@ -474,6 +494,23 @@ export default function TopMenu({
             >
               Map
             </Button>
+            {shouldShowAndroidDownloadButton ? (
+              <Button
+                color="inherit"
+                startIcon={<Download />}
+                component="a"
+                href="/OpenBanners.apk"
+                download="OpenBanners.apk"
+                sx={{
+                  minHeight: 44,
+                  px: 1.75,
+                  bgcolor: "rgba(255,255,255,0.03)",
+                  border: "1px solid rgba(255,255,255,0.08)",
+                }}
+              >
+                Download App
+              </Button>
+            ) : null}
             <Button
               color="inherit"
               startIcon={authButtonIcon}
@@ -488,19 +525,6 @@ export default function TopMenu({
             >
               {authButtonLabel}
             </Button>
-            {showBannerFilters ? (
-              <BannerFilterButton
-                filters={bannerFilters}
-                onChange={onBannerFiltersChange}
-                color="inherit"
-                sx={{
-                  minHeight: 44,
-                  px: 1.75,
-                  bgcolor: "rgba(255,255,255,0.03)",
-                  border: "1px solid rgba(255,255,255,0.08)",
-                }}
-              />
-            ) : null}
           </Container>
 
           <Container

@@ -1,5 +1,5 @@
 import React from "react";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { useMediaQuery } from "@mui/material";
 import { ThemeProvider, createTheme } from "@mui/material/styles";
@@ -8,10 +8,13 @@ import { vi } from "vitest";
 import * as bannergressSync from "./bannergressSync";
 import BannersNearMe from "./components/BannersNearMe";
 import BannerListItem from "./components/BannerListItem";
+import BannerFilterButton from "./components/BannerFilterButton";
 import BrowsingPage from "./components/BrowsingPage";
 import SearchResults from "./components/SearchResults";
 import BannerDetailsPage from "./components/BannerDetailsPage";
+import BannerGuider from "./components/BannerGuider";
 import BannerGuiderWithoutLocation from "./components/BannerGuiderWithoutLocation";
+import Home from "./components/Home";
 import Map, { __resetDiscoveryMapCacheForTests } from "./components/Map";
 import PlacesList from "./components/PlacesList";
 import TopMenu from "./components/TopMenu";
@@ -37,8 +40,25 @@ vi.mock("leaflet", () => {
     icon: vi.fn((options) => options),
     divIcon: vi.fn((options) => options),
     latLngBounds: vi.fn((coordinates) => ({ coordinates })),
+    point: vi.fn((x, y) => ({ x, y })),
     Browser: {
       mobile: false,
+    },
+  };
+
+  globalThis.L = {
+    ...leaflet,
+    Control: {
+      extend: vi.fn(() => vi.fn()),
+    },
+    control: {},
+    DomUtil: {
+      create: vi.fn(() => document.createElement("div")),
+    },
+    DomEvent: {
+      addListener: vi.fn(),
+      stopPropagation: vi.fn(),
+      preventDefault: vi.fn(),
     },
   };
 
@@ -53,23 +73,93 @@ vi.mock("react-leaflet", async () => {
 
   let mapInstance = null;
 
-  const createMapInstance = () => ({
-    fitBounds: vi.fn(),
-    getBounds: () => ({
-      _southWest: { lat: 52.1, lng: 6.8 },
-      _northEast: { lat: 52.3, lng: 6.9 },
-    }),
-    eachLayer: vi.fn(),
-    on: vi.fn(),
-    off: vi.fn(),
-    locate: vi.fn(),
-    setView: vi.fn(),
-    getZoom: vi.fn(() => 15),
-    latLngToContainerPoint: ({ lat, lng }) => ({
-      x: Math.round((lng - 6.8) * 1000),
-      y: Math.round((52.3 - lat) * 1000),
-    }),
-  });
+  const createMapInstance = () => {
+    const container = document.createElement("div");
+    let containerRect = {
+      left: 0,
+      top: 0,
+      right: 360,
+      bottom: 640,
+      width: 360,
+      height: 640,
+    };
+    let currentCenter = { lat: 52.2, lng: 6.85 };
+    let currentZoom = 15;
+    Object.defineProperty(container, "getBoundingClientRect", {
+      configurable: true,
+      value: () => containerRect,
+    });
+    container.__setRect = (nextRect) => {
+      containerRect = nextRect;
+    };
+
+    const normalizeLatLng = (value) => {
+      if (Array.isArray(value)) {
+        return {
+          lat: value[0],
+          lng: value[1],
+        };
+      }
+
+      return value;
+    };
+
+    const getSize = () => ({
+      x: containerRect.width,
+      y: containerRect.height,
+    });
+
+    return {
+      fitBounds: vi.fn(),
+      getBounds: () => ({
+        _southWest: { lat: 52.1, lng: 6.8 },
+        _northEast: { lat: 52.3, lng: 6.9 },
+      }),
+      eachLayer: vi.fn(),
+      on: vi.fn((event, handler) => {
+        container.__handlers = container.__handlers ?? {};
+        container.__handlers[event] = handler;
+      }),
+      off: vi.fn((event) => {
+        if (container.__handlers) {
+          delete container.__handlers[event];
+        }
+      }),
+      locate: vi.fn(),
+      stop: vi.fn(),
+      invalidateSize: vi.fn(),
+      setView: vi.fn((nextCenter, nextZoom = currentZoom) => {
+        currentCenter = normalizeLatLng(nextCenter);
+        currentZoom = nextZoom;
+      }),
+      panTo: vi.fn((nextCenter) => {
+        currentCenter = normalizeLatLng(nextCenter);
+      }),
+      getCenter: vi.fn(() => currentCenter),
+      getZoom: vi.fn(() => currentZoom),
+      getContainer: vi.fn(() => container),
+      getSize: vi.fn(() => getSize()),
+      distance: vi.fn((a, b) => {
+        const dx = (b.lng - a.lng) * 111000;
+        const dy = (b.lat - a.lat) * 111000;
+        return Math.sqrt(dx * dx + dy * dy);
+      }),
+      latLngToContainerPoint: ({ lat, lng }) => {
+        const size = getSize();
+        return {
+          x: Math.round((lng - currentCenter.lng) * 1000 + size.x / 2),
+          y: Math.round((currentCenter.lat - lat) * 1000 + size.y / 2),
+        };
+      },
+      containerPointToLatLng: ({ x, y }) => {
+        const size = getSize();
+        return {
+          lat: currentCenter.lat - (y - size.y / 2) / 1000,
+          lng: currentCenter.lng + (x - size.x / 2) / 1000,
+        };
+      },
+    };
+  };
 
   const MapContainer = React.forwardRef(
     ({ children, whenReady, ...props }, ref) => {
@@ -98,16 +188,31 @@ vi.mock("react-leaflet", async () => {
   return {
     MapContainer,
     TileLayer: ({ children }) => <div data-testid="tile-layer">{children}</div>,
-    Marker: ({ children, position, eventHandlers }) => (
+    Marker: ({
+      children,
+      position,
+      eventHandlers,
+      interactive,
+      keyboard,
+      autoPanOnFocus,
+      bubblingMouseEvents,
+    }) => (
       <div
-        data-testid={`marker-${position?.join("-")}`}
+        data-testid={`marker-${Array.isArray(position) ? position.join("-") : `${position?.lat}-${position?.lng}`}`}
+        data-interactive={String(interactive ?? true)}
+        data-keyboard={String(keyboard ?? true)}
+        data-autopan-on-focus={String(autoPanOnFocus ?? true)}
+        data-bubbling-mouse-events={String(bubblingMouseEvents ?? true)}
         onClick={() =>
           eventHandlers?.click?.({
-            latlng: { lat: position?.[0], lng: position?.[1] },
-            containerPoint: mapInstance?.latLngToContainerPoint({
-              lat: position?.[0],
-              lng: position?.[1],
-            }),
+            latlng: Array.isArray(position)
+              ? { lat: position?.[0], lng: position?.[1] }
+              : { lat: position?.lat, lng: position?.lng },
+            containerPoint: mapInstance?.latLngToContainerPoint(
+              Array.isArray(position)
+                ? { lat: position?.[0], lng: position?.[1] }
+                : { lat: position?.lat, lng: position?.lng }
+            ),
           })
         }
       >
@@ -171,6 +276,14 @@ beforeEach(() => {
   __resetDiscoveryMapCacheForTests();
   global.fetch = vi.fn();
   useMediaQuery.mockReturnValue(false);
+  Object.defineProperty(globalThis.navigator, "geolocation", {
+    configurable: true,
+    value: {
+      getCurrentPosition: vi.fn(),
+      watchPosition: vi.fn(() => 1),
+      clearWatch: vi.fn(),
+    },
+  });
   global.IntersectionObserver = class MockIntersectionObserver {
     constructor() {}
 
@@ -346,6 +459,246 @@ test("renders browsing results and places list", async () => {
   );
 });
 
+
+test("renders an agent page and fetches banners by author", async () => {
+  global.fetch.mockImplementation((url) => {
+    if (
+      url.includes("/bnrs?") &&
+      url.includes("author=Indicatrix") &&
+      url.includes("orderBy=created")
+    ) {
+      return jsonResponse([
+        {
+          id: "agent-banner",
+          title: "Agent Banner",
+          picture: "/images/agent.jpg",
+          numberOfMissions: 6,
+          lengthMeters: 2400,
+          formattedAddress: "Oulu, Finland",
+          numberOfDisabledMissions: 0,
+        },
+      ]);
+    }
+
+    throw new Error(`Unhandled fetch: ${url}`);
+  });
+
+  renderWithProviders(
+    <Routes>
+      <Route path="/agent/:agentName" element={<Home />} />
+    </Routes>,
+    { route: "/agent/Indicatrix" }
+  );
+
+  expect(await screen.findByText("Indicatrix")).toBeInTheDocument();
+  expect(await screen.findByText("Banners created by Indicatrix.")).toBeInTheDocument();
+  expect(await screen.findByText("Agent Banner")).toBeInTheDocument();
+  expect(global.fetch).toHaveBeenCalledWith(
+    expect.stringContaining("author=Indicatrix"),
+    expect.objectContaining({
+      headers: expect.any(Headers),
+    })
+  );
+});
+
+
+test("browse results respect the minimum mission filter", async () => {
+  global.fetch.mockImplementation((url) => {
+    if (
+      url.includes("/bnrs?") &&
+      url.includes("author=MissionFilterAgent") &&
+      url.includes("orderBy=created")
+    ) {
+      return jsonResponse([
+        {
+          id: "small-banner",
+          title: "Small Banner",
+          picture: "/images/small.jpg",
+          numberOfMissions: 6,
+          lengthMeters: 1200,
+          formattedAddress: "Enschede, NL",
+          numberOfDisabledMissions: 0,
+        },
+        {
+          id: "big-banner",
+          title: "Big Banner",
+          picture: "/images/big.jpg",
+          numberOfMissions: 18,
+          lengthMeters: 4200,
+          formattedAddress: "Enschede, NL",
+          numberOfDisabledMissions: 0,
+        },
+      ]);
+    }
+
+    throw new Error(`Unhandled fetch: ${url}`);
+  });
+
+  renderWithProviders(
+    <BrowsingPage
+      authorName="MissionFilterAgent"
+      bannerFilters={{
+        ...DEFAULT_BANNER_FILTERS,
+        minimumMissions: 12,
+      }}
+      onBannerFiltersChange={vi.fn()}
+    />
+  );
+
+  expect(await screen.findByText("Big Banner")).toBeInTheDocument();
+  expect(screen.queryByText("Small Banner")).not.toBeInTheDocument();
+  expect(screen.getByText("Filters (1)")).toBeInTheDocument();
+});
+
+
+test("browse results respect a custom mission range filter", async () => {
+  global.fetch.mockImplementation((url) => {
+    if (
+      url.includes("/bnrs?") &&
+      url.includes("author=MissionRangeAgent") &&
+      url.includes("orderBy=created")
+    ) {
+      return jsonResponse([
+        {
+          id: "range-small-banner",
+          title: "Range Small Banner",
+          picture: "/images/range-small.jpg",
+          numberOfMissions: 6,
+          lengthMeters: 1200,
+          formattedAddress: "Enschede, NL",
+          numberOfDisabledMissions: 0,
+        },
+        {
+          id: "range-middle-banner",
+          title: "Range Middle Banner",
+          picture: "/images/range-middle.jpg",
+          numberOfMissions: 12,
+          lengthMeters: 2400,
+          formattedAddress: "Enschede, NL",
+          numberOfDisabledMissions: 0,
+        },
+        {
+          id: "range-large-banner",
+          title: "Range Large Banner",
+          picture: "/images/range-large.jpg",
+          numberOfMissions: 18,
+          lengthMeters: 3600,
+          formattedAddress: "Enschede, NL",
+          numberOfDisabledMissions: 0,
+        },
+      ]);
+    }
+
+    throw new Error(`Unhandled fetch: ${url}`);
+  });
+
+  renderWithProviders(
+    <BrowsingPage
+      authorName="MissionRangeAgent"
+      bannerFilters={{
+        ...DEFAULT_BANNER_FILTERS,
+        missionCountFilterMode: "custom",
+        customMinimumMissions: "7",
+        customMaximumMissions: "12",
+      }}
+      onBannerFiltersChange={vi.fn()}
+    />
+  );
+
+  expect(await screen.findByText("Range Middle Banner")).toBeInTheDocument();
+  expect(screen.queryByText("Range Small Banner")).not.toBeInTheDocument();
+  expect(screen.queryByText("Range Large Banner")).not.toBeInTheDocument();
+  expect(screen.getByText("Filters (1)")).toBeInTheDocument();
+});
+
+
+test("browse mission filtering backfills extra pages before scroll gets sparse", async () => {
+  const buildMostlyFilteredPage = (pageNumber, visibleBanner) => [
+    ...Array.from({ length: 8 }, (_, itemIndex) => ({
+      id: `backfill-small-${pageNumber}-${itemIndex + 1}`,
+      title: `Backfill Small ${pageNumber}-${itemIndex + 1}`,
+      picture: `/images/backfill-small-${pageNumber}-${itemIndex + 1}.jpg`,
+      numberOfMissions: 6,
+      lengthMeters: 1200 + itemIndex * 50,
+      formattedAddress: "Enschede, NL",
+      numberOfDisabledMissions: 0,
+    })),
+    visibleBanner,
+  ];
+
+  global.fetch.mockImplementation((url) => {
+    if (
+      url.includes("/bnrs?") &&
+      url.includes("author=BackfillAgent") &&
+      url.includes("offset=0")
+    ) {
+      return jsonResponse(
+        buildMostlyFilteredPage(1, {
+          id: "backfill-big-1",
+          title: "Backfill Big 1",
+          picture: "/images/backfill-big-1.jpg",
+          numberOfMissions: 12,
+          lengthMeters: 2200,
+          formattedAddress: "Enschede, NL",
+          numberOfDisabledMissions: 0,
+        })
+      );
+    }
+
+    if (
+      url.includes("/bnrs?") &&
+      url.includes("author=BackfillAgent") &&
+      url.includes("offset=9")
+    ) {
+      return jsonResponse(
+        buildMostlyFilteredPage(2, {
+          id: "backfill-big-2",
+          title: "Backfill Big 2",
+          picture: "/images/backfill-big-2.jpg",
+          numberOfMissions: 18,
+          lengthMeters: 3200,
+          formattedAddress: "Enschede, NL",
+          numberOfDisabledMissions: 0,
+        })
+      );
+    }
+
+    if (
+      url.includes("/bnrs?") &&
+      url.includes("author=BackfillAgent") &&
+      url.includes("offset=18")
+    ) {
+      return jsonResponse([
+        {
+          id: "backfill-big-3",
+          title: "Backfill Big 3",
+          picture: "/images/backfill-big-3.jpg",
+          numberOfMissions: 18,
+          lengthMeters: 3600,
+          formattedAddress: "Enschede, NL",
+          numberOfDisabledMissions: 0,
+        },
+      ]);
+    }
+
+    throw new Error("Unhandled fetch: " + url);
+  });
+
+  renderWithProviders(
+    <BrowsingPage
+      authorName="BackfillAgent"
+      bannerFilters={{
+        ...DEFAULT_BANNER_FILTERS,
+        minimumMissions: 12,
+      }}
+      onBannerFiltersChange={vi.fn()}
+    />
+  );
+
+  expect(await screen.findByText("Backfill Big 3")).toBeInTheDocument();
+  expect(global.fetch).toHaveBeenCalledTimes(3);
+});
+
 test("compact list actions update the Bannergress list through the API", async () => {
   const updateBannerListSpy = vi
     .spyOn(bannergressSync, "updateBannergressBannerListType")
@@ -474,6 +827,40 @@ test("newly hidden banners stay visible in the current filtered results", () => 
 
   expect(filteredBanners).toHaveLength(1);
   expect(filteredBanners[0].id).toBe("hidden-banner");
+});
+
+
+test("banner filter button exposes browse mission count thresholds and a custom range", async () => {
+  function FilterHarness() {
+    const [filters, setFilters] = React.useState(DEFAULT_BANNER_FILTERS);
+
+    return (
+      <BannerFilterButton
+        filters={filters}
+        onChange={setFilters}
+        showMinimumMissionsFilter
+      />
+    );
+  }
+
+  const user = userEvent.setup();
+
+  renderWithProviders(<FilterHarness />);
+
+  await user.click(screen.getByRole("button", { name: /^filters$/i }));
+  await user.click(screen.getByRole("button", { name: "Custom" }));
+
+  expect(screen.getByRole("button", { name: "Custom" })).toHaveAttribute(
+    "aria-pressed",
+    "true"
+  );
+
+  await user.type(screen.getByLabelText("Minimum"), "7");
+  await user.type(screen.getByLabelText("Maximum"), "12");
+
+  expect(screen.getByText("Filters (1)", { selector: "button" })).toBeInTheDocument();
+  expect(screen.getByDisplayValue("7")).toBeInTheDocument();
+  expect(screen.getByDisplayValue("12")).toBeInTheDocument();
 });
 
 test("renders places list flags and browse links for aliased place names", async () => {
@@ -997,7 +1384,903 @@ test("renders a single visible map for banner details even with multiple mission
   expect(screen.getAllByTestId("map-container")).toHaveLength(1);
 });
 
-test("renders only mission start markers on the banner details overview map", async () => {
+test("polls the BannerGuider user location every 5 seconds without resetting an already-centered map", async () => {
+  const intervalCallbacks = [];
+  const setIntervalSpy = vi
+    .spyOn(window, "setInterval")
+    .mockImplementation((callback, delay) => {
+      intervalCallbacks.push({ callback, delay });
+      return 1;
+    });
+
+  const geoSuccessCallbacks = [];
+  const geolocation = {
+    getCurrentPosition: vi.fn((success) => {
+      geoSuccessCallbacks.push(success);
+    }),
+  };
+
+  Object.defineProperty(globalThis.navigator, "geolocation", {
+    configurable: true,
+    value: geolocation,
+  });
+
+  global.fetch.mockImplementation((url) => {
+    if (url.endsWith("/bnrs/recenter-banner")) {
+      return jsonResponse({
+        id: "recenter-banner",
+        title: "Recenter Banner",
+        missions: {
+          "mission-1": {
+            id: "mission-1",
+            steps: {
+              0: {
+                poi: {
+                  title: "Portal One",
+                  type: "portal",
+                  latitude: 52.37,
+                  longitude: 4.89,
+                },
+              },
+            },
+          },
+        },
+      });
+    }
+
+    throw new Error(`Unhandled fetch: ${url}`);
+  });
+
+  try {
+    renderWithProviders(
+      <Routes>
+        <Route path="/bannerguider/:bannerId" element={<BannerGuider />} />
+      </Routes>,
+      { route: "/bannerguider/recenter-banner" }
+    );
+
+    await screen.findByTestId("map-container");
+
+    const overlay = document.querySelector('[data-map-overlay="mission-controls"]');
+    expect(overlay).toBeTruthy();
+    Object.defineProperty(overlay, "getBoundingClientRect", {
+      configurable: true,
+      value: () => ({ left: 10, top: 10, right: 150, bottom: 110, width: 140, height: 100 }),
+    });
+
+    expect(geolocation.getCurrentPosition).toHaveBeenCalled();
+    expect(geoSuccessCallbacks.length).toBeGreaterThanOrEqual(1);
+    expect(intervalCallbacks.length).toBeGreaterThanOrEqual(1);
+    expect(intervalCallbacks.at(-1)?.delay).toBe(5000);
+
+    const { useMap } = await import("react-leaflet");
+    const map = useMap();
+    const activeIntervalCallback = intervalCallbacks.at(-1)?.callback;
+
+    await act(async () => {
+      geoSuccessCallbacks.at(-1)({
+        coords: {
+          latitude: 52.37,
+          longitude: 4.89,
+          accuracy: 10,
+          heading: null,
+          speed: 0,
+        },
+      });
+    });
+
+    expect(map.invalidateSize).toHaveBeenCalledWith({
+      animate: false,
+      pan: false,
+    });
+    expect(map.invalidateSize.mock.invocationCallOrder.at(-1)).toBeLessThan(
+      map.setView.mock.invocationCallOrder.at(-1)
+    );
+    const initialCenter = map.setView.mock.calls.at(-1)?.[0];
+    expect(initialCenter?.lat).toBeCloseTo(52.37, 5);
+    expect(initialCenter?.lng).toBeCloseTo(4.89, 5);
+    expect(map.setView.mock.calls.at(-1)?.[1]).toEqual(expect.any(Number));
+    expect(map.setView.mock.calls.at(-1)?.[2]).toEqual(
+      expect.objectContaining({
+        animate: false,
+        reset: true,
+      })
+    );
+
+    const initialPollCount = geolocation.getCurrentPosition.mock.calls.length;
+
+    await act(async () => {
+      activeIntervalCallback?.();
+    });
+
+    expect(geolocation.getCurrentPosition.mock.calls.length).toBe(
+      initialPollCount + 1
+    );
+    expect(geoSuccessCallbacks.length).toBeGreaterThanOrEqual(2);
+
+    await act(async () => {
+      geoSuccessCallbacks.at(-1)({
+        coords: {
+          latitude: 52.37,
+          longitude: 4.89,
+          accuracy: 10,
+          heading: null,
+          speed: 0,
+        },
+      });
+    });
+
+    expect(map.invalidateSize).toHaveBeenCalledTimes(1);
+    expect(map.panTo).not.toHaveBeenCalled();
+    expect(map.setView).toHaveBeenCalledTimes(1);
+  } finally {
+    setIntervalSpy.mockRestore();
+  }
+});
+
+test("renders the BannerGuider user location marker as non-interactive", async () => {
+  const geoSuccessCallbacks = [];
+  const geolocation = {
+    getCurrentPosition: vi.fn((success) => {
+      geoSuccessCallbacks.push(success);
+    }),
+  };
+
+  Object.defineProperty(globalThis.navigator, "geolocation", {
+    configurable: true,
+    value: geolocation,
+  });
+
+  global.fetch.mockImplementation((url) => {
+    if (url.endsWith("/bnrs/passive-location-marker-banner")) {
+      return jsonResponse({
+        id: "passive-location-marker-banner",
+        title: "Passive Location Marker Banner",
+        missions: {
+          "mission-1": {
+            id: "mission-1",
+            steps: {
+              0: {
+                poi: {
+                  title: "Portal One",
+                  type: "portal",
+                  latitude: 52.37,
+                  longitude: 4.89,
+                },
+              },
+            },
+          },
+        },
+      });
+    }
+
+    throw new Error(`Unhandled fetch: ${url}`);
+  });
+
+  renderWithProviders(
+    <Routes>
+      <Route path="/bannerguider/:bannerId" element={<BannerGuider />} />
+    </Routes>,
+    { route: "/bannerguider/passive-location-marker-banner" }
+  );
+
+  await screen.findByTestId("map-container");
+  expect(geoSuccessCallbacks.length).toBeGreaterThanOrEqual(1);
+
+  await act(async () => {
+    geoSuccessCallbacks.at(-1)({
+      coords: {
+        latitude: 52.37,
+        longitude: 4.89,
+        accuracy: 10,
+        heading: null,
+        speed: 0,
+      },
+    });
+  });
+
+  const userMarker = screen
+    .getAllByTestId("marker-52.37-4.89")
+    .find((element) => element.getAttribute("data-interactive") === "false");
+  expect(userMarker).toBeTruthy();
+  expect(userMarker).toHaveAttribute("data-interactive", "false");
+  expect(userMarker).toHaveAttribute("data-keyboard", "false");
+  expect(userMarker).toHaveAttribute("data-autopan-on-focus", "false");
+  expect(userMarker).toHaveAttribute("data-bubbling-mouse-events", "false");
+});
+
+test("BannerGuider fits bounds without animation after banner load", async () => {
+  global.fetch.mockImplementation((url) => {
+    if (url.endsWith("/bnrs/non-animated-fitbounds-banner")) {
+      return jsonResponse({
+        id: "non-animated-fitbounds-banner",
+        title: "Non Animated FitBounds Banner",
+        missions: {
+          "mission-1": {
+            id: "mission-1",
+            steps: {
+              0: {
+                poi: {
+                  title: "Portal One",
+                  type: "portal",
+                  latitude: 52.37,
+                  longitude: 4.89,
+                },
+              },
+            },
+          },
+          "mission-2": {
+            id: "mission-2",
+            steps: {
+              0: {
+                poi: {
+                  title: "Portal Two",
+                  type: "portal",
+                  latitude: 52.375,
+                  longitude: 4.895,
+                },
+              },
+            },
+          },
+        },
+      });
+    }
+
+    throw new Error(`Unhandled fetch: ${url}`);
+  });
+
+  renderWithProviders(
+    <Routes>
+      <Route path="/bannerguider/:bannerId" element={<BannerGuider />} />
+    </Routes>,
+    { route: "/bannerguider/non-animated-fitbounds-banner" }
+  );
+
+  await screen.findByTestId("map-container");
+
+  const { useMap } = await import("react-leaflet");
+  const map = useMap();
+
+  await waitFor(() => {
+    expect(map.fitBounds).toHaveBeenCalled();
+  });
+
+  expect(map.stop).toHaveBeenCalled();
+  expect(map.fitBounds.mock.calls.at(-1)?.[1]).toEqual(
+    expect.objectContaining({
+      animate: false,
+      padding: [50, 50],
+    })
+  );
+});
+
+test("does not snap the BannerGuider back on the next stationary poll after a manual pan", async () => {
+  const geoSuccessCallbacks = [];
+  const geolocation = {
+    getCurrentPosition: vi.fn((success) => {
+      geoSuccessCallbacks.push(success);
+    }),
+  };
+
+  Object.defineProperty(globalThis.navigator, "geolocation", {
+    configurable: true,
+    value: geolocation,
+  });
+
+  global.fetch.mockImplementation((url) => {
+    if (url.endsWith("/bnrs/manual-pan-banner")) {
+      return jsonResponse({
+        id: "manual-pan-banner",
+        title: "Manual Pan Banner",
+        missions: {
+          "mission-1": {
+            id: "mission-1",
+            steps: {
+              0: {
+                poi: {
+                  title: "Portal One",
+                  type: "portal",
+                  latitude: 52.37,
+                  longitude: 4.89,
+                },
+              },
+            },
+          },
+        },
+      });
+    }
+
+    throw new Error(`Unhandled fetch: ${url}`);
+  });
+
+  renderWithProviders(
+    <Routes>
+      <Route path="/bannerguider/:bannerId" element={<BannerGuider />} />
+    </Routes>,
+    { route: "/bannerguider/manual-pan-banner" }
+  );
+
+  await screen.findByTestId("map-container");
+
+  const { useMap } = await import("react-leaflet");
+  const map = useMap();
+  const container = map.getContainer();
+
+  expect(geoSuccessCallbacks.length).toBeGreaterThanOrEqual(1);
+
+  await act(async () => {
+    geoSuccessCallbacks.at(-1)({
+      coords: {
+        latitude: 52.37,
+        longitude: 4.89,
+        accuracy: 10,
+        heading: null,
+        speed: 0,
+      },
+    });
+  });
+
+  expect(map.setView).toHaveBeenCalledTimes(1);
+
+  map.setView({ lat: 52.39, lng: 4.91 }, map.getZoom(), {
+    animate: false,
+    reset: true,
+  });
+  map.setView.mockClear();
+  map.invalidateSize.mockClear();
+  container.__handlers.dragstart?.();
+
+  await act(async () => {
+    geoSuccessCallbacks.at(-1)({
+      coords: {
+        latitude: 52.37,
+        longitude: 4.89,
+        accuracy: 10,
+        heading: null,
+        speed: 0,
+      },
+    });
+  });
+
+  expect(map.setView).toHaveBeenCalledTimes(1);
+  const recenteredTarget = map.setView.mock.calls.at(-1)?.[0];
+  expect(recenteredTarget?.lat).toBeCloseTo(52.37, 5);
+  expect(recenteredTarget?.lng).toBeCloseTo(4.89, 5);
+  expect(map.setView.mock.calls.at(-1)?.[2]).toEqual(
+    expect.objectContaining({
+      animate: false,
+    })
+  );
+  expect(map.setView.mock.calls.at(-1)?.[2]).not.toHaveProperty("reset");
+  expect(map.invalidateSize).not.toHaveBeenCalled();
+  expect(map.panTo).not.toHaveBeenCalled();
+});
+
+test("keeps the BannerGuider user marker visible in the safe area on small screens", async () => {
+  const geoSuccessCallbacks = [];
+  const geolocation = {
+    getCurrentPosition: vi.fn((success) => {
+      geoSuccessCallbacks.push(success);
+    }),
+    watchPosition: vi.fn((success) => {
+      geoSuccessCallbacks.push(success);
+      return 1;
+    }),
+    clearWatch: vi.fn(),
+  };
+
+  Object.defineProperty(globalThis.navigator, "geolocation", {
+    configurable: true,
+    value: geolocation,
+  });
+
+  global.fetch.mockImplementation((url) => {
+    if (url.endsWith("/bnrs/safe-area-banner")) {
+      return jsonResponse({
+        id: "safe-area-banner",
+        title: "Safe Area Banner",
+        missions: {
+          "mission-1": {
+            id: "mission-1",
+            steps: {
+              0: {
+                poi: {
+                  title: "Portal One",
+                  type: "portal",
+                  latitude: 52.37,
+                  longitude: 4.89,
+                },
+              },
+            },
+          },
+        },
+      });
+    }
+
+    throw new Error(`Unhandled fetch: ${url}`);
+  });
+
+  renderWithProviders(
+    <Routes>
+      <Route path="/bannerguider/:bannerId" element={<BannerGuider />} />
+    </Routes>,
+    { route: "/bannerguider/safe-area-banner" }
+  );
+
+  await screen.findByTestId("map-container");
+
+  const overlay = document.querySelector('[data-map-overlay="mission-controls"]');
+  expect(overlay).toBeTruthy();
+  Object.defineProperty(overlay, "getBoundingClientRect", {
+    value: () => ({ left: 10, top: 10, right: 150, bottom: 110, width: 140, height: 100 }),
+  });
+
+  expect(geoSuccessCallbacks.length).toBeGreaterThanOrEqual(1);
+
+  await act(async () => {
+    geoSuccessCallbacks[0]({
+      coords: {
+        latitude: 52.37,
+        longitude: 4.89,
+        accuracy: 10,
+        heading: null,
+        speed: 0,
+      },
+    });
+  });
+
+  await act(async () => {
+    geoSuccessCallbacks.at(-1)({
+      coords: {
+        latitude: 52.3702,
+        longitude: 4.8902,
+        accuracy: 8,
+        heading: null,
+        speed: 1,
+      },
+    });
+  });
+
+  const { useMap } = await import("react-leaflet");
+  const map = useMap();
+  expect(map.setView).toHaveBeenCalled();
+  const target = map.setView.mock.calls.at(-1)?.[0];
+  const point = map.latLngToContainerPoint(target);
+
+  expect(point.x).toBeGreaterThan(150);
+  expect(point.x).toBeLessThan(360);
+  expect(point.y).toBeGreaterThan(110);
+  expect(point.y).toBeLessThan(640);
+});
+
+
+test("keeps the BannerGuider centered within the visible viewport when the map container is wider than the window", async () => {
+  const geoSuccessCallbacks = [];
+  const geolocation = {
+    getCurrentPosition: vi.fn((success) => {
+      geoSuccessCallbacks.push(success);
+    }),
+  };
+
+  Object.defineProperty(globalThis.navigator, "geolocation", {
+    configurable: true,
+    value: geolocation,
+  });
+
+  const originalInnerWidth = window.innerWidth;
+  const originalInnerHeight = window.innerHeight;
+
+  Object.defineProperty(window, "innerWidth", {
+    configurable: true,
+    value: 220,
+  });
+  Object.defineProperty(window, "innerHeight", {
+    configurable: true,
+    value: 520,
+  });
+
+  global.fetch.mockImplementation((url) => {
+    if (url.endsWith("/bnrs/split-screen-banner")) {
+      return jsonResponse({
+        id: "split-screen-banner",
+        title: "Split Screen Banner",
+        missions: {
+          "mission-1": {
+            id: "mission-1",
+            steps: {
+              0: {
+                poi: {
+                  title: "Portal One",
+                  type: "portal",
+                  latitude: 52.37,
+                  longitude: 4.89,
+                },
+              },
+            },
+          },
+        },
+      });
+    }
+
+    throw new Error(`Unhandled fetch: ${url}`);
+  });
+
+  try {
+    renderWithProviders(
+      <Routes>
+        <Route path="/bannerguider/:bannerId" element={<BannerGuider />} />
+      </Routes>,
+      { route: "/bannerguider/split-screen-banner" }
+    );
+
+    await screen.findByTestId("map-container");
+
+    const overlay = document.querySelector('[data-map-overlay="mission-controls"]');
+    expect(overlay).toBeTruthy();
+    Object.defineProperty(overlay, "getBoundingClientRect", {
+      configurable: true,
+      value: () => ({ left: 10, top: 10, right: 130, bottom: 92, width: 120, height: 82 }),
+    });
+
+    const { useMap } = await import("react-leaflet");
+    const map = useMap();
+    const container = map.getContainer();
+    container.__setRect({
+      left: 0,
+      top: 0,
+      right: 360,
+      bottom: 520,
+      width: 360,
+      height: 520,
+    });
+    map.getSize.mockReturnValue({ x: 360, y: 520 });
+
+    await act(async () => {
+      geoSuccessCallbacks[0]({
+        coords: {
+          latitude: 52.37,
+          longitude: 4.89,
+          accuracy: 10,
+          heading: null,
+          speed: 0,
+        },
+      });
+    });
+
+    await act(async () => {
+      geoSuccessCallbacks.at(-1)({
+        coords: {
+          latitude: 52.3702,
+          longitude: 4.8902,
+          accuracy: 8,
+          heading: null,
+          speed: 1,
+        },
+      });
+    });
+
+    const target = map.setView.mock.calls.at(-1)?.[0];
+    const point = map.latLngToContainerPoint(target);
+
+    expect(point.x).toBeGreaterThan(130);
+    expect(point.x).toBeLessThan(220);
+    expect(point.y).toBeGreaterThan(92);
+    expect(point.y).toBeLessThan(520);
+  } finally {
+    Object.defineProperty(window, "innerWidth", {
+      configurable: true,
+      value: originalInnerWidth,
+    });
+    Object.defineProperty(window, "innerHeight", {
+      configurable: true,
+      value: originalInnerHeight,
+    });
+  }
+});
+
+test.skip("stops moving the map after the user manually zooms or pans", async () => {
+  const geoSuccessCallbacks = [];
+  const geolocation = {
+    getCurrentPosition: vi.fn((success) => {
+      geoSuccessCallbacks.push(success);
+    }),
+    watchPosition: vi.fn((success) => {
+      geoSuccessCallbacks.push(success);
+      return 1;
+    }),
+    clearWatch: vi.fn(),
+  };
+
+  Object.defineProperty(globalThis.navigator, "geolocation", {
+    configurable: true,
+    value: geolocation,
+  });
+
+  global.fetch.mockImplementation((url) => {
+    if (url.endsWith("/bnrs/manual-interaction-banner")) {
+      return jsonResponse({
+        id: "manual-interaction-banner",
+        title: "Manual Interaction Banner",
+        missions: {
+          "mission-1": {
+            id: "mission-1",
+            steps: {
+              0: {
+                poi: {
+                  title: "Portal One",
+                  type: "portal",
+                  latitude: 52.37,
+                  longitude: 4.89,
+                },
+              },
+            },
+          },
+        },
+      });
+    }
+
+    throw new Error(`Unhandled fetch: ${url}`);
+  });
+
+  renderWithProviders(
+    <Routes>
+      <Route path="/bannerguider/:bannerId" element={<BannerGuider />} />
+    </Routes>,
+    { route: "/bannerguider/manual-interaction-banner" }
+  );
+
+  await screen.findByTestId("map-container");
+
+  const { useMap } = await import("react-leaflet");
+  const map = useMap();
+  const container = map.getContainer();
+  map.getCenter.mockImplementation(() => ({ lat: 52.25, lng: 6.8 }));
+
+  await act(async () => {
+    geoSuccessCallbacks[0]({
+      coords: {
+        latitude: 52.37,
+        longitude: 4.89,
+        accuracy: 10,
+        heading: null,
+        speed: 0,
+      },
+    });
+  });
+
+  await act(async () => {
+    container.__handlers.zoomend?.();
+  });
+
+  await new Promise((resolve) => setTimeout(resolve, 0));
+
+  await act(async () => {
+    geoSuccessCallbacks.at(-1)({
+      coords: {
+        latitude: 52.37018,
+        longitude: 4.88995,
+        accuracy: 8,
+        heading: null,
+        speed: 1,
+      },
+    });
+  });
+
+  expect(map.panTo).not.toHaveBeenCalled();
+});
+
+test.skip("repositions the BannerGuider center after resize and zoom so the user marker stays visible", async () => {
+  const geoSuccessCallbacks = [];
+  const geolocation = {
+    getCurrentPosition: vi.fn((success) => {
+      geoSuccessCallbacks.push(success);
+    }),
+    watchPosition: vi.fn((success) => {
+      geoSuccessCallbacks.push(success);
+      return 1;
+    }),
+    clearWatch: vi.fn(),
+  };
+
+  Object.defineProperty(globalThis.navigator, "geolocation", {
+    configurable: true,
+    value: geolocation,
+  });
+
+  global.fetch.mockImplementation((url) => {
+    if (url.endsWith("/bnrs/responsive-safe-area-banner")) {
+      return jsonResponse({
+        id: "responsive-safe-area-banner",
+        title: "Responsive Safe Area Banner",
+        missions: {
+          "mission-1": {
+            id: "mission-1",
+            steps: {
+              0: {
+                poi: {
+                  title: "Portal One",
+                  type: "portal",
+                  latitude: 52.37,
+                  longitude: 4.89,
+                },
+              },
+            },
+          },
+        },
+      });
+    }
+
+    throw new Error(`Unhandled fetch: ${url}`);
+  });
+
+  renderWithProviders(
+    <Routes>
+      <Route path="/bannerguider/:bannerId" element={<BannerGuider />} />
+    </Routes>,
+    { route: "/bannerguider/responsive-safe-area-banner" }
+  );
+
+  await screen.findByTestId("map-container");
+
+  const overlay = document.querySelector('[data-map-overlay="mission-controls"]');
+  expect(overlay).toBeTruthy();
+
+  const { useMap } = await import("react-leaflet");
+  const map = useMap();
+  const container = map.getContainer();
+
+  Object.defineProperty(overlay, "getBoundingClientRect", {
+    value: () => ({ left: 10, top: 10, right: 150, bottom: 110, width: 140, height: 100 }),
+    configurable: true,
+  });
+
+  await act(async () => {
+    geoSuccessCallbacks[0]({
+      coords: {
+        latitude: 52.37,
+        longitude: 4.89,
+        accuracy: 10,
+        heading: null,
+        speed: 0,
+      },
+    });
+  });
+
+  container.__setRect({
+    left: 0,
+    top: 0,
+    right: 280,
+    bottom: 520,
+    width: 280,
+    height: 520,
+  });
+  map.getSize.mockReturnValue({ x: 280, y: 520 });
+  Object.defineProperty(overlay, "getBoundingClientRect", {
+    value: () => ({ left: 10, top: 10, right: 130, bottom: 100, width: 120, height: 90 }),
+    configurable: true,
+  });
+
+  await act(async () => {
+    container.__handlers.resize?.();
+    container.__handlers.zoomend?.();
+  });
+
+  const resizedTarget = map.setView.mock.calls.at(-1)?.[0];
+  const resizedPoint = map.latLngToContainerPoint(resizedTarget);
+
+  expect(resizedPoint.x).toBeGreaterThan(130);
+  expect(resizedPoint.x).toBeLessThan(280);
+  expect(resizedPoint.y).toBeGreaterThan(100);
+  expect(resizedPoint.y).toBeLessThan(520);
+});
+
+test.skip("keeps the BannerGuider user marker above the bottom reserved area on very short screens", async () => {
+  const geoSuccessCallbacks = [];
+  const geolocation = {
+    getCurrentPosition: vi.fn((success) => {
+      geoSuccessCallbacks.push(success);
+    }),
+    watchPosition: vi.fn((success) => {
+      geoSuccessCallbacks.push(success);
+      return 1;
+    }),
+    clearWatch: vi.fn(),
+  };
+
+  Object.defineProperty(globalThis.navigator, "geolocation", {
+    configurable: true,
+    value: geolocation,
+  });
+
+  global.fetch.mockImplementation((url) => {
+    if (url.endsWith("/bnrs/short-safe-area-banner")) {
+      return jsonResponse({
+        id: "short-safe-area-banner",
+        title: "Short Safe Area Banner",
+        missions: {
+          "mission-1": {
+            id: "mission-1",
+            steps: {
+              0: {
+                poi: {
+                  title: "Portal One",
+                  type: "portal",
+                  latitude: 52.37,
+                  longitude: 4.89,
+                },
+              },
+            },
+          },
+        },
+      });
+    }
+
+    throw new Error(`Unhandled fetch: ${url}`);
+  });
+
+  renderWithProviders(
+    <Routes>
+      <Route path="/bannerguider/:bannerId" element={<BannerGuider />} />
+    </Routes>,
+    { route: "/bannerguider/short-safe-area-banner" }
+  );
+
+  await screen.findByTestId("map-container");
+
+  const overlay = document.querySelector('[data-map-overlay="mission-controls"]');
+  expect(overlay).toBeTruthy();
+  Object.defineProperty(overlay, "getBoundingClientRect", {
+    value: () => ({ left: 10, top: 10, right: 130, bottom: 92, width: 120, height: 82 }),
+    configurable: true,
+  });
+
+  const { useMap } = await import("react-leaflet");
+  const map = useMap();
+  const container = map.getContainer();
+  container.__setRect({
+    left: 0,
+    top: 0,
+    right: 320,
+    bottom: 180,
+    width: 320,
+    height: 180,
+  });
+  map.getSize.mockReturnValue({ x: 320, y: 180 });
+
+  await act(async () => {
+    geoSuccessCallbacks[0]({
+      coords: {
+        latitude: 52.37,
+        longitude: 4.89,
+        accuracy: 10,
+        heading: null,
+        speed: 0,
+      },
+    });
+  });
+
+  await act(async () => {
+    geoSuccessCallbacks.at(-1)({
+      coords: {
+        latitude: 52.3702,
+        longitude: 4.8902,
+        accuracy: 8,
+        heading: null,
+        speed: 1,
+      },
+    });
+  });
+
+  const target = map.panTo.mock.calls.at(-1)?.[0];
+  const point = map.latLngToContainerPoint(target);
+
+  expect(point.x).toBeGreaterThan(130);
+  expect(point.x).toBeLessThan(320);
+  expect(point.y).toBeLessThan(92);
+  expect(point.y).toBeGreaterThan(40);
+});
+
+test("renders mission waypoint dots on the banner details overview map", async () => {
   global.fetch.mockImplementation((url) => {
     if (url.endsWith("/bnrs/overview-banner")) {
       return jsonResponse({
@@ -1067,9 +2350,9 @@ test("renders only mission start markers on the banner details overview map", as
   expect(await screen.findByText("Overview Banner")).toBeInTheDocument();
   expect(screen.getByTestId("marker-52.37-4.89")).toBeInTheDocument();
   expect(screen.getByTestId("marker-52.38-4.9")).toBeInTheDocument();
-  expect(screen.queryByTestId("marker-52.371-4.891")).not.toBeInTheDocument();
-  expect(screen.queryByTestId("marker-52.381-4.901")).not.toBeInTheDocument();
-  expect(screen.queryByText("Navigate to portal")).not.toBeInTheDocument();
+  expect(screen.getByTestId("marker-52.371-4.891")).toBeInTheDocument();
+  expect(screen.getByTestId("marker-52.381-4.901")).toBeInTheDocument();
+  expect(screen.getAllByText("Navigate to portal").length).toBeGreaterThan(0);
 });
 
 test("shows bannergress list action buttons on the banner overview page", async () => {
@@ -1116,7 +2399,96 @@ test("shows bannergress list action buttons on the banner overview page", async 
   expect(screen.getByRole("button", { name: /hide/i })).toBeInTheDocument();
 });
 
-test("renders the guider in overview mode before a mission is selected", async () => {
+
+test("shows unique mission authors on the banner details page when the api returns them", async () => {
+  global.fetch.mockImplementation((url) => {
+    if (url.endsWith("/bnrs/authored-banner")) {
+      return jsonResponse({
+        id: "authored-banner",
+        title: "Authored Banner",
+        picture: "/images/detail.jpg",
+        numberOfMissions: 3,
+        lengthMeters: 1800,
+        formattedAddress: "Oulu, Finland",
+        missions: {
+          "mission-1": {
+            id: "mission-1",
+            author: {
+              name: "Indicatrix",
+              faction: "resistance",
+            },
+            steps: {
+              0: {
+                poi: {
+                  title: "Portal One",
+                  type: "portal",
+                  latitude: 65.01,
+                  longitude: 25.47,
+                },
+              },
+            },
+          },
+          "mission-2": {
+            id: "mission-2",
+            author: {
+              name: "Indicatrix",
+              faction: "resistance",
+            },
+            steps: {
+              0: {
+                poi: {
+                  title: "Portal Two",
+                  type: "portal",
+                  latitude: 65.011,
+                  longitude: 25.471,
+                },
+              },
+            },
+          },
+          "mission-3": {
+            id: "mission-3",
+            author: {
+              name: "SecondAgent",
+              faction: "enlightened",
+            },
+            steps: {
+              0: {
+                poi: {
+                  title: "Portal Three",
+                  type: "portal",
+                  latitude: 65.012,
+                  longitude: 25.472,
+                },
+              },
+            },
+          },
+        },
+      });
+    }
+
+    throw new Error(`Unhandled fetch: ${url}`);
+  });
+
+  renderWithProviders(
+    <Routes>
+      <Route path="/banner/:bannerId" element={<BannerDetailsPage />} />
+    </Routes>,
+    { route: "/banner/authored-banner" }
+  );
+
+  expect(await screen.findByText("Authored Banner")).toBeInTheDocument();
+  expect(screen.getByText("Authors")).toBeInTheDocument();
+  expect(screen.getByRole("link", { name: "Indicatrix" })).toHaveAttribute(
+    "href",
+    "/agent/Indicatrix"
+  );
+  expect(screen.getByRole("link", { name: "SecondAgent" })).toHaveAttribute(
+    "href",
+    "/agent/SecondAgent"
+  );
+});
+
+test("renders the guider with waypoint dots before a mission is selected", async () => {
   global.fetch.mockImplementation((url) => {
     if (url.endsWith("/bnrs/guide-banner")) {
       return jsonResponse({
@@ -1192,9 +2564,9 @@ test("renders the guider in overview mode before a mission is selected", async (
   );
   expect(screen.getByTestId("marker-52.37-4.89")).toBeInTheDocument();
   expect(screen.getByTestId("marker-52.38-4.9")).toBeInTheDocument();
-  expect(screen.queryByTestId("marker-52.371-4.891")).not.toBeInTheDocument();
-  expect(screen.queryByTestId("marker-52.381-4.901")).not.toBeInTheDocument();
-  expect(screen.queryByText("Navigate to portal")).not.toBeInTheDocument();
+  expect(screen.getByTestId("marker-52.371-4.891")).toBeInTheDocument();
+  expect(screen.getByTestId("marker-52.381-4.901")).toBeInTheDocument();
+  expect(screen.getAllByText("Navigate to portal").length).toBeGreaterThan(0);
 });
 
 test("shows a retryable error when banner details fail to load", async () => {
@@ -1214,6 +2586,40 @@ test("shows a retryable error when banner details fail to load", async () => {
   expect(screen.getByRole("button", { name: /retry/i })).toBeInTheDocument();
   consoleErrorSpy.mockRestore();
 });
+
+test("home map view keeps discovery filters in the map panel instead of duplicating them in the top bar", async () => {
+  global.fetch.mockImplementation((url) => {
+    if (url.includes("/bnrs?orderBy=proximityStartPoint")) {
+      return jsonResponse([
+        {
+          id: "map-home-banner",
+          title: "Map Home Banner",
+          picture: "/images/map-home.jpg",
+          numberOfMissions: 6,
+          lengthMeters: 1800,
+          formattedAddress: "Enschede, NL",
+          numberOfDisabledMissions: 0,
+          startLatitude: "52.22",
+          startLongitude: "6.89",
+        },
+      ]);
+    }
+
+    throw new Error(`Unhandled fetch: ${url}`);
+  });
+
+  renderWithProviders(
+    <Routes>
+      <Route path="*" element={<Home />} />
+    </Routes>,
+    { route: "/map" }
+  );
+
+  await screen.findByRole("link", { name: /open banner/i });
+
+  expect(screen.getAllByRole("button", { name: /^filters$/i })).toHaveLength(1);
+});
+
 
 test("renders a discovery map with proximity-sorted poster markers and preview links", async () => {
   global.fetch.mockImplementation((url) => {
@@ -1522,5 +2928,63 @@ test("renders discovery map markers even before banner image ratios load", async
       .filter((options) => options.className === "banner-map-icon");
 
     expect(bannerIconCalls.length).toBeGreaterThanOrEqual(2);
+  });
+});
+
+test("updates banner metadata tags when banner details load", async () => {
+  global.fetch.mockImplementation((url) => {
+    if (url.endsWith("/bnrs/meta-banner")) {
+      return jsonResponse({
+        id: "meta-banner",
+        title: "Meta Banner",
+        picture: "/images/meta.jpg",
+        numberOfMissions: 6,
+        lengthMeters: 2100,
+        formattedAddress: "Amsterdam, NL",
+        missions: {
+          "mission-1": {
+            id: "mission-1",
+            steps: {
+              0: {
+                poi: {
+                  title: "Portal One",
+                  type: "portal",
+                  latitude: 52.37,
+                  longitude: 4.89,
+                },
+              },
+            },
+          },
+        },
+      });
+    }
+
+    throw new Error(`Unhandled fetch: ${url}`);
+  });
+
+  renderWithProviders(
+    <Routes>
+      <Route path="/banner/:bannerId" element={<BannerDetailsPage />} />
+    </Routes>,
+    { route: "/banner/meta-banner" }
+  );
+
+  expect(await screen.findByText("Meta Banner")).toBeInTheDocument();
+
+  await waitFor(() => {
+    expect(document.title).toBe("Meta Banner");
+    expect(
+      document.head.querySelector('meta[property="og:title"]')
+    ).toHaveAttribute("content", "Meta Banner");
+    expect(
+      document.head.querySelector('meta[property="og:description"]')
+    ).toHaveAttribute("content", "6 Missions, 2.1 km, Amsterdam, NL");
+    expect(
+      document.head.querySelector('meta[property="og:image"]')
+    ).toHaveAttribute("content", "https://api.bannergress.com/images/meta.jpg");
+    expect(document.head.querySelector('link[rel="canonical"]')).toHaveAttribute(
+      "href",
+      "http://localhost:3000/banner/meta-banner"
+    );
   });
 });

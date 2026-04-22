@@ -1,4 +1,4 @@
-import React, { useRef } from "react";
+import React from "react";
 
 export default function MapOverlay({
   missions,
@@ -7,7 +7,6 @@ export default function MapOverlay({
   bannerId,
 }) {
   const missionCount = missions.length;
-  const overlayRef = useRef(null);
 
   const stopPropagation = (event) => {
     event.stopPropagation();
@@ -41,8 +40,8 @@ export default function MapOverlay({
 
   return (
     <div
-      ref={overlayRef}
       className="overlay"
+      data-map-overlay="mission-controls"
       role="group"
       aria-label="Mission controls"
       onMouseDown={stopPropagation}

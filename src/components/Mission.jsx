@@ -27,16 +27,42 @@ function Mission({
   showStepMarkers = true,
 }) {
   const stepsToRender = useMemo(
-    () =>
-      Object.values(mission.steps ?? {}).filter(
-        (step) => step.poi.type !== "unavailable"
-      ),
+    () => {
+      return Object.values(mission.steps ?? {}).flatMap((step, index) => {
+        const poi = step?.poi;
+        const latitude = Number(poi?.latitude);
+        const longitude = Number(poi?.longitude);
+
+        if (
+          !poi ||
+          poi.type === "unavailable" ||
+          !Number.isFinite(latitude) ||
+          !Number.isFinite(longitude)
+        ) {
+          return [];
+        }
+
+        return [
+          {
+            key:
+              typeof poi.id === "string" && poi.id.length > 0
+                ? poi.id
+                : `${mission.id ?? missionNumber}-${index}-${latitude}-${longitude}`,
+            title:
+              typeof poi.title === "string" && poi.title.length > 0
+                ? poi.title
+                : `Mission ${missionNumber} step ${index + 1}`,
+            latitude,
+            longitude,
+          },
+        ];
+      });
+    },
     [mission.steps]
   );
 
   const polylinePositions = useMemo(
-    () =>
-      stepsToRender.map((step) => [step.poi.latitude, step.poi.longitude]),
+    () => stepsToRender.map((step) => [step.latitude, step.longitude]),
     [stepsToRender]
   );
   const overviewPolylinePositions = useMemo(
@@ -52,10 +78,10 @@ function Mission({
     <div>
       {markerSteps.map((step, index) => (
         <MissionStepMarker
-          key={step.poi.title}
-          portalName={step.poi.title}
-          latitude={step.poi.latitude}
-          longitude={step.poi.longitude}
+          key={step.key}
+          portalName={step.title}
+          latitude={step.latitude}
+          longitude={step.longitude}
           missionNumber={missionNumber}
           color={color}
           isFirst={index === 0}

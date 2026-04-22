@@ -33,6 +33,7 @@ export default function Map() {
     () => Object.values(items.missions ?? {}),
     [items.missions]
   );
+
   const missionCoordinates = useMemo(
     () =>
       missions
@@ -41,10 +42,10 @@ export default function Map() {
           if (!poi) {
             return null;
           }
-          const latitude = poi.latitude;
-          const longitude = poi.longitude;
+          const latitude = Number(poi.latitude);
+          const longitude = Number(poi.longitude);
 
-          if (latitude && longitude) {
+          if (Number.isFinite(latitude) && Number.isFinite(longitude)) {
             return [latitude, longitude];
           }
 
@@ -53,8 +54,6 @@ export default function Map() {
         .filter(Boolean),
     [missions]
   );
-  const overviewMode = currentMission <= 0 || currentMission >= missions.length;
-
   useEffect(() => {
     fetchBannergress(`https://api.bannergress.com/bnrs/${bannerId}`)
       .then((res) => res.json())
@@ -77,12 +76,13 @@ export default function Map() {
   useEffect(() => {
     if (!isLoading && mapRef.current && mapInitialized && missionCoordinates.length > 0) {
         const bounds = L.latLngBounds(missionCoordinates);
+        mapRef.current.stop?.();
         mapRef.current.fitBounds(bounds, {
           padding: [50, 50],
-          animate: missionCoordinates.length <= 100,
+          animate: false,
         });
     }
-  }, [isLoading, mapInitialized, missionCoordinates]);
+  }, [bannerId, isLoading, mapInitialized, missionCoordinates]);
 
   if (isLoading) {
     return <div className="banner-guider-shell">Loading...</div>;
@@ -99,6 +99,7 @@ export default function Map() {
         id="map"
         center={[52.221058, 6.893297]}
         zoom={15}
+        zoomControl={!L.Browser.mobile}
         scrollWheelZoom={true}
         whenReady={handleMapContainerReady}
         preferCanvas={missionCoordinates.length > 200}
@@ -110,7 +111,7 @@ export default function Map() {
         <BannerMarkers
           missions={missions}
           currentMission={currentMission}
-          showStepMarkers={!overviewMode}
+          showStepMarkers={true}
         />
         <LocationMarker />
       </MapContainer>

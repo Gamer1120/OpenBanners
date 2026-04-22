@@ -15,7 +15,7 @@
   width: 100vw;
   height: 100vh;
   height: 100dvh;
-  min-height: 320px;
+  min-height: 0;
   overflow: hidden;
   background: #0b1014;
   z-index: 1200;
@@ -25,6 +25,7 @@
 .banner-guider-shell #map {
   height: 100% !important;
   width: 100%;
+  min-height: 0 !important;
 }
 
 .custom-icon {
@@ -70,29 +71,40 @@
 .user-location-heading {
   position: absolute;
   left: 50%;
-  top: 4px;
-  width: 20px;
-  height: 20px;
-  background: rgba(26, 115, 232, 0.28);
+  top: 1px;
+  width: 24px;
+  height: 26px;
+  background: rgba(26, 115, 232, 0.42);
   clip-path: polygon(50% 0%, 100% 100%, 0 100%);
-  transform-origin: 50% 16px;
-  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.18));
+  transform-origin: 50% 19px;
+  filter: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.28));
+}
+
+.user-location-heading-tip {
+  position: absolute;
+  left: 50%;
+  top: 2px;
+  width: 8px;
+  height: 14px;
+  transform: translateX(-50%);
+  border-radius: 999px 999px 0 0;
+  background: rgba(255, 255, 255, 0.92);
 }
 
 .user-location-dot {
-  width: 18px;
-  height: 18px;
+  width: 16px;
+  height: 16px;
   position: absolute;
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
   border-radius: 50%;
   box-sizing: border-box;
-  background: #1a73e8;
-  border: 3px solid #ffffff;
+  background: rgba(26, 115, 232, 0.58);
+  border: 2px solid rgba(255, 255, 255, 0.92);
   box-shadow:
-    0 0 0 6px rgba(26, 115, 232, 0.18),
-    0 2px 8px rgba(0, 0, 0, 0.28);
+    0 0 0 5px rgba(26, 115, 232, 0.12),
+    0 2px 8px rgba(0, 0, 0, 0.24);
 }
 
 .overlay {
@@ -194,16 +206,18 @@
 
 @media (max-width: 768px) {
   .banner-details-page {
-    display: block;
+    display: flex;
+    flex-direction: column;
     grid-template-columns: 1fr;
     width: 100%;
-    height: auto;
-    overflow: visible;
+    height: 100%;
+    min-height: 0;
+    overflow: hidden;
   }
 
   .banner-details-container {
     padding: 8px;
-    overflow-y: visible;
+    overflow-y: auto;
   }
 
   .banner-details-card {
@@ -211,8 +225,8 @@
   }
 
   .map-container {
-    height: calc(100dvh - 180px);
-    min-height: 360px;
+    height: 100%;
+    min-height: 0;
   }
 
   .overlay-controls > p {

@@ -28,7 +28,36 @@ Useful commands:
 yarn test
 yarn build
 yarn preview
+yarn prerender:banner <banner-id>
 ```
+
+## Banner metadata prerender and fallback
+
+Telegram and similar crawlers only read the initial HTML, so client-side meta updates are not enough for `/banner/:id` previews.
+
+This repo supports two layers for banner metadata:
+
+1. Preferred static prerender for known banner ids
+2. A generic server-side fallback for any other `/banner/:id`
+
+Static prerender:
+
+```bash
+yarn build
+yarn prerender:banner nieuwe-werk-kop-van-zuid-8aa1
+```
+
+That command fetches Bannergress JSON for each requested banner id and writes a static HTML file to:
+
+```text
+dist/banner/<banner-id>/index.html
+```
+
+For banner ids that are not prerendered yet, the deployment can use `server/banner-meta.php` as a fallback renderer. It reads the built SPA shell from `dist/index.html`, fetches the requested Bannergress banner, injects the banner-specific metadata into the initial HTML, and still returns the normal SPA shell.
+
+This keeps the deployment free of a dedicated Node metadata server while still making any banner URL previewable.
+
+In production, nginx should prefer prerendered files for `/banner/:id`, then fall back to the PHP renderer, and only then fall back to the generic SPA shell when banner data is unavailable.
 
 ## External Dependencies
 

@@ -16,6 +16,7 @@ export default function SortingButtons({
       <BannerFilterButton
         filters={bannerFilters}
         onChange={onBannerFiltersChange}
+        showMinimumMissionsFilter
       />
       <Button
         variant="outlined"

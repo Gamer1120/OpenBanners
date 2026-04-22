@@ -11,6 +11,75 @@ import {
 import BannerCard from "./BannerCard";
 import { fetchBannergress } from "../bannergressSync";
 
+const NEARBY_LOCATION_STORAGE_KEY = "openbanners-nearby-location";
+const CACHED_LOCATION_MAX_AGE_MS = 10 * 60 * 1000;
+const CACHED_LOCATION_OPTIONS = {
+  enableHighAccuracy: false,
+  maximumAge: Infinity,
+  timeout: 1000,
+};
+const FRESH_LOCATION_OPTIONS = {
+  enableHighAccuracy: true,
+  maximumAge: 0,
+  timeout: 4000,
+};
+
+function loadCachedNearbyLocation() {
+  if (typeof window === "undefined") {
+    return null;
+  }
+
+  try {
+    const storedValue = window.sessionStorage.getItem(NEARBY_LOCATION_STORAGE_KEY);
+
+    if (!storedValue) {
+      return null;
+    }
+
+    const parsedValue = JSON.parse(storedValue);
+
+    if (
+      !Number.isFinite(parsedValue?.latitude) ||
+      !Number.isFinite(parsedValue?.longitude) ||
+      !Number.isFinite(parsedValue?.savedAt)
+    ) {
+      return null;
+    }
+
+    if (Date.now() - parsedValue.savedAt > CACHED_LOCATION_MAX_AGE_MS) {
+      return null;
+    }
+
+    return {
+      latitude: parsedValue.latitude,
+      longitude: parsedValue.longitude,
+    };
+  } catch {
+    return null;
+  }
+}
+
+function saveCachedNearbyLocation(location) {
+  if (
+    typeof window === "undefined" ||
+    !Number.isFinite(location?.latitude) ||
+    !Number.isFinite(location?.longitude)
+  ) {
+    return;
+  }
+
+  try {
+    window.sessionStorage.setItem(
+      NEARBY_LOCATION_STORAGE_KEY,
+      JSON.stringify({
+        latitude: location.latitude,
+        longitude: location.longitude,
+        savedAt: Date.now(),
+      })
+    );
+  } catch {}
+}
+
 export default function BannersNearMe() {
   const [location, setLocation] = useState(null);
   const [bannerData, setBannerData] = useState([]);
@@ -20,21 +89,29 @@ export default function BannersNearMe() {
   const [error, setError] = useState("");
   const [permissionState, setPermissionState] = useState("checking");
 
-  const requestCurrentPosition = (options) => {
+  const requestCurrentPosition = (options, { silent = false } = {}) => {
     setError("");
-    setLoading(true);
+
+    if (!silent) {
+      setLoading(true);
+    }
 
     navigator.geolocation.getCurrentPosition(
       (position) => {
         const { latitude, longitude } = position.coords;
-        setLocation({ latitude, longitude });
+        const nextLocation = { latitude, longitude };
+        saveCachedNearbyLocation(nextLocation);
+        setLocation(nextLocation);
       },
       (positionError) => {
         console.error("Error getting location:", positionError);
-        setLoading(false);
-        setError(
-          "Couldn't determine your location. Please check your browser location settings and try again."
-        );
+
+        if (!silent) {
+          setLoading(false);
+          setError(
+            "Couldn't determine your location. Please check your browser location settings and try again."
+          );
+        }
       },
       options
     );
@@ -42,6 +119,7 @@ export default function BannersNearMe() {
 
   useEffect(() => {
     let ignore = false;
+    const cachedLocation = loadCachedNearbyLocation();
 
     const handlePermission = (status) => {
       if (ignore) {
@@ -52,7 +130,20 @@ export default function BannersNearMe() {
 
       if (status === "granted") {
         setShowPermissionPrompt(false);
-        requestCurrentPosition();
+        if (cachedLocation) {
+          setLocation(cachedLocation);
+        }
+        if (!cachedLocation) {
+          setError("");
+          setLoading(true);
+        }
+
+        requestCurrentPosition(CACHED_LOCATION_OPTIONS, {
+          silent: true,
+        });
+        requestCurrentPosition(FRESH_LOCATION_OPTIONS, {
+          silent: Boolean(cachedLocation),
+        });
       } else if (status === "prompt") {
         setShowPermissionPrompt(true);
         setLoading(false);
@@ -135,7 +226,7 @@ export default function BannersNearMe() {
 
   const handleGrantLocationAccess = () => {
     setShowPermissionPrompt(false);
-    requestCurrentPosition({ enableHighAccuracy: true });
+    requestCurrentPosition(FRESH_LOCATION_OPTIONS);
   };
 
   const handleLoadMore = () => {
@@ -144,7 +235,7 @@ export default function BannersNearMe() {
 
   const handleRetry = () => {
     if (location) {
-      requestCurrentPosition({ enableHighAccuracy: true });
+      requestCurrentPosition(FRESH_LOCATION_OPTIONS);
       return;
     }
 

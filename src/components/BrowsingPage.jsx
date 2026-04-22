@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import BannerListItem from "./BannerListItem";
 import BannerCard from "./BannerCard";
 import BannerResultsViewToggle from "./BannerResultsViewToggle";
@@ -19,6 +19,7 @@ import { fetchBannergress, useBannergressSync } from "../bannergressSync";
 import {
   applyBannerFilters,
   DEFAULT_BANNER_FILTERS,
+  getMissionCountBounds,
 } from "../bannerFilters";
 
 function sortJsonByMissionsPerLength(data, sortOrder) {
@@ -36,26 +37,34 @@ function sortJsonByMissionsPerLength(data, sortOrder) {
 
 function buildBannersUrl({
   placeId,
+  authorName,
   sortOption,
   sortOrder,
   showOfflineBanners,
   offset,
 }) {
-  let url = `https://api.bannergress.com/bnrs?limit=9&offset=${offset}`;
+  const url = new URL("https://api.bannergress.com/bnrs");
+  url.searchParams.set("limit", String(BROWSE_PAGE_SIZE));
+  url.searchParams.set("offset", String(offset));
 
   if (placeId) {
-    url += `&placeId=${placeId}`;
+    url.searchParams.set("placeId", placeId);
+  }
+
+  if (authorName) {
+    url.searchParams.set("author", authorName);
   }
 
   if (sortOption) {
-    url += `&orderBy=${sortOption}&orderDirection=${sortOrder}`;
+    url.searchParams.set("orderBy", sortOption);
+    url.searchParams.set("orderDirection", sortOrder);
   }
 
   if (!showOfflineBanners) {
-    url += "&online=true";
+    url.searchParams.set("online", "true");
   }
 
-  return url;
+  return url.toString();
 }
 
 const sortOptionsMap = {
@@ -66,9 +75,11 @@ const sortOptionsMap = {
 };
 const viewModeStorageKey = "openbanners-banner-view-mode";
 const BROWSE_PAGE_SIZE = 9;
+const FILTERED_BROWSE_PREFETCH_TARGET = BROWSE_PAGE_SIZE * 2;
 
 export default function BrowsingPage({
   placeId,
+  authorName,
   bannerFilters = DEFAULT_BANNER_FILTERS,
   onBannerFiltersChange,
 }) {
@@ -81,7 +92,6 @@ export default function BrowsingPage({
   const [loadingMore, setLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(true);
   const [requestedOffset, setRequestedOffset] = useState(0);
-  const [nextOffset, setNextOffset] = useState(0);
   const [isPlacesListExpanded, setIsPlacesListExpanded] = useState(false);
   const [error, setError] = useState("");
   const [reloadToken, setReloadToken] = useState(0);
@@ -121,10 +131,11 @@ export default function BrowsingPage({
   useEffect(() => {
     setSortOption("Created");
     setSortOrder("DESC");
-  }, [placeId]);
+  }, [authorName, placeId]);
 
   const browseQueryKey = [
     placeId ?? "",
+    authorName ?? "",
     sortOption,
     sortOrder,
     bannerFilters.showOfflineBanners ? "offline" : "online-only",
@@ -141,7 +152,6 @@ export default function BrowsingPage({
     setLoadingMore(false);
     setHasMore(true);
     setRequestedOffset(0);
-    setNextOffset(0);
     setError("");
   }, [browseQueryKey]);
 
@@ -189,6 +199,7 @@ export default function BrowsingPage({
             const response = await fetchBannergress(
               buildBannersUrl({
                 placeId,
+                authorName,
                 sortOption: null,
                 sortOrder,
                 showOfflineBanners: bannerFilters.showOfflineBanners,
@@ -227,6 +238,7 @@ export default function BrowsingPage({
         const response = await fetchBannergress(
           buildBannersUrl({
             placeId,
+            authorName,
             sortOption: sortOptionsMap[sortOption],
             sortOrder,
             showOfflineBanners: bannerFilters.showOfflineBanners,
@@ -244,7 +256,6 @@ export default function BrowsingPage({
               requestedOffset === 0 ? data : [...currentBanners, ...data]
             );
             setHasMore(data.length === BROWSE_PAGE_SIZE);
-            setNextOffset(requestedOffset + data.length);
           } else {
             console.error("Invalid response data:", data);
             if (requestedOffset === 0) {
@@ -285,17 +296,50 @@ export default function BrowsingPage({
     sortOption,
     sortOrder,
     placeId,
+    authorName,
     bannerFilters.showOfflineBanners,
     bannerFilters.showHiddenBanners,
     bannerFilters.hideDoneBanners,
     bannersFetchedForEfficiency,
   ]);
 
-  const displayedBanners = applyBannerFilters(
-    banners,
-    syncState,
-    bannerFilters
+  const { minimumMissions, maximumMissions, hasMissionCountFilter } =
+    getMissionCountBounds(bannerFilters);
+  const nextOffset = banners.length;
+  const displayedBanners = useMemo(
+    () =>
+      applyBannerFilters(banners, syncState, bannerFilters).filter((banner) => {
+        const missionCount = Number(banner?.numberOfMissions);
+
+        if (!Number.isFinite(missionCount)) {
+          return minimumMissions === null && maximumMissions === null;
+        }
+
+        if (minimumMissions !== null && missionCount < minimumMissions) {
+          return false;
+        }
+
+        if (maximumMissions !== null && missionCount > maximumMissions) {
+          return false;
+        }
+
+        return true;
+      }),
+    [banners, bannerFilters, maximumMissions, minimumMissions, syncState]
   );
+  const filteredPrefetchTarget = hasMissionCountFilter
+    ? FILTERED_BROWSE_PREFETCH_TARGET
+    : BROWSE_PAGE_SIZE;
+  const needsFilteredBackfill =
+    displayedBanners.length === 0 ||
+    (hasMissionCountFilter &&
+      displayedBanners.length < Math.min(filteredPrefetchTarget, banners.length));
+  const isAgentView = Boolean(authorName);
+  const headerEyebrow = isAgentView ? "Agent" : "Explore";
+  const headerTitle = isAgentView ? authorName : "Browsing";
+  const headerDescription = isAgentView
+    ? `Banners created by ${authorName}.`
+    : "This website is not associated with Bannergress, Ingress and/or Niantic. This website is an alternative, open-source front-end for Bannergress's back-end.";
 
   useEffect(() => {
     if (
@@ -303,20 +347,24 @@ export default function BrowsingPage({
       !hasMore ||
       loading ||
       loadingMore ||
-      displayedBanners.length > 0 ||
-      banners.length === 0
+      banners.length === 0 ||
+      !needsFilteredBackfill ||
+      nextOffset <= requestedOffset
     ) {
       return;
     }
 
-    setRequestedOffset(nextOffset);
+    setRequestedOffset((currentOffset) =>
+      currentOffset === nextOffset ? currentOffset : nextOffset
+    );
   }, [
     banners.length,
-    displayedBanners.length,
     hasMore,
     loading,
     loadingMore,
+    needsFilteredBackfill,
     nextOffset,
+    requestedOffset,
     sortOption,
   ]);
 
@@ -366,36 +414,47 @@ export default function BrowsingPage({
         pb: 4,
       }}
     >
-      <BrowsingHeader />
+      <BrowsingHeader
+        eyebrow={headerEyebrow}
+        title={headerTitle}
+        description={headerDescription}
+      />
       <Grid container spacing={2.5}>
-        <Grid item xs={12} sm={3} md={2}>
-          {isSmallScreen && (
-            <Box sx={{ mb: 1.5 }}>
-              <Button
-                variant="outlined"
-                onClick={handlePlacesListToggle}
-                sx={{ width: "100%" }}
-              >
-                {isPlacesListExpanded ? "Collapse Places" : "Expand Places"}
-              </Button>
+        {isAgentView ? null : (
+          <Grid item xs={12} sm={3} md={2}>
+            {isSmallScreen && (
+              <Box sx={{ mb: 1.5 }}>
+                <Button
+                  variant="outlined"
+                  onClick={handlePlacesListToggle}
+                  sx={{ width: "100%" }}
+                >
+                  {isPlacesListExpanded ? "Collapse Places" : "Expand Places"}
+                </Button>
+              </Box>
+            )}
+            <Box
+              sx={{
+                p: 1.5,
+                borderRadius: 3,
+                bgcolor: "rgba(20, 27, 33, 0.72)",
+                border: "1px solid rgba(255,255,255,0.08)",
+                boxShadow: "0 14px 32px rgba(0,0,0,0.14)",
+              }}
+            >
+              {isPlacesListExpanded || !isSmallScreen ? (
+                <PlacesList parentPlaceId={placeId} />
+              ) : null}
             </Box>
-          )}
-          <Box
-            sx={{
-              p: 1.5,
-              borderRadius: 3,
-              bgcolor: "rgba(20, 27, 33, 0.72)",
-              border: "1px solid rgba(255,255,255,0.08)",
-              boxShadow: "0 14px 32px rgba(0,0,0,0.14)",
-            }}
-          >
-            {isPlacesListExpanded || !isSmallScreen ? (
-              <PlacesList parentPlaceId={placeId} />
-            ) : null}
-          </Box>
-        </Grid>
+          </Grid>
+        )}
 
-        <Grid item xs={12} sm={isSmallScreen ? 12 : 9} md={isSmallScreen ? 12 : 10}>
+        <Grid
+          item
+          xs={12}
+          sm={isAgentView || isSmallScreen ? 12 : 9}
+          md={isAgentView || isSmallScreen ? 12 : 10}
+        >
           <Box
             sx={{
               display: "flex",

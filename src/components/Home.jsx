@@ -13,7 +13,7 @@ export default function Home() {
   const [currentView, setCurrentView] = useState("bannersNearMe");
   const [bannerFilters, setBannerFilters] = useState(DEFAULT_BANNER_FILTERS);
   const isMobile = useMediaQuery("(max-width:768px)");
-  const { placeId } = useParams();
+  const { placeId, agentName } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -39,6 +39,8 @@ export default function Home() {
       setCurrentView("browsing");
     } else if (location.pathname.startsWith("/banner/")) {
       setCurrentView("bannerDetails");
+    } else if (location.pathname.startsWith("/agent/")) {
+      setCurrentView("agentBrowsing");
     } else if (location.pathname.startsWith("/map")) {
       setCurrentView("map");
     } else {
@@ -52,7 +54,7 @@ export default function Home() {
         flexGrow: 1,
         bgcolor: "grey.900",
         height:
-          (currentView === "bannerDetails" || currentView === "map") && !isMobile
+          currentView === "bannerDetails" || currentView === "map"
             ? "100dvh"
             : "auto",
         minHeight: "100dvh",
@@ -64,9 +66,6 @@ export default function Home() {
         onBrowseClick={handleBrowseClick}
         onTitleClick={handleTitleClick}
         onSearch={handleSearch}
-        showBannerFilters={currentView === "map"}
-        bannerFilters={bannerFilters}
-        onBannerFiltersChange={setBannerFilters}
       />
       <Box
         component="main"
@@ -77,7 +76,7 @@ export default function Home() {
           display: "flex",
           flexDirection: "column",
           overflow:
-            (currentView === "bannerDetails" || currentView === "map") && !isMobile
+            (currentView === "bannerDetails" || currentView === "map")
               ? "hidden"
               : "visible",
         }}
@@ -90,9 +89,21 @@ export default function Home() {
             onBannerFiltersChange={setBannerFilters}
           />
         )}
+        {currentView === "agentBrowsing" && (
+          <BrowsingPage
+            authorName={agentName}
+            bannerFilters={bannerFilters}
+            onBannerFiltersChange={setBannerFilters}
+          />
+        )}
         {currentView === "searching" && <SearchResults />}
         {currentView === "bannerDetails" && <BannerDetailsPage />}
-        {currentView === "map" && <Map bannerFilters={bannerFilters} />}
+        {currentView === "map" && (
+          <Map
+            bannerFilters={bannerFilters}
+            onBannerFiltersChange={setBannerFilters}
+          />
+        )}
       </Box>
     </Box>
   );

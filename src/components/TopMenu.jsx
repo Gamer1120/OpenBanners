@@ -14,6 +14,7 @@ import {
   ButtonBase,
 } from "@mui/material";
 import {
+  AltRoute,
   CheckCircleOutline,
   Download,
   Explore,
@@ -72,6 +73,7 @@ function isRunningInAndroidApp() {
 
 export default function TopMenu({
   onBrowseClick,
+  onRerouterClick,
   onTitleClick,
   onSearch,
 }) {
@@ -101,6 +103,15 @@ export default function TopMenu({
 
   const handleMapClick = () => {
     navigate("/map");
+  };
+
+  const handleRerouterClick = () => {
+    if (typeof onRerouterClick === "function") {
+      onRerouterClick();
+      return;
+    }
+
+    navigate("/rerouter");
   };
 
   const stopAuthPolling = () => {
@@ -493,6 +504,19 @@ export default function TopMenu({
               }}
             >
               Map
+            </Button>
+            <Button
+              color="inherit"
+              startIcon={<AltRoute />}
+              onClick={handleRerouterClick}
+              sx={{
+                minHeight: 44,
+                px: 1.75,
+                bgcolor: "rgba(255,255,255,0.03)",
+                border: "1px solid rgba(255,255,255,0.08)",
+              }}
+            >
+              Reroute Banner
             </Button>
             {shouldShowAndroidDownloadButton ? (
               <Button

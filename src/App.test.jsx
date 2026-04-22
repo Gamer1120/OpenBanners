@@ -1,5 +1,12 @@
 import React from "react";
-import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { useMediaQuery } from "@mui/material";
 import { ThemeProvider, createTheme } from "@mui/material/styles";
@@ -24,6 +31,7 @@ import {
   BANNERGRESS_AUTH_STORAGE_KEY,
   BANNERGRESS_SYNC_STORAGE_KEY,
 } from "./bannergressSync";
+import { BANNER_REROUTER_STORAGE_KEY } from "./bannerRerouterStore";
 import L from "leaflet";
 
 vi.mock("@mui/material", async () => {
@@ -256,6 +264,44 @@ function deferred() {
   });
 
   return { promise, resolve, reject };
+}
+
+function buildTestUmmMissionSet({
+  missionCount = 6,
+  portalsPerMission = 7,
+  title = "Test Reroute Banner",
+  portalTitleBuilder = (absoluteIndex) => `Portal ${absoluteIndex + 1}`,
+} = {}) {
+  return JSON.stringify(
+    {
+      fileFormatVersion: 1,
+      missionSetName: title,
+      missionSetDescription: "Synthetic UMM payload for rerouter tests.",
+      plannedBannerLength: missionCount,
+      missions: Array.from({ length: missionCount }, (_missionValue, missionIndex) => ({
+        missionTitle: `${title} ${String(missionIndex + 1).padStart(2, "0")}`,
+        portals: Array.from(
+          { length: portalsPerMission },
+          (_portalValue, portalIndex) => {
+            const absoluteIndex = missionIndex * portalsPerMission + portalIndex;
+
+            return {
+              guid: `portal-guid-${absoluteIndex + 1}`,
+              title: portalTitleBuilder(absoluteIndex),
+              description: `Portal ${absoluteIndex + 1} description`,
+              location: {
+                latitude: 52.2 + absoluteIndex * 0.0012,
+                longitude: 6.85 + absoluteIndex * 0.001,
+              },
+              isStartPoint: absoluteIndex === 0,
+            };
+          }
+        ),
+      })),
+    },
+    null,
+    2
+  );
 }
 
 function renderWithProviders(ui, { route = "/" } = {}) {
@@ -929,6 +975,7 @@ test("uses cached country places without refetching", async () => {
 
 test("submits top menu searches, fires menu callbacks, and navigates map route", async () => {
   const onBrowseClick = vi.fn();
+  const onRerouterClick = vi.fn();
   const onTitleClick = vi.fn();
   const onSearch = vi.fn();
 
@@ -940,6 +987,7 @@ test("submits top menu searches, fires menu callbacks, and navigates map route",
           <>
             <TopMenu
               onBrowseClick={onBrowseClick}
+              onRerouterClick={onRerouterClick}
               onTitleClick={onTitleClick}
               onSearch={onSearch}
             />
@@ -971,8 +1019,302 @@ test("submits top menu searches, fires menu callbacks, and navigates map route",
   );
   expect(onSearch).toHaveBeenCalledTimes(1);
 
+  await userEvent.click(screen.getByRole("button", { name: /reroute banner/i }));
+  expect(onRerouterClick).toHaveBeenCalledTimes(1);
+
   await userEvent.click(screen.getByRole("button", { name: /map/i }));
   expect(screen.getByTestId("location-display")).toHaveTextContent("/map");
+});
+
+test("imports a banner into the rerouter, generates a reroute, and stores history locally", async () => {
+  const user = userEvent.setup();
+
+  renderWithProviders(
+    <Routes>
+      <Route path="/rerouter" element={<Home />} />
+    </Routes>,
+    { route: "/rerouter" }
+  );
+
+  expect(await screen.findByText("Banner Rerouter")).toBeInTheDocument();
+
+  const fileInput = screen.getByTestId("rerouter-file-input");
+  const importFile = new File(
+    [buildTestUmmMissionSet()],
+    "test-reroute.umm.json",
+    {
+      type: "application/json",
+    }
+  );
+
+  fireEvent.change(fileInput, {
+    target: {
+      files: [importFile],
+    },
+  });
+
+  await waitFor(() => {
+    const storedState = JSON.parse(
+      window.localStorage.getItem(BANNER_REROUTER_STORAGE_KEY)
+    );
+
+    expect(storedState?.activeDraftId).toBeTruthy();
+  });
+
+  fireEvent.mouseDown(screen.getByLabelText("End portal"));
+  const endPortalListbox = await screen.findByRole("listbox");
+  fireEvent.click(within(endPortalListbox).getByRole("option", { name: "Portal 18" }));
+
+  await user.click(screen.getByRole("button", { name: /generate reroute/i }));
+
+  expect(await screen.findByText("Reroute 1")).toBeInTheDocument();
+
+  const storedState = JSON.parse(
+    window.localStorage.getItem(BANNER_REROUTER_STORAGE_KEY)
+  );
+  const activeDraftId = storedState.activeDraftId;
+  expect(activeDraftId).toBeTruthy();
+  expect(storedState.drafts[activeDraftId].routeHistory).toHaveLength(1);
+  expect(storedState.drafts[activeDraftId].selectedEndPortalKey).toBe(
+    storedState.drafts[activeDraftId].portalPool[17].portalKey
+  );
+  expect(storedState.drafts[activeDraftId].currentGeneratedRoute.portalOrder).toHaveLength(
+    36
+  );
+  expect(storedState.drafts[activeDraftId].currentGeneratedRoute.orderedPortals).toBeUndefined();
+  expect(storedState.drafts[activeDraftId].currentGeneratedRoute.missions).toBeUndefined();
+  expect(storedState.drafts[activeDraftId].currentGeneratedRoute.summary.portalCount).toBe(
+    36
+  );
+  expect(
+    storedState.drafts[activeDraftId].currentGeneratedRoute.summary.endPortalTitle
+  ).toBe("Portal 18");
+});
+
+test("confirms before clearing the rerouter workspace", async () => {
+  const user = userEvent.setup();
+
+  renderWithProviders(
+    <Routes>
+      <Route path="/rerouter" element={<Home />} />
+    </Routes>,
+    { route: "/rerouter" }
+  );
+
+  const fileInput = await screen.findByTestId("rerouter-file-input");
+  const importFile = new File(
+    [buildTestUmmMissionSet()],
+    "test-reroute-clear.umm.json",
+    {
+      type: "application/json",
+    }
+  );
+
+  fireEvent.change(fileInput, {
+    target: {
+      files: [importFile],
+    },
+  });
+
+  expect(await screen.findByRole("button", { name: /clear workspace/i })).toBeInTheDocument();
+
+  await user.click(screen.getByRole("button", { name: /clear workspace/i }));
+  expect(screen.getByRole("dialog", { name: /clear workspace/i })).toBeInTheDocument();
+
+  await user.click(screen.getByRole("button", { name: /^cancel$/i }));
+  await waitFor(() => {
+    expect(
+      screen.queryByRole("dialog", { name: /clear workspace/i })
+    ).not.toBeInTheDocument();
+  });
+  expect(screen.getByRole("button", { name: /clear workspace/i })).toBeInTheDocument();
+
+  await user.click(screen.getByRole("button", { name: /clear workspace/i }));
+  await user.click(
+    within(screen.getByRole("dialog", { name: /clear workspace/i })).getByRole(
+      "button",
+      { name: /clear workspace/i }
+    )
+  );
+
+  await waitFor(() => {
+    expect(
+      screen.queryByRole("button", { name: /clear workspace/i })
+    ).not.toBeInTheDocument();
+  });
+  expect(screen.getByText("Start with an existing banner")).toBeInTheDocument();
+  expect(window.localStorage.getItem(BANNER_REROUTER_STORAGE_KEY)).toBeNull();
+});
+
+test("can disable and delete imported portals in the rerouter", async () => {
+  const user = userEvent.setup();
+
+  renderWithProviders(
+    <Routes>
+      <Route path="/rerouter" element={<Home />} />
+    </Routes>,
+    { route: "/rerouter" }
+  );
+
+  const fileInput = await screen.findByTestId("rerouter-file-input");
+  const importFile = new File(
+    [buildTestUmmMissionSet()],
+    "test-reroute-controls.umm.json",
+    {
+      type: "application/json",
+    }
+  );
+
+  fireEvent.change(fileInput, {
+    target: {
+      files: [importFile],
+    },
+  });
+
+  await user.click(
+    await screen.findByRole("button", { name: /imported portal pool/i })
+  );
+
+  await user.click(
+    await screen.findByRole("button", { name: /^Require Portal 3$/i })
+  );
+
+  expect(await screen.findByText("1 required")).toBeInTheDocument();
+  expect(
+    screen.getByRole("button", { name: /^Unrequire Portal 3$/i })
+  ).toBeInTheDocument();
+
+  await user.click(
+    await screen.findByRole("button", { name: /^Disable Portal 1$/i })
+  );
+
+  expect(await screen.findByText("41 active portals")).toBeInTheDocument();
+  expect(screen.getByText("1 disabled")).toBeInTheDocument();
+  expect(screen.getByText("1 required")).toBeInTheDocument();
+
+  const startPortalSelect = screen.getByLabelText("Start portal");
+  fireEvent.mouseDown(startPortalSelect);
+
+  let listbox = await screen.findByRole("listbox");
+  expect(within(listbox).queryByRole("option", { name: "Portal 1" })).toBeNull();
+
+  await user.keyboard("{Escape}");
+  await user.click(screen.getByRole("button", { name: /^Delete Portal 2$/i }));
+
+  expect(await screen.findByText("40 active portals")).toBeInTheDocument();
+
+  fireEvent.mouseDown(screen.getByLabelText("Start portal"));
+  listbox = await screen.findByRole("listbox");
+  expect(within(listbox).queryByRole("option", { name: "Portal 2" })).toBeNull();
+
+  await user.keyboard("{Escape}");
+});
+
+test("sorts the rerouter start portal list alphabetically", async () => {
+  const user = userEvent.setup();
+  const unsortedTitles = [
+    "Zulu Portal",
+    "alpha portal",
+    "Mission Portal 10",
+    "Mission Portal 2",
+    "Bravo Portal",
+    "portal 11",
+    "Portal 3",
+    "Gamma Portal",
+    "delta portal",
+    "Echo Portal",
+    "Foxtrot Portal",
+    "Hotel Portal",
+    "India Portal",
+    "Juliet Portal",
+    "Kilo Portal",
+    "Lima Portal",
+    "Mike Portal",
+    "November Portal",
+    "Oscar Portal",
+    "Papa Portal",
+    "Quebec Portal",
+    "Romeo Portal",
+    "Sierra Portal",
+    "Tango Portal",
+    "Uniform Portal",
+    "Victor Portal",
+    "Whiskey Portal",
+    "X-ray Portal",
+    "Yankee Portal",
+    "Portal 12",
+    "Portal 1",
+    "Portal 20",
+    "Portal 4",
+    "Portal 5",
+    "Portal 6",
+    "Portal 7",
+    "Portal 8",
+    "Portal 9",
+    "Portal 13",
+    "Portal 14",
+    "Portal 15",
+    "Portal 16",
+  ];
+
+  renderWithProviders(
+    <Routes>
+      <Route path="/rerouter" element={<Home />} />
+    </Routes>,
+    { route: "/rerouter" }
+  );
+
+  const fileInput = await screen.findByTestId("rerouter-file-input");
+  const importFile = new File(
+    [
+      buildTestUmmMissionSet({
+        portalTitleBuilder: (absoluteIndex) => unsortedTitles[absoluteIndex],
+      }),
+    ],
+    "test-reroute-sorted.umm.json",
+    {
+      type: "application/json",
+    }
+  );
+
+  fireEvent.change(fileInput, {
+    target: {
+      files: [importFile],
+    },
+  });
+
+  const startPortalSelect = await screen.findByLabelText("Start portal");
+
+  fireEvent.mouseDown(startPortalSelect);
+
+  const listbox = await screen.findByRole("listbox");
+  const optionTexts = within(listbox)
+    .getAllByRole("option")
+    .map((option) => option.textContent);
+
+  expect(optionTexts.slice(0, 8)).toEqual([
+    "alpha portal",
+    "Bravo Portal",
+    "delta portal",
+    "Echo Portal",
+    "Foxtrot Portal",
+    "Gamma Portal",
+    "Hotel Portal",
+    "India Portal",
+  ]);
+  expect(optionTexts).toContain("Mission Portal 2");
+  expect(optionTexts).toContain("Mission Portal 10");
+  expect(optionTexts.indexOf("Mission Portal 2")).toBeLessThan(
+    optionTexts.indexOf("Mission Portal 10")
+  );
+  expect(optionTexts.indexOf("Portal 9")).toBeLessThan(
+    optionTexts.indexOf("portal 11")
+  );
+  expect(optionTexts.indexOf("portal 11")).toBeLessThan(
+    optionTexts.indexOf("Portal 12")
+  );
+
+  await user.keyboard("{Escape}");
 });
 
 test("top menu shows authenticate when bannergress auth has no valid session", async () => {

@@ -165,7 +165,7 @@ export default function BannerFilterButton({
                 variant="overline"
                 sx={{ color: "text.secondary", letterSpacing: "0.12em" }}
               >
-                Mission Count
+                Banner length
               </Typography>
               <ToggleButtonGroup
                 size="small"

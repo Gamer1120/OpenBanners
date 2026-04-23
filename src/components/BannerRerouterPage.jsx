@@ -1181,7 +1181,7 @@ export default function BannerRerouterPage() {
               >
                 Import an existing banner from an Ultimate Mission Maker (UMM) export, choose a start portal, optional
                 end portal, and mission count, generate a reroute, and export the result back to
-                UMM. All data you import stays on your machine and is not sent to OpenBanners and will never be. This tool works best when you import a very large banner or multiple banners, since it uses portals from those banners for rerouting.
+                UMM. All data you import stays on your machine and is not sent to OpenBanners and will never be. This tool works best when you import a very large banner or multiple banners, and then make a smaller banner out of it, since the tool uses portals from the imported banner(s) for rerouting.
               </Typography>
             </Box>
             <Stack direction={{ xs: "column", sm: "row" }} spacing={1.25}>

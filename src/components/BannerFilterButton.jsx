@@ -32,7 +32,8 @@ const filterOptions = [
   },
   {
     key: "hideDoneBanners",
-    label: "Hide done banners",
+    hideLabel: "Hide done banners",
+    showLabel: "Show done banners",
     helperText: "Can't be combined with Show hidden banners.",
   },
 ];
@@ -54,14 +55,25 @@ export default function BannerFilterButton({
   size = "small",
   sx,
   showMinimumMissionsFilter = false,
+  doneBannersFilterMode = "hide",
 }) {
   const [anchorEl, setAnchorEl] = useState(null);
   const activeFilterCount = useMemo(
-    () => countActiveBannerFilters(filters),
-    [filters]
+    () => countActiveBannerFilters(filters, { doneBannersFilterMode }),
+    [doneBannersFilterMode, filters]
   );
-  const hasExclusiveFilterEnabled = MUTUALLY_EXCLUSIVE_FILTER_KEYS.some(
-    (key) => Boolean(filters?.[key])
+  const isFilterOptionChecked = (option) => {
+    if (
+      option.key === "hideDoneBanners" &&
+      doneBannersFilterMode === "show"
+    ) {
+      return filters?.hideDoneBanners === false;
+    }
+
+    return Boolean(filters?.[option.key]);
+  };
+  const hasExclusiveFilterEnabled = MUTUALLY_EXCLUSIVE_FILTER_KEYS.some((key) =>
+    isFilterOptionChecked({ key })
   );
   const { minimumMissions } = getMissionCountBounds(filters);
   const presetMinimumMissions = Number(filters?.minimumMissions) || 0;
@@ -100,7 +112,15 @@ export default function BannerFilterButton({
           </Typography>
           <FormGroup sx={{ mt: 0.5 }}>
             {filterOptions.map((option) => {
-              const isChecked = Boolean(filters?.[option.key]);
+              const isChecked = isFilterOptionChecked(option);
+              const optionLabel =
+                option.key === "hideDoneBanners"
+                  ? option[
+                      doneBannersFilterMode === "show"
+                        ? "showLabel"
+                        : "hideLabel"
+                    ]
+                  : option.label;
 
               return (
                 <Box key={option.key}>
@@ -116,14 +136,19 @@ export default function BannerFilterButton({
                         onChange={(event) => {
                           const nextFilters = {
                             ...filters,
-                            [option.key]: event.target.checked,
+                            [option.key]:
+                              option.key === "hideDoneBanners" &&
+                              doneBannersFilterMode === "show"
+                                ? !event.target.checked
+                                : event.target.checked,
                           };
 
                           if (
                             event.target.checked &&
                             option.key === "showHiddenBanners"
                           ) {
-                            nextFilters.hideDoneBanners = false;
+                            nextFilters.hideDoneBanners =
+                              doneBannersFilterMode === "show";
                           }
 
                           if (
@@ -137,7 +162,7 @@ export default function BannerFilterButton({
                         }}
                       />
                     }
-                    label={option.label}
+                    label={optionLabel}
                   />
                   {isChecked && option.helperText ? (
                     <Typography

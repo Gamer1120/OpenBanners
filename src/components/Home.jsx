@@ -8,11 +8,17 @@ import SearchResults from "./SearchResults";
 import BannerDetailsPage from "./BannerDetailsPage";
 import Map from "./Map";
 import BannerRerouterPage from "./BannerRerouterPage";
-import { DEFAULT_BANNER_FILTERS } from "../bannerFilters";
+import {
+  DEFAULT_BANNER_FILTERS,
+  DEFAULT_MAP_BANNER_FILTERS,
+} from "../bannerFilters";
 
 export default function Home() {
   const [currentView, setCurrentView] = useState("bannersNearMe");
   const [bannerFilters, setBannerFilters] = useState(DEFAULT_BANNER_FILTERS);
+  const [mapBannerFilters, setMapBannerFilters] = useState(
+    DEFAULT_MAP_BANNER_FILTERS
+  );
   const isMobile = useMediaQuery("(max-width:768px)");
   const { placeId, agentName } = useParams();
   const navigate = useNavigate();
@@ -109,8 +115,8 @@ export default function Home() {
         {currentView === "bannerDetails" && <BannerDetailsPage />}
         {currentView === "map" && (
           <Map
-            bannerFilters={bannerFilters}
-            onBannerFiltersChange={setBannerFilters}
+            bannerFilters={mapBannerFilters}
+            onBannerFiltersChange={setMapBannerFilters}
           />
         )}
         {currentView === "rerouter" && <BannerRerouterPage />}

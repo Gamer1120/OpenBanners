@@ -25,7 +25,7 @@ import { fetchBannergress, useBannergressSync } from "../bannergressSync";
 import BannerFilterButton from "./BannerFilterButton";
 import {
   applyBannerFilters,
-  DEFAULT_BANNER_FILTERS,
+  DEFAULT_MAP_BANNER_FILTERS,
   getMissionCountBounds,
 } from "../bannerFilters";
 
@@ -742,7 +742,7 @@ function setMapInteractionsEnabled(mapInstance, enabled) {
 }
 
 export default function Map({
-  bannerFilters = DEFAULT_BANNER_FILTERS,
+  bannerFilters = DEFAULT_MAP_BANNER_FILTERS,
   onBannerFiltersChange,
 }) {
   const initialImageSizePreference = readInitialImageSizePreference();
@@ -1361,6 +1361,7 @@ export default function Map({
               filters={bannerFilters}
               onChange={onBannerFiltersChange}
               color="inherit"
+              doneBannersFilterMode="show"
               showMinimumMissionsFilter
               sx={{
                 justifyContent: "space-between",

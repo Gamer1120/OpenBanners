@@ -15,6 +15,11 @@ export const DEFAULT_BANNER_FILTERS = Object.freeze({
   customMaximumMissions: "",
 });
 
+export const DEFAULT_MAP_BANNER_FILTERS = Object.freeze({
+  ...DEFAULT_BANNER_FILTERS,
+  hideDoneBanners: true,
+});
+
 export function parseMissionCountInput(value) {
   if (value === "" || value === null || value === undefined) {
     return null;
@@ -55,11 +60,19 @@ export function getMissionCountBounds(filters) {
   };
 }
 
-export function countActiveBannerFilters(filters) {
+export function countActiveBannerFilters(
+  filters,
+  { doneBannersFilterMode = "hide" } = {}
+) {
+  const doneBannersFilterActive =
+    doneBannersFilterMode === "show"
+      ? filters?.hideDoneBanners === false
+      : filters?.hideDoneBanners;
+
   return [
     filters?.showOfflineBanners,
     filters?.showHiddenBanners,
-    filters?.hideDoneBanners,
+    doneBannersFilterActive,
     getMissionCountBounds(filters).hasMissionCountFilter,
   ].filter(Boolean).length;
 }

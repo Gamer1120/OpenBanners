@@ -509,14 +509,18 @@ function BannerPreviewCard({ banner }) {
     <Paper
       elevation={0}
       sx={{
-        width: { xs: "calc(100vw - 24px)", sm: 400 },
+        width: {
+          xs: "calc(100vw - 24px)",
+          sm: "min(420px, calc(100vw - 32px))",
+          lg: 400,
+        },
         overflow: "hidden",
-        borderRadius: { xs: 2, sm: 3 },
+        borderRadius: { xs: 2, lg: 3 },
         bgcolor: "rgba(18,25,31,0.96)",
         border: "1px solid rgba(255,255,255,0.1)",
         boxShadow: {
           xs: "0 12px 26px rgba(0,0,0,0.24)",
-          sm: "0 22px 48px rgba(0,0,0,0.28)",
+          lg: "0 22px 48px rgba(0,0,0,0.28)",
         },
         backdropFilter: "blur(16px)",
       }}
@@ -526,24 +530,24 @@ function BannerPreviewCard({ banner }) {
           display: "grid",
           gridTemplateColumns: {
             xs: "54px minmax(0, 1fr)",
-            sm: "148px minmax(0, 1fr)",
+            lg: "148px minmax(0, 1fr)",
           },
-          alignItems: { xs: "center", sm: "stretch" },
-          gap: { xs: 0.8, sm: 1.1 },
-          p: { xs: 0.75, sm: 1.1 },
+          alignItems: { xs: "center", lg: "stretch" },
+          gap: { xs: 0.8, lg: 1.1 },
+          p: { xs: 0.75, lg: 1.1 },
         }}
       >
         <Box
           sx={{
-            borderRadius: { xs: 1.5, sm: 2 },
+            borderRadius: { xs: 1.5, lg: 2 },
             overflow: "hidden",
             bgcolor: "rgba(255,255,255,0.04)",
-            minHeight: { xs: 54, sm: 208 },
-            height: { xs: 54, sm: "auto" },
+            minHeight: { xs: 54, lg: 208 },
+            height: { xs: 54, lg: "auto" },
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
-            p: { xs: 0.25, sm: 1 },
+            p: { xs: 0.25, lg: 1 },
           }}
         >
           {banner.picture ? (
@@ -554,7 +558,7 @@ function BannerPreviewCard({ banner }) {
               sx={{
                 width: "100%",
                 height: "100%",
-                objectFit: { xs: "cover", sm: "contain" },
+                objectFit: { xs: "cover", lg: "contain" },
                 display: "block",
               }}
             />
@@ -573,7 +577,7 @@ function BannerPreviewCard({ banner }) {
             >
               <Typography
                 variant="caption"
-                sx={{ fontSize: { xs: "0.58rem", sm: "0.75rem" } }}
+                sx={{ fontSize: { xs: "0.58rem", lg: "0.75rem" } }}
               >
                 No image
               </Typography>
@@ -582,19 +586,19 @@ function BannerPreviewCard({ banner }) {
         </Box>
 
         <Stack
-          direction={{ xs: "row", sm: "column" }}
-          spacing={{ xs: 0.75, sm: 0.9 }}
-          alignItems={{ xs: "center", sm: "stretch" }}
+          direction={{ xs: "row", lg: "column" }}
+          spacing={{ xs: 0.75, lg: 0.9 }}
+          alignItems={{ xs: "center", lg: "stretch" }}
           sx={{ minWidth: 0 }}
         >
-          <Stack spacing={{ xs: 0.2, sm: 0.9 }} sx={{ minWidth: 0, flex: 1 }}>
+          <Stack spacing={{ xs: 0.2, lg: 0.9 }} sx={{ minWidth: 0, flex: 1 }}>
             <Typography
               variant="h6"
               sx={{
-                fontSize: { xs: "0.92rem", sm: "1rem" },
-                lineHeight: { xs: 1.12, sm: 1.15 },
+                fontSize: { xs: "0.92rem", lg: "1rem" },
+                lineHeight: { xs: 1.12, lg: 1.15 },
                 display: "-webkit-box",
-                WebkitLineClamp: { xs: 1, sm: 2 },
+                WebkitLineClamp: { xs: 1, lg: 2 },
                 WebkitBoxOrient: "vertical",
                 overflow: "hidden",
               }}
@@ -606,7 +610,7 @@ function BannerPreviewCard({ banner }) {
               variant="body2"
               color="text.secondary"
               sx={{
-                display: { xs: "none", sm: "-webkit-box" },
+                display: { xs: "none", lg: "-webkit-box" },
                 WebkitLineClamp: 2,
                 WebkitBoxOrient: "vertical",
                 overflow: "hidden",
@@ -619,7 +623,7 @@ function BannerPreviewCard({ banner }) {
               variant="caption"
               color="text.secondary"
               sx={{
-                display: { xs: "block", sm: "none" },
+                display: { xs: "block", lg: "none" },
                 whiteSpace: "nowrap",
                 overflow: "hidden",
                 textOverflow: "ellipsis",
@@ -633,7 +637,7 @@ function BannerPreviewCard({ banner }) {
               spacing={0.6}
               useFlexGap
               flexWrap="wrap"
-              sx={{ display: { xs: "none", sm: "flex" } }}
+              sx={{ display: { xs: "none", lg: "flex" } }}
             >
               <Chip
                 size="small"
@@ -673,20 +677,20 @@ function BannerPreviewCard({ banner }) {
             color="primary"
             aria-label={`Open banner: ${banner.title}`}
             sx={{
-              minWidth: { xs: 36, sm: 64 },
-              width: { xs: 36, sm: "auto" },
-              height: { xs: 36, sm: "auto" },
-              p: { xs: 0, sm: "6px 16px" },
-              mt: { xs: 0, sm: "auto" },
-              alignSelf: { xs: "center", sm: "flex-start" },
-              borderRadius: { xs: 1.5, sm: 1 },
+              minWidth: { xs: 36, lg: 64 },
+              width: { xs: 36, lg: "auto" },
+              height: { xs: 36, lg: "auto" },
+              p: { xs: 0, lg: "6px 16px" },
+              mt: { xs: 0, lg: "auto" },
+              alignSelf: { xs: "center", lg: "flex-start" },
+              borderRadius: { xs: 1.5, lg: 1 },
             }}
           >
             <OpenInNewRoundedIcon
               fontSize="small"
-              sx={{ display: { xs: "block", sm: "none" } }}
+              sx={{ display: { xs: "block", lg: "none" } }}
             />
-            <Box component="span" sx={{ display: { xs: "none", sm: "inline" } }}>
+            <Box component="span" sx={{ display: { xs: "none", lg: "inline" } }}>
               Open banner
             </Box>
           </Button>

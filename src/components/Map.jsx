@@ -19,6 +19,7 @@ import {
   Typography,
 } from "@mui/material";
 import MyLocationRoundedIcon from "@mui/icons-material/MyLocationRounded";
+import OpenInNewRoundedIcon from "@mui/icons-material/OpenInNewRounded";
 import PhotoSizeSelectLargeRoundedIcon from "@mui/icons-material/PhotoSizeSelectLargeRounded";
 import TuneRoundedIcon from "@mui/icons-material/TuneRounded";
 import L from "leaflet";
@@ -494,38 +495,55 @@ function MapEvents({ onMapClick, onViewportChange }) {
 function BannerPreviewCard({ banner }) {
   const missions = Number(banner.numberOfMissions);
   const lengthMeters = Number(banner.lengthMeters);
+  const missionLabel = `${Number.isFinite(missions) ? missions : "?"} missions`;
+  const distanceLabel = formatDistance(banner._distanceMeters);
+  const mobileDistanceLabel = distanceLabel.replace(/ away$/, "");
+  const lengthLabel = Number.isFinite(lengthMeters)
+    ? `${(lengthMeters / 1000).toFixed(1)} km`
+    : null;
+  const mobileMeta = [missionLabel, mobileDistanceLabel, lengthLabel]
+    .filter(Boolean)
+    .join(" / ");
 
   return (
     <Paper
       elevation={0}
       sx={{
-        width: { xs: "min(100%, 440px)", sm: 400 },
+        width: { xs: "calc(100vw - 24px)", sm: 400 },
         overflow: "hidden",
-        borderRadius: 3,
+        borderRadius: { xs: 2, sm: 3 },
         bgcolor: "rgba(18,25,31,0.96)",
         border: "1px solid rgba(255,255,255,0.1)",
-        boxShadow: "0 22px 48px rgba(0,0,0,0.28)",
+        boxShadow: {
+          xs: "0 12px 26px rgba(0,0,0,0.24)",
+          sm: "0 22px 48px rgba(0,0,0,0.28)",
+        },
         backdropFilter: "blur(16px)",
       }}
     >
       <Box
         sx={{
           display: "grid",
-          gridTemplateColumns: { xs: "124px minmax(0, 1fr)", sm: "148px minmax(0, 1fr)" },
-          gap: 1.1,
-          p: 1.1,
+          gridTemplateColumns: {
+            xs: "54px minmax(0, 1fr)",
+            sm: "148px minmax(0, 1fr)",
+          },
+          alignItems: { xs: "center", sm: "stretch" },
+          gap: { xs: 0.8, sm: 1.1 },
+          p: { xs: 0.75, sm: 1.1 },
         }}
       >
         <Box
           sx={{
-            borderRadius: 2,
+            borderRadius: { xs: 1.5, sm: 2 },
             overflow: "hidden",
             bgcolor: "rgba(255,255,255,0.04)",
-            minHeight: { xs: 176, sm: 208 },
+            minHeight: { xs: 54, sm: 208 },
+            height: { xs: 54, sm: "auto" },
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
-            p: 1,
+            p: { xs: 0.25, sm: 1 },
           }}
         >
           {banner.picture ? (
@@ -536,7 +554,7 @@ function BannerPreviewCard({ banner }) {
               sx={{
                 width: "100%",
                 height: "100%",
-                objectFit: "contain",
+                objectFit: { xs: "cover", sm: "contain" },
                 display: "block",
               }}
             />
@@ -553,68 +571,99 @@ function BannerPreviewCard({ banner }) {
                 px: 1,
               }}
             >
-              <Typography variant="caption">No image</Typography>
+              <Typography
+                variant="caption"
+                sx={{ fontSize: { xs: "0.58rem", sm: "0.75rem" } }}
+              >
+                No image
+              </Typography>
             </Box>
           )}
         </Box>
 
-        <Stack spacing={0.9} sx={{ minWidth: 0 }}>
-          <Typography
-            variant="h6"
-            sx={{
-              fontSize: "1rem",
-              lineHeight: 1.15,
-              display: "-webkit-box",
-              WebkitLineClamp: 2,
-              WebkitBoxOrient: "vertical",
-              overflow: "hidden",
-            }}
-          >
-            {banner.title}
-          </Typography>
+        <Stack
+          direction={{ xs: "row", sm: "column" }}
+          spacing={{ xs: 0.75, sm: 0.9 }}
+          alignItems={{ xs: "center", sm: "stretch" }}
+          sx={{ minWidth: 0 }}
+        >
+          <Stack spacing={{ xs: 0.2, sm: 0.9 }} sx={{ minWidth: 0, flex: 1 }}>
+            <Typography
+              variant="h6"
+              sx={{
+                fontSize: { xs: "0.92rem", sm: "1rem" },
+                lineHeight: { xs: 1.12, sm: 1.15 },
+                display: "-webkit-box",
+                WebkitLineClamp: { xs: 1, sm: 2 },
+                WebkitBoxOrient: "vertical",
+                overflow: "hidden",
+              }}
+            >
+              {banner.title}
+            </Typography>
 
-          <Typography
-            variant="body2"
-            color="text.secondary"
-            sx={{
-              display: "-webkit-box",
-              WebkitLineClamp: 2,
-              WebkitBoxOrient: "vertical",
-              overflow: "hidden",
-            }}
-          >
-            {banner.formattedAddress || "Address unavailable"}
-          </Typography>
+            <Typography
+              variant="body2"
+              color="text.secondary"
+              sx={{
+                display: { xs: "none", sm: "-webkit-box" },
+                WebkitLineClamp: 2,
+                WebkitBoxOrient: "vertical",
+                overflow: "hidden",
+              }}
+            >
+              {banner.formattedAddress || "Address unavailable"}
+            </Typography>
 
-          <Stack direction="row" spacing={0.6} useFlexGap flexWrap="wrap">
-            <Chip
-              size="small"
-              label={`${Number.isFinite(missions) ? missions : "?"} missions`}
-              sx={{ bgcolor: "rgba(255,255,255,0.05)", borderRadius: 999 }}
-            />
-            <Chip
-              size="small"
-              label={formatDistance(banner._distanceMeters)}
-              sx={{ bgcolor: "rgba(255,255,255,0.05)", borderRadius: 999 }}
-            />
-            {Number(banner.numberOfDisabledMissions) > 0 ? (
+            <Typography
+              variant="caption"
+              color="text.secondary"
+              sx={{
+                display: { xs: "block", sm: "none" },
+                whiteSpace: "nowrap",
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+              }}
+            >
+              {mobileMeta}
+            </Typography>
+
+            <Stack
+              direction="row"
+              spacing={0.6}
+              useFlexGap
+              flexWrap="wrap"
+              sx={{ display: { xs: "none", sm: "flex" } }}
+            >
               <Chip
                 size="small"
-                label="Offline"
-                sx={{
-                  bgcolor: "rgba(120, 60, 28, 0.55)",
-                  color: "#ffd8b2",
-                  borderRadius: 999,
-                }}
-              />
-            ) : null}
-            {Number.isFinite(lengthMeters) ? (
-              <Chip
-                size="small"
-                label={`${(lengthMeters / 1000).toFixed(1)} km`}
+                label={missionLabel}
                 sx={{ bgcolor: "rgba(255,255,255,0.05)", borderRadius: 999 }}
               />
-            ) : null}
+              <Chip
+                size="small"
+                label={distanceLabel}
+                sx={{ bgcolor: "rgba(255,255,255,0.05)", borderRadius: 999 }}
+              />
+              {Number(banner.numberOfDisabledMissions) > 0 ? (
+                <Chip
+                  size="small"
+                  label="Offline"
+                  sx={{
+                    bgcolor: "rgba(120, 60, 28, 0.55)",
+                    color: "#ffd8b2",
+                    borderRadius: 999,
+                  }}
+                />
+              ) : null}
+              {Number.isFinite(lengthMeters) ? (
+                <Chip
+                  size="small"
+                  label={lengthLabel}
+                  sx={{ bgcolor: "rgba(255,255,255,0.05)", borderRadius: 999 }}
+                />
+              ) : null}
+            </Stack>
           </Stack>
 
           <Button
@@ -622,9 +671,24 @@ function BannerPreviewCard({ banner }) {
             to={`/banner/${banner.id}`}
             variant="contained"
             color="primary"
-            sx={{ mt: "auto", alignSelf: "flex-start" }}
+            aria-label={`Open banner: ${banner.title}`}
+            sx={{
+              minWidth: { xs: 36, sm: 64 },
+              width: { xs: 36, sm: "auto" },
+              height: { xs: 36, sm: "auto" },
+              p: { xs: 0, sm: "6px 16px" },
+              mt: { xs: 0, sm: "auto" },
+              alignSelf: { xs: "center", sm: "flex-start" },
+              borderRadius: { xs: 1.5, sm: 1 },
+            }}
           >
-            Open banner
+            <OpenInNewRoundedIcon
+              fontSize="small"
+              sx={{ display: { xs: "block", sm: "none" } }}
+            />
+            <Box component="span" sx={{ display: { xs: "none", sm: "inline" } }}>
+              Open banner
+            </Box>
           </Button>
         </Stack>
       </Box>

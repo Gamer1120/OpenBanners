@@ -42,23 +42,23 @@ const DEBUG = /(?:^|[?&])openbanners-debug=1(?:&|$)/.test(
 );
 
 const mobileHiddenLabelSx = {
-  display: { xs: "none", sm: "inline" },
+  display: { xs: "none", lg: "inline" },
 };
 
 const topMenuActionButtonSx = {
   minHeight: 44,
-  minWidth: { xs: 44, sm: 64 },
-  width: { xs: 44, sm: "auto" },
-  px: { xs: 0, sm: 1.75 },
+  minWidth: { xs: 44, lg: 64 },
+  width: { xs: 44, lg: "auto" },
+  px: { xs: 0, lg: 1.75 },
   bgcolor: "rgba(255,255,255,0.03)",
   border: "1px solid rgba(255,255,255,0.08)",
   "& .MuiButton-startIcon": {
-    m: { xs: 0, sm: "0 8px 0 -4px" },
+    m: { xs: 0, lg: "0 8px 0 -4px" },
   },
 };
 
 const mobileSearchButtonSx = {
-  display: { xs: "inline-flex", sm: "none" },
+  display: { xs: "inline-flex", lg: "none" },
   width: 44,
   height: 44,
   bgcolor: "rgba(255,255,255,0.03)",
@@ -455,19 +455,19 @@ export default function TopMenu({
             px: { xs: 1.5, sm: 2.5 },
             py: { xs: 1.25, sm: 1.5 },
             display: "flex",
-            flexWrap: { xs: isMobileSearchOpen ? "wrap" : "nowrap", sm: "nowrap" },
-            gap: { xs: 1.25, sm: 2 },
+            flexWrap: { xs: isMobileSearchOpen ? "wrap" : "nowrap", lg: "nowrap" },
+            gap: { xs: 0.75, lg: 2 },
             alignItems: "center",
           }}
         >
           <Container
             sx={{
-              width: { xs: "auto", sm: "25%" },
+              width: { xs: "auto", lg: "25%" },
               pl: "0 !important",
               pr: "0 !important",
               display: "flex",
               justifyContent: "flex-start",
-              flex: { xs: "0 0 auto", sm: "0 1 auto" },
+              flex: { xs: "0 0 auto", lg: "0 1 auto" },
             }}
           >
             <ButtonBase
@@ -486,7 +486,7 @@ export default function TopMenu({
                 src="/logo192.png"
                 alt=""
                 sx={{
-                  display: { xs: "block", sm: "none" },
+                  display: { xs: "block", lg: "none" },
                   width: 26,
                   height: 26,
                 }}
@@ -495,7 +495,7 @@ export default function TopMenu({
                 variant="h6"
                 component="span"
                 sx={{
-                  display: { xs: "none", sm: "inline" },
+                  display: { xs: "none", lg: "inline" },
                   color: "text.primary",
                   letterSpacing: "0.08em",
                 }}
@@ -508,15 +508,15 @@ export default function TopMenu({
           <Container
             sx={{
               display: "flex",
-              flexDirection: { xs: "row", sm: "row" },
+              flexDirection: "row",
               alignItems: "center",
-              justifyContent: { xs: "flex-end", sm: "center" },
-              width: { xs: "auto", sm: "auto" },
+              justifyContent: { xs: "flex-end", lg: "center" },
+              width: "auto",
               pl: "0 !important",
               pr: "0 !important",
-              gap: { xs: 0.5, sm: 1 },
-              flex: { xs: 1, sm: "0 0 auto" },
-              flexWrap: { xs: "nowrap", sm: "wrap" },
+              gap: { xs: 0.5, lg: 1 },
+              flex: { xs: 1, lg: "0 0 auto" },
+              flexWrap: { xs: "nowrap", lg: "wrap" },
               minWidth: 0,
             }}
           >
@@ -596,17 +596,17 @@ export default function TopMenu({
             sx={{
               display: {
                 xs: isMobileSearchOpen ? "flex" : "none",
-                sm: "flex",
+                lg: "flex",
               },
               flexDirection: "column",
               justifyContent: "center",
-              alignItems: { xs: "stretch", sm: "flex-end" },
-              width: { xs: "100%", sm: "min(360px, 30vw)" },
+              alignItems: { xs: "stretch", lg: "flex-end" },
+              width: { xs: "100%", lg: "min(360px, 30vw)" },
               pl: "0 !important",
               pr: "0 !important",
-              ml: { sm: "auto" },
-              alignSelf: { sm: "center" },
-              order: { xs: 3, sm: 0 },
+              ml: { lg: "auto" },
+              alignSelf: { lg: "center" },
+              order: { xs: 3, lg: 0 },
             }}
           >
             <Box

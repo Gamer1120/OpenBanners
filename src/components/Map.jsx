@@ -529,7 +529,7 @@ function BannerPreviewCard({ banner }) {
         sx={{
           display: "grid",
           gridTemplateColumns: {
-            xs: "54px minmax(0, 1fr)",
+            xs: "74px minmax(0, 1fr)",
             lg: "148px minmax(0, 1fr)",
           },
           alignItems: { xs: "center", lg: "stretch" },
@@ -558,7 +558,7 @@ function BannerPreviewCard({ banner }) {
               sx={{
                 width: "100%",
                 height: "100%",
-                objectFit: { xs: "cover", lg: "contain" },
+                objectFit: "contain",
                 display: "block",
               }}
             />

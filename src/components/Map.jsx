@@ -33,6 +33,8 @@ const DEFAULT_CENTER = [52.221058, 6.893297];
 const DEFAULT_ZOOM = 15;
 const DISCOVERY_MAP_CACHE_TTL_MS = 2 * 60 * 1000;
 const DISCOVERY_MAP_QUERY_PRECISION = 3;
+const DISCOVERY_MAP_PAGE_SIZE = 100;
+const DISCOVERY_MAP_MAX_FETCHED_BANNERS = 500;
 const IMAGE_SIZE_STORAGE_KEY = "openbanners.discoveryMap.imageSize";
 const IMAGE_SIZE_PRESETS = {
   small: { label: "Small", scale: 1.4 },
@@ -93,6 +95,85 @@ function createDiscoveryMapQueryKey(visibleArea, originLocation) {
     originLocation.latitude,
     originLocation.longitude,
   ].join(":");
+}
+
+function buildDiscoveryMapUrl({
+  visibleArea,
+  originLatitude,
+  originLongitude,
+  showOfflineBanners,
+  limit,
+  offset,
+}) {
+  const url = new URL("https://api.bannergress.com/bnrs");
+  url.searchParams.set("orderBy", "proximityStartPoint");
+  url.searchParams.set("orderDirection", "ASC");
+  url.searchParams.set("minLatitude", String(visibleArea.minLatitude));
+  url.searchParams.set("maxLatitude", String(visibleArea.maxLatitude));
+  url.searchParams.set("minLongitude", String(visibleArea.minLongitude));
+  url.searchParams.set("maxLongitude", String(visibleArea.maxLongitude));
+  url.searchParams.set("proximityLatitude", String(originLatitude));
+  url.searchParams.set("proximityLongitude", String(originLongitude));
+  url.searchParams.set("limit", String(limit));
+  url.searchParams.set("offset", String(offset));
+
+  if (!showOfflineBanners) {
+    url.searchParams.set("online", "true");
+  }
+
+  return url.toString();
+}
+
+async function fetchDiscoveryMapBanners({
+  visibleArea,
+  originLatitude,
+  originLongitude,
+  showOfflineBanners,
+  showHiddenBanners,
+}) {
+  let offset = 0;
+  let allBanners = [];
+
+  while (allBanners.length < DISCOVERY_MAP_MAX_FETCHED_BANNERS) {
+    const pageLimit = Math.min(
+      DISCOVERY_MAP_PAGE_SIZE,
+      DISCOVERY_MAP_MAX_FETCHED_BANNERS - allBanners.length
+    );
+    const response = await fetchBannergress(
+      buildDiscoveryMapUrl({
+        visibleArea,
+        originLatitude,
+        originLongitude,
+        showOfflineBanners,
+        limit: pageLimit,
+        offset,
+      }),
+      {
+        authenticate: !showHiddenBanners,
+      }
+    );
+    const pageData = await response.json();
+
+    if (!Array.isArray(pageData)) {
+      return null;
+    }
+
+    allBanners = [...allBanners, ...pageData];
+
+    if (pageData.length < pageLimit) {
+      return {
+        banners: allBanners,
+        hasMore: false,
+      };
+    }
+
+    offset += pageData.length;
+  }
+
+  return {
+    banners: allBanners,
+    hasMore: true,
+  };
 }
 
 function normalizeFetchedBanners(data, originLatitude, originLongitude) {
@@ -210,13 +291,13 @@ function getMarkerDisplay(zoom, imageScale) {
   let baseDisplay;
 
   if (zoom <= 11) {
-    baseDisplay = { maxWidth: 36, maxHeight: 36, maxMarkers: 12 };
+    baseDisplay = { maxWidth: 36, maxHeight: 36 };
   } else if (zoom <= 13) {
-    baseDisplay = { maxWidth: 48, maxHeight: 48, maxMarkers: 18 };
+    baseDisplay = { maxWidth: 48, maxHeight: 48 };
   } else if (zoom <= 15) {
-    baseDisplay = { maxWidth: 66, maxHeight: 66, maxMarkers: 30 };
+    baseDisplay = { maxWidth: 66, maxHeight: 66 };
   } else {
-    baseDisplay = { maxWidth: 82, maxHeight: 82, maxMarkers: 42 };
+    baseDisplay = { maxWidth: 82, maxHeight: 82 };
   }
 
   const safeScale = Number.isFinite(imageScale) ? imageScale : 1;
@@ -224,10 +305,6 @@ function getMarkerDisplay(zoom, imageScale) {
   return {
     maxWidth: Math.round(baseDisplay.maxWidth * safeScale),
     maxHeight: Math.round(baseDisplay.maxHeight * safeScale),
-    maxMarkers: Math.max(
-      8,
-      Math.min(48, Math.round(baseDisplay.maxMarkers / Math.pow(safeScale, 0.7)))
-    ),
   };
 }
 
@@ -748,6 +825,7 @@ export default function Map({
   const initialImageSizePreference = readInitialImageSizePreference();
   const [visibleArea, setVisibleArea] = useState(null);
   const [banners, setBanners] = useState([]);
+  const [hasMoreBannersInView, setHasMoreBannersInView] = useState(false);
   const [selectedBannerId, setSelectedBannerId] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -905,13 +983,12 @@ export default function Map({
     () => getMarkerDisplay(currentZoom, activeImageScale),
     [activeImageScale, currentZoom]
   );
-  const fetchLimit = markerDisplay.maxMarkers;
   const discoveryMapRequestKey = useMemo(
     () =>
       discoveryMapQueryKey
         ? [
             discoveryMapQueryKey,
-            fetchLimit,
+            DISCOVERY_MAP_MAX_FETCHED_BANNERS,
             bannerFilters.showOfflineBanners ? "offline" : "online-only",
             bannerFilters.showHiddenBanners ? "show-hidden" : "hide-hidden",
           ].join(":")
@@ -920,7 +997,6 @@ export default function Map({
       bannerFilters.showHiddenBanners,
       bannerFilters.showOfflineBanners,
       discoveryMapQueryKey,
-      fetchLimit,
     ]
   );
 
@@ -939,6 +1015,7 @@ export default function Map({
         Date.now() - cachedEntry.timestamp < DISCOVERY_MAP_CACHE_TTL_MS
       ) {
         setBanners(cachedEntry.banners);
+        setHasMoreBannersInView(Boolean(cachedEntry.hasMore));
         setLoading(false);
         return;
       }
@@ -948,26 +1025,18 @@ export default function Map({
       const originLatitude = normalizedOriginLocation.latitude;
       const originLongitude = normalizedOriginLocation.longitude;
 
-      const apiUrl =
-        `https://api.bannergress.com/bnrs?orderBy=proximityStartPoint` +
-        `&orderDirection=ASC` +
-        `${bannerFilters.showOfflineBanners ? "" : "&online=true"}` +
-        `&minLatitude=${normalizedVisibleArea.minLatitude}` +
-        `&maxLatitude=${normalizedVisibleArea.maxLatitude}` +
-        `&minLongitude=${normalizedVisibleArea.minLongitude}` +
-        `&maxLongitude=${normalizedVisibleArea.maxLongitude}` +
-        `&proximityLatitude=${originLatitude}` +
-        `&proximityLongitude=${originLongitude}` +
-        `&limit=${fetchLimit}`;
-
       try {
         let responsePromise = discoveryMapInflightRequests.get(
           discoveryMapRequestKey
         );
 
         if (!responsePromise) {
-          responsePromise = fetchBannergress(apiUrl, {
-            authenticate: !bannerFilters.showHiddenBanners,
+          responsePromise = fetchDiscoveryMapBanners({
+            visibleArea: normalizedVisibleArea,
+            originLatitude,
+            originLongitude,
+            showOfflineBanners: bannerFilters.showOfflineBanners,
+            showHiddenBanners: bannerFilters.showHiddenBanners,
           });
           discoveryMapInflightRequests.set(
             discoveryMapRequestKey,
@@ -975,34 +1044,37 @@ export default function Map({
           );
         }
 
-        const response = await responsePromise;
-        const data = await response.json();
+        const data = await responsePromise;
 
         if (ignore) {
           return;
         }
 
         const normalizedBanners = normalizeFetchedBanners(
-          data,
+          data?.banners,
           originLatitude,
           originLongitude
         );
 
         if (!normalizedBanners) {
           setBanners([]);
+          setHasMoreBannersInView(false);
           setError("Map results returned an unexpected response.");
           return;
         }
 
         discoveryMapCache.set(discoveryMapRequestKey, {
           banners: normalizedBanners,
+          hasMore: data.hasMore,
           timestamp: Date.now(),
         });
         setBanners(normalizedBanners);
+        setHasMoreBannersInView(data.hasMore);
       } catch (fetchError) {
         if (!ignore) {
           console.error("Error fetching banners:", fetchError);
           setBanners([]);
+          setHasMoreBannersInView(false);
           setError("Couldn't load banners in this area. Please try again.");
         }
       } finally {
@@ -1020,7 +1092,6 @@ export default function Map({
     };
   }, [
     discoveryMapRequestKey,
-    fetchLimit,
     bannerFilters.showHiddenBanners,
     bannerFilters.showOfflineBanners,
     normalizedOriginLocation,
@@ -1323,7 +1394,9 @@ export default function Map({
               <Typography variant="body2" color="text.secondary">
                 {loading
                   ? "Updating nearby posters..."
-                  : `${displayedBanners.length} banners in view`}
+                  : hasMoreBannersInView
+                    ? `Showing nearest ${displayedBanners.length} banners`
+                    : `${displayedBanners.length} banners in view`}
               </Typography>
             </Stack>
 

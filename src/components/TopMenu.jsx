@@ -41,6 +41,31 @@ const DEBUG = /(?:^|[?&])openbanners-debug=1(?:&|$)/.test(
   window.location.search
 );
 
+const mobileHiddenLabelSx = {
+  display: { xs: "none", sm: "inline" },
+};
+
+const topMenuActionButtonSx = {
+  minHeight: 44,
+  minWidth: { xs: 44, sm: 64 },
+  width: { xs: 44, sm: "auto" },
+  px: { xs: 0, sm: 1.75 },
+  bgcolor: "rgba(255,255,255,0.03)",
+  border: "1px solid rgba(255,255,255,0.08)",
+  "& .MuiButton-startIcon": {
+    m: { xs: 0, sm: "0 8px 0 -4px" },
+  },
+};
+
+const mobileSearchButtonSx = {
+  display: { xs: "inline-flex", sm: "none" },
+  width: 44,
+  height: 44,
+  bgcolor: "rgba(255,255,255,0.03)",
+  border: "1px solid rgba(255,255,255,0.08)",
+  borderRadius: 1,
+};
+
 function debugLog(...args) {
   if (!DEBUG) {
     return;
@@ -83,6 +108,7 @@ export default function TopMenu({
   const [searchQuery, setSearchQuery] = useState("");
   const [feedback, setFeedback] = useState(null);
   const [authStatus, setAuthStatus] = useState(null);
+  const [isMobileSearchOpen, setIsMobileSearchOpen] = useState(false);
   const [isCheckingAuth, setIsCheckingAuth] = useState(authSupportedOrigin);
   const [isAuthenticating, setIsAuthenticating] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
@@ -99,6 +125,7 @@ export default function TopMenu({
       return;
     }
     onSearch(searchQuery);
+    setIsMobileSearchOpen(false);
   };
 
   const handleMapClick = () => {
@@ -428,18 +455,19 @@ export default function TopMenu({
             px: { xs: 1.5, sm: 2.5 },
             py: { xs: 1.25, sm: 1.5 },
             display: "flex",
-            flexWrap: { xs: "wrap", sm: "nowrap" },
+            flexWrap: { xs: isMobileSearchOpen ? "wrap" : "nowrap", sm: "nowrap" },
             gap: { xs: 1.25, sm: 2 },
             alignItems: "center",
           }}
         >
           <Container
             sx={{
-              width: { xs: "100%", sm: "25%" },
+              width: { xs: "auto", sm: "25%" },
               pl: "0 !important",
               pr: "0 !important",
               display: "flex",
-              justifyContent: { xs: "center", sm: "flex-start" },
+              justifyContent: "flex-start",
+              flex: { xs: "0 0 auto", sm: "0 1 auto" },
             }}
           >
             <ButtonBase
@@ -453,10 +481,21 @@ export default function TopMenu({
                 background: "rgba(255,255,255,0.03)",
               }}
             >
+              <Box
+                component="img"
+                src="/logo192.png"
+                alt=""
+                sx={{
+                  display: { xs: "block", sm: "none" },
+                  width: 26,
+                  height: 26,
+                }}
+              />
               <Typography
                 variant="h6"
                 component="span"
                 sx={{
+                  display: { xs: "none", sm: "inline" },
                   color: "text.primary",
                   letterSpacing: "0.08em",
                 }}
@@ -471,89 +510,94 @@ export default function TopMenu({
               display: "flex",
               flexDirection: { xs: "row", sm: "row" },
               alignItems: "center",
-              justifyContent: "center",
-              width: { xs: "100%", sm: "auto" },
+              justifyContent: { xs: "flex-end", sm: "center" },
+              width: { xs: "auto", sm: "auto" },
               pl: "0 !important",
               pr: "0 !important",
-              gap: 1,
-              flexWrap: "wrap",
+              gap: { xs: 0.5, sm: 1 },
+              flex: { xs: 1, sm: "0 0 auto" },
+              flexWrap: { xs: "nowrap", sm: "wrap" },
+              minWidth: 0,
             }}
           >
             <Button
               color="inherit"
+              aria-label="Browse"
               startIcon={<Explore />}
               onClick={onBrowseClick}
-              sx={{
-                minHeight: 44,
-                px: 1.75,
-                bgcolor: "rgba(255,255,255,0.03)",
-                border: "1px solid rgba(255,255,255,0.08)",
-              }}
+              sx={topMenuActionButtonSx}
             >
-              Browse
+              <Box component="span" sx={mobileHiddenLabelSx}>
+                Browse
+              </Box>
             </Button>
             <Button
               color="inherit"
+              aria-label="Map"
               startIcon={<LocationOn />}
               onClick={handleMapClick}
-              sx={{
-                minHeight: 44,
-                px: 1.75,
-                bgcolor: "rgba(255,255,255,0.03)",
-                border: "1px solid rgba(255,255,255,0.08)",
-              }}
+              sx={topMenuActionButtonSx}
             >
-              Map
+              <Box component="span" sx={mobileHiddenLabelSx}>
+                Map
+              </Box>
             </Button>
             <Button
               color="inherit"
+              aria-label="Reroute Banner"
               startIcon={<AltRoute />}
               onClick={handleRerouterClick}
-              sx={{
-                minHeight: 44,
-                px: 1.75,
-                bgcolor: "rgba(255,255,255,0.03)",
-                border: "1px solid rgba(255,255,255,0.08)",
-              }}
+              sx={topMenuActionButtonSx}
             >
-              Reroute Banner
+              <Box component="span" sx={mobileHiddenLabelSx}>
+                Reroute Banner
+              </Box>
             </Button>
             {shouldShowAndroidDownloadButton ? (
               <Button
                 color="inherit"
+                aria-label="Download App"
                 startIcon={<Download />}
                 component="a"
                 href="/OpenBanners.apk"
                 download="OpenBanners.apk"
-                sx={{
-                  minHeight: 44,
-                  px: 1.75,
-                  bgcolor: "rgba(255,255,255,0.03)",
-                  border: "1px solid rgba(255,255,255,0.08)",
-                }}
+                sx={topMenuActionButtonSx}
               >
-                Download App
+                <Box component="span" sx={mobileHiddenLabelSx}>
+                  Download App
+                </Box>
               </Button>
             ) : null}
             <Button
               color="inherit"
+              aria-label={authButtonLabel}
               startIcon={authButtonIcon}
               onClick={handleAuthButtonClick}
               disabled={authButtonDisabled}
-              sx={{
-                minHeight: 44,
-                px: 1.75,
-                bgcolor: "rgba(255,255,255,0.03)",
-                border: "1px solid rgba(255,255,255,0.08)",
-              }}
+              sx={topMenuActionButtonSx}
             >
-              {authButtonLabel}
+              <Box component="span" sx={mobileHiddenLabelSx}>
+                {authButtonLabel}
+              </Box>
             </Button>
+            <IconButton
+              color="inherit"
+              aria-label={isMobileSearchOpen ? "Close search" : "Open search"}
+              onClick={() =>
+                setIsMobileSearchOpen((currentValue) => !currentValue)
+              }
+              sx={mobileSearchButtonSx}
+            >
+              <Search />
+            </IconButton>
           </Container>
 
           <Container
             sx={{
-              display: "flex",
+              display: {
+                xs: isMobileSearchOpen ? "flex" : "none",
+                sm: "flex",
+              },
               flexDirection: "column",
               justifyContent: "center",
               alignItems: { xs: "stretch", sm: "flex-end" },
@@ -562,6 +606,7 @@ export default function TopMenu({
               pr: "0 !important",
               ml: { sm: "auto" },
               alignSelf: { sm: "center" },
+              order: { xs: 3, sm: 0 },
             }}
           >
             <Box

@@ -10,6 +10,7 @@ import {
   Button,
   Chip,
   Divider,
+  IconButton,
   Menu,
   MenuItem,
   Paper,
@@ -18,6 +19,8 @@ import {
   Typography,
 } from "@mui/material";
 import MyLocationRoundedIcon from "@mui/icons-material/MyLocationRounded";
+import PhotoSizeSelectLargeRoundedIcon from "@mui/icons-material/PhotoSizeSelectLargeRounded";
+import TuneRoundedIcon from "@mui/icons-material/TuneRounded";
 import L from "leaflet";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
@@ -827,6 +830,7 @@ export default function Map({
     initialImageSizePreference.customScale
   );
   const [imageSizeMenuAnchor, setImageSizeMenuAnchor] = useState(null);
+  const [isCompactControlsOpen, setIsCompactControlsOpen] = useState(false);
   const [disambiguationState, setDisambiguationState] = useState(null);
   const mapRef = useRef(null);
   const hasCenteredOnUserRef = useRef(false);
@@ -1356,17 +1360,17 @@ export default function Map({
         spacing={1}
         sx={{
           position: "absolute",
-          top: 16,
-          left: 16,
-          right: { xs: 16, sm: "auto" },
+          top: { xs: 10, lg: 16 },
+          left: { xs: 10, lg: 16 },
           zIndex: 1000,
-          width: { xs: "auto", sm: "min(420px, calc(100vw - 32px))" },
+          width: { xs: "fit-content", lg: "min(420px, calc(100vw - 32px))" },
+          maxWidth: { xs: "calc(100vw - 20px)", lg: "min(420px, calc(100vw - 32px))" },
         }}
       >
         <Paper
           elevation={0}
           sx={{
-            p: 1,
+            p: { xs: 0.75, lg: 1 },
             borderRadius: 2.5,
             bgcolor: "rgba(18,25,31,0.92)",
             border: "1px solid rgba(255,255,255,0.08)",
@@ -1374,48 +1378,120 @@ export default function Map({
             backdropFilter: "blur(16px)",
           }}
         >
-          <Stack direction="row" spacing={1} alignItems="center" justifyContent="space-between">
-            <Stack spacing={0.2}>
-              <Typography variant="overline" sx={{ color: "text.secondary", letterSpacing: "0.12em" }}>
+          <Stack direction="row" spacing={0.75} alignItems="center" justifyContent="space-between">
+            <Stack spacing={0.2} sx={{ minWidth: 0 }}>
+              <Typography
+                variant="overline"
+                sx={{
+                  display: { xs: "none", lg: "block" },
+                  color: "text.secondary",
+                  letterSpacing: "0.12em",
+                }}
+              >
                 Discovery Map
               </Typography>
-              <Typography variant="body2" color="text.secondary">
+              <Typography
+                variant="body2"
+                color="text.secondary"
+                sx={{
+                  whiteSpace: "nowrap",
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                  maxWidth: { xs: "calc(100vw - 116px)", lg: "none" },
+                }}
+              >
                 {loading
-                  ? "Updating nearby posters..."
+                  ? "Updating..."
                   : hasMoreBannersInView
                     ? `Showing nearest ${displayedBanners.length} banners`
                     : `${displayedBanners.length} banners in view`}
               </Typography>
             </Stack>
 
-            <Button
-              variant="contained"
-              size="small"
-              startIcon={<MyLocationRoundedIcon />}
-              onClick={requestCurrentPosition}
-            >
-              {userLocation ? "Recenter" : "Locate me"}
-            </Button>
+            <Stack direction="row" spacing={0.5} alignItems="center">
+              <Button
+                variant="contained"
+                size="small"
+                aria-label={userLocation ? "Recenter map" : "Locate me"}
+                startIcon={<MyLocationRoundedIcon />}
+                onClick={requestCurrentPosition}
+                sx={{
+                  minWidth: { xs: 36, lg: 64 },
+                  width: { xs: 36, lg: "auto" },
+                  px: { xs: 0, lg: 1.25 },
+                  "& .MuiButton-startIcon": {
+                    m: { xs: 0, lg: "0 8px 0 -4px" },
+                  },
+                }}
+              >
+                <Box
+                  component="span"
+                  sx={{ display: { xs: "none", lg: "inline" } }}
+                >
+                  {userLocation ? "Recenter" : "Locate me"}
+                </Box>
+              </Button>
+              <IconButton
+                color="inherit"
+                aria-label={
+                  isCompactControlsOpen
+                    ? "Hide map controls"
+                    : "Show map controls"
+                }
+                onClick={() =>
+                  setIsCompactControlsOpen((currentValue) => !currentValue)
+                }
+                sx={{
+                  display: { xs: "inline-flex", lg: "none" },
+                  width: 36,
+                  height: 36,
+                  bgcolor: "rgba(255,255,255,0.03)",
+                  border: "1px solid rgba(255,255,255,0.08)",
+                  borderRadius: 1,
+                }}
+              >
+                <TuneRoundedIcon fontSize="small" />
+              </IconButton>
+            </Stack>
           </Stack>
 
           <Stack
-            direction={{ xs: "column", sm: "row" }}
+            direction={{ xs: "row", lg: "row" }}
             spacing={1}
-            alignItems={{ xs: "stretch", sm: "center" }}
-            sx={{ mt: 1 }}
+            alignItems="center"
+            sx={{
+              display: {
+                xs: isCompactControlsOpen ? "flex" : "none",
+                lg: "flex",
+              },
+              mt: 1,
+            }}
           >
             <Button
               variant="outlined"
               size="small"
               color="inherit"
+              startIcon={<PhotoSizeSelectLargeRoundedIcon />}
+              aria-label={`Image size: ${activeImageSizeLabel}`}
               onClick={(event) => setImageSizeMenuAnchor(event.currentTarget)}
               sx={{
                 justifyContent: "space-between",
                 borderColor: "rgba(255,255,255,0.16)",
                 color: "inherit",
+                minWidth: { xs: 36, lg: 64 },
+                width: { xs: 36, lg: "auto" },
+                px: { xs: 0, lg: 1.25 },
+                "& .MuiButton-startIcon": {
+                  m: { xs: 0, lg: "0 8px 0 -4px" },
+                },
               }}
             >
-              Image size: {activeImageSizeLabel}
+              <Box
+                component="span"
+                sx={{ display: { xs: "none", lg: "inline" } }}
+              >
+                Image size: {activeImageSizeLabel}
+              </Box>
             </Button>
 
             <BannerFilterButton
@@ -1424,10 +1500,17 @@ export default function Map({
               color="inherit"
               doneBannersFilterMode="show"
               showMinimumMissionsFilter
+              labelSx={{ display: { xs: "none", lg: "inline" } }}
               sx={{
                 justifyContent: "space-between",
                 borderColor: "rgba(255,255,255,0.16)",
                 color: "inherit",
+                minWidth: { xs: 36, lg: 64 },
+                width: { xs: 36, lg: "auto" },
+                px: { xs: 0, lg: 1.25 },
+                "& .MuiButton-startIcon": {
+                  m: { xs: 0, lg: "0 8px 0 -4px" },
+                },
               }}
             />
           </Stack>
@@ -1511,8 +1594,7 @@ export default function Map({
             }
             sx={{ borderRadius: 2.5 }}
           >
-            Turn on location to sort banners around you instead of only around the
-            map view.
+            Enable location to sort around you.
           </Alert>
         ) : null}
 

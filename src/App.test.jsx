@@ -904,7 +904,7 @@ test("banner filter button exposes browse mission count thresholds and a custom 
   await user.type(screen.getByLabelText("Minimum"), "7");
   await user.type(screen.getByLabelText("Maximum"), "12");
 
-  expect(screen.getByText("Filters (1)", { selector: "button" })).toBeInTheDocument();
+  expect(screen.getByText("Filters (1)")).toBeInTheDocument();
   expect(screen.getByDisplayValue("7")).toBeInTheDocument();
   expect(screen.getByDisplayValue("12")).toBeInTheDocument();
 });

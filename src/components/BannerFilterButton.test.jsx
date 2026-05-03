@@ -37,7 +37,5 @@ test("shows the map done banner filter as unchecked by default", async () => {
   await user.click(showDoneBanners);
 
   expect(showDoneBanners).toBeChecked();
-  expect(
-    screen.getByText("Filters (1)", { selector: "button" })
-  ).toBeInTheDocument();
+  expect(screen.getByText("Filters (1)")).toBeInTheDocument();
 });

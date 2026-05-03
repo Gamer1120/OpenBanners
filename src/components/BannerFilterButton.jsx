@@ -54,6 +54,7 @@ export default function BannerFilterButton({
   color = "inherit",
   size = "small",
   sx,
+  labelSx,
   showMinimumMissionsFilter = false,
   doneBannersFilterMode = "hide",
 }) {
@@ -83,6 +84,8 @@ export default function BannerFilterButton({
   const missionToggleValue = isCustomMissionFilter
     ? "custom"
     : String(minimumMissions);
+  const buttonLabel =
+    activeFilterCount > 0 ? `Filters (${activeFilterCount})` : "Filters";
 
   return (
     <>
@@ -91,10 +94,13 @@ export default function BannerFilterButton({
         color={color}
         size={size}
         startIcon={<FilterListRoundedIcon />}
+        aria-label={buttonLabel}
         onClick={(event) => setAnchorEl(event.currentTarget)}
         sx={sx}
       >
-        {activeFilterCount > 0 ? `Filters (${activeFilterCount})` : "Filters"}
+        <Box component="span" sx={labelSx}>
+          {buttonLabel}
+        </Box>
       </Button>
       <Menu
         anchorEl={anchorEl}

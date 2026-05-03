@@ -3198,12 +3198,15 @@ test("opens a disambiguation picker when overlapping map banners share a tap tar
 
   await user.click(screen.getByTestId("marker-52.22-6.89"));
 
-  expect(await screen.findByText("Pick the banner you meant.")).toBeInTheDocument();
-  expect(screen.getAllByText("Map Banner One").length).toBeGreaterThan(0);
-  expect(screen.getAllByText("Map Banner Two").length).toBeGreaterThan(0);
+  expect(
+    await screen.findByRole("button", { name: /select map banner one/i })
+  ).toBeInTheDocument();
+  expect(
+    screen.getByRole("button", { name: /select map banner two/i })
+  ).toBeInTheDocument();
 
   await user.click(
-    screen.getByRole("button", { name: /map banner two/i })
+    screen.getByRole("button", { name: /select map banner two/i })
   );
 
   await waitFor(() =>
@@ -3212,7 +3215,9 @@ test("opens a disambiguation picker when overlapping map banners share a tap tar
       "/banner/map-banner-2"
     )
   );
-  expect(screen.queryByText("Pick the banner you meant.")).not.toBeInTheDocument();
+  expect(
+    screen.queryByRole("button", { name: /select map banner two/i })
+  ).not.toBeInTheDocument();
 });
 
 test("renders discovery map markers even before banner image ratios load", async () => {

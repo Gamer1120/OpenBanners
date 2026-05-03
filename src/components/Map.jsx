@@ -45,6 +45,7 @@ const CUSTOM_IMAGE_SCALE_MIN = 0.7;
 const CUSTOM_IMAGE_SCALE_MAX = 5;
 const CUSTOM_IMAGE_SCALE_STEP = 0.05;
 const DISAMBIGUATION_TOUCH_PADDING = 12;
+const DISAMBIGUATION_PICKER_MARGIN = 12;
 const discoveryMapCache = new globalThis.Map();
 const discoveryMapInflightRequests = new globalThis.Map();
 const bannerMarkerIconCache = new globalThis.Map();
@@ -633,175 +634,162 @@ function BannerDisambiguationMenu({ banners, point, onClose, onSelect }) {
     return null;
   }
 
-  const topOffset = Math.max(12, Math.round(point.y));
-  const availableHeight = `calc(100% - ${topOffset}px - 12px)`;
+  const thumbnailWidth =
+    banners.length > 12 ? 52 : banners.length > 8 ? 58 : 68;
+  const thumbnailHeight = Math.round(thumbnailWidth * 1.35);
+  const radius = Math.max(
+    88,
+    Math.ceil((banners.length * thumbnailWidth) / (2 * Math.PI)) + 24
+  );
+  const centerX = Math.round(point.x);
+  const centerY = Math.round(point.y);
   const stopMapInteraction = (event) => {
     event.stopPropagation();
   };
 
   return (
-    <Paper
-      elevation={0}
-      onClick={stopMapInteraction}
-      onMouseDown={stopMapInteraction}
-      onPointerDown={stopMapInteraction}
-      onTouchStart={stopMapInteraction}
-      onTouchMove={stopMapInteraction}
-      onWheel={stopMapInteraction}
+    <Box
+      onClick={onClose}
       sx={{
         position: "absolute",
-        left: `clamp(12px, ${Math.round(point.x)}px, calc(100% - 332px))`,
-        top: `${topOffset}px`,
+        inset: 0,
         zIndex: 1100,
-        width: "min(320px, calc(100% - 24px))",
-        p: 1,
-        display: "grid",
-        gridTemplateRows: "auto minmax(0, 1fr)",
-        height: `min(420px, ${availableHeight})`,
-        maxHeight: availableHeight,
-        minHeight: 0,
-        overflow: "hidden",
-        borderRadius: 2.5,
-        bgcolor: "rgba(18,25,31,0.96)",
-        border: "1px solid rgba(255,255,255,0.1)",
-        boxShadow: "0 18px 42px rgba(0,0,0,0.28)",
-        backdropFilter: "blur(16px)",
         pointerEvents: "auto",
       }}
     >
-      <Stack spacing={1} sx={{ minHeight: 0 }}>
-        <Stack direction="row" alignItems="center" justifyContent="space-between">
-          <Stack spacing={0.2}>
-            <Typography
-              variant="overline"
-              sx={{ color: "text.secondary", letterSpacing: "0.12em" }}
-            >
-              Multiple Banners
-            </Typography>
-            <Typography variant="body2" color="text.secondary">
-              Pick the banner you meant.
-            </Typography>
-          </Stack>
+      <Box
+        component="button"
+        type="button"
+        aria-label="Close banner picker"
+        onClick={onClose}
+        onMouseDown={stopMapInteraction}
+        onPointerDown={stopMapInteraction}
+        onTouchStart={stopMapInteraction}
+        onTouchMove={stopMapInteraction}
+        onWheel={stopMapInteraction}
+        sx={{
+          position: "absolute",
+          left: `clamp(28px, ${centerX}px, calc(100% - 28px))`,
+          top: `clamp(28px, ${centerY}px, calc(100% - 28px))`,
+          transform: "translate(-50%, -50%)",
+          width: 56,
+          height: 56,
+          borderRadius: 999,
+          border: "1px solid rgba(255,255,255,0.22)",
+          bgcolor: "rgba(18,25,31,0.92)",
+          color: "common.white",
+          boxShadow: "0 14px 32px rgba(0,0,0,0.3)",
+          backdropFilter: "blur(12px)",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          cursor: "pointer",
+          p: 0,
+        }}
+      >
+        <Typography variant="subtitle2" aria-hidden="true">
+          {banners.length}
+        </Typography>
+      </Box>
 
-          <Button size="small" color="inherit" onClick={onClose}>
-            Close
-          </Button>
-        </Stack>
+      {banners.map((banner, index) => {
+        const angle =
+          banners.length === 2
+            ? index === 0
+              ? Math.PI
+              : 0
+            : -Math.PI / 2 + (index * 2 * Math.PI) / banners.length;
+        const xOffset = Math.round(Math.cos(angle) * radius);
+        const yOffset = Math.round(Math.sin(angle) * radius);
 
-        <Stack
-          spacing={1}
-          sx={{
-            minHeight: 0,
-            height: "100%",
-            overflowY: "auto",
-            pr: 0.25,
-            overscrollBehavior: "contain",
-            touchAction: "pan-y",
-            scrollbarGutter: "stable",
-            WebkitOverflowScrolling: "touch",
-          }}
-        >
-          {banners.map((banner) => (
+        return (
+          <Paper
+            key={banner.id}
+            component="button"
+            type="button"
+            elevation={0}
+            aria-label={`Select ${banner.title}`}
+            onClick={(event) => {
+              stopMapInteraction(event);
+              onSelect(banner);
+            }}
+            onMouseDown={stopMapInteraction}
+            onPointerDown={stopMapInteraction}
+            onTouchStart={stopMapInteraction}
+            onTouchMove={stopMapInteraction}
+            onWheel={stopMapInteraction}
+            sx={{
+              position: "absolute",
+              left: `clamp(${
+                DISAMBIGUATION_PICKER_MARGIN + thumbnailWidth / 2
+              }px, calc(${centerX}px + ${xOffset}px), calc(100% - ${
+                DISAMBIGUATION_PICKER_MARGIN + thumbnailWidth / 2
+              }px))`,
+              top: `clamp(${
+                DISAMBIGUATION_PICKER_MARGIN + thumbnailHeight / 2
+              }px, calc(${centerY}px + ${yOffset}px), calc(100% - ${
+                DISAMBIGUATION_PICKER_MARGIN + thumbnailHeight / 2
+              }px))`,
+              transform: "translate(-50%, -50%)",
+              width: thumbnailWidth,
+              minHeight: thumbnailHeight,
+              p: 0.5,
+              borderRadius: 1.5,
+              border: "1px solid rgba(255,255,255,0.18)",
+              bgcolor: "rgba(18,25,31,0.94)",
+              color: "inherit",
+              boxShadow: "0 16px 34px rgba(0,0,0,0.32)",
+              backdropFilter: "blur(12px)",
+              cursor: "pointer",
+              overflow: "hidden",
+              transition:
+                "border-color 120ms ease, box-shadow 120ms ease, transform 120ms ease",
+              "&:hover": {
+                borderColor: "rgba(126,200,255,0.65)",
+                boxShadow: "0 18px 38px rgba(0,0,0,0.38)",
+                transform: "translate(-50%, -50%) scale(1.04)",
+              },
+              "&:focus-visible": {
+                outline: "2px solid #7ec8ff",
+                outlineOffset: 2,
+              },
+            }}
+          >
             <Box
-              key={banner.id}
-              component="button"
-              type="button"
-              onClick={() => onSelect(banner)}
               sx={{
                 width: "100%",
-                display: "grid",
-                gridTemplateColumns: "56px minmax(0, 1fr)",
-                gap: 1,
-                p: 0.8,
-                borderRadius: 2,
-                border: "1px solid rgba(255,255,255,0.08)",
-                bgcolor: "rgba(255,255,255,0.03)",
-                color: "inherit",
-                textAlign: "left",
-                cursor: "pointer",
-                transition: "background-color 120ms ease, border-color 120ms ease",
-                "&:hover": {
-                  bgcolor: "rgba(255,255,255,0.06)",
-                  borderColor: "rgba(255,255,255,0.18)",
-                },
+                minHeight: thumbnailHeight - 8,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                bgcolor: "rgba(255,255,255,0.04)",
+                overflow: "hidden",
+                borderRadius: 1,
               }}
             >
-              <Box
-                sx={{
-                  width: 56,
-                  minHeight: 74,
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  bgcolor: "rgba(255,255,255,0.04)",
-                  overflow: "hidden",
-                  borderRadius: 1.5,
-                }}
-              >
-                {banner.picture ? (
-                  <Box
-                    component="img"
-                    src={`https://api.bannergress.com${banner.picture}`}
-                    alt={banner.title}
-                    sx={{
-                      width: "100%",
-                      height: "auto",
-                      display: "block",
-                    }}
-                  />
-                ) : (
-                  <Typography variant="caption" color="text.secondary">
-                    No image
-                  </Typography>
-                )}
-              </Box>
-
-              <Stack spacing={0.5} sx={{ minWidth: 0 }}>
-                <Typography
-                  variant="subtitle2"
+              {banner.picture ? (
+                <Box
+                  component="img"
+                  src={`https://api.bannergress.com${banner.picture}`}
+                  alt=""
                   sx={{
-                    lineHeight: 1.2,
-                    display: "-webkit-box",
-                    WebkitLineClamp: 2,
-                    WebkitBoxOrient: "vertical",
-                    overflow: "hidden",
+                    width: "100%",
+                    height: "auto",
+                    display: "block",
                   }}
-                >
-                  {banner.title}
+                />
+              ) : (
+                <Typography variant="caption" color="text.secondary">
+                  No image
                 </Typography>
-                <Typography
-                  variant="caption"
-                  color="text.secondary"
-                  sx={{
-                    display: "-webkit-box",
-                    WebkitLineClamp: 2,
-                    WebkitBoxOrient: "vertical",
-                    overflow: "hidden",
-                  }}
-                >
-                  {banner.formattedAddress || "Address unavailable"}
-                </Typography>
-                <Stack direction="row" spacing={0.6} useFlexGap flexWrap="wrap">
-                  <Chip
-                    size="small"
-                    label={`${Number(banner.numberOfMissions) || "?"} missions`}
-                    sx={{ bgcolor: "rgba(255,255,255,0.05)", borderRadius: 999 }}
-                  />
-                  <Chip
-                    size="small"
-                    label={formatDistance(banner._distanceMeters)}
-                    sx={{ bgcolor: "rgba(255,255,255,0.05)", borderRadius: 999 }}
-                  />
-                </Stack>
-              </Stack>
+              )}
             </Box>
-          ))}
-        </Stack>
-      </Stack>
-    </Paper>
+          </Paper>
+        );
+      })}
+    </Box>
   );
 }
-
 function setMapInteractionsEnabled(mapInstance, enabled) {
   if (!mapInstance) {
     return;

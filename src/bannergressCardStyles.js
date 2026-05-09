@@ -9,12 +9,12 @@ const defaultSurface = {
 
 const listTypeSurfaces = {
   todo: {
-    backgroundColor: "rgba(17, 55, 82, 0.82)",
+    backgroundColor: "rgba(92, 62, 12, 0.84)",
     backgroundImage:
-      "linear-gradient(180deg, rgba(89, 175, 235, 0.2) 0%, rgba(16, 37, 49, 0.94) 100%)",
-    borderColor: "rgba(138, 208, 255, 0.24)",
-    hoverBackgroundColor: "rgba(21, 67, 98, 0.94)",
-    hoverBorderColor: "rgba(168, 222, 255, 0.34)",
+      "linear-gradient(180deg, rgba(255, 196, 77, 0.22) 0%, rgba(60, 39, 8, 0.94) 100%)",
+    borderColor: "rgba(255, 214, 122, 0.26)",
+    hoverBackgroundColor: "rgba(115, 77, 15, 0.94)",
+    hoverBorderColor: "rgba(255, 224, 150, 0.36)",
   },
   done: {
     backgroundColor: "rgba(22, 63, 37, 0.82)",

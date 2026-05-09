@@ -15,12 +15,12 @@ const bannerListActions = [
       },
     },
     idleSx: {
-      color: "#cde6ff",
-      borderColor: "rgba(146, 214, 255, 0.24)",
-      bgcolor: "rgba(20, 35, 48, 0.44)",
+      color: "#f6d48a",
+      borderColor: "rgba(255, 214, 122, 0.28)",
+      bgcolor: "rgba(74, 50, 10, 0.44)",
       "&:hover": {
-        borderColor: "rgba(146, 214, 255, 0.38)",
-        bgcolor: "rgba(34, 58, 80, 0.6)",
+        borderColor: "rgba(255, 214, 122, 0.42)",
+        bgcolor: "rgba(110, 74, 14, 0.58)",
       },
     },
   },

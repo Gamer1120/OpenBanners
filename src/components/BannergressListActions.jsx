@@ -7,11 +7,11 @@ const bannerListActions = [
     listType: "todo",
     label: "To do",
     activeSx: {
-      color: "#eef7ff",
-      bgcolor: "#245074",
-      borderColor: "rgba(146, 214, 255, 0.42)",
+      color: "#2f2200",
+      bgcolor: "#f2b63d",
+      borderColor: "rgba(255, 214, 122, 0.5)",
       "&:hover": {
-        bgcolor: "#2a608d",
+        bgcolor: "#f7c24f",
       },
     },
     idleSx: {

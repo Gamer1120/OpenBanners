@@ -52,13 +52,7 @@ export default function VisualCardSizeButton({
         transformOrigin={{ vertical: "top", horizontal: "left" }}
       >
         <Box sx={{ px: 2, py: 1.5, minWidth: 300 }}>
-          <Typography
-            variant="overline"
-            sx={{ color: "text.secondary", letterSpacing: "0.12em" }}
-          >
-            Visual card size
-          </Typography>
-          <Box sx={{ mt: 1.25, px: 0.5 }}>
+          <Box sx={{ px: 0.5 }}>
             <Typography variant="body2" color="text.secondary" sx={{ mb: 0.75 }}>
               Cards per row
             </Typography>

@@ -530,33 +530,24 @@ export default function BrowsingPage({
               {hasMore ? <Box ref={loadMoreRef} sx={{ height: 1 }} /> : null}
             </Stack>
           ) : (
-            <Grid container spacing={2.5} sx={{ mt: 2, mb: 2 }}>
+            <Box
+              sx={{
+                mt: 2,
+                mb: 2,
+                display: "grid",
+                gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))",
+                gap: 2.5,
+                alignItems: "stretch",
+              }}
+            >
               {displayedBanners.map((banner) => (
-                <Grid
-                  item
-                  xs={12}
-                  sm={6}
-                  lg={4}
-                  xl={3}
-                  key={banner.id}
-                  sx={{
-                    display: "flex",
-                    alignItems: "stretch",
-                  }}
-                >
+                <Box key={banner.id} sx={{ display: "flex", alignItems: "stretch" }}>
                   <BannerCard banner={banner} />
-                </Grid>
+                </Box>
               ))}
               {loadingMore
                 ? Array.from({ length: 3 }).map((_, index) => (
-                    <Grid
-                      item
-                      xs={12}
-                      sm={6}
-                      lg={4}
-                      xl={3}
-                      key={`browse-grid-loading-more-${index}`}
-                    >
+                    <Box key={`browse-grid-loading-more-${index}`}>
                       <Box
                         sx={{
                           height: 260,
@@ -565,15 +556,11 @@ export default function BrowsingPage({
                           border: "1px solid rgba(255,255,255,0.08)",
                         }}
                       />
-                    </Grid>
+                    </Box>
                   ))
                 : null}
-              {hasMore ? (
-                <Grid item xs={12}>
-                  <Box ref={loadMoreRef} sx={{ height: 1 }} />
-                </Grid>
-              ) : null}
-            </Grid>
+              {hasMore ? <Box ref={loadMoreRef} sx={{ height: 1, gridColumn: "1 / -1" }} /> : null}
+            </Box>
           )}
         </Grid>
       </Grid>

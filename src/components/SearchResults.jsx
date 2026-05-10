@@ -250,9 +250,16 @@ export default function SearchResults() {
               ))}
             </Stack>
           ) : bannersLoading ? (
-            <Grid container spacing={2} sx={{ mt: 0 }}>
+            <Box
+              sx={{
+                mt: 0,
+                display: "grid",
+                gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))",
+                gap: 2,
+              }}
+            >
               {Array.from({ length: 3 }).map((_, index) => (
-                <Grid item xs={12} sm={6} lg={4} key={`search-grid-skeleton-${index}`}>
+                <Box key={`search-grid-skeleton-${index}`}>
                   <Box
                     sx={{
                       height: 260,
@@ -261,9 +268,9 @@ export default function SearchResults() {
                       border: "1px solid rgba(255,255,255,0.08)",
                     }}
                   />
-                </Grid>
+                </Box>
               ))}
-            </Grid>
+            </Box>
           ) : bannerData.length > 0 && viewMode === "compact" ? (
             <Stack spacing={1.25} sx={{ mt: 0.5 }}>
               {bannerData.map((banner) => (
@@ -271,24 +278,21 @@ export default function SearchResults() {
               ))}
             </Stack>
           ) : bannerData.length > 0 ? (
-            <Grid container spacing={2} sx={{ mt: 0 }}>
+            <Box
+              sx={{
+                mt: 0,
+                display: "grid",
+                gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))",
+                gap: 2,
+                alignItems: "stretch",
+              }}
+            >
               {bannerData.map((banner) => (
-                <Grid
-                  item
-                  xs={12}
-                  sm={6}
-                  lg={4}
-                  xl={3}
-                  key={banner.id}
-                  sx={{
-                    display: "flex",
-                    alignItems: "stretch",
-                  }}
-                >
+                <Box key={banner.id} sx={{ display: "flex", alignItems: "stretch" }}>
                   <BannerCard banner={banner} />
-                </Grid>
+                </Box>
               ))}
-            </Grid>
+            </Box>
           ) : (
             <Typography variant="body2" color="text.secondary">
               No matching banners found.

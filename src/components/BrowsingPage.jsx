@@ -403,6 +403,7 @@ export default function BrowsingPage({
 
   return (
     <Container
+      maxWidth={false}
       sx={{
         display: "flex",
         flexDirection: "column",
@@ -412,6 +413,7 @@ export default function BrowsingPage({
         fontSize: 24,
         pt: 3,
         pb: 4,
+        px: { xs: 2, sm: 3, lg: 4 },
       }}
     >
       <BrowsingHeader

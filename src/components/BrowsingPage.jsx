@@ -104,6 +104,7 @@ export default function BrowsingPage({
   const syncState = useBannergressSync();
   const loadMoreRef = useRef(null);
   const resultsAreaRef = useRef(null);
+  const resultsContentRef = useRef(null);
   const [activeBrowseQueryKey, setActiveBrowseQueryKey] = useState("");
   const [viewMode, setViewMode] = useState(() => {
     const storedValue = window.localStorage.getItem(viewModeStorageKey);
@@ -420,13 +421,17 @@ export default function BrowsingPage({
       return undefined;
     }
 
+    const maybeRequestMore = () => {
+      setRequestedOffset((currentOffset) =>
+        currentOffset === nextOffset ? currentOffset : nextOffset
+      );
+    };
+
     const observer = new IntersectionObserver(
       (entries) => {
         entries.forEach((entry) => {
           if (entry.isIntersecting) {
-            setRequestedOffset((currentOffset) =>
-              currentOffset === nextOffset ? currentOffset : nextOffset
-            );
+            maybeRequestMore();
           }
         });
       },
@@ -437,8 +442,27 @@ export default function BrowsingPage({
 
     observer.observe(loadMoreRef.current);
 
+    const handleScrollCheck = () => {
+      if (!resultsContentRef.current) {
+        return;
+      }
+
+      const rect = resultsContentRef.current.getBoundingClientRect();
+      const viewportHeight = window.innerHeight || document.documentElement.clientHeight;
+
+      if (rect.bottom - viewportHeight < 320) {
+        maybeRequestMore();
+      }
+    };
+
+    handleScrollCheck();
+    window.addEventListener("scroll", handleScrollCheck, { passive: true });
+    window.addEventListener("resize", handleScrollCheck);
+
     return () => {
       observer.disconnect();
+      window.removeEventListener("scroll", handleScrollCheck);
+      window.removeEventListener("resize", handleScrollCheck);
     };
   }, [hasMore, loading, loadingMore, nextOffset, sortOption]);
 
@@ -499,6 +523,7 @@ export default function BrowsingPage({
           md={isAgentView || isSmallScreen ? 12 : 10}
           ref={resultsAreaRef}
         >
+          <Box ref={resultsContentRef}>
           <Box
             sx={{
               display: "flex",
@@ -621,6 +646,7 @@ export default function BrowsingPage({
               {hasMore ? <Box ref={loadMoreRef} sx={{ height: 1, gridColumn: "1 / -1" }} /> : null}
             </Box>
           )}
+          </Box>
         </Grid>
       </Grid>
     </Container>

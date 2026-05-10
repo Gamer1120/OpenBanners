@@ -48,7 +48,7 @@ export default function BannerCard({ banner }) {
       <Card
         sx={{
           width: "100%",
-          maxWidth: 360,
+          maxWidth: 320,
           display: "flex",
           height: "100%",
           borderRadius: 3,

@@ -541,7 +541,6 @@ export default function BrowsingPage({
                   key={banner.id}
                   sx={{
                     display: "flex",
-                    justifyContent: "center",
                     alignItems: "stretch",
                   }}
                 >

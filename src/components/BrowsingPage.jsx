@@ -369,13 +369,18 @@ export default function BrowsingPage({
       }),
     [banners, bannerFilters, maximumMissions, minimumMissions, syncState]
   );
-  const filteredPrefetchTarget = hasMissionCountFilter
-    ? FILTERED_BROWSE_PREFETCH_TARGET
-    : BROWSE_PAGE_SIZE;
+  const filteredPrefetchTarget =
+    hasMissionCountFilter ||
+    bannerFilters.showHiddenBanners ||
+    bannerFilters.hideDoneBanners ||
+    bannerFilters.showOfflineBanners ||
+    minimumMissions !== null ||
+    maximumMissions !== null
+      ? FILTERED_BROWSE_PREFETCH_TARGET
+      : BROWSE_PAGE_SIZE;
   const needsFilteredBackfill =
     displayedBanners.length === 0 ||
-    (hasMissionCountFilter &&
-      displayedBanners.length < Math.min(filteredPrefetchTarget, banners.length));
+    displayedBanners.length < Math.min(filteredPrefetchTarget, banners.length);
   const isAgentView = Boolean(authorName);
   const headerEyebrow = isAgentView ? "Agent" : "Explore";
   const headerTitle = isAgentView ? authorName : "Browsing";

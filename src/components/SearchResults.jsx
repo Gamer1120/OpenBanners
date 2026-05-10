@@ -278,6 +278,7 @@ export default function SearchResults() {
                   xs={12}
                   sm={6}
                   lg={4}
+                  xl={3}
                   key={banner.id}
                   sx={{
                     display: "flex",

@@ -16,12 +16,17 @@ import { fetchBannergress } from "../bannergressSync";
 
 const viewModeStorageKey = "openbanners-banner-view-mode";
 const visualCardSizeModeStorageKey = "openbanners-visual-card-size-mode";
-const visualCardSizeCustomStorageKey = "openbanners-visual-card-size-custom";
+const visualCardColumnsStorageKey = "openbanners-visual-card-columns";
 const VISUAL_CARD_SIZE_PRESETS = {
-  compact: 240,
-  normal: 280,
-  large: 340,
+  compact: 6,
+  normal: 5,
+  large: 4,
 };
+const VISUAL_CARD_COLUMN_MIN = 3;
+const VISUAL_CARD_COLUMN_MAX = 8;
+const VISUAL_CARD_GAP_PX = 16;
+const VISUAL_CARD_MIN_WIDTH_PX = 220;
+const VISUAL_CARD_MAX_WIDTH_PX = 420;
 
 export default function SearchResults() {
   const [results, setResults] = useState([]);
@@ -37,13 +42,14 @@ export default function SearchResults() {
   });
   const { query } = useParams();
   const visualCardSizeMode = window.localStorage.getItem(visualCardSizeModeStorageKey);
-  const visualCardSizeCustom = Number(window.localStorage.getItem(visualCardSizeCustomStorageKey));
-  const visualCardWidth =
+  const visualCardColumns = Number(window.localStorage.getItem(visualCardColumnsStorageKey));
+  const visualCardColumnsTarget =
     visualCardSizeMode === "custom"
-      ? Number.isFinite(visualCardSizeCustom) && visualCardSizeCustom >= 220 && visualCardSizeCustom <= 420
-        ? visualCardSizeCustom
-        : 280
+      ? Number.isFinite(visualCardColumns) && visualCardColumns >= VISUAL_CARD_COLUMN_MIN && visualCardColumns <= VISUAL_CARD_COLUMN_MAX
+        ? visualCardColumns
+        : 5
       : VISUAL_CARD_SIZE_PRESETS[visualCardSizeMode] ?? VISUAL_CARD_SIZE_PRESETS.normal;
+  const visualCardWidth = `clamp(${VISUAL_CARD_MIN_WIDTH_PX}px, calc((100% - ${(visualCardColumnsTarget - 1) * VISUAL_CARD_GAP_PX}px) / ${visualCardColumnsTarget}), ${VISUAL_CARD_MAX_WIDTH_PX}px)`;
 
   useEffect(() => {
     let ignore = false;

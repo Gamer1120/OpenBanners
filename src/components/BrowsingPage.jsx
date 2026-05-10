@@ -2,16 +2,14 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import BannerListItem from "./BannerListItem";
 import BannerCard from "./BannerCard";
 import BannerResultsViewToggle from "./BannerResultsViewToggle";
+import VisualCardSizeButton from "./VisualCardSizeButton";
 import {
   Alert,
   Box,
   Button,
   Container,
   Grid,
-  Slider,
   Stack,
-  ToggleButton,
-  ToggleButtonGroup,
   Typography,
   useMediaQuery,
 } from "@mui/material";
@@ -90,7 +88,6 @@ const VISUAL_CARD_COLUMN_MIN = 3;
 const VISUAL_CARD_FALLBACK_MAX = 8;
 const VISUAL_CARD_GAP_PX = 20;
 const VISUAL_CARD_MIN_WIDTH_PX = 220;
-const VISUAL_CARD_MAX_WIDTH_PX = 420;
 
 export default function BrowsingPage({
   placeId,
@@ -130,7 +127,6 @@ export default function BrowsingPage({
       ? storedValue
       : 5;
   });
-  const [isVisualCardPanelOpen, setIsVisualCardPanelOpen] = useState(false);
   const [visualCardSliderMax, setVisualCardSliderMax] = useState(VISUAL_CARD_FALLBACK_MAX);
 
   const isSmallScreen = useMediaQuery((theme) => theme.breakpoints.down("sm"));
@@ -138,7 +134,7 @@ export default function BrowsingPage({
     visualCardSizeMode === "custom"
       ? Math.min(Math.max(visualCardColumns, VISUAL_CARD_COLUMN_MIN), visualCardSliderMax)
       : VISUAL_CARD_SIZE_PRESETS[visualCardSizeMode] ?? VISUAL_CARD_SIZE_PRESETS.normal;
-  const visualCardWidth = `clamp(${VISUAL_CARD_MIN_WIDTH_PX}px, calc((100% - ${(visualCardColumnsTarget - 1) * VISUAL_CARD_GAP_PX}px) / ${visualCardColumnsTarget}), ${VISUAL_CARD_MAX_WIDTH_PX}px)`;
+  const visualCardWidth = `calc((100% - ${(visualCardColumnsTarget - 1) * VISUAL_CARD_GAP_PX}px) / ${visualCardColumnsTarget})`;
 
   const handleSort = (option) => {
     if (option === sortOption) {
@@ -161,24 +157,6 @@ export default function BrowsingPage({
   const handleViewModeChange = (nextViewMode) => {
     setViewMode(nextViewMode);
     window.localStorage.setItem(viewModeStorageKey, nextViewMode);
-  };
-
-  const handleVisualCardSizeModeChange = (_event, nextMode) => {
-    if (!nextMode) {
-      return;
-    }
-    setVisualCardSizeMode(nextMode);
-    window.localStorage.setItem(visualCardSizeModeStorageKey, nextMode);
-  };
-
-  const handleVisualCardColumnsChange = (_event, nextValue) => {
-    const value = Array.isArray(nextValue) ? nextValue[0] : nextValue;
-    setVisualCardColumns(Math.min(Math.max(value, VISUAL_CARD_COLUMN_MIN), visualCardSliderMax));
-    window.localStorage.setItem(visualCardColumnsStorageKey, String(value));
-    if (visualCardSizeMode !== "custom") {
-      setVisualCardSizeMode("custom");
-      window.localStorage.setItem(visualCardSizeModeStorageKey, "custom");
-    }
   };
 
   useEffect(() => {
@@ -556,69 +534,32 @@ export default function BrowsingPage({
               onBannerFiltersChange={onBannerFiltersChange}
               leadingControls={
                 viewMode === "visual" ? (
-                  <Button
-                    variant={isVisualCardPanelOpen ? "contained" : "outlined"}
-                    size="small"
-                    onClick={() => setIsVisualCardPanelOpen((current) => !current)}
-                  >
-                    Card size
-                  </Button>
+                  <VisualCardSizeButton
+                    sizeMode={visualCardSizeMode}
+                    customColumns={visualCardColumns}
+                    sliderMin={VISUAL_CARD_COLUMN_MIN}
+                    sliderMax={visualCardSliderMax}
+                    onSizeModeChange={(nextMode) => {
+                      setVisualCardSizeMode(nextMode);
+                      window.localStorage.setItem(visualCardSizeModeStorageKey, nextMode);
+                    }}
+                    onCustomColumnsChange={(nextValue) => {
+                      const value = Math.min(
+                        Math.max(nextValue, VISUAL_CARD_COLUMN_MIN),
+                        visualCardSliderMax
+                      );
+                      setVisualCardColumns(value);
+                      window.localStorage.setItem(visualCardColumnsStorageKey, String(value));
+                      if (visualCardSizeMode !== "custom") {
+                        setVisualCardSizeMode("custom");
+                        window.localStorage.setItem(visualCardSizeModeStorageKey, "custom");
+                      }
+                    }}
+                  />
                 ) : null
               }
             />
           </Box>
-          {viewMode === "visual" && isVisualCardPanelOpen ? (
-            <Box
-              sx={{
-                mb: 2,
-                p: 1.5,
-                borderRadius: 3,
-                bgcolor: "rgba(20, 27, 33, 0.72)",
-                border: "1px solid rgba(255,255,255,0.08)",
-                boxShadow: "0 14px 32px rgba(0,0,0,0.14)",
-              }}
-            >
-              <Stack spacing={1.25}>
-                <Typography variant="subtitle2" color="text.secondary">
-                  Visual card size
-                </Typography>
-                <Box sx={{ display: "flex", gap: 1.25, flexWrap: "wrap", alignItems: "center" }}>
-                  <ToggleButtonGroup
-                    size="small"
-                    exclusive
-                    value={visualCardSizeMode}
-                    onChange={handleVisualCardSizeModeChange}
-                    aria-label="Visual card size"
-                  >
-                    <ToggleButton value="compact">Compact</ToggleButton>
-                    <ToggleButton value="normal">Normal</ToggleButton>
-                    <ToggleButton value="large">Large</ToggleButton>
-                    <ToggleButton value="custom">Custom</ToggleButton>
-                  </ToggleButtonGroup>
-                  <Typography variant="body2" color="text.secondary">
-                    {visualCardColumnsTarget} per row
-                  </Typography>
-                </Box>
-                {visualCardSizeMode === "custom" ? (
-                  <Box sx={{ px: 1, maxWidth: 360 }}>
-                    <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>
-                      Cards per row
-                    </Typography>
-                    <Slider
-                      value={Math.min(Math.max(visualCardColumns, VISUAL_CARD_COLUMN_MIN), visualCardSliderMax)}
-                      min={VISUAL_CARD_COLUMN_MIN}
-                      max={visualCardSliderMax}
-                      step={1}
-                      marks
-                      onChange={handleVisualCardColumnsChange}
-                      valueLabelDisplay="auto"
-                      aria-label="Cards per row"
-                    />
-                  </Box>
-                ) : null}
-              </Stack>
-            </Box>
-          ) : null}
           {error && (
             <Alert
               severity="error"
@@ -674,14 +615,14 @@ export default function BrowsingPage({
                 mt: 2,
                 mb: 2,
                 display: "grid",
-                gridTemplateColumns: `repeat(auto-fill, minmax(${visualCardWidth}px, 1fr))`,
+                gridTemplateColumns: `repeat(auto-fit, minmax(${VISUAL_CARD_MIN_WIDTH_PX}px, ${visualCardWidth}))`,
                 gap: 2.5,
                 alignItems: "stretch",
               }}
             >
               {displayedBanners.map((banner) => (
                 <Box key={banner.id} sx={{ display: "flex", alignItems: "stretch" }}>
-                  <BannerCard banner={banner} maxWidth={visualCardWidth} />
+                  <BannerCard banner={banner} maxWidth="100%" />
                 </Box>
               ))}
               {loadingMore

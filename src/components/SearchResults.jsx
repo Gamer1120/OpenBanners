@@ -25,7 +25,6 @@ const VISUAL_CARD_SIZE_PRESETS = {
 const VISUAL_CARD_COLUMN_MIN = 3;
 const VISUAL_CARD_GAP_PX = 16;
 const VISUAL_CARD_MIN_WIDTH_PX = 220;
-const VISUAL_CARD_MAX_WIDTH_PX = 420;
 
 export default function SearchResults() {
   const [results, setResults] = useState([]);
@@ -48,7 +47,7 @@ export default function SearchResults() {
         ? visualCardColumns
         : 5
       : VISUAL_CARD_SIZE_PRESETS[visualCardSizeMode] ?? VISUAL_CARD_SIZE_PRESETS.normal;
-  const visualCardWidth = `clamp(${VISUAL_CARD_MIN_WIDTH_PX}px, calc((100% - ${(visualCardColumnsTarget - 1) * VISUAL_CARD_GAP_PX}px) / ${visualCardColumnsTarget}), ${VISUAL_CARD_MAX_WIDTH_PX}px)`;
+  const visualCardWidth = `calc((100% - ${(visualCardColumnsTarget - 1) * VISUAL_CARD_GAP_PX}px) / ${visualCardColumnsTarget})`;
 
   useEffect(() => {
     let ignore = false;
@@ -274,7 +273,7 @@ export default function SearchResults() {
               sx={{
                 mt: 0,
                 display: "grid",
-                gridTemplateColumns: `repeat(auto-fill, minmax(${visualCardWidth}px, 1fr))`,
+                gridTemplateColumns: `repeat(auto-fit, minmax(${VISUAL_CARD_MIN_WIDTH_PX}px, ${visualCardWidth}))`,
                 gap: 2,
               }}
             >
@@ -302,14 +301,14 @@ export default function SearchResults() {
               sx={{
                 mt: 0,
                 display: "grid",
-                gridTemplateColumns: `repeat(auto-fill, minmax(${visualCardWidth}px, 1fr))`,
+                gridTemplateColumns: `repeat(auto-fit, minmax(${VISUAL_CARD_MIN_WIDTH_PX}px, ${visualCardWidth}))`,
                 gap: 2,
                 alignItems: "stretch",
               }}
             >
               {bannerData.map((banner) => (
                 <Box key={banner.id} sx={{ display: "flex", alignItems: "stretch" }}>
-                  <BannerCard banner={banner} maxWidth={visualCardWidth} />
+                  <BannerCard banner={banner} maxWidth="100%" />
                 </Box>
               ))}
             </Box>

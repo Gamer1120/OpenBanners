@@ -15,6 +15,13 @@ import {
 import { fetchBannergress } from "../bannergressSync";
 
 const viewModeStorageKey = "openbanners-banner-view-mode";
+const visualCardSizeModeStorageKey = "openbanners-visual-card-size-mode";
+const visualCardSizeCustomStorageKey = "openbanners-visual-card-size-custom";
+const VISUAL_CARD_SIZE_PRESETS = {
+  compact: 240,
+  normal: 280,
+  large: 340,
+};
 
 export default function SearchResults() {
   const [results, setResults] = useState([]);
@@ -29,6 +36,14 @@ export default function SearchResults() {
     return storedValue === "compact" ? "compact" : "visual";
   });
   const { query } = useParams();
+  const visualCardSizeMode = window.localStorage.getItem(visualCardSizeModeStorageKey);
+  const visualCardSizeCustom = Number(window.localStorage.getItem(visualCardSizeCustomStorageKey));
+  const visualCardWidth =
+    visualCardSizeMode === "custom"
+      ? Number.isFinite(visualCardSizeCustom) && visualCardSizeCustom >= 220 && visualCardSizeCustom <= 420
+        ? visualCardSizeCustom
+        : 280
+      : VISUAL_CARD_SIZE_PRESETS[visualCardSizeMode] ?? VISUAL_CARD_SIZE_PRESETS.normal;
 
   useEffect(() => {
     let ignore = false;
@@ -254,7 +269,7 @@ export default function SearchResults() {
               sx={{
                 mt: 0,
                 display: "grid",
-                gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))",
+                gridTemplateColumns: `repeat(auto-fill, minmax(${visualCardWidth}px, 1fr))`,
                 gap: 2,
               }}
             >
@@ -282,14 +297,14 @@ export default function SearchResults() {
               sx={{
                 mt: 0,
                 display: "grid",
-                gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))",
+                gridTemplateColumns: `repeat(auto-fill, minmax(${visualCardWidth}px, 1fr))`,
                 gap: 2,
                 alignItems: "stretch",
               }}
             >
               {bannerData.map((banner) => (
                 <Box key={banner.id} sx={{ display: "flex", alignItems: "stretch" }}>
-                  <BannerCard banner={banner} />
+                  <BannerCard banner={banner} maxWidth={visualCardWidth} />
                 </Box>
               ))}
             </Box>

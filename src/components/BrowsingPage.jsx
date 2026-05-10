@@ -8,7 +8,10 @@ import {
   Button,
   Container,
   Grid,
+  Slider,
   Stack,
+  ToggleButton,
+  ToggleButtonGroup,
   Typography,
   useMediaQuery,
 } from "@mui/material";
@@ -74,8 +77,15 @@ const sortOptionsMap = {
   "Nr. of Missions": "numberOfMissions",
 };
 const viewModeStorageKey = "openbanners-banner-view-mode";
+const visualCardSizeModeStorageKey = "openbanners-visual-card-size-mode";
+const visualCardSizeCustomStorageKey = "openbanners-visual-card-size-custom";
 const BROWSE_PAGE_SIZE = 9;
 const FILTERED_BROWSE_PREFETCH_TARGET = BROWSE_PAGE_SIZE * 2;
+const VISUAL_CARD_SIZE_PRESETS = {
+  compact: 240,
+  normal: 280,
+  large: 340,
+};
 
 export default function BrowsingPage({
   placeId,
@@ -102,8 +112,24 @@ export default function BrowsingPage({
     const storedValue = window.localStorage.getItem(viewModeStorageKey);
     return storedValue === "compact" ? "compact" : "visual";
   });
+  const [visualCardSizeMode, setVisualCardSizeMode] = useState(() => {
+    const storedValue = window.localStorage.getItem(visualCardSizeModeStorageKey);
+    return ["compact", "normal", "large", "custom"].includes(storedValue)
+      ? storedValue
+      : "normal";
+  });
+  const [visualCardSizeCustom, setVisualCardSizeCustom] = useState(() => {
+    const storedValue = Number(window.localStorage.getItem(visualCardSizeCustomStorageKey));
+    return Number.isFinite(storedValue) && storedValue >= 220 && storedValue <= 420
+      ? storedValue
+      : 280;
+  });
 
   const isSmallScreen = useMediaQuery((theme) => theme.breakpoints.down("sm"));
+  const visualCardWidth =
+    visualCardSizeMode === "custom"
+      ? visualCardSizeCustom
+      : VISUAL_CARD_SIZE_PRESETS[visualCardSizeMode] ?? VISUAL_CARD_SIZE_PRESETS.normal;
 
   const handleSort = (option) => {
     if (option === sortOption) {
@@ -126,6 +152,24 @@ export default function BrowsingPage({
   const handleViewModeChange = (nextViewMode) => {
     setViewMode(nextViewMode);
     window.localStorage.setItem(viewModeStorageKey, nextViewMode);
+  };
+
+  const handleVisualCardSizeModeChange = (_event, nextMode) => {
+    if (!nextMode) {
+      return;
+    }
+    setVisualCardSizeMode(nextMode);
+    window.localStorage.setItem(visualCardSizeModeStorageKey, nextMode);
+  };
+
+  const handleVisualCardSizeCustomChange = (_event, nextValue) => {
+    const value = Array.isArray(nextValue) ? nextValue[0] : nextValue;
+    setVisualCardSizeCustom(value);
+    window.localStorage.setItem(visualCardSizeCustomStorageKey, String(value));
+    if (visualCardSizeMode !== "custom") {
+      setVisualCardSizeMode("custom");
+      window.localStorage.setItem(visualCardSizeModeStorageKey, "custom");
+    }
   };
 
   useEffect(() => {
@@ -480,6 +524,54 @@ export default function BrowsingPage({
               onBannerFiltersChange={onBannerFiltersChange}
             />
           </Box>
+          {viewMode === "visual" ? (
+            <Box
+              sx={{
+                mb: 2,
+                p: 1.5,
+                borderRadius: 3,
+                bgcolor: "rgba(20, 27, 33, 0.72)",
+                border: "1px solid rgba(255,255,255,0.08)",
+                boxShadow: "0 14px 32px rgba(0,0,0,0.14)",
+              }}
+            >
+              <Stack spacing={1.25}>
+                <Typography variant="subtitle2" color="text.secondary">
+                  Visual card size
+                </Typography>
+                <Box sx={{ display: "flex", gap: 1.25, flexWrap: "wrap", alignItems: "center" }}>
+                  <ToggleButtonGroup
+                    size="small"
+                    exclusive
+                    value={visualCardSizeMode}
+                    onChange={handleVisualCardSizeModeChange}
+                    aria-label="Visual card size"
+                  >
+                    <ToggleButton value="compact">Compact</ToggleButton>
+                    <ToggleButton value="normal">Normal</ToggleButton>
+                    <ToggleButton value="large">Large</ToggleButton>
+                    <ToggleButton value="custom">Custom</ToggleButton>
+                  </ToggleButtonGroup>
+                  <Typography variant="body2" color="text.secondary">
+                    {visualCardWidth}px minimum width
+                  </Typography>
+                </Box>
+                {visualCardSizeMode === "custom" ? (
+                  <Box sx={{ px: 1, maxWidth: 360 }}>
+                    <Slider
+                      value={visualCardSizeCustom}
+                      min={220}
+                      max={420}
+                      step={10}
+                      onChange={handleVisualCardSizeCustomChange}
+                      valueLabelDisplay="auto"
+                      aria-label="Custom visual card width"
+                    />
+                  </Box>
+                ) : null}
+              </Stack>
+            </Box>
+          ) : null}
           {error && (
             <Alert
               severity="error"
@@ -535,14 +627,14 @@ export default function BrowsingPage({
                 mt: 2,
                 mb: 2,
                 display: "grid",
-                gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))",
+                gridTemplateColumns: `repeat(auto-fill, minmax(${visualCardWidth}px, 1fr))`,
                 gap: 2.5,
                 alignItems: "stretch",
               }}
             >
               {displayedBanners.map((banner) => (
                 <Box key={banner.id} sx={{ display: "flex", alignItems: "stretch" }}>
-                  <BannerCard banner={banner} />
+                  <BannerCard banner={banner} maxWidth={visualCardWidth} />
                 </Box>
               ))}
               {loadingMore

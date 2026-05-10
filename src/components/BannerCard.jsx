@@ -19,7 +19,7 @@ function formatDistance(lengthMeters) {
     : "Unknown distance";
 }
 
-export default function BannerCard({ banner }) {
+export default function BannerCard({ banner, maxWidth = 320 }) {
   const syncState = useBannergressSync();
   const effectiveListType = getBannerListType(
     syncState,
@@ -48,7 +48,7 @@ export default function BannerCard({ banner }) {
       <Card
         sx={{
           width: "100%",
-          maxWidth: 320,
+          maxWidth,
           display: "flex",
           height: "100%",
           borderRadius: 3,

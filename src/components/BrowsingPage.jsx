@@ -43,9 +43,10 @@ function buildBannersUrl({
   sortOrder,
   showOfflineBanners,
   offset,
+  limit = BROWSE_PAGE_SIZE,
 }) {
   const url = new URL("https://api.bannergress.com/bnrs");
-  url.searchParams.set("limit", String(BROWSE_PAGE_SIZE));
+  url.searchParams.set("limit", String(limit));
   url.searchParams.set("offset", String(offset));
 
   if (placeId) {
@@ -236,6 +237,7 @@ export default function BrowsingPage({
 
           let offset = 0;
           let allBanners = [];
+          const efficiencyPageSize = 100;
 
           while (!ignore) {
             const response = await fetchBannergress(
@@ -246,6 +248,7 @@ export default function BrowsingPage({
                 sortOrder,
                 showOfflineBanners: bannerFilters.showOfflineBanners,
                 offset,
+                limit: efficiencyPageSize,
               }),
               {
                 authenticate: !bannerFilters.showHiddenBanners,
@@ -265,7 +268,7 @@ export default function BrowsingPage({
               break;
             }
 
-            offset += 100;
+            offset += efficiencyPageSize;
           }
 
           if (!ignore) {

@@ -9,7 +9,6 @@ const MIN_DIRECTION_DISTANCE_METERS = 5;
 const MIN_DIRECTION_CHANGE_DEGREES = 8;
 const MIN_POSITION_CHANGE_METERS = 8;
 const MAX_TRACKED_ACCURACY_METERS = 75;
-const ORIENTATION_UPDATE_INTERVAL_MS = 250;
 const GEOLOCATION_POLL_INTERVAL_MS = 5000;
 const GEOLOCATION_OPTIONS = {
   enableHighAccuracy: false,
@@ -54,43 +53,6 @@ function calculateBearing(from, to) {
   return (((Math.atan2(y, x) * 180) / Math.PI) + 360) % 360;
 }
 
-function getScreenOrientationAngle() {
-  if (typeof window === "undefined") {
-    return 0;
-  }
-
-  if (Number.isFinite(window.screen?.orientation?.angle)) {
-    return window.screen.orientation.angle;
-  }
-
-  if (Number.isFinite(window.orientation)) {
-    return window.orientation;
-  }
-
-  return 0;
-}
-
-function extractOrientationHeading(event) {
-  if (!event) {
-    return null;
-  }
-
-  if (Number.isFinite(event.webkitCompassHeading)) {
-    return normalizeHeading(event.webkitCompassHeading);
-  }
-
-  const alpha = Number(event.alpha);
-
-  if (!Number.isFinite(alpha)) {
-    return null;
-  }
-
-  return normalizeHeading(360 - alpha + getScreenOrientationAngle());
-}
-
-function extractGeolocationHeading(coords) {
-  return normalizeHeading(Number(coords?.heading));
-}
 
 function shouldAcceptPositionUpdate({
   previousPosition,
@@ -274,19 +236,8 @@ export default function LocationMarker() {
   const manualInteractionAnchorRef = useRef(null);
   const followSuspendedRef = useRef(false);
   const hasCenteredRef = useRef(false);
-  const lastOrientationUpdateAtRef = useRef(0);
-  const headingSourcesRef = useRef({
-    orientation: null,
-    geolocation: null,
-    movement: null,
-  });
 
-  const updateEffectiveHeading = useCallback(() => {
-    const nextDirection =
-      headingSourcesRef.current.orientation ??
-      headingSourcesRef.current.geolocation ??
-      headingSourcesRef.current.movement;
-
+  const updateDirectionFromMovement = useCallback((nextDirection) => {
     setDirection((currentDirection) => {
       if (!Number.isFinite(nextDirection)) {
         return currentDirection ?? null;
@@ -406,19 +357,12 @@ export default function LocationMarker() {
 
       setPosition(nextPosition);
 
-      const geolocationHeading = extractGeolocationHeading(coords);
-
-      if (Number.isFinite(geolocationHeading)) {
-        headingSourcesRef.current.geolocation = geolocationHeading;
-      }
-
       if (
         previousPosition &&
         map.distance(previousPosition, nextPosition) >= MIN_DIRECTION_DISTANCE_METERS
       ) {
-        headingSourcesRef.current.movement = calculateBearing(
-          previousPosition,
-          nextPosition
+        updateDirectionFromMovement(
+          calculateBearing(previousPosition, nextPosition)
         );
       }
 
@@ -426,7 +370,6 @@ export default function LocationMarker() {
       previousAccuracyRef.current = Number.isFinite(nextAccuracy)
         ? nextAccuracy
         : previousAccuracyRef.current;
-      updateEffectiveHeading();
     };
 
     const handlePositionError = (error) => {
@@ -450,7 +393,7 @@ export default function LocationMarker() {
     return () => {
       window.clearInterval(intervalId);
     };
-  }, [map, recenterMap, updateEffectiveHeading]);
+  }, [map, recenterMap, updateDirectionFromMovement]);
 
   useEffect(() => {
     if (typeof window === "undefined") {
@@ -498,44 +441,6 @@ export default function LocationMarker() {
     };
   }, [map]);
 
-  useEffect(() => {
-    if (typeof window === "undefined") {
-      return () => {};
-    }
-
-    const handleOrientation = (event) => {
-      const now = Date.now();
-
-      if (
-        now - lastOrientationUpdateAtRef.current <
-        ORIENTATION_UPDATE_INTERVAL_MS
-      ) {
-        return;
-      }
-
-      const orientationHeading = extractOrientationHeading(event);
-
-      if (!Number.isFinite(orientationHeading)) {
-        return;
-      }
-
-      lastOrientationUpdateAtRef.current = now;
-      headingSourcesRef.current.orientation = orientationHeading;
-      updateEffectiveHeading();
-    };
-
-    window.addEventListener("deviceorientationabsolute", handleOrientation, true);
-    window.addEventListener("deviceorientation", handleOrientation, true);
-
-    return () => {
-      window.removeEventListener(
-        "deviceorientationabsolute",
-        handleOrientation,
-        true
-      );
-      window.removeEventListener("deviceorientation", handleOrientation, true);
-    };
-  }, [updateEffectiveHeading]);
 
   return position === null ? null : (
     <Marker

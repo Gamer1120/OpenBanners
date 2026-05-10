@@ -75,15 +75,9 @@ const sortOptionsMap = {
   "Nr. of Missions": "numberOfMissions",
 };
 const viewModeStorageKey = "openbanners-banner-view-mode";
-const visualCardSizeModeStorageKey = "openbanners-visual-card-size-mode";
 const visualCardColumnsStorageKey = "openbanners-visual-card-columns";
 const BROWSE_PAGE_SIZE = 9;
 const FILTERED_BROWSE_PREFETCH_TARGET = BROWSE_PAGE_SIZE * 2;
-const VISUAL_CARD_SIZE_PRESETS = {
-  compact: 6,
-  normal: 5,
-  large: 4,
-};
 const VISUAL_CARD_COLUMN_MIN = 3;
 const VISUAL_CARD_FALLBACK_MAX = 8;
 const VISUAL_CARD_GAP_PX = 20;
@@ -115,12 +109,6 @@ export default function BrowsingPage({
     const storedValue = window.localStorage.getItem(viewModeStorageKey);
     return storedValue === "compact" ? "compact" : "visual";
   });
-  const [visualCardSizeMode, setVisualCardSizeMode] = useState(() => {
-    const storedValue = window.localStorage.getItem(visualCardSizeModeStorageKey);
-    return ["compact", "normal", "large", "custom"].includes(storedValue)
-      ? storedValue
-      : "normal";
-  });
   const [visualCardColumns, setVisualCardColumns] = useState(() => {
     const storedValue = Number(window.localStorage.getItem(visualCardColumnsStorageKey));
     return Number.isFinite(storedValue) && storedValue >= VISUAL_CARD_COLUMN_MIN
@@ -130,10 +118,10 @@ export default function BrowsingPage({
   const [visualCardSliderMax, setVisualCardSliderMax] = useState(VISUAL_CARD_FALLBACK_MAX);
 
   const isSmallScreen = useMediaQuery((theme) => theme.breakpoints.down("sm"));
-  const visualCardColumnsTarget =
-    visualCardSizeMode === "custom"
-      ? Math.min(Math.max(visualCardColumns, VISUAL_CARD_COLUMN_MIN), visualCardSliderMax)
-      : VISUAL_CARD_SIZE_PRESETS[visualCardSizeMode] ?? VISUAL_CARD_SIZE_PRESETS.normal;
+  const visualCardColumnsTarget = Math.min(
+    Math.max(visualCardColumns, VISUAL_CARD_COLUMN_MIN),
+    visualCardSliderMax
+  );
   const visualCardWidth = `calc((100% - ${(visualCardColumnsTarget - 1) * VISUAL_CARD_GAP_PX}px) / ${visualCardColumnsTarget})`;
 
   const handleSort = (option) => {
@@ -535,25 +523,16 @@ export default function BrowsingPage({
               leadingControls={
                 viewMode === "visual" ? (
                   <VisualCardSizeButton
-                    sizeMode={visualCardSizeMode}
-                    customColumns={visualCardColumns}
+                    columns={visualCardColumns}
                     sliderMin={VISUAL_CARD_COLUMN_MIN}
                     sliderMax={visualCardSliderMax}
-                    onSizeModeChange={(nextMode) => {
-                      setVisualCardSizeMode(nextMode);
-                      window.localStorage.setItem(visualCardSizeModeStorageKey, nextMode);
-                    }}
-                    onCustomColumnsChange={(nextValue) => {
+                    onColumnsChange={(nextValue) => {
                       const value = Math.min(
                         Math.max(nextValue, VISUAL_CARD_COLUMN_MIN),
                         visualCardSliderMax
                       );
                       setVisualCardColumns(value);
                       window.localStorage.setItem(visualCardColumnsStorageKey, String(value));
-                      if (visualCardSizeMode !== "custom") {
-                        setVisualCardSizeMode("custom");
-                        window.localStorage.setItem(visualCardSizeModeStorageKey, "custom");
-                      }
                     }}
                   />
                 ) : null

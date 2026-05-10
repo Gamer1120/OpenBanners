@@ -1,28 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
-import {
-  Box,
-  Button,
-  Menu,
-  Slider,
-  ToggleButton,
-  ToggleButtonGroup,
-  Typography,
-} from "@mui/material";
+import { Box, Button, Menu, Slider, Typography } from "@mui/material";
 import ViewModuleRoundedIcon from "@mui/icons-material/ViewModuleRounded";
 
-const VISUAL_CARD_SIZE_PRESETS = {
-  compact: 6,
-  normal: 5,
-  large: 4,
-};
-
 export default function VisualCardSizeButton({
-  sizeMode,
-  customColumns,
+  columns,
   sliderMin,
   sliderMax,
-  onSizeModeChange,
-  onCustomColumnsChange,
+  onColumnsChange,
   variant = "outlined",
   color = "inherit",
   size = "small",
@@ -31,28 +15,19 @@ export default function VisualCardSizeButton({
 }) {
   const [anchorEl, setAnchorEl] = useState(null);
   const isOpen = Boolean(anchorEl);
-  const effectiveColumns =
-    sizeMode === "custom"
-      ? Math.min(Math.max(customColumns, sliderMin), sliderMax)
-      : VISUAL_CARD_SIZE_PRESETS[sizeMode] ?? VISUAL_CARD_SIZE_PRESETS.normal;
+  const effectiveColumns = Math.min(Math.max(columns, sliderMin), sliderMax);
 
   useEffect(() => {
     if (!isOpen) {
       return;
     }
 
-    if (sizeMode === "custom" && customColumns > sliderMax) {
-      onCustomColumnsChange?.(sliderMax);
+    if (columns > sliderMax) {
+      onColumnsChange?.(sliderMax);
     }
-  }, [customColumns, isOpen, onCustomColumnsChange, sizeMode, sliderMax]);
+  }, [columns, isOpen, onColumnsChange, sliderMax]);
 
-  const buttonLabel = useMemo(() => {
-    if (sizeMode === "custom") {
-      return `Card size (${effectiveColumns}/row)`;
-    }
-
-    return "Card size";
-  }, [effectiveColumns, sizeMode]);
+  const buttonLabel = useMemo(() => `Card size (${effectiveColumns}/row)`, [effectiveColumns]);
 
   return (
     <>
@@ -83,44 +58,24 @@ export default function VisualCardSizeButton({
           >
             Visual card size
           </Typography>
-          <ToggleButtonGroup
-            size="small"
-            exclusive
-            value={sizeMode}
-            onChange={(_, nextMode) => {
-              if (!nextMode) {
-                return;
-              }
-              onSizeModeChange?.(nextMode);
-            }}
-            sx={{ mt: 0.75, display: "flex", flexWrap: "wrap" }}
-          >
-            <ToggleButton value="compact">Compact</ToggleButton>
-            <ToggleButton value="normal">Normal</ToggleButton>
-            <ToggleButton value="large">Large</ToggleButton>
-            <ToggleButton value="custom">Custom</ToggleButton>
-          </ToggleButtonGroup>
-
-          {sizeMode === "custom" ? (
-            <Box sx={{ mt: 1.5, px: 0.5 }}>
-              <Typography variant="body2" color="text.secondary" sx={{ mb: 0.75 }}>
-                Cards per row
-              </Typography>
-              <Slider
-                value={Math.min(Math.max(customColumns, sliderMin), sliderMax)}
-                min={sliderMin}
-                max={sliderMax}
-                step={1}
-                marks
-                onChange={(_, nextValue) => {
-                  const value = Array.isArray(nextValue) ? nextValue[0] : nextValue;
-                  onCustomColumnsChange?.(value);
-                }}
-                valueLabelDisplay="auto"
-                aria-label="Cards per row"
-              />
-            </Box>
-          ) : null}
+          <Box sx={{ mt: 1.25, px: 0.5 }}>
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 0.75 }}>
+              Cards per row
+            </Typography>
+            <Slider
+              value={Math.min(Math.max(columns, sliderMin), sliderMax)}
+              min={sliderMin}
+              max={sliderMax}
+              step={1}
+              marks
+              onChange={(_, nextValue) => {
+                const value = Array.isArray(nextValue) ? nextValue[0] : nextValue;
+                onColumnsChange?.(value);
+              }}
+              valueLabelDisplay="auto"
+              aria-label="Cards per row"
+            />
+          </Box>
         </Box>
       </Menu>
     </>

@@ -15,13 +15,7 @@ import {
 import { fetchBannergress } from "../bannergressSync";
 
 const viewModeStorageKey = "openbanners-banner-view-mode";
-const visualCardSizeModeStorageKey = "openbanners-visual-card-size-mode";
 const visualCardColumnsStorageKey = "openbanners-visual-card-columns";
-const VISUAL_CARD_SIZE_PRESETS = {
-  compact: 6,
-  normal: 5,
-  large: 4,
-};
 const VISUAL_CARD_COLUMN_MIN = 3;
 const VISUAL_CARD_GAP_PX = 16;
 const VISUAL_CARD_MIN_WIDTH_PX = 220;
@@ -39,14 +33,11 @@ export default function SearchResults() {
     return storedValue === "compact" ? "compact" : "visual";
   });
   const { query } = useParams();
-  const visualCardSizeMode = window.localStorage.getItem(visualCardSizeModeStorageKey);
   const visualCardColumns = Number(window.localStorage.getItem(visualCardColumnsStorageKey));
   const visualCardColumnsTarget =
-    visualCardSizeMode === "custom"
-      ? Number.isFinite(visualCardColumns) && visualCardColumns >= VISUAL_CARD_COLUMN_MIN
-        ? visualCardColumns
-        : 5
-      : VISUAL_CARD_SIZE_PRESETS[visualCardSizeMode] ?? VISUAL_CARD_SIZE_PRESETS.normal;
+    Number.isFinite(visualCardColumns) && visualCardColumns >= VISUAL_CARD_COLUMN_MIN
+      ? visualCardColumns
+      : 5;
   const visualCardWidth = `calc((100% - ${(visualCardColumnsTarget - 1) * VISUAL_CARD_GAP_PX}px) / ${visualCardColumnsTarget})`;
 
   useEffect(() => {

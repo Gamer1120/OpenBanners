@@ -23,7 +23,6 @@ const VISUAL_CARD_SIZE_PRESETS = {
   large: 4,
 };
 const VISUAL_CARD_COLUMN_MIN = 3;
-const VISUAL_CARD_COLUMN_MAX = 8;
 const VISUAL_CARD_GAP_PX = 16;
 const VISUAL_CARD_MIN_WIDTH_PX = 220;
 const VISUAL_CARD_MAX_WIDTH_PX = 420;
@@ -45,7 +44,7 @@ export default function SearchResults() {
   const visualCardColumns = Number(window.localStorage.getItem(visualCardColumnsStorageKey));
   const visualCardColumnsTarget =
     visualCardSizeMode === "custom"
-      ? Number.isFinite(visualCardColumns) && visualCardColumns >= VISUAL_CARD_COLUMN_MIN && visualCardColumns <= VISUAL_CARD_COLUMN_MAX
+      ? Number.isFinite(visualCardColumns) && visualCardColumns >= VISUAL_CARD_COLUMN_MIN
         ? visualCardColumns
         : 5
       : VISUAL_CARD_SIZE_PRESETS[visualCardSizeMode] ?? VISUAL_CARD_SIZE_PRESETS.normal;

@@ -10,9 +10,11 @@ export default function SortingButtons({
   placeId,
   bannerFilters,
   onBannerFiltersChange,
+  leadingControls = null,
 }) {
   return (
     <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap", justifyContent: "flex-end" }}>
+      {leadingControls}
       <BannerFilterButton
         filters={bannerFilters}
         onChange={onBannerFiltersChange}

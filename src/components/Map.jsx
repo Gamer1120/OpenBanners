@@ -365,25 +365,59 @@ function getInteractionPoint(event, mapInstance) {
   return null;
 }
 
+function separateMarkerAnchorPoints(rawMarkers, markerDisplay) {
+  const minimumHorizontalDistance = markerDisplay.maxWidth + MARKER_IMAGE_GAP_PX;
+  const minimumVerticalDistance = markerDisplay.maxHeight * 0.6 + MARKER_IMAGE_GAP_PX;
+  const placedMarkers = [];
+
+  rawMarkers.forEach((marker) => {
+    let adjustedPoint = { ...marker.anchorPoint };
+
+    for (let iteration = 0; iteration < 12; iteration += 1) {
+      let collided = false;
+
+      for (const placedMarker of placedMarkers) {
+        const deltaX = adjustedPoint.x - placedMarker.anchorPoint.x;
+        const deltaY = adjustedPoint.y - placedMarker.anchorPoint.y;
+        const horizontalOverlap = minimumHorizontalDistance - Math.abs(deltaX);
+        const verticalOverlap = minimumVerticalDistance - Math.abs(deltaY);
+
+        if (horizontalOverlap > 0 && verticalOverlap > 0) {
+          collided = true;
+
+          if (horizontalOverlap <= verticalOverlap) {
+            adjustedPoint.x += deltaX >= 0 ? horizontalOverlap : -horizontalOverlap;
+          } else {
+            adjustedPoint.y -= verticalOverlap;
+          }
+        }
+      }
+
+      if (!collided) {
+        break;
+      }
+    }
+
+    placedMarkers.push({
+      ...marker,
+      anchorPoint: adjustedPoint,
+    });
+  });
+
+  return placedMarkers;
+}
+
 function resolveDisambiguationCandidates({
-  displayedBanners,
+  markerDescriptors,
   interactionPoint,
-  mapInstance,
   markerDisplay,
 }) {
-  if (!interactionPoint || !mapInstance?.latLngToContainerPoint) {
+  if (!interactionPoint) {
     return [];
   }
 
-  return displayedBanners
-    .map((banner) => {
-      const anchorPoint = normalizeContainerPoint(
-        mapInstance.latLngToContainerPoint({
-          lat: banner._latitude,
-          lng: banner._longitude,
-        })
-      );
-
+  return markerDescriptors
+    .map(({ banner, anchorPoint }) => {
       if (!anchorPoint) {
         return null;
       }
@@ -1288,9 +1322,8 @@ export default function Map({
     }
 
     const candidates = resolveDisambiguationCandidates({
-      displayedBanners,
+      markerDescriptors,
       interactionPoint,
-      mapInstance,
       markerDisplay,
     });
 
@@ -1322,9 +1355,8 @@ export default function Map({
     }
 
     const candidates = resolveDisambiguationCandidates({
-      displayedBanners,
+      markerDescriptors,
       interactionPoint,
-      mapInstance,
       markerDisplay,
     });
 
@@ -1340,44 +1372,75 @@ export default function Map({
     setDisambiguationState(null);
   };
 
-  const markerDescriptors = useMemo(
-    () =>
-      displayedBanners.flatMap((banner) => {
-        const isSelected = banner.id === selectedBannerId;
+  const markerDescriptors = useMemo(() => {
+    const mapInstance = mapRef.current;
 
-        const cacheKey = [
-          banner.id,
-          banner.picture ?? "none",
-          markerDisplay.maxWidth,
-          markerDisplay.maxHeight,
-          isSelected ? "selected" : "default",
-        ].join(":");
-        let icon = iconCacheRef.current.get(cacheKey);
+    const createDescriptor = (banner, anchorPoint = null, position = null) => {
+      const isSelected = banner.id === selectedBannerId;
+      const cacheKey = [
+        banner.id,
+        banner.picture ?? "none",
+        markerDisplay.maxWidth,
+        markerDisplay.maxHeight,
+        isSelected ? "selected" : "default",
+      ].join(":");
+      let icon = iconCacheRef.current.get(cacheKey);
 
-        if (!icon) {
-          icon = createBannerMarkerIcon({
-            banner,
-            width: markerDisplay.maxWidth,
-            maxHeight: markerDisplay.maxHeight,
-            isSelected,
-          });
-          iconCacheRef.current.set(cacheKey, icon);
+      if (!icon) {
+        icon = createBannerMarkerIcon({
+          banner,
+          width: markerDisplay.maxWidth,
+          maxHeight: markerDisplay.maxHeight,
+          isSelected,
+        });
+        iconCacheRef.current.set(cacheKey, icon);
+      }
+
+      return {
+        banner,
+        icon,
+        anchorPoint,
+        position: position ?? [banner._latitude, banner._longitude],
+      };
+    };
+
+    if (!mapInstance?.latLngToContainerPoint || !mapInstance?.containerPointToLatLng) {
+      return displayedBanners.map((banner) => createDescriptor(banner));
+    }
+
+    const rawMarkers = displayedBanners
+      .map((banner) => {
+        const anchorPoint = normalizeContainerPoint(
+          mapInstance.latLngToContainerPoint({
+            lat: banner._latitude,
+            lng: banner._longitude,
+          })
+        );
+
+        if (!anchorPoint) {
+          return null;
         }
 
-        return [
-          {
-            banner,
-            icon,
-          },
-        ];
-      }),
-    [
-      displayedBanners,
-      markerDisplay.maxHeight,
-      markerDisplay.maxWidth,
-      selectedBannerId,
-    ]
-  );
+        return {
+          banner,
+          anchorPoint,
+        };
+      })
+      .filter(Boolean)
+      .sort((markerA, markerB) => markerA.anchorPoint.y - markerB.anchorPoint.y);
+
+    return separateMarkerAnchorPoints(rawMarkers, markerDisplay).map(
+      ({ banner, anchorPoint }) => {
+        const adjustedLatLng = mapInstance.containerPointToLatLng(anchorPoint);
+        return createDescriptor(banner, anchorPoint, [adjustedLatLng.lat, adjustedLatLng.lng]);
+      }
+    );
+  }, [
+    displayedBanners,
+    markerDisplay.maxHeight,
+    markerDisplay.maxWidth,
+    selectedBannerId,
+  ]);
 
   return (
     <Box sx={{ position: "relative", flex: 1, minHeight: 0 }}>
@@ -1403,10 +1466,10 @@ export default function Map({
           />
         ) : null}
 
-        {markerDescriptors.map(({ banner, icon }) => (
+        {markerDescriptors.map(({ banner, icon, position }) => (
           <Marker
             key={banner.id}
-            position={[banner._latitude, banner._longitude]}
+            position={position}
             icon={icon}
             eventHandlers={{
               click: (event) => {

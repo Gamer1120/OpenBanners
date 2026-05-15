@@ -1,6 +1,7 @@
 import {
   MapContainer,
   Marker,
+  Polyline,
   TileLayer,
   useMapEvents,
 } from "react-leaflet";
@@ -23,7 +24,7 @@ import OpenInNewRoundedIcon from "@mui/icons-material/OpenInNewRounded";
 import PhotoSizeSelectLargeRoundedIcon from "@mui/icons-material/PhotoSizeSelectLargeRounded";
 import TuneRoundedIcon from "@mui/icons-material/TuneRounded";
 import L from "leaflet";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { fetchBannergress, useBannergressSync } from "../bannergressSync";
 import BannerFilterButton from "./BannerFilterButton";
@@ -41,6 +42,16 @@ const DISCOVERY_MAP_PAGE_SIZE = 100;
 const DISCOVERY_MAP_MAX_FETCHED_BANNERS = 500;
 const IMAGE_SIZE_STORAGE_KEY = "openbanners.discoveryMap.imageSize";
 const MARKER_IMAGE_GAP_PX = 4;
+const CONNECTOR_LINE_COLORS = [
+  "#ff6b6b",
+  "#ffd166",
+  "#06d6a0",
+  "#4cc9f0",
+  "#a78bfa",
+  "#f472b6",
+  "#f97316",
+  "#22c55e",
+];
 const IMAGE_SIZE_PRESETS = {
   small: { label: "Small", scale: 1.4 },
   medium: { label: "Medium", scale: 2 },
@@ -1404,11 +1415,27 @@ export default function Map({
         iconCacheRef.current.set(cacheKey, icon);
       }
 
+      const resolvedPosition = position ?? [banner._latitude, banner._longitude];
+      const isDisplaced =
+        anchorPoint &&
+        (Math.abs(resolvedPosition[0] - banner._latitude) > 0.0000001 ||
+          Math.abs(resolvedPosition[1] - banner._longitude) > 0.0000001);
+
       return {
         banner,
         icon,
         anchorPoint,
-        position: position ?? [banner._latitude, banner._longitude],
+        position: resolvedPosition,
+        originalPosition: [banner._latitude, banner._longitude],
+        isDisplaced,
+        connectorColor:
+          CONNECTOR_LINE_COLORS[
+            Math.abs(
+              String(banner.id)
+                .split("")
+                .reduce((sum, character) => sum + character.charCodeAt(0), 0)
+            ) % CONNECTOR_LINE_COLORS.length
+          ],
       };
     };
 
@@ -1474,18 +1501,31 @@ export default function Map({
           />
         ) : null}
 
-        {markerDescriptors.map(({ banner, icon, position }) => (
-          <Marker
-            key={banner.id}
-            position={position}
-            icon={icon}
-            eventHandlers={{
-              click: (event) => {
-                handleBannerInteraction(banner, event);
-              },
-            }}
-          />
-        ))}
+        {markerDescriptors.map(
+          ({ banner, icon, position, originalPosition, isDisplaced, connectorColor }) => (
+            <Fragment key={banner.id}>
+              {isDisplaced ? (
+                <Polyline
+                  positions={[originalPosition, position]}
+                  pathOptions={{
+                    color: connectorColor,
+                    weight: 3,
+                    opacity: 0.9,
+                  }}
+                />
+              ) : null}
+              <Marker
+                position={position}
+                icon={icon}
+                eventHandlers={{
+                  click: (event) => {
+                    handleBannerInteraction(banner, event);
+                  },
+                }}
+              />
+            </Fragment>
+          )
+        )}
 
         <MapEvents
           onMapClick={handleMapClick}

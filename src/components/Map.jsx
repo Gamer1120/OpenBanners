@@ -468,7 +468,13 @@ function resolveDisambiguationCandidates({
     .map((candidate) => candidate.banner);
 }
 
-function createBannerMarkerIcon({ banner, width, maxHeight, isSelected }) {
+function createBannerMarkerIcon({
+  banner,
+  width,
+  maxHeight,
+  isSelected,
+  accentColor = null,
+}) {
   const visualWidth = Math.max(12, width - MARKER_IMAGE_GAP_PX);
   const visualMaxHeight = Math.max(12, Math.round(maxHeight * 3) - MARKER_IMAGE_GAP_PX);
   const imageUrl = banner.picture
@@ -494,7 +500,7 @@ function createBannerMarkerIcon({ banner, width, maxHeight, isSelected }) {
               height:auto;
               max-height:${visualMaxHeight}px;
               display:block;
-              border:${isSelected ? "2px solid rgba(237,241,243,0.96)" : "1px solid rgba(255,255,255,0.16)"};
+              border:${accentColor ? `2px solid ${accentColor}` : isSelected ? "2px solid rgba(237,241,243,0.96)" : "1px solid rgba(255,255,255,0.16)"};
               box-shadow:${isSelected ? "0 18px 30px rgba(0,0,0,0.38)" : "0 10px 20px rgba(0,0,0,0.28)"};
               background:transparent;
             "
@@ -509,7 +515,7 @@ function createBannerMarkerIcon({ banner, width, maxHeight, isSelected }) {
           font:600 12px/1.2 'IBM Plex Sans', sans-serif;
           text-align:center;
           padding:8px;
-          border:1px solid rgba(255,255,255,0.16);
+          border:${accentColor ? `2px solid ${accentColor}` : "1px solid rgba(255,255,255,0.16)"};
           background:rgba(18,25,31,0.96);
           box-shadow:0 10px 20px rgba(0,0,0,0.28);
           transform:translate(-50%, -100%) ${isSelected ? "translateY(-6px)" : ""};
@@ -1394,7 +1400,12 @@ export default function Map({
   const markerDescriptors = useMemo(() => {
     const mapInstance = mapRef.current;
 
-    const createDescriptor = (banner, anchorPoint = null, position = null) => {
+    const createDescriptor = (
+      banner,
+      anchorPoint = null,
+      position = null,
+      connectorColor = null
+    ) => {
       const isSelected = banner.id === selectedBannerId;
       const cacheKey = [
         banner.id,
@@ -1402,6 +1413,7 @@ export default function Map({
         markerDisplay.maxWidth,
         markerDisplay.maxHeight,
         isSelected ? "selected" : "default",
+        connectorColor ?? "no-accent",
       ].join(":");
       let icon = iconCacheRef.current.get(cacheKey);
 
@@ -1411,6 +1423,7 @@ export default function Map({
           width: markerDisplay.maxWidth,
           maxHeight: markerDisplay.maxHeight,
           isSelected,
+          accentColor: connectorColor,
         });
         iconCacheRef.current.set(cacheKey, icon);
       }
@@ -1428,14 +1441,7 @@ export default function Map({
         position: resolvedPosition,
         originalPosition: [banner._latitude, banner._longitude],
         isDisplaced,
-        connectorColor:
-          CONNECTOR_LINE_COLORS[
-            Math.abs(
-              String(banner.id)
-                .split("")
-                .reduce((sum, character) => sum + character.charCodeAt(0), 0)
-            ) % CONNECTOR_LINE_COLORS.length
-          ],
+        connectorColor,
       };
     };
 
@@ -1467,7 +1473,20 @@ export default function Map({
     return separateMarkerAnchorPoints(rawMarkers, markerDisplay).map(
       ({ banner, anchorPoint }) => {
         const adjustedLatLng = mapInstance.containerPointToLatLng(anchorPoint);
-        return createDescriptor(banner, anchorPoint, [adjustedLatLng.lat, adjustedLatLng.lng]);
+        const connectorColor =
+          CONNECTOR_LINE_COLORS[
+            Math.abs(
+              String(banner.id)
+                .split("")
+                .reduce((sum, character) => sum + character.charCodeAt(0), 0)
+            ) % CONNECTOR_LINE_COLORS.length
+          ];
+        return createDescriptor(
+          banner,
+          anchorPoint,
+          [adjustedLatLng.lat, adjustedLatLng.lng],
+          connectorColor
+        );
       }
     );
   }, [

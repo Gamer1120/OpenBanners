@@ -40,6 +40,7 @@ const DISCOVERY_MAP_QUERY_PRECISION = 3;
 const DISCOVERY_MAP_PAGE_SIZE = 100;
 const DISCOVERY_MAP_MAX_FETCHED_BANNERS = 500;
 const IMAGE_SIZE_STORAGE_KEY = "openbanners.discoveryMap.imageSize";
+const MARKER_IMAGE_GAP_PX = 4;
 const IMAGE_SIZE_PRESETS = {
   small: { label: "Small", scale: 1.4 },
   medium: { label: "Medium", scale: 2 },
@@ -326,8 +327,10 @@ function normalizeContainerPoint(point) {
 }
 
 function getMarkerHitbox(anchorPoint, markerDisplay) {
-  const width = markerDisplay.maxWidth + DISAMBIGUATION_TOUCH_PADDING * 2;
-  const height = markerDisplay.maxHeight * 3 + DISAMBIGUATION_TOUCH_PADDING * 2;
+  const visualWidth = Math.max(12, markerDisplay.maxWidth - MARKER_IMAGE_GAP_PX);
+  const visualHeight = Math.max(12, markerDisplay.maxHeight * 3 - MARKER_IMAGE_GAP_PX);
+  const width = visualWidth + DISAMBIGUATION_TOUCH_PADDING * 2;
+  const height = visualHeight + DISAMBIGUATION_TOUCH_PADDING * 2;
 
   return {
     left: anchorPoint.x - width / 2,
@@ -413,6 +416,8 @@ function resolveDisambiguationCandidates({
 }
 
 function createBannerMarkerIcon({ banner, width, maxHeight, isSelected }) {
+  const visualWidth = Math.max(12, width - MARKER_IMAGE_GAP_PX);
+  const visualMaxHeight = Math.max(12, Math.round(maxHeight * 3) - MARKER_IMAGE_GAP_PX);
   const imageUrl = banner.picture
     ? `https://api.bannergress.com${banner.picture}`
     : "";
@@ -421,7 +426,7 @@ function createBannerMarkerIcon({ banner, width, maxHeight, isSelected }) {
     html: imageUrl
       ? `<div
           style="
-            width:${width}px;
+            width:${visualWidth}px;
             display:block;
             transform:translate(-50%, -100%) ${isSelected ? "translateY(-6px)" : ""};
             transform-origin:bottom center;
@@ -434,7 +439,7 @@ function createBannerMarkerIcon({ banner, width, maxHeight, isSelected }) {
             style="
               width:100%;
               height:auto;
-              max-height:${Math.round(maxHeight * 3)}px;
+              max-height:${visualMaxHeight}px;
               display:block;
               border:${isSelected ? "2px solid rgba(237,241,243,0.96)" : "1px solid rgba(255,255,255,0.16)"};
               box-shadow:${isSelected ? "0 18px 30px rgba(0,0,0,0.38)" : "0 10px 20px rgba(0,0,0,0.28)"};
@@ -442,8 +447,8 @@ function createBannerMarkerIcon({ banner, width, maxHeight, isSelected }) {
             "
           /></div>`
       : `<div style="
-          width:${width}px;
-          height:${maxHeight}px;
+          width:${visualWidth}px;
+          height:${Math.max(12, maxHeight - MARKER_IMAGE_GAP_PX)}px;
           display:flex;
           align-items:center;
           justify-content:center;

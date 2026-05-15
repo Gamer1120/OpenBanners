@@ -368,35 +368,43 @@ function getInteractionPoint(event, mapInstance) {
 function separateMarkerAnchorPoints(rawMarkers, markerDisplay) {
   const minimumHorizontalDistance = markerDisplay.maxWidth + MARKER_IMAGE_GAP_PX;
   const minimumVerticalDistance = markerDisplay.maxHeight * 0.6 + MARKER_IMAGE_GAP_PX;
+  const horizontalStep = Math.max(4, Math.round(minimumHorizontalDistance / 3));
+  const verticalStep = Math.max(4, Math.round(minimumVerticalDistance / 3));
   const placedMarkers = [];
 
+  const isColliding = (candidatePoint) =>
+    placedMarkers.some((placedMarker) => {
+      const deltaX = candidatePoint.x - placedMarker.anchorPoint.x;
+      const deltaY = candidatePoint.y - placedMarker.anchorPoint.y;
+
+      return (
+        Math.abs(deltaX) < minimumHorizontalDistance &&
+        Math.abs(deltaY) < minimumVerticalDistance
+      );
+    });
+
   rawMarkers.forEach((marker) => {
-    let adjustedPoint = { ...marker.anchorPoint };
+    const originPoint = marker.anchorPoint;
+    const candidatePoints = [{ x: originPoint.x, y: originPoint.y }];
 
-    for (let iteration = 0; iteration < 12; iteration += 1) {
-      let collided = false;
+    for (let radius = 1; radius <= 6; radius += 1) {
+      const xOffset = radius * horizontalStep;
+      const yOffset = radius * verticalStep;
 
-      for (const placedMarker of placedMarkers) {
-        const deltaX = adjustedPoint.x - placedMarker.anchorPoint.x;
-        const deltaY = adjustedPoint.y - placedMarker.anchorPoint.y;
-        const horizontalOverlap = minimumHorizontalDistance - Math.abs(deltaX);
-        const verticalOverlap = minimumVerticalDistance - Math.abs(deltaY);
-
-        if (horizontalOverlap > 0 && verticalOverlap > 0) {
-          collided = true;
-
-          if (horizontalOverlap <= verticalOverlap) {
-            adjustedPoint.x += deltaX >= 0 ? horizontalOverlap : -horizontalOverlap;
-          } else {
-            adjustedPoint.y -= verticalOverlap;
-          }
-        }
-      }
-
-      if (!collided) {
-        break;
-      }
+      candidatePoints.push(
+        { x: originPoint.x - xOffset, y: originPoint.y },
+        { x: originPoint.x + xOffset, y: originPoint.y },
+        { x: originPoint.x, y: originPoint.y - yOffset },
+        { x: originPoint.x - xOffset, y: originPoint.y - yOffset },
+        { x: originPoint.x + xOffset, y: originPoint.y - yOffset },
+        { x: originPoint.x - xOffset, y: originPoint.y + yOffset },
+        { x: originPoint.x + xOffset, y: originPoint.y + yOffset }
+      );
     }
+
+    const adjustedPoint =
+      candidatePoints.find((candidatePoint) => !isColliding(candidatePoint)) ??
+      candidatePoints[candidatePoints.length - 1];
 
     placedMarkers.push({
       ...marker,

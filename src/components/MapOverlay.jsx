@@ -34,7 +34,7 @@ export default function MapOverlay({
       window.open(missionUrl, "_blank");
     } else {
       const missionUrl = `https://link.ingress.com/?link=https%3a%2f%2fintel.ingress.com%2fmission%2f${missions[currentMission].id}&apn=com.nianticproject.ingress&isi=576505181&ibi=com.google.ingress&ifl=https%3a%2f%2fapps.apple.com%2fapp%2fingress%2fid576505181&ofl=https%3a%2f%2fintel.ingress.com%2fmission%2f${missions[currentMission].id}`;
-      window.open(missionUrl, "_blank");
+      window.open(missionUrl);
     }
   };
 

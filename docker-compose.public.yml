@@ -1,0 +1,29 @@
+name: openbanners-public
+
+services:
+  web:
+    image: ghcr.io/gamer1120/openbanners:latest
+    container_name: openbanners-public
+    restart: unless-stopped
+    pull_policy: always
+    ports:
+      - "127.0.0.1:18080:80"
+    labels:
+      com.centurylinklabs.watchtower.enable: "true"
+      com.centurylinklabs.watchtower.scope: "openbanners-public"
+
+  watchtower:
+    image: containrrr/watchtower:latest
+    container_name: openbanners-watchtower
+    restart: unless-stopped
+    environment:
+      DOCKER_API_VERSION: "1.40"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    command:
+      - "--interval"
+      - "300"
+      - "--cleanup"
+      - "--label-enable"
+      - "--scope"
+      - "openbanners-public"

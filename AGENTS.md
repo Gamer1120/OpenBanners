@@ -16,6 +16,7 @@ Use Yarn 1, as pinned in `package.json`.
 - `yarn build`: create the production build in `dist/`.
 - `yarn preview`: serve the built app locally for verification.
 - `yarn prerender:banner <banner-id>`: generate static metadata HTML for a banner after a build.
+- `docker compose -f docker-compose.public.yml up -d`: run the published GHCR image on local backend port `18080`; nginx exposes it publicly on the existing HTTPS port `443` using `docker/openbanners-nginx-container-location.conf` from the `openbanners.org` vhost. The included Watchtower service checks for new images and updates the container automatically.
 - After a change is complete, run `git pull && yarn build && systemctl restart nginx` before considering the production update done.
 - Always commit and push completed changes after verification.
 

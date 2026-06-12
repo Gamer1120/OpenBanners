@@ -5,6 +5,32 @@ import { getFlagForPlace } from "./CountryFlags";
 
 const COUNTRY_PLACES_CACHE_KEY = "openbanners-country-places-v1";
 const COUNTRY_PLACES_CACHE_TTL_MS = 30 * 24 * 60 * 60 * 1000;
+const placeLinkStyle = {
+  textDecoration: "none",
+  color: "#fff",
+  fontSize: 12,
+  display: "inline-flex",
+  alignItems: "center",
+  gap: 6,
+  minHeight: 18,
+};
+const placeMarkerStyle = {
+  display: "inline-block",
+  width: "1.4em",
+  textAlign: "center",
+  lineHeight: 1,
+  fontFamily:
+    '"Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif',
+};
+
+function getPlaceLabel(place) {
+  return (
+    place?.longName ||
+    place?.formattedAddress ||
+    place?.shortName ||
+    "All countries"
+  );
+}
 
 function readCountryPlacesCache() {
   try {
@@ -56,8 +82,46 @@ export default function PlacesList({ parentPlaceId }) {
   const { placeId: routePlaceId } = useParams();
   const placeId = parentPlaceId ?? routePlaceId;
   const [places, setPlaces] = useState([]);
+  const [currentPlace, setCurrentPlace] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+
+  useEffect(() => {
+    if (!placeId) {
+      setCurrentPlace(null);
+      return undefined;
+    }
+
+    let ignore = false;
+    setCurrentPlace(null);
+
+    const fetchCurrentPlace = async () => {
+      try {
+        const response = await fetch(
+          `https://api.bannergress.com/places/${encodeURIComponent(placeId)}`
+        );
+        const data = await response.json();
+
+        if (!ignore && data && typeof data === "object" && data.id) {
+          setCurrentPlace(data);
+        } else if (!ignore) {
+          setCurrentPlace(null);
+        }
+      } catch (fetchError) {
+        console.error(fetchError);
+
+        if (!ignore) {
+          setCurrentPlace(null);
+        }
+      }
+    };
+
+    fetchCurrentPlace();
+
+    return () => {
+      ignore = true;
+    };
+  }, [placeId]);
 
   useEffect(() => {
     let ignore = false;
@@ -125,6 +189,33 @@ export default function PlacesList({ parentPlaceId }) {
 
   return (
     <Box sx={{ mr: 2, minWidth: 150 }}>
+      {placeId && (
+        <Box sx={{ mb: 0.6, pb: 0.6, textAlign: "left" }}>
+          <Link
+            aria-label={
+              currentPlace?.parentPlace
+                ? `Up to ${getPlaceLabel(currentPlace.parentPlace)}`
+                : "Up to all countries"
+            }
+            to={
+              currentPlace?.parentPlace
+                ? `/browse/${currentPlace.parentPlace.id}`
+                : "/browse/"
+            }
+            style={placeLinkStyle}
+          >
+            <span aria-hidden="true" style={placeMarkerStyle}>
+              ↑
+            </span>
+            <span>
+              {currentPlace?.parentPlace
+                ? getPlaceLabel(currentPlace.parentPlace)
+                : "All countries"}
+            </span>
+          </Link>
+        </Box>
+      )}
+
       {loading && (
         <Typography variant="body2" color="text.secondary">
           Loading places...
@@ -146,26 +237,11 @@ export default function PlacesList({ parentPlaceId }) {
           <Box key={place.id} sx={{ mb: 0.2, textAlign: "left" }}>
             <Link
               to={`/browse/${place.id}`}
-              style={{
-                textDecoration: "none",
-                color: "#fff",
-                fontSize: 12,
-                display: "inline-flex",
-                alignItems: "center",
-                gap: 6,
-                minHeight: 18,
-              }}
+              style={placeLinkStyle}
             >
               <span
                 aria-hidden="true"
-                style={{
-                  display: "inline-block",
-                  width: "1.4em",
-                  textAlign: "center",
-                  lineHeight: 1,
-                  fontFamily:
-                    '"Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif',
-                }}
+                style={placeMarkerStyle}
               >
                 {flag || " "}
               </span>

@@ -17,12 +17,17 @@ Use Yarn 1, as pinned in `package.json`.
 - `yarn preview`: serve the built app locally for verification.
 - `yarn prerender:banner <banner-id>`: generate static metadata HTML for a banner after a build.
 - After a change is complete, run `git pull && yarn build && systemctl restart nginx` before considering the production update done.
+- Always commit and push completed changes after verification.
 
 ## Coding Style & Naming Conventions
 
 Follow the existing JavaScript and JSX style: 2-space indentation, double quotes, semicolons, and ES module imports. React components use PascalCase file and function names, such as `BannerDetailsPage.jsx`; utilities use camelCase, such as `bannerFilters.js`. Keep component-specific styling near the component when practical, and avoid broad refactors when making targeted fixes in this stabilization-focused codebase.
 
 There is no dedicated lint or format script in this repository. Match nearby code and run tests/builds before submitting changes.
+
+## Continuous Learning
+
+When a workflow, deployment step, testing note, or project-specific convention is discovered while working, add it to `AGENTS.md` in a concise, durable form so future agents can build on it.
 
 ## Testing Guidelines
 

@@ -505,6 +505,97 @@ test("renders browsing results and places list", async () => {
   );
 });
 
+test("shows parent place as the top places list entry", async () => {
+  global.fetch.mockImplementation((url) => {
+    if (url.includes("/places/south-holland-3200")) {
+      return jsonResponse({
+        id: "south-holland-3200",
+        formattedAddress: "South Holland, Netherlands",
+        longName: "South Holland",
+        numberOfBanners: 1140,
+        parentPlace: {
+          id: "netherlands-2585",
+          formattedAddress: "Netherlands",
+          longName: "Netherlands",
+          numberOfBanners: 4589,
+          type: "country",
+        },
+      });
+    }
+
+    if (url.includes("/places?used=true&parentPlaceId=south-holland-3200")) {
+      return jsonResponse([
+        {
+          id: "leiden-8522",
+          formattedAddress: "Leiden, Netherlands",
+          numberOfBanners: 281,
+        },
+      ]);
+    }
+
+    if (
+      url.includes("/bnrs?") &&
+      url.includes("placeId=south-holland-3200") &&
+      url.includes("orderBy=created")
+    ) {
+      return jsonResponse([]);
+    }
+
+    throw new Error(`Unhandled fetch: ${url}`);
+  });
+
+  renderWithProviders(
+    <BrowsingPage placeId="south-holland-3200" />,
+    { route: "/browse/south-holland-3200" }
+  );
+
+  expect(await screen.findByText(/Leiden, Netherlands/)).toBeInTheDocument();
+
+  const browseLinks = screen.getAllByRole("link");
+  expect(
+    browseLinks[0]
+  ).toHaveAttribute("href", "/browse/netherlands-2585");
+  expect(browseLinks[0]).toHaveAccessibleName(/up to netherlands/i);
+  expect(browseLinks[1]).toHaveAttribute("href", "/browse/leiden-8522");
+});
+
+test("links country browse pages back to all countries", async () => {
+  global.fetch.mockImplementation((url) => {
+    if (url.includes("/places/netherlands-2585")) {
+      return jsonResponse({
+        id: "netherlands-2585",
+        formattedAddress: "Netherlands",
+        longName: "Netherlands",
+        numberOfBanners: 4589,
+        type: "country",
+      });
+    }
+
+    if (url.includes("/places?used=true&parentPlaceId=netherlands-2585")) {
+      return jsonResponse([]);
+    }
+
+    if (
+      url.includes("/bnrs?") &&
+      url.includes("placeId=netherlands-2585") &&
+      url.includes("orderBy=created")
+    ) {
+      return jsonResponse([]);
+    }
+
+    throw new Error(`Unhandled fetch: ${url}`);
+  });
+
+  renderWithProviders(
+    <BrowsingPage placeId="netherlands-2585" />,
+    { route: "/browse/netherlands-2585" }
+  );
+
+  expect(
+    await screen.findByRole("link", { name: /up to all countries/i })
+  ).toHaveAttribute("href", "/browse/");
+});
+
 
 test("renders an agent page and fetches banners by author", async () => {
   global.fetch.mockImplementation((url) => {

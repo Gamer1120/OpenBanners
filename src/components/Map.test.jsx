@@ -42,6 +42,10 @@ vi.mock("react-leaflet", async () => {
       x: Math.round((lng - 6.85) * 1000 + 180),
       y: Math.round((52.2 - lat) * 1000 + 320),
     }),
+    containerPointToLatLng: ({ x, y }) => ({
+      lat: 52.2 - (y - 320) / 1000,
+      lng: 6.85 + (x - 180) / 1000,
+    }),
   });
 
   const MapContainer = React.forwardRef(({ children, whenReady }, ref) => {
@@ -63,6 +67,7 @@ vi.mock("react-leaflet", async () => {
   return {
     MapContainer,
     TileLayer: ({ children }) => <div data-testid="tile-layer">{children}</div>,
+    Polyline: ({ children }) => <div data-testid="polyline">{children}</div>,
     Marker: ({ children, position }) => (
       <div
         data-testid={`marker-${
@@ -269,8 +274,8 @@ test("toggles discovery map markers between images and list-colored dots", async
           lengthMeters: 1800,
           formattedAddress: "Enschede, NL",
           numberOfDisabledMissions: 0,
-          startLatitude: "52.201",
-          startLongitude: "6.851",
+          startLatitude: "52.2",
+          startLongitude: "6.9",
         },
         {
           id: "dot-hidden-banner",
@@ -280,8 +285,8 @@ test("toggles discovery map markers between images and list-colored dots", async
           lengthMeters: 1800,
           formattedAddress: "Enschede, NL",
           numberOfDisabledMissions: 0,
-          startLatitude: "52.202",
-          startLongitude: "6.852",
+          startLatitude: "52.15",
+          startLongitude: "6.85",
         },
         {
           id: "dot-none-banner",
@@ -291,8 +296,8 @@ test("toggles discovery map markers between images and list-colored dots", async
           lengthMeters: 1800,
           formattedAddress: "Enschede, NL",
           numberOfDisabledMissions: 0,
-          startLatitude: "52.203",
-          startLongitude: "6.853",
+          startLatitude: "52.15",
+          startLongitude: "6.9",
         },
       ]);
     }
@@ -332,6 +337,68 @@ test("toggles discovery map markers between images and list-colored dots", async
     expect(dotIconHtml).toContain("background:#d85f5f");
     expect(dotIconHtml).toContain("background:#4d9fff");
   });
+});
+
+test("clusters nearby dot markers into numbered dots without connector lines", async () => {
+  window.localStorage.setItem("openbanners.discoveryMap.markerMode", "dots");
+
+  global.fetch.mockImplementation((url) => {
+    if (url.includes("/bnrs?orderBy=proximityStartPoint")) {
+      return jsonResponse([
+        {
+          id: "cluster-dot-banner-1",
+          title: "Cluster Dot Banner 1",
+          picture: "/images/cluster-dot-1.jpg",
+          numberOfMissions: 6,
+          lengthMeters: 1800,
+          formattedAddress: "Enschede, NL",
+          numberOfDisabledMissions: 0,
+          startLatitude: "52.2",
+          startLongitude: "6.85",
+        },
+        {
+          id: "cluster-dot-banner-2",
+          title: "Cluster Dot Banner 2",
+          picture: "/images/cluster-dot-2.jpg",
+          numberOfMissions: 6,
+          lengthMeters: 1800,
+          formattedAddress: "Enschede, NL",
+          numberOfDisabledMissions: 0,
+          startLatitude: "52.2005",
+          startLongitude: "6.8505",
+        },
+        {
+          id: "cluster-dot-banner-3",
+          title: "Cluster Dot Banner 3",
+          picture: "/images/cluster-dot-3.jpg",
+          numberOfMissions: 6,
+          lengthMeters: 1800,
+          formattedAddress: "Enschede, NL",
+          numberOfDisabledMissions: 0,
+          startLatitude: "52.201",
+          startLongitude: "6.851",
+        },
+      ]);
+    }
+
+    throw new Error(`Unhandled fetch: ${url}`);
+  });
+
+  renderWithProviders(<Map />);
+
+  await screen.findByText("Cluster Dot Banner 1");
+
+  await waitFor(() => {
+    const dotIconHtml = L.divIcon.mock.calls
+      .map(([options]) => options)
+      .filter((options) => options.className === "banner-map-dot-icon")
+      .map((options) => options.html)
+      .join("\n");
+
+    expect(dotIconHtml).toContain(">3</div>");
+  });
+
+  expect(screen.queryByTestId("polyline")).not.toBeInTheDocument();
 });
 
 test("fetches additional discovery map pages when more than 50 banners are in view", async () => {

@@ -51,6 +51,7 @@ const DOT_MARKER_DISPLAY = {
   maxWidth: 30,
   maxHeight: 30,
 };
+const DOT_MARKER_CLUSTER_DISTANCE_PX = 28;
 const DOT_MARKER_COLORS = {
   todo: {
     fill: "#f2b63d",
@@ -477,6 +478,78 @@ function separateMarkerAnchorPoints(rawMarkers, markerDisplay) {
   return placedMarkers;
 }
 
+function getEffectiveBannerListType(banner, syncState) {
+  return getBannerListType(syncState, banner.id, banner.listType);
+}
+
+function getDominantListType(banners, syncState) {
+  const counts = banners.reduce(
+    (currentCounts, banner) => {
+      const listType = getEffectiveBannerListType(banner, syncState) ?? "none";
+      return {
+        ...currentCounts,
+        [listType]: (currentCounts[listType] ?? 0) + 1,
+      };
+    },
+    {}
+  );
+  const rankedListTypes = ["todo", "done", "blacklist", "none"];
+  let dominantListType = "none";
+  let dominantCount = 0;
+  let hasTie = false;
+
+  rankedListTypes.forEach((listType) => {
+    const count = counts[listType] ?? 0;
+
+    if (count > dominantCount) {
+      dominantListType = listType;
+      dominantCount = count;
+      hasTie = false;
+    } else if (count === dominantCount && count > 0) {
+      hasTie = true;
+    }
+  });
+
+  return hasTie ? "none" : dominantListType;
+}
+
+function clusterDotMarkers(rawMarkers) {
+  const clusters = [];
+
+  rawMarkers.forEach((marker) => {
+    const matchingCluster = clusters.find((cluster) => {
+      const deltaX = marker.anchorPoint.x - cluster.anchorPoint.x;
+      const deltaY = marker.anchorPoint.y - cluster.anchorPoint.y;
+
+      return Math.hypot(deltaX, deltaY) <= DOT_MARKER_CLUSTER_DISTANCE_PX;
+    });
+
+    if (!matchingCluster) {
+      clusters.push({
+        anchorPoint: marker.anchorPoint,
+        markers: [marker],
+      });
+      return;
+    }
+
+    matchingCluster.markers.push(marker);
+    matchingCluster.anchorPoint = {
+      x:
+        matchingCluster.markers.reduce(
+          (sum, clusterMarker) => sum + clusterMarker.anchorPoint.x,
+          0
+        ) / matchingCluster.markers.length,
+      y:
+        matchingCluster.markers.reduce(
+          (sum, clusterMarker) => sum + clusterMarker.anchorPoint.y,
+          0
+        ) / matchingCluster.markers.length,
+    };
+  });
+
+  return clusters;
+}
+
 function resolveDisambiguationCandidates({
   markerDescriptors,
   interactionPoint,
@@ -487,7 +560,8 @@ function resolveDisambiguationCandidates({
   }
 
   return markerDescriptors
-    .map(({ banner, anchorPoint }) => {
+    .map((markerDescriptor) => {
+      const { banner, anchorPoint } = markerDescriptor;
       if (!anchorPoint) {
         return null;
       }
@@ -498,14 +572,19 @@ function resolveDisambiguationCandidates({
         return null;
       }
 
+      const candidateBanners = markerDescriptor.banners ?? [banner];
       const distanceFromAnchor = Math.hypot(
         interactionPoint.x - anchorPoint.x,
         interactionPoint.y - anchorPoint.y
       );
+      const distanceMeters = Math.min(
+        ...candidateBanners.map((candidateBanner) => candidateBanner._distanceMeters)
+      );
 
       return {
-        banner,
+        banners: candidateBanners,
         distanceFromAnchor,
+        distanceMeters,
       };
     })
     .filter(Boolean)
@@ -514,9 +593,9 @@ function resolveDisambiguationCandidates({
         return candidateA.distanceFromAnchor - candidateB.distanceFromAnchor;
       }
 
-      return candidateA.banner._distanceMeters - candidateB.banner._distanceMeters;
+      return candidateA.distanceMeters - candidateB.distanceMeters;
     })
-    .map((candidate) => candidate.banner);
+    .flatMap((candidate) => candidate.banners);
 }
 
 function createBannerMarkerIcon({
@@ -581,10 +660,12 @@ function createBannerMarkerIcon({
 function createBannerDotIcon({
   listType,
   isSelected,
+  count = 1,
   accentColor = null,
 }) {
   const colors = DOT_MARKER_COLORS[listType ?? "none"] ?? DOT_MARKER_COLORS.none;
-  const size = isSelected ? 18 : 14;
+  const isCluster = count > 1;
+  const size = isCluster ? (isSelected ? 26 : 22) : isSelected ? 18 : 14;
   const borderWidth = isSelected ? 3 : 2;
   const borderColor = accentColor ?? colors.border;
   const shadow = isSelected
@@ -601,8 +682,14 @@ function createBannerDotIcon({
         border:${borderWidth}px solid ${borderColor};
         box-shadow:${shadow};
         transform:translate(-50%, -50%);
+        color:#ffffff;
+        display:flex;
+        align-items:center;
+        justify-content:center;
+        font:800 ${isCluster ? 11 : 0}px/1 'IBM Plex Sans', sans-serif;
+        text-shadow:0 1px 2px rgba(0,0,0,0.38);
       "
-    ></div>`,
+    >${isCluster ? count : ""}</div>`,
     className: "banner-map-dot-icon",
     iconSize: [0, 0],
     iconAnchor: [0, 0],
@@ -1477,6 +1564,28 @@ export default function Map({
     handleBannerSelection(banner);
   };
 
+  const handleMarkerDescriptorInteraction = (markerDescriptor, event) => {
+    const descriptorBanners = markerDescriptor.banners ?? [
+      markerDescriptor.banner,
+    ];
+
+    if (descriptorBanners.length < 2) {
+      handleBannerInteraction(markerDescriptor.banner, event);
+      return;
+    }
+
+    const mapInstance = mapRef.current;
+    const interactionPoint =
+      (mapInstance ? getInteractionPoint(event, mapInstance) : null) ??
+      markerDescriptor.anchorPoint;
+
+    setSelectedBannerId(descriptorBanners[0].id);
+    setDisambiguationState({
+      point: interactionPoint,
+      bannerIds: descriptorBanners.map((banner) => banner.id),
+    });
+  };
+
   const handleMapClick = (event) => {
     const mapInstance = mapRef.current;
 
@@ -1517,22 +1626,25 @@ export default function Map({
       banner,
       anchorPoint = null,
       position = null,
-      connectorColor = null
+      connectorColor = null,
+      descriptorBanners = null,
+      listTypeOverride = null
     ) => {
-      const isSelected = banner.id === selectedBannerId;
-      const effectiveListType = getBannerListType(
-        syncState,
-        banner.id,
-        banner.listType
+      const bannersForMarker = descriptorBanners ?? [banner];
+      const isSelected = bannersForMarker.some(
+        (markerBanner) => markerBanner.id === selectedBannerId
       );
+      const effectiveListType =
+        listTypeOverride ?? getEffectiveBannerListType(banner, syncState);
       const cacheKey = [
         markerMode,
-        banner.id,
+        bannersForMarker.map((markerBanner) => markerBanner.id).join(","),
         markerMode === "images" ? banner.picture ?? "none" : "dot",
         markerDisplay.maxWidth,
         markerDisplay.maxHeight,
         isSelected ? "selected" : "default",
         effectiveListType ?? "none",
+        bannersForMarker.length,
         connectorColor ?? "no-accent",
       ].join(":");
       let icon = iconCacheRef.current.get(cacheKey);
@@ -1543,6 +1655,7 @@ export default function Map({
             ? createBannerDotIcon({
                 listType: effectiveListType,
                 isSelected,
+                count: bannersForMarker.length,
                 accentColor: connectorColor,
               })
             : createBannerMarkerIcon({
@@ -1557,16 +1670,22 @@ export default function Map({
 
       const resolvedPosition = position ?? [banner._latitude, banner._longitude];
       const isDisplaced =
+        markerMode === "images" &&
         anchorPoint &&
         (Math.abs(resolvedPosition[0] - banner._latitude) > 0.0000001 ||
           Math.abs(resolvedPosition[1] - banner._longitude) > 0.0000001);
 
       return {
+        id: bannersForMarker.map((markerBanner) => markerBanner.id).join("|"),
         banner,
+        banners: bannersForMarker,
         icon,
         anchorPoint,
         position: resolvedPosition,
-        originalPosition: [banner._latitude, banner._longitude],
+        originalPosition:
+          markerMode === "dots"
+            ? resolvedPosition
+            : [banner._latitude, banner._longitude],
         isDisplaced,
         connectorColor,
       };
@@ -1596,6 +1715,22 @@ export default function Map({
       })
       .filter(Boolean)
       .sort((markerA, markerB) => markerA.anchorPoint.y - markerB.anchorPoint.y);
+
+    if (markerMode === "dots") {
+      return clusterDotMarkers(rawMarkers).map((cluster) => {
+        const clusterBanners = cluster.markers.map((marker) => marker.banner);
+        const clusterLatLng = mapInstance.containerPointToLatLng(cluster.anchorPoint);
+
+        return createDescriptor(
+          clusterBanners[0],
+          cluster.anchorPoint,
+          [clusterLatLng.lat, clusterLatLng.lng],
+          null,
+          clusterBanners,
+          getDominantListType(clusterBanners, syncState)
+        );
+      });
+    }
 
     return separateMarkerAnchorPoints(rawMarkers, markerDisplay).map(
       ({ banner, anchorPoint }) => {
@@ -1649,9 +1784,18 @@ export default function Map({
           />
         ) : null}
 
-        {markerDescriptors.map(
-          ({ banner, icon, position, originalPosition, isDisplaced, connectorColor }) => (
-            <Fragment key={banner.id}>
+        {markerDescriptors.map((markerDescriptor) => {
+          const {
+            id,
+            icon,
+            position,
+            originalPosition,
+            isDisplaced,
+            connectorColor,
+          } = markerDescriptor;
+
+          return (
+            <Fragment key={id}>
               {isDisplaced ? (
                 <Polyline
                   positions={[originalPosition, position]}
@@ -1667,13 +1811,13 @@ export default function Map({
                 icon={icon}
                 eventHandlers={{
                   click: (event) => {
-                    handleBannerInteraction(banner, event);
+                    handleMarkerDescriptorInteraction(markerDescriptor, event);
                   },
                 }}
               />
             </Fragment>
-          )
-        )}
+          );
+        })}
 
         <MapEvents
           onMapClick={handleMapClick}

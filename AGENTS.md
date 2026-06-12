@@ -11,10 +11,10 @@ Tests are colocated with the code they cover using `*.test.js` or `*.test.jsx`, 
 Use Yarn 1, as pinned in `package.json`.
 
 - `yarn install`: install dependencies from `yarn.lock`.
-- `yarn dev` or `yarn start`: run the Vite development server.
+- `yarn dev` or `yarn start`: run the Vite development server for local debugging.
 - `yarn test`: run Vitest once in jsdom.
 - `yarn build`: create the production build in `dist/`.
-- `yarn preview`: serve the built app locally for verification.
+- `yarn preview`: serve the built app locally for debugging a built bundle.
 - `yarn prerender:banner <banner-id>`: generate static metadata HTML for a banner after a build.
 - `docker compose -f docker-compose.public.yml up -d`: run the published GHCR image on local backend port `18080`; nginx exposes it publicly on the existing HTTPS port `443` using `docker/openbanners-nginx-container-location.conf` from the `openbanners.org` vhost. The included Watchtower service checks for new images and updates the container automatically.
 - Do not deploy production by running `yarn build` locally or by restarting nginx for app code changes. After a completed change, commit and push to GitHub, wait for the Docker image workflow to publish `ghcr.io/gamer1120/openbanners:latest`, let Watchtower update the `openbanners-public` container, and then verify production at `https://openbanners.org/`.
@@ -36,7 +36,7 @@ Multiple agents may work in this repository at the same time. Before starting la
 
 The test stack is Vitest, jsdom, and Testing Library, configured in `vite.config.mjs` with setup in `src/setupTests.js`. Add focused regression tests for route behavior, filtering, map interactions, rerouting logic, and API-state handling when those areas change. Mock external services and browser APIs in tests; the live app depends on Bannergress, OpenStreetMap, Google Fonts, Google Maps links, and Ingress links.
 
-Always test changes on production as part of final verification after the GitHub Docker image workflow and Watchtower update have completed.
+Local debugging with `yarn dev`, `yarn preview`, or focused tests is fine while developing. Always test changes on production as part of final verification after the GitHub Docker image workflow and Watchtower update have completed.
 
 For `/map`, discovery banner loading should render each fetched page immediately; do not wait for every page in the viewport before plotting markers. Loaded discovery pages should remain cached in memory until the browser page is refreshed.
 

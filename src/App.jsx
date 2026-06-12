@@ -1,6 +1,7 @@
 import "./App.css";
 import BannerGuider from "./components/BannerGuider";
 import BannerGuiderWithoutLocation from "./components/BannerGuiderWithoutLocation";
+import TrainBingoPage from "./components/TrainBingoPage";
 import {
   BrowserRouter as Router,
   Routes,
@@ -39,6 +40,7 @@ function App() {
           />
           <Route path="/search/:query" element={<Home />} />
           <Route path="/map" element={<Home />} />
+          <Route path="/bingo" element={<TrainBingoPage />} />
         </Routes>
       </Router>
     </div>

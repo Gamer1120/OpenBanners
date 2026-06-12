@@ -31,6 +31,36 @@ yarn preview
 yarn prerender:banner <banner-id>
 ```
 
+## Docker Image
+
+The repository includes a production Docker image definition and a GitHub Actions workflow at `.github/workflows/docker-image.yml`.
+
+Build and run the image locally:
+
+```bash
+docker build -t openbanners .
+docker run --rm -p 8080:80 openbanners
+```
+
+Then open `http://localhost:8080`.
+
+The container serves the Vite build with nginx and uses the PHP fallback renderer for non-prerendered `/banner/:id` metadata.
+
+The GitHub Actions workflow builds the image for pull requests without publishing it. Pushes to `main`, `v*.*.*` tags, and manual `workflow_dispatch` runs publish to GitHub Container Registry. The workflow lowercases the repository path because container image names must be lowercase, producing tags such as:
+
+```text
+ghcr.io/<owner>/<repo>:latest
+ghcr.io/<owner>/<repo>:main
+ghcr.io/<owner>/<repo>:sha-<commit>
+```
+
+Use a published image:
+
+```bash
+docker pull ghcr.io/<owner>/<repo>:latest
+docker run --rm -p 8080:80 ghcr.io/<owner>/<repo>:latest
+```
+
 ## Banner metadata prerender and fallback
 
 Telegram and similar crawlers only read the initial HTML, so client-side meta updates are not enough for `/banner/:id` previews.

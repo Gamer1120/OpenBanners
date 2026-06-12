@@ -35,6 +35,8 @@ The test stack is Vitest, jsdom, and Testing Library, configured in `vite.config
 
 Always test changes on production as part of final verification.
 
+For `/map`, discovery banner loading should render each fetched page immediately; do not wait for every page in the viewport before plotting markers.
+
 ## Commit & Pull Request Guidelines
 
 Recent history uses short imperative commits, with occasional conventional scope prefixes such as `fix(bannerguider): don't open new missions on blank`. Prefer concise subject lines that describe the behavior change, for example `Fix browse pagination after filters`.

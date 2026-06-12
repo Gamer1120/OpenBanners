@@ -95,6 +95,18 @@ function jsonResponse(data) {
   });
 }
 
+function deferred() {
+  let resolve;
+  let reject;
+
+  const promise = new Promise((resolvePromise, rejectPromise) => {
+    resolve = resolvePromise;
+    reject = rejectPromise;
+  });
+
+  return { promise, resolve, reject };
+}
+
 function renderWithProviders(ui) {
   return render(
     <ThemeProvider theme={theme}>
@@ -121,7 +133,56 @@ beforeEach(() => {
   });
 });
 
-test("fetches additional discovery map pages when more than 100 banners are in view", async () => {
+test("renders the first discovery map page before later pages finish", async () => {
+  const secondPage = deferred();
+  const banners = Array.from({ length: 60 }, (_, index) => ({
+    id: `progressive-map-banner-${index + 1}`,
+    title: `Progressive Map Banner ${index + 1}`,
+    picture: `/images/progressive-map-${index + 1}.jpg`,
+    numberOfMissions: 6,
+    lengthMeters: 1800,
+    formattedAddress: "Enschede, NL",
+    numberOfDisabledMissions: 0,
+    startLatitude: String(52.2 + index * 0.00001),
+    startLongitude: String(6.85 + index * 0.00001),
+  }));
+
+  global.fetch.mockImplementation((url) => {
+    if (url.includes("/bnrs?orderBy=proximityStartPoint")) {
+      const parsedUrl = new URL(url);
+      const offset = Number(parsedUrl.searchParams.get("offset"));
+      const limit = Number(parsedUrl.searchParams.get("limit"));
+
+      if (offset === 50) {
+        return secondPage.promise;
+      }
+
+      return jsonResponse(banners.slice(offset, offset + limit));
+    }
+
+    throw new Error(`Unhandled fetch: ${url}`);
+  });
+
+  renderWithProviders(<Map />);
+
+  const bannerLink = await screen.findByRole("link", { name: /open banner/i });
+  expect(bannerLink).toHaveAttribute(
+    "href",
+    "/banner/progressive-map-banner-1"
+  );
+  expect(screen.getByText("Progressive Map Banner 1")).toBeInTheDocument();
+  expect(screen.queryByText("Progressive Map Banner 60")).not.toBeInTheDocument();
+
+  await waitFor(() => expect(global.fetch).toHaveBeenCalledTimes(2));
+
+  secondPage.resolve({
+    json: () => Promise.resolve(banners.slice(50)),
+  });
+
+  expect(await screen.findByText("60 banners in view")).toBeInTheDocument();
+});
+
+test("fetches additional discovery map pages when more than 50 banners are in view", async () => {
   const banners = Array.from({ length: 101 }, (_, index) => ({
     id: `map-page-banner-${index + 1}`,
     title: `Map Page Banner ${index + 1}`,
@@ -150,11 +211,11 @@ test("fetches additional discovery map pages when more than 100 banners are in v
 
   expect(await screen.findByText("101 banners in view")).toBeInTheDocument();
 
-  await waitFor(() => expect(global.fetch).toHaveBeenCalledTimes(2));
+  await waitFor(() => expect(global.fetch).toHaveBeenCalledTimes(3));
 
   const fetchedOffsets = global.fetch.mock.calls.map(([url]) =>
     new URL(url).searchParams.get("offset")
   );
 
-  expect(fetchedOffsets).toEqual(["0", "100"]);
+  expect(fetchedOffsets).toEqual(["0", "50", "100"]);
 });

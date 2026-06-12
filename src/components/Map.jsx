@@ -38,8 +38,7 @@ const DEFAULT_CENTER = [52.221058, 6.893297];
 const DEFAULT_ZOOM = 15;
 const DISCOVERY_MAP_CACHE_TTL_MS = 2 * 60 * 1000;
 const DISCOVERY_MAP_QUERY_PRECISION = 3;
-const DISCOVERY_MAP_PAGE_SIZE = 100;
-const DISCOVERY_MAP_MAX_FETCHED_BANNERS = 500;
+const DISCOVERY_MAP_PAGE_SIZE = 50;
 const IMAGE_SIZE_STORAGE_KEY = "openbanners.discoveryMap.imageSize";
 const MARKER_IMAGE_GAP_PX = 4;
 const CONNECTOR_LINE_COLORS = [
@@ -147,15 +146,13 @@ async function fetchDiscoveryMapBanners({
   originLongitude,
   showOfflineBanners,
   showHiddenBanners,
+  onPage,
 }) {
   let offset = 0;
   let allBanners = [];
 
-  while (allBanners.length < DISCOVERY_MAP_MAX_FETCHED_BANNERS) {
-    const pageLimit = Math.min(
-      DISCOVERY_MAP_PAGE_SIZE,
-      DISCOVERY_MAP_MAX_FETCHED_BANNERS - allBanners.length
-    );
+  while (true) {
+    const pageLimit = DISCOVERY_MAP_PAGE_SIZE;
     const response = await fetchBannergress(
       buildDiscoveryMapUrl({
         visibleArea,
@@ -176,6 +173,10 @@ async function fetchDiscoveryMapBanners({
     }
 
     allBanners = [...allBanners, ...pageData];
+    onPage?.({
+      banners: allBanners,
+      hasMore: pageData.length === pageLimit,
+    });
 
     if (pageData.length < pageLimit) {
       return {
@@ -186,11 +187,6 @@ async function fetchDiscoveryMapBanners({
 
     offset += pageData.length;
   }
-
-  return {
-    banners: allBanners,
-    hasMore: true,
-  };
 }
 
 function normalizeFetchedBanners(data, originLatitude, originLongitude) {
@@ -1112,7 +1108,6 @@ export default function Map({
       discoveryMapQueryKey
         ? [
             discoveryMapQueryKey,
-            DISCOVERY_MAP_MAX_FETCHED_BANNERS,
             bannerFilters.showOfflineBanners ? "offline" : "online-only",
             bannerFilters.showHiddenBanners ? "show-hidden" : "hide-hidden",
           ].join(":")
@@ -1161,6 +1156,22 @@ export default function Map({
             originLongitude,
             showOfflineBanners: bannerFilters.showOfflineBanners,
             showHiddenBanners: bannerFilters.showHiddenBanners,
+            onPage: (pageData) => {
+              if (ignore) {
+                return;
+              }
+
+              const normalizedBanners = normalizeFetchedBanners(
+                pageData.banners,
+                originLatitude,
+                originLongitude
+              );
+
+              if (normalizedBanners) {
+                setBanners(normalizedBanners);
+                setHasMoreBannersInView(pageData.hasMore);
+              }
+            },
           });
           discoveryMapInflightRequests.set(
             discoveryMapRequestKey,

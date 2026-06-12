@@ -27,6 +27,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  vi.useRealTimers();
   vi.restoreAllMocks();
   delete globalThis.fetch;
 });
@@ -47,6 +48,7 @@ test("saves a green square through the server API", async () => {
 
   globalThis.fetch
     .mockResolvedValueOnce(createJsonResponse(createBoardState()))
+    .mockResolvedValueOnce(createJsonResponse(createBoardState()))
     .mockResolvedValueOnce(
       createJsonResponse(
         createBoardState({
@@ -60,15 +62,20 @@ test("saves a green square through the server API", async () => {
 
   await user.type(await screen.findByLabelText("Wachtwoord"), "1");
   await user.click(screen.getByRole("button", { name: "Inloggen" }));
+  expect(screen.queryByRole("button", { name: "Reset" })).not.toBeInTheDocument();
   await user.click(
     screen.getByRole("button", {
       name: "Vertrekbord toont 10+ min vertraging",
     })
   );
 
-  await waitFor(() => expect(globalThis.fetch).toHaveBeenCalledTimes(2));
+  await waitFor(() => expect(globalThis.fetch).toHaveBeenCalledTimes(3));
 
-  expect(JSON.parse(globalThis.fetch.mock.calls[1][1].body)).toEqual({
+  const postCall = globalThis.fetch.mock.calls.find(
+    ([, options]) => options?.method === "POST"
+  );
+
+  expect(JSON.parse(postCall[1].body)).toEqual({
     action: "toggle",
     index: 0,
     password: "1",
@@ -81,3 +88,33 @@ test("saves a green square through the server API", async () => {
     })
   ).toHaveClass("train-bingo-square-green");
 });
+
+test("refreshes the visible board from the server while logged in", async () => {
+  window.localStorage.setItem(TRAIN_BINGO_STORAGE_KEY, "green");
+  const updatedSquares = createInitialTrainBingoSquares();
+  updatedSquares[1] = "red";
+
+  globalThis.fetch
+    .mockResolvedValueOnce(createJsonResponse(createBoardState()))
+    .mockResolvedValueOnce(
+      createJsonResponse(
+        createBoardState({
+          version: 2,
+          squares: updatedSquares,
+        })
+      )
+    );
+
+  render(<TrainBingoPage />);
+
+  expect(await screen.findByLabelText("Treinbingo bord")).toBeInTheDocument();
+
+  await waitFor(() => expect(globalThis.fetch).toHaveBeenCalledTimes(2), {
+    timeout: 3500,
+  });
+  expect(
+    screen.getByRole("button", {
+      name: "Perronnummer verandert binnen 15 min voor vertrek",
+    })
+  ).toHaveClass("train-bingo-square-red");
+}, 8000);

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   TRAIN_BINGO_STORAGE_KEY,
   TRAIN_BINGO_TEXTS,
@@ -12,6 +12,7 @@ import {
 import "./TrainBingoPage.css";
 
 const API_URL = "/api/train-bingo";
+const LIVE_REFRESH_INTERVAL_MS = 2000;
 
 const PLAYER_LABELS = {
   green: "Groene speler",
@@ -108,9 +109,11 @@ const TrainBingoPage = () => {
     [boardState.squares]
   );
 
-  const loadBoard = async ({ signal } = {}) => {
-    setIsLoading(true);
-    setErrorMessage("");
+  const loadBoard = useCallback(async ({ signal, silent = false } = {}) => {
+    if (!silent) {
+      setIsLoading(true);
+      setErrorMessage("");
+    }
 
     try {
       const state = await fetchBoardState({ signal });
@@ -120,16 +123,45 @@ const TrainBingoPage = () => {
         setErrorMessage(error.message);
       }
     } finally {
-      setIsLoading(false);
+      if (!silent) {
+        setIsLoading(false);
+      }
     }
-  };
+  }, []);
 
   useEffect(() => {
     const abortController = new AbortController();
     loadBoard({ signal: abortController.signal });
 
     return () => abortController.abort();
-  }, []);
+  }, [loadBoard]);
+
+  useEffect(() => {
+    if (!activePlayer || isSaving) {
+      return undefined;
+    }
+
+    let abortController = null;
+
+    const refreshLiveBoard = () => {
+      abortController?.abort();
+      abortController = new AbortController();
+      loadBoard({
+        signal: abortController.signal,
+        silent: true,
+      });
+    };
+
+    const intervalId = window.setInterval(
+      refreshLiveBoard,
+      LIVE_REFRESH_INTERVAL_MS
+    );
+
+    return () => {
+      window.clearInterval(intervalId);
+      abortController?.abort();
+    };
+  }, [activePlayer, isSaving, loadBoard]);
 
   const handleLogin = (event) => {
     event.preventDefault();
@@ -145,6 +177,7 @@ const TrainBingoPage = () => {
     setPassword("");
     setLoginError("");
     setStatusMessage(`Ingelogd als ${PLAYER_LABELS[player].toLowerCase()}.`);
+    loadBoard({ silent: true });
   };
 
   const handleLogout = () => {
@@ -193,40 +226,6 @@ const TrainBingoPage = () => {
     } finally {
       setIsSaving(false);
       setSavingIndex(null);
-    }
-  };
-
-  const handleReset = async () => {
-    if (!activePlayer || isSaving) {
-      return;
-    }
-
-    const shouldReset = window.confirm("Bingobord resetten voor iedereen?");
-
-    if (!shouldReset) {
-      return;
-    }
-
-    setIsSaving(true);
-    setErrorMessage("");
-    setStatusMessage("");
-
-    try {
-      const state = await saveBoardAction({
-        action: "reset",
-        password: getTrainBingoPasswordForPlayer(activePlayer),
-        version: boardState.version,
-      });
-      setBoardState(normalizeBoardState(state));
-      setStatusMessage("Bord is gereset.");
-    } catch (error) {
-      if (error.state) {
-        setBoardState(normalizeBoardState(error.state));
-      }
-
-      setErrorMessage(error.message);
-    } finally {
-      setIsSaving(false);
     }
   };
 
@@ -282,9 +281,6 @@ const TrainBingoPage = () => {
             <div className="train-bingo-actions">
               <button type="button" onClick={() => loadBoard()} disabled={isLoading || isSaving}>
                 Vernieuwen
-              </button>
-              <button type="button" onClick={handleReset} disabled={isLoading || isSaving}>
-                Reset
               </button>
               <button type="button" onClick={handleLogout}>
                 Uitloggen

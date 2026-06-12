@@ -29,6 +29,8 @@ There is no dedicated lint or format script in this repository. Match nearby cod
 
 When a workflow, deployment step, testing note, or project-specific convention is discovered while working, add it to `AGENTS.md` in a concise, durable form so future agents can build on it.
 
+Multiple agents may work in this repository at the same time. Before starting larger or risky work, check the current branch and worktree state, avoid overwriting unrelated changes, and prefer a separate `git worktree` for isolated parallel work when it would reduce coordination risk.
+
 ## Testing Guidelines
 
 The test stack is Vitest, jsdom, and Testing Library, configured in `vite.config.mjs` with setup in `src/setupTests.js`. Add focused regression tests for route behavior, filtering, map interactions, rerouting logic, and API-state handling when those areas change. Mock external services and browser APIs in tests; the live app depends on Bannergress, OpenStreetMap, Google Fonts, Google Maps links, and Ingress links.

@@ -17,8 +17,8 @@ Use Yarn 1, as pinned in `package.json`.
 - `yarn preview`: serve the built app locally for verification.
 - `yarn prerender:banner <banner-id>`: generate static metadata HTML for a banner after a build.
 - `docker compose -f docker-compose.public.yml up -d`: run the published GHCR image on local backend port `18080`; nginx exposes it publicly on the existing HTTPS port `443` using `docker/openbanners-nginx-container-location.conf` from the `openbanners.org` vhost. The included Watchtower service checks for new images and updates the container automatically.
-- After a change is complete, run `git pull && yarn build && systemctl restart nginx` before considering the production update done.
-- Always commit and push completed changes after verification.
+- Do not deploy production by running `yarn build` locally or by restarting nginx for app code changes. After a completed change, commit and push to GitHub, wait for the Docker image workflow to publish `ghcr.io/gamer1120/openbanners:latest`, let Watchtower update the `openbanners-public` container, and then verify production at `https://openbanners.org/`.
+- Always commit and push completed changes after verification; use the GitHub Docker image plus Watchtower path for production testing.
 
 ## Coding Style & Naming Conventions
 
@@ -36,7 +36,7 @@ Multiple agents may work in this repository at the same time. Before starting la
 
 The test stack is Vitest, jsdom, and Testing Library, configured in `vite.config.mjs` with setup in `src/setupTests.js`. Add focused regression tests for route behavior, filtering, map interactions, rerouting logic, and API-state handling when those areas change. Mock external services and browser APIs in tests; the live app depends on Bannergress, OpenStreetMap, Google Fonts, Google Maps links, and Ingress links.
 
-Always test changes on production as part of final verification.
+Always test changes on production as part of final verification after the GitHub Docker image workflow and Watchtower update have completed.
 
 For `/map`, discovery banner loading should render each fetched page immediately; do not wait for every page in the viewport before plotting markers. Loaded discovery pages should remain cached in memory until the browser page is refreshed.
 
@@ -56,4 +56,4 @@ Pull requests should include a summary, testing performed (`yarn test`, `yarn bu
 
 ## Security & Configuration Tips
 
-Do not commit secrets, local tokens, or production certificate material. Treat `server/banner-meta.php`, prerendered metadata, and third-party API contracts as deployment-sensitive paths; verify them with `yarn build` and `yarn preview` when touched.
+Do not commit secrets, local tokens, or production certificate material. Treat `server/banner-meta.php`, prerendered metadata, Docker deployment files, nginx proxy snippets, and third-party API contracts as deployment-sensitive paths; verify them through the GitHub Docker image workflow and live production smoke checks when touched.

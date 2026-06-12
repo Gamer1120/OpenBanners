@@ -68,6 +68,7 @@ vi.mock("react-leaflet", async () => {
     MapContainer,
     TileLayer: ({ children }) => <div data-testid="tile-layer">{children}</div>,
     Polyline: ({ children }) => <div data-testid="polyline">{children}</div>,
+    Tooltip: ({ children }) => <div data-testid="marker-tooltip">{children}</div>,
     Marker: ({ children, position, eventHandlers }) => (
       <div
         data-testid={`marker-${
@@ -137,6 +138,7 @@ function renderWithProviders(ui) {
 
 beforeEach(() => {
   __resetDiscoveryMapCacheForTests();
+  L.divIcon.mockClear();
   global.fetch = vi.fn();
   window.localStorage.clear();
   Object.defineProperty(navigator, "permissions", {
@@ -349,10 +351,27 @@ test("toggles discovery map markers between images and list-colored dots", async
     expect(dotIconHtml).toContain("background:#d85f5f");
     expect(dotIconHtml).toContain("background:#4d9fff");
   });
+
+  expect(
+    screen.getAllByTestId("marker-tooltip").map((tooltip) => tooltip.textContent)
+  ).toEqual(
+    expect.arrayContaining([
+      "Dot Todo Banner",
+      "Dot Done Banner",
+      "Dot Hidden Banner",
+      "Dot None Banner",
+    ])
+  );
 });
 
 test("clusters nearby dot markers into numbered dots without connector lines", async () => {
   window.localStorage.setItem("openbanners.discoveryMap.markerMode", "dots");
+  saveBannergressSyncData({
+    bannerLists: {
+      "cluster-dot-banner-1": "todo",
+      "cluster-dot-banner-2": "done",
+    },
+  });
 
   global.fetch.mockImplementation((url) => {
     if (url.includes("/bnrs?orderBy=proximityStartPoint")) {
@@ -396,7 +415,14 @@ test("clusters nearby dot markers into numbered dots without connector lines", a
     throw new Error(`Unhandled fetch: ${url}`);
   });
 
-  renderWithProviders(<Map />);
+  renderWithProviders(
+    <Map
+      bannerFilters={{
+        ...DEFAULT_MAP_BANNER_FILTERS,
+        hideDoneBanners: false,
+      }}
+    />
+  );
 
   await screen.findByText("Cluster Dot Banner 1");
 
@@ -408,9 +434,14 @@ test("clusters nearby dot markers into numbered dots without connector lines", a
       .join("\n");
 
     expect(dotIconHtml).toContain(">3</div>");
+    expect(dotIconHtml).toContain("conic-gradient");
+    expect(dotIconHtml).toContain("#f2b63d");
+    expect(dotIconHtml).toContain("#35a853");
+    expect(dotIconHtml).toContain("#4d9fff");
   });
 
   expect(screen.queryByTestId("polyline")).not.toBeInTheDocument();
+  expect(screen.queryByTestId("marker-tooltip")).not.toBeInTheDocument();
 
   fireEvent.click(screen.getAllByTestId(/marker-/)[0]);
 

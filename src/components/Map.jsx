@@ -3,6 +3,7 @@ import {
   Marker,
   Polyline,
   TileLayer,
+  Tooltip,
   useMapEvents,
 } from "react-leaflet";
 import {
@@ -52,6 +53,7 @@ const DOT_MARKER_DISPLAY = {
   maxHeight: 30,
 };
 const DOT_MARKER_CLUSTER_DISTANCE_PX = 28;
+const DOT_MARKER_LIST_TYPES = ["todo", "done", "blacklist", "none"];
 const DOT_MARKER_COLORS = {
   todo: {
     fill: "#f2b63d",
@@ -482,23 +484,27 @@ function getEffectiveBannerListType(banner, syncState) {
   return getBannerListType(syncState, banner.id, banner.listType);
 }
 
-function getDominantListType(banners, syncState) {
-  const counts = banners.reduce(
-    (currentCounts, banner) => {
-      const listType = getEffectiveBannerListType(banner, syncState) ?? "none";
-      return {
-        ...currentCounts,
-        [listType]: (currentCounts[listType] ?? 0) + 1,
-      };
-    },
-    {}
-  );
-  const rankedListTypes = ["todo", "done", "blacklist", "none"];
+function getDotListTypeCounts(banners, syncState) {
+  const counts = {};
+
+  DOT_MARKER_LIST_TYPES.forEach((listType) => {
+    counts[listType] = 0;
+  });
+
+  banners.forEach((banner) => {
+    const listType = getEffectiveBannerListType(banner, syncState) ?? "none";
+    counts[listType] = (counts[listType] ?? 0) + 1;
+  });
+
+  return counts;
+}
+
+function getDominantListTypeFromCounts(counts) {
   let dominantListType = "none";
   let dominantCount = 0;
   let hasTie = false;
 
-  rankedListTypes.forEach((listType) => {
+  DOT_MARKER_LIST_TYPES.forEach((listType) => {
     const count = counts[listType] ?? 0;
 
     if (count > dominantCount) {
@@ -511,6 +517,59 @@ function getDominantListType(banners, syncState) {
   });
 
   return hasTie ? "none" : dominantListType;
+}
+
+function getSegmentedDotBackground(listTypeCounts) {
+  if (!listTypeCounts) {
+    return null;
+  }
+
+  const segments = DOT_MARKER_LIST_TYPES.map((listType) => ({
+    listType,
+    count: listTypeCounts[listType] ?? 0,
+  })).filter((segment) => segment.count > 0);
+
+  if (segments.length < 2) {
+    return null;
+  }
+
+  const totalCount = segments.reduce((sum, segment) => sum + segment.count, 0);
+  let currentPercent = 0;
+  const gradientStops = segments.map((segment, index) => {
+    const startPercent = currentPercent;
+    const endPercent =
+      index === segments.length - 1
+        ? 100
+        : currentPercent + (segment.count / totalCount) * 100;
+
+    currentPercent = endPercent;
+
+    return `${DOT_MARKER_COLORS[segment.listType].fill} ${startPercent.toFixed(
+      2
+    )}% ${endPercent.toFixed(2)}%`;
+  });
+
+  return `conic-gradient(${gradientStops.join(", ")})`;
+}
+
+function getDotColorStyle({ listType = "none", listTypeCounts = null }) {
+  const fallbackColors =
+    DOT_MARKER_COLORS[listType ?? "none"] ?? DOT_MARKER_COLORS.none;
+
+  return {
+    ...fallbackColors,
+    background: getSegmentedDotBackground(listTypeCounts) ?? fallbackColors.fill,
+  };
+}
+
+function getDotListTypeCountsKey(listTypeCounts) {
+  if (!listTypeCounts) {
+    return "solid";
+  }
+
+  return DOT_MARKER_LIST_TYPES.map(
+    (listType) => `${listType}:${listTypeCounts[listType] ?? 0}`
+  ).join(",");
 }
 
 function clusterDotMarkers(rawMarkers) {
@@ -659,11 +718,12 @@ function createBannerMarkerIcon({
 
 function createBannerDotIcon({
   listType,
+  listTypeCounts = null,
   isSelected,
   count = 1,
   accentColor = null,
 }) {
-  const colors = DOT_MARKER_COLORS[listType ?? "none"] ?? DOT_MARKER_COLORS.none;
+  const colors = getDotColorStyle({ listType, listTypeCounts });
   const isCluster = count > 1;
   const size = isCluster ? (isSelected ? 26 : 22) : isSelected ? 18 : 14;
   const borderWidth = isSelected ? 3 : 2;
@@ -678,7 +738,7 @@ function createBannerDotIcon({
         width:${size}px;
         height:${size}px;
         border-radius:50%;
-        background:${colors.fill};
+        background:${colors.background};
         border:${borderWidth}px solid ${borderColor};
         box-shadow:${shadow};
         transform:translate(-50%, -50%);
@@ -956,9 +1016,14 @@ function BannerDisambiguationMenu({
     Math.ceil((banners.length * thumbnailWidth) / (2 * Math.PI)) +
       (isDotMode ? 26 : 24)
   );
+  const clusterListTypeCounts = isDotMode
+    ? getDotListTypeCounts(banners, syncState)
+    : null;
   const clusterColors = isDotMode
-    ? DOT_MARKER_COLORS[getDominantListType(banners, syncState)] ??
-      DOT_MARKER_COLORS.none
+    ? getDotColorStyle({
+        listType: getDominantListTypeFromCounts(clusterListTypeCounts),
+        listTypeCounts: clusterListTypeCounts,
+      })
     : null;
   const centerX = Math.round(point.x);
   const centerY = Math.round(point.y);
@@ -997,7 +1062,7 @@ function BannerDisambiguationMenu({
           border: isDotMode
             ? `3px solid ${clusterColors.border}`
             : "1px solid rgba(255,255,255,0.22)",
-          bgcolor: isDotMode ? clusterColors.fill : "rgba(18,25,31,0.92)",
+          bgcolor: isDotMode ? clusterColors.background : "rgba(18,25,31,0.92)",
           color: "common.white",
           boxShadow: isDotMode
             ? `0 0 0 8px ${clusterColors.glow}, 0 14px 32px rgba(0,0,0,0.3)`
@@ -1017,8 +1082,7 @@ function BannerDisambiguationMenu({
 
       {banners.map((banner, index) => {
         const listType = getEffectiveBannerListType(banner, syncState) ?? "none";
-        const dotColors =
-          DOT_MARKER_COLORS[listType] ?? DOT_MARKER_COLORS.none;
+        const dotColors = getDotColorStyle({ listType });
         const angle =
           banners.length === 2
             ? index === 0
@@ -1066,7 +1130,7 @@ function BannerDisambiguationMenu({
               border: isDotMode
                 ? `3px solid ${dotColors.border}`
                 : "1px solid rgba(255,255,255,0.18)",
-              bgcolor: isDotMode ? dotColors.fill : "rgba(18,25,31,0.94)",
+              bgcolor: isDotMode ? dotColors.background : "rgba(18,25,31,0.94)",
               color: "inherit",
               boxShadow: isDotMode
                 ? `0 0 0 5px ${dotColors.glow}, 0 12px 24px rgba(0,0,0,0.32)`
@@ -1667,7 +1731,8 @@ export default function Map({
       position = null,
       connectorColor = null,
       descriptorBanners = null,
-      listTypeOverride = null
+      listTypeOverride = null,
+      listTypeCounts = null
     ) => {
       const bannersForMarker = descriptorBanners ?? [banner];
       const isSelected = bannersForMarker.some(
@@ -1683,6 +1748,7 @@ export default function Map({
         markerDisplay.maxHeight,
         isSelected ? "selected" : "default",
         effectiveListType ?? "none",
+        getDotListTypeCountsKey(listTypeCounts),
         bannersForMarker.length,
         connectorColor ?? "no-accent",
       ].join(":");
@@ -1693,6 +1759,7 @@ export default function Map({
           markerMode === "dots"
             ? createBannerDotIcon({
                 listType: effectiveListType,
+                listTypeCounts,
                 isSelected,
                 count: bannersForMarker.length,
                 accentColor: connectorColor,
@@ -1759,6 +1826,10 @@ export default function Map({
       return clusterDotMarkers(rawMarkers).map((cluster) => {
         const clusterBanners = cluster.markers.map((marker) => marker.banner);
         const clusterLatLng = mapInstance.containerPointToLatLng(cluster.anchorPoint);
+        const clusterListTypeCounts = getDotListTypeCounts(
+          clusterBanners,
+          syncState
+        );
 
         return createDescriptor(
           clusterBanners[0],
@@ -1766,7 +1837,8 @@ export default function Map({
           [clusterLatLng.lat, clusterLatLng.lng],
           null,
           clusterBanners,
-          getDominantListType(clusterBanners, syncState)
+          getDominantListTypeFromCounts(clusterListTypeCounts),
+          clusterListTypeCounts
         );
       });
     }
@@ -1826,12 +1898,16 @@ export default function Map({
         {markerDescriptors.map((markerDescriptor) => {
           const {
             id,
+            banner,
+            banners: descriptorBanners,
             icon,
             position,
             originalPosition,
             isDisplaced,
             connectorColor,
           } = markerDescriptor;
+          const showDotTooltip =
+            markerMode === "dots" && (descriptorBanners?.length ?? 1) === 1;
 
           return (
             <Fragment key={id}>
@@ -1853,7 +1929,18 @@ export default function Map({
                     handleMarkerDescriptorInteraction(markerDescriptor, event);
                   },
                 }}
-              />
+              >
+                {showDotTooltip ? (
+                  <Tooltip
+                    direction="top"
+                    offset={[0, -12]}
+                    opacity={0.96}
+                    sticky
+                  >
+                    {banner.title}
+                  </Tooltip>
+                ) : null}
+              </Marker>
             </Fragment>
           );
         })}

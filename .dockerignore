@@ -1,9 +1,7 @@
-.git
-.github
-build
-dist
-docs
-gpt-debug
-node_modules
-npm-debug.log
-yarn-error.log
+*
+!Dockerfile
+!.dockerignore
+!dist
+!dist/**
+!docker
+!docker/nginx.conf

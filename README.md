@@ -38,15 +38,16 @@ The repository includes a production Docker image definition and a GitHub Action
 Build and run the image locally:
 
 ```bash
+yarn build
 docker build -t openbanners .
 docker run --rm -p 8080:80 openbanners
 ```
 
 Then open `http://localhost:8080`.
 
-The container serves the Vite build with nginx and uses the PHP fallback renderer for non-prerendered `/banner/:id` metadata.
+The container is a small static runtime: it copies the existing `dist/` directory into nginx and does not include Node, Yarn, or PHP. Non-prerendered `/banner/:id` routes fall back to the SPA shell. Use the standalone `server/banner-meta.php` fallback outside the container when dynamic crawler metadata is required.
 
-The GitHub Actions workflow builds the image for pull requests without publishing it. Pushes to `main`, `v*.*.*` tags, and manual `workflow_dispatch` runs publish to GitHub Container Registry. The workflow lowercases the repository path because container image names must be lowercase, producing tags such as:
+The GitHub Actions workflow installs dependencies with Yarn cache, runs `yarn build`, and then builds the small static image. Pull requests build the image without publishing it. Pushes to `main`, `v*.*.*` tags, and manual `workflow_dispatch` runs publish to GitHub Container Registry. The workflow lowercases the repository path because container image names must be lowercase, producing tags such as:
 
 ```text
 ghcr.io/<owner>/<repo>:latest

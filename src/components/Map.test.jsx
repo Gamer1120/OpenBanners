@@ -1,9 +1,12 @@
 import React from "react";
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { ThemeProvider, createTheme } from "@mui/material/styles";
 import { MemoryRouter } from "react-router-dom";
 import { beforeEach, expect, test, vi } from "vitest";
+import L from "leaflet";
 import Map, { __resetDiscoveryMapCacheForTests } from "./Map";
+import { DEFAULT_MAP_BANNER_FILTERS } from "../bannerFilters";
+import { saveBannergressSyncData } from "../bannergressSync";
 
 vi.mock("leaflet", () => {
   return {
@@ -180,6 +183,155 @@ test("renders the first discovery map page before later pages finish", async () 
   });
 
   expect(await screen.findByText("60 banners in view")).toBeInTheDocument();
+});
+
+test("reuses partially loaded discovery map pages until refresh", async () => {
+  const secondPage = deferred();
+  const banners = Array.from({ length: 60 }, (_, index) => ({
+    id: `cached-progressive-map-banner-${index + 1}`,
+    title: `Cached Progressive Map Banner ${index + 1}`,
+    picture: `/images/cached-progressive-map-${index + 1}.jpg`,
+    numberOfMissions: 6,
+    lengthMeters: 1800,
+    formattedAddress: "Enschede, NL",
+    numberOfDisabledMissions: 0,
+    startLatitude: String(52.2 + index * 0.00001),
+    startLongitude: String(6.85 + index * 0.00001),
+  }));
+
+  global.fetch.mockImplementation((url) => {
+    if (url.includes("/bnrs?orderBy=proximityStartPoint")) {
+      const parsedUrl = new URL(url);
+      const offset = Number(parsedUrl.searchParams.get("offset"));
+      const limit = Number(parsedUrl.searchParams.get("limit"));
+
+      if (offset === 50) {
+        return secondPage.promise;
+      }
+
+      return jsonResponse(banners.slice(offset, offset + limit));
+    }
+
+    throw new Error(`Unhandled fetch: ${url}`);
+  });
+
+  const firstRender = renderWithProviders(<Map />);
+
+  expect(
+    await screen.findByText("Cached Progressive Map Banner 1")
+  ).toBeInTheDocument();
+  await waitFor(() => expect(global.fetch).toHaveBeenCalledTimes(2));
+
+  firstRender.unmount();
+  renderWithProviders(<Map />);
+
+  expect(
+    await screen.findByText("Cached Progressive Map Banner 1")
+  ).toBeInTheDocument();
+  expect(screen.queryByText("Cached Progressive Map Banner 60")).not.toBeInTheDocument();
+  expect(global.fetch).toHaveBeenCalledTimes(2);
+
+  secondPage.resolve({
+    json: () => Promise.resolve(banners.slice(50)),
+  });
+
+  expect(await screen.findByText("60 banners in view")).toBeInTheDocument();
+});
+
+test("toggles discovery map markers between images and list-colored dots", async () => {
+  saveBannergressSyncData({
+    bannerLists: {
+      "dot-todo-banner": "todo",
+      "dot-done-banner": "done",
+      "dot-hidden-banner": "blacklist",
+    },
+  });
+
+  global.fetch.mockImplementation((url) => {
+    if (url.includes("/bnrs?orderBy=proximityStartPoint")) {
+      return jsonResponse([
+        {
+          id: "dot-todo-banner",
+          title: "Dot Todo Banner",
+          picture: "/images/dot-todo.jpg",
+          numberOfMissions: 6,
+          lengthMeters: 1800,
+          formattedAddress: "Enschede, NL",
+          numberOfDisabledMissions: 0,
+          startLatitude: "52.2",
+          startLongitude: "6.85",
+        },
+        {
+          id: "dot-done-banner",
+          title: "Dot Done Banner",
+          picture: "/images/dot-done.jpg",
+          numberOfMissions: 6,
+          lengthMeters: 1800,
+          formattedAddress: "Enschede, NL",
+          numberOfDisabledMissions: 0,
+          startLatitude: "52.201",
+          startLongitude: "6.851",
+        },
+        {
+          id: "dot-hidden-banner",
+          title: "Dot Hidden Banner",
+          picture: "/images/dot-hidden.jpg",
+          numberOfMissions: 6,
+          lengthMeters: 1800,
+          formattedAddress: "Enschede, NL",
+          numberOfDisabledMissions: 0,
+          startLatitude: "52.202",
+          startLongitude: "6.852",
+        },
+        {
+          id: "dot-none-banner",
+          title: "Dot None Banner",
+          picture: "/images/dot-none.jpg",
+          numberOfMissions: 6,
+          lengthMeters: 1800,
+          formattedAddress: "Enschede, NL",
+          numberOfDisabledMissions: 0,
+          startLatitude: "52.203",
+          startLongitude: "6.853",
+        },
+      ]);
+    }
+
+    throw new Error(`Unhandled fetch: ${url}`);
+  });
+
+  renderWithProviders(
+    <Map
+      bannerFilters={{
+        ...DEFAULT_MAP_BANNER_FILTERS,
+        hideDoneBanners: false,
+        showHiddenBanners: true,
+      }}
+    />
+  );
+
+  await screen.findByText("Dot Todo Banner");
+  fireEvent.click(screen.getByRole("button", { name: /marker mode: images/i }));
+
+  expect(
+    screen.getByRole("button", { name: /marker mode: dots/i })
+  ).toBeInTheDocument();
+  expect(window.localStorage.getItem("openbanners.discoveryMap.markerMode")).toBe(
+    "dots"
+  );
+
+  await waitFor(() => {
+    const dotIconHtml = L.divIcon.mock.calls
+      .map(([options]) => options)
+      .filter((options) => options.className === "banner-map-dot-icon")
+      .map((options) => options.html)
+      .join("\n");
+
+    expect(dotIconHtml).toContain("background:#f2b63d");
+    expect(dotIconHtml).toContain("background:#35a853");
+    expect(dotIconHtml).toContain("background:#d85f5f");
+    expect(dotIconHtml).toContain("background:#4d9fff");
+  });
 });
 
 test("fetches additional discovery map pages when more than 50 banners are in view", async () => {

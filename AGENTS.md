@@ -35,7 +35,9 @@ The test stack is Vitest, jsdom, and Testing Library, configured in `vite.config
 
 Always test changes on production as part of final verification.
 
-For `/map`, discovery banner loading should render each fetched page immediately; do not wait for every page in the viewport before plotting markers.
+For `/map`, discovery banner loading should render each fetched page immediately; do not wait for every page in the viewport before plotting markers. Loaded discovery pages should remain cached in memory until the browser page is refreshed.
+
+The `/map` marker toggle supports image markers and Bannergress-style dots; dot colors should continue to reflect the effective Bannergress list state.
 
 ## Commit & Pull Request Guidelines
 

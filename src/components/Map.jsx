@@ -20,13 +20,19 @@ import {
   Typography,
 } from "@mui/material";
 import MyLocationRoundedIcon from "@mui/icons-material/MyLocationRounded";
+import ImageRoundedIcon from "@mui/icons-material/ImageRounded";
 import OpenInNewRoundedIcon from "@mui/icons-material/OpenInNewRounded";
 import PhotoSizeSelectLargeRoundedIcon from "@mui/icons-material/PhotoSizeSelectLargeRounded";
+import RadioButtonCheckedRoundedIcon from "@mui/icons-material/RadioButtonCheckedRounded";
 import TuneRoundedIcon from "@mui/icons-material/TuneRounded";
 import L from "leaflet";
 import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
-import { fetchBannergress, useBannergressSync } from "../bannergressSync";
+import {
+  fetchBannergress,
+  getBannerListType,
+  useBannergressSync,
+} from "../bannergressSync";
 import BannerFilterButton from "./BannerFilterButton";
 import {
   applyBannerFilters,
@@ -36,11 +42,37 @@ import {
 
 const DEFAULT_CENTER = [52.221058, 6.893297];
 const DEFAULT_ZOOM = 15;
-const DISCOVERY_MAP_CACHE_TTL_MS = 2 * 60 * 1000;
 const DISCOVERY_MAP_QUERY_PRECISION = 3;
 const DISCOVERY_MAP_PAGE_SIZE = 50;
 const IMAGE_SIZE_STORAGE_KEY = "openbanners.discoveryMap.imageSize";
+const MARKER_MODE_STORAGE_KEY = "openbanners.discoveryMap.markerMode";
 const MARKER_IMAGE_GAP_PX = 4;
+const DOT_MARKER_DISPLAY = {
+  maxWidth: 30,
+  maxHeight: 30,
+};
+const DOT_MARKER_COLORS = {
+  todo: {
+    fill: "#f2b63d",
+    border: "#5f3b00",
+    glow: "rgba(242, 182, 61, 0.42)",
+  },
+  done: {
+    fill: "#35a853",
+    border: "#123f23",
+    glow: "rgba(53, 168, 83, 0.42)",
+  },
+  blacklist: {
+    fill: "#d85f5f",
+    border: "#5b2020",
+    glow: "rgba(216, 95, 95, 0.42)",
+  },
+  none: {
+    fill: "#4d9fff",
+    border: "#12385f",
+    glow: "rgba(77, 159, 255, 0.42)",
+  },
+};
 const CONNECTOR_LINE_COLORS = [
   "#ff6b6b",
   "#ffd166",
@@ -64,6 +96,19 @@ const DISAMBIGUATION_PICKER_MARGIN = 12;
 const discoveryMapCache = new globalThis.Map();
 const discoveryMapInflightRequests = new globalThis.Map();
 const bannerMarkerIconCache = new globalThis.Map();
+
+function writeDiscoveryMapCacheEntry({
+  requestKey,
+  banners,
+  hasMore,
+  complete,
+}) {
+  discoveryMapCache.set(requestKey, {
+    banners,
+    hasMore,
+    complete,
+  });
+}
 
 function roundCoordinate(value, precision = DISCOVERY_MAP_QUERY_PRECISION) {
   return Number.parseFloat(value.toFixed(precision));
@@ -252,6 +297,16 @@ function readInitialImageSizePreference() {
   } catch {
     return { mode: "medium", customScale: IMAGE_SIZE_PRESETS.medium.scale };
   }
+}
+
+function readInitialMarkerModePreference() {
+  if (typeof window === "undefined") {
+    return "images";
+  }
+
+  const storedValue = window.localStorage.getItem(MARKER_MODE_STORAGE_KEY);
+
+  return storedValue === "dots" ? "dots" : "images";
 }
 
 function getVisibleAreaFromBounds(bounds) {
@@ -518,6 +573,37 @@ function createBannerMarkerIcon({
           transform-origin:bottom center;
         ">No image</div>`,
     className: "banner-map-icon",
+    iconSize: [0, 0],
+    iconAnchor: [0, 0],
+  });
+}
+
+function createBannerDotIcon({
+  listType,
+  isSelected,
+  accentColor = null,
+}) {
+  const colors = DOT_MARKER_COLORS[listType ?? "none"] ?? DOT_MARKER_COLORS.none;
+  const size = isSelected ? 18 : 14;
+  const borderWidth = isSelected ? 3 : 2;
+  const borderColor = accentColor ?? colors.border;
+  const shadow = isSelected
+    ? `0 0 0 7px ${colors.glow}, 0 7px 16px rgba(0,0,0,0.38)`
+    : `0 0 0 4px ${colors.glow}, 0 4px 10px rgba(0,0,0,0.28)`;
+
+  return L.divIcon({
+    html: `<div
+      style="
+        width:${size}px;
+        height:${size}px;
+        border-radius:50%;
+        background:${colors.fill};
+        border:${borderWidth}px solid ${borderColor};
+        box-shadow:${shadow};
+        transform:translate(-50%, -50%);
+      "
+    ></div>`,
+    className: "banner-map-dot-icon",
     iconSize: [0, 0],
     iconAnchor: [0, 0],
   });
@@ -942,6 +1028,7 @@ export default function Map({
   onBannerFiltersChange,
 }) {
   const initialImageSizePreference = readInitialImageSizePreference();
+  const initialMarkerModePreference = readInitialMarkerModePreference();
   const [visibleArea, setVisibleArea] = useState(null);
   const [banners, setBanners] = useState([]);
   const [hasMoreBannersInView, setHasMoreBannersInView] = useState(false);
@@ -957,6 +1044,7 @@ export default function Map({
   const [customImageScale, setCustomImageScale] = useState(
     initialImageSizePreference.customScale
   );
+  const [markerMode, setMarkerMode] = useState(initialMarkerModePreference);
   const [imageSizeMenuAnchor, setImageSizeMenuAnchor] = useState(null);
   const [isCompactControlsOpen, setIsCompactControlsOpen] = useState(false);
   const [disambiguationState, setDisambiguationState] = useState(null);
@@ -975,6 +1063,7 @@ export default function Map({
     imageSizeMode === "custom"
       ? `Custom (${Math.round(activeImageScale * 100)}%)`
       : IMAGE_SIZE_PRESETS[imageSizeMode]?.label ?? IMAGE_SIZE_PRESETS.medium.label;
+  const activeMarkerModeLabel = markerMode === "dots" ? "Dots" : "Images";
 
   const requestCurrentPosition = () => {
     if (!("geolocation" in navigator)) {
@@ -1064,6 +1153,10 @@ export default function Map({
   }, [customImageScale, imageSizeMode]);
 
   useEffect(() => {
+    window.localStorage.setItem(MARKER_MODE_STORAGE_KEY, markerMode);
+  }, [markerMode]);
+
+  useEffect(() => {
     if (!userLocation || !mapRef.current || hasCenteredOnUserRef.current) {
       return;
     }
@@ -1100,8 +1193,11 @@ export default function Map({
     [normalizedOriginLocation, normalizedVisibleArea]
   );
   const markerDisplay = useMemo(
-    () => getMarkerDisplay(currentZoom, activeImageScale),
-    [activeImageScale, currentZoom]
+    () =>
+      markerMode === "dots"
+        ? DOT_MARKER_DISPLAY
+        : getMarkerDisplay(currentZoom, activeImageScale),
+    [activeImageScale, currentZoom, markerMode]
   );
   const discoveryMapRequestKey = useMemo(
     () =>
@@ -1129,14 +1225,14 @@ export default function Map({
       setError("");
       const cachedEntry = discoveryMapCache.get(discoveryMapRequestKey);
 
-      if (
-        cachedEntry &&
-        Date.now() - cachedEntry.timestamp < DISCOVERY_MAP_CACHE_TTL_MS
-      ) {
+      if (cachedEntry) {
         setBanners(cachedEntry.banners);
         setHasMoreBannersInView(Boolean(cachedEntry.hasMore));
-        setLoading(false);
-        return;
+
+        if (cachedEntry.complete) {
+          setLoading(false);
+          return;
+        }
       }
 
       setLoading(true);
@@ -1157,10 +1253,6 @@ export default function Map({
             showOfflineBanners: bannerFilters.showOfflineBanners,
             showHiddenBanners: bannerFilters.showHiddenBanners,
             onPage: (pageData) => {
-              if (ignore) {
-                return;
-              }
-
               const normalizedBanners = normalizeFetchedBanners(
                 pageData.banners,
                 originLatitude,
@@ -1168,8 +1260,17 @@ export default function Map({
               );
 
               if (normalizedBanners) {
-                setBanners(normalizedBanners);
-                setHasMoreBannersInView(pageData.hasMore);
+                writeDiscoveryMapCacheEntry({
+                  requestKey: discoveryMapRequestKey,
+                  banners: normalizedBanners,
+                  hasMore: pageData.hasMore,
+                  complete: !pageData.hasMore,
+                });
+
+                if (!ignore) {
+                  setBanners(normalizedBanners);
+                  setHasMoreBannersInView(pageData.hasMore);
+                }
               }
             },
           });
@@ -1198,10 +1299,11 @@ export default function Map({
           return;
         }
 
-        discoveryMapCache.set(discoveryMapRequestKey, {
+        writeDiscoveryMapCacheEntry({
+          requestKey: discoveryMapRequestKey,
           banners: normalizedBanners,
           hasMore: data.hasMore,
-          timestamp: Date.now(),
+          complete: true,
         });
         setBanners(normalizedBanners);
         setHasMoreBannersInView(data.hasMore);
@@ -1418,24 +1520,38 @@ export default function Map({
       connectorColor = null
     ) => {
       const isSelected = banner.id === selectedBannerId;
-      const cacheKey = [
+      const effectiveListType = getBannerListType(
+        syncState,
         banner.id,
-        banner.picture ?? "none",
+        banner.listType
+      );
+      const cacheKey = [
+        markerMode,
+        banner.id,
+        markerMode === "images" ? banner.picture ?? "none" : "dot",
         markerDisplay.maxWidth,
         markerDisplay.maxHeight,
         isSelected ? "selected" : "default",
+        effectiveListType ?? "none",
         connectorColor ?? "no-accent",
       ].join(":");
       let icon = iconCacheRef.current.get(cacheKey);
 
       if (!icon) {
-        icon = createBannerMarkerIcon({
-          banner,
-          width: markerDisplay.maxWidth,
-          maxHeight: markerDisplay.maxHeight,
-          isSelected,
-          accentColor: connectorColor,
-        });
+        icon =
+          markerMode === "dots"
+            ? createBannerDotIcon({
+                listType: effectiveListType,
+                isSelected,
+                accentColor: connectorColor,
+              })
+            : createBannerMarkerIcon({
+                banner,
+                width: markerDisplay.maxWidth,
+                maxHeight: markerDisplay.maxHeight,
+                isSelected,
+                accentColor: connectorColor,
+              });
         iconCacheRef.current.set(cacheKey, icon);
       }
 
@@ -1504,7 +1620,9 @@ export default function Map({
     displayedBanners,
     markerDisplay.maxHeight,
     markerDisplay.maxWidth,
+    markerMode,
     selectedBannerId,
+    syncState,
   ]);
 
   return (
@@ -1643,6 +1761,41 @@ export default function Map({
                   sx={{ display: { xs: "none", lg: "inline" } }}
                 >
                   {userLocation ? "Recenter" : "Locate me"}
+                </Box>
+              </Button>
+              <Button
+                variant="outlined"
+                size="small"
+                color="inherit"
+                aria-label={`Marker mode: ${activeMarkerModeLabel}`}
+                startIcon={
+                  markerMode === "dots" ? (
+                    <RadioButtonCheckedRoundedIcon />
+                  ) : (
+                    <ImageRoundedIcon />
+                  )
+                }
+                onClick={() => {
+                  setMarkerMode((currentMode) =>
+                    currentMode === "dots" ? "images" : "dots"
+                  );
+                }}
+                sx={{
+                  minWidth: { xs: 36, lg: 64 },
+                  width: { xs: 36, lg: "auto" },
+                  px: { xs: 0, lg: 1.25 },
+                  borderColor: "rgba(255,255,255,0.16)",
+                  color: "inherit",
+                  "& .MuiButton-startIcon": {
+                    m: { xs: 0, lg: "0 8px 0 -4px" },
+                  },
+                }}
+              >
+                <Box
+                  component="span"
+                  sx={{ display: { xs: "none", lg: "inline" } }}
+                >
+                  Markers: {activeMarkerModeLabel}
                 </Box>
               </Button>
               <IconButton

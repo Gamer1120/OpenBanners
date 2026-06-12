@@ -933,18 +933,33 @@ function BannerPreviewCard({ banner }) {
   );
 }
 
-function BannerDisambiguationMenu({ banners, point, onClose, onSelect }) {
+function BannerDisambiguationMenu({
+  banners,
+  markerMode = "images",
+  point,
+  onClose,
+  onSelect,
+  syncState,
+}) {
   if (!point || banners.length < 2) {
     return null;
   }
 
+  const isDotMode = markerMode === "dots";
   const thumbnailWidth =
-    banners.length > 12 ? 52 : banners.length > 8 ? 58 : 68;
-  const thumbnailHeight = Math.round(thumbnailWidth * 1.35);
+    isDotMode ? 44 : banners.length > 12 ? 52 : banners.length > 8 ? 58 : 68;
+  const thumbnailHeight = isDotMode
+    ? thumbnailWidth
+    : Math.round(thumbnailWidth * 1.35);
   const radius = Math.max(
-    88,
-    Math.ceil((banners.length * thumbnailWidth) / (2 * Math.PI)) + 24
+    isDotMode ? 64 : 88,
+    Math.ceil((banners.length * thumbnailWidth) / (2 * Math.PI)) +
+      (isDotMode ? 26 : 24)
   );
+  const clusterColors = isDotMode
+    ? DOT_MARKER_COLORS[getDominantListType(banners, syncState)] ??
+      DOT_MARKER_COLORS.none
+    : null;
   const centerX = Math.round(point.x);
   const centerY = Math.round(point.y);
   const stopMapInteraction = (event) => {
@@ -979,10 +994,14 @@ function BannerDisambiguationMenu({ banners, point, onClose, onSelect }) {
           width: 56,
           height: 56,
           borderRadius: 999,
-          border: "1px solid rgba(255,255,255,0.22)",
-          bgcolor: "rgba(18,25,31,0.92)",
+          border: isDotMode
+            ? `3px solid ${clusterColors.border}`
+            : "1px solid rgba(255,255,255,0.22)",
+          bgcolor: isDotMode ? clusterColors.fill : "rgba(18,25,31,0.92)",
           color: "common.white",
-          boxShadow: "0 14px 32px rgba(0,0,0,0.3)",
+          boxShadow: isDotMode
+            ? `0 0 0 8px ${clusterColors.glow}, 0 14px 32px rgba(0,0,0,0.3)`
+            : "0 14px 32px rgba(0,0,0,0.3)",
           backdropFilter: "blur(12px)",
           display: "flex",
           alignItems: "center",
@@ -997,6 +1016,9 @@ function BannerDisambiguationMenu({ banners, point, onClose, onSelect }) {
       </Box>
 
       {banners.map((banner, index) => {
+        const listType = getEffectiveBannerListType(banner, syncState) ?? "none";
+        const dotColors =
+          DOT_MARKER_COLORS[listType] ?? DOT_MARKER_COLORS.none;
         const angle =
           banners.length === 2
             ? index === 0
@@ -1013,6 +1035,7 @@ function BannerDisambiguationMenu({ banners, point, onClose, onSelect }) {
             type="button"
             elevation={0}
             aria-label={`Select ${banner.title}`}
+            data-marker-mode={isDotMode ? "dots" : "images"}
             onClick={(event) => {
               stopMapInteraction(event);
               onSelect(banner);
@@ -1036,21 +1059,30 @@ function BannerDisambiguationMenu({ banners, point, onClose, onSelect }) {
               }px))`,
               transform: "translate(-50%, -50%)",
               width: thumbnailWidth,
+              height: isDotMode ? thumbnailHeight : "auto",
               minHeight: thumbnailHeight,
-              p: 0.5,
-              borderRadius: 1.5,
-              border: "1px solid rgba(255,255,255,0.18)",
-              bgcolor: "rgba(18,25,31,0.94)",
+              p: isDotMode ? 0 : 0.5,
+              borderRadius: isDotMode ? 999 : 1.5,
+              border: isDotMode
+                ? `3px solid ${dotColors.border}`
+                : "1px solid rgba(255,255,255,0.18)",
+              bgcolor: isDotMode ? dotColors.fill : "rgba(18,25,31,0.94)",
               color: "inherit",
-              boxShadow: "0 16px 34px rgba(0,0,0,0.32)",
+              boxShadow: isDotMode
+                ? `0 0 0 5px ${dotColors.glow}, 0 12px 24px rgba(0,0,0,0.32)`
+                : "0 16px 34px rgba(0,0,0,0.32)",
               backdropFilter: "blur(12px)",
               cursor: "pointer",
               overflow: "hidden",
               transition:
                 "border-color 120ms ease, box-shadow 120ms ease, transform 120ms ease",
               "&:hover": {
-                borderColor: "rgba(126,200,255,0.65)",
-                boxShadow: "0 18px 38px rgba(0,0,0,0.38)",
+                borderColor: isDotMode
+                  ? dotColors.border
+                  : "rgba(126,200,255,0.65)",
+                boxShadow: isDotMode
+                  ? `0 0 0 7px ${dotColors.glow}, 0 14px 28px rgba(0,0,0,0.38)`
+                  : "0 18px 38px rgba(0,0,0,0.38)",
                 transform: "translate(-50%, -50%) scale(1.04)",
               },
               "&:focus-visible": {
@@ -1059,35 +1091,39 @@ function BannerDisambiguationMenu({ banners, point, onClose, onSelect }) {
               },
             }}
           >
-            <Box
-              sx={{
-                width: "100%",
-                minHeight: thumbnailHeight - 8,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                bgcolor: "rgba(255,255,255,0.04)",
-                overflow: "hidden",
-                borderRadius: 1,
-              }}
-            >
-              {banner.picture ? (
-                <Box
-                  component="img"
-                  src={`https://api.bannergress.com${banner.picture}`}
-                  alt=""
-                  sx={{
-                    width: "100%",
-                    height: "auto",
-                    display: "block",
-                  }}
-                />
-              ) : (
-                <Typography variant="caption" color="text.secondary">
-                  No image
-                </Typography>
-              )}
-            </Box>
+            {isDotMode ? (
+              <Box data-testid="disambiguation-dot" aria-hidden="true" />
+            ) : (
+              <Box
+                sx={{
+                  width: "100%",
+                  minHeight: thumbnailHeight - 8,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  bgcolor: "rgba(255,255,255,0.04)",
+                  overflow: "hidden",
+                  borderRadius: 1,
+                }}
+              >
+                {banner.picture ? (
+                  <Box
+                    component="img"
+                    src={`https://api.bannergress.com${banner.picture}`}
+                    alt=""
+                    sx={{
+                      width: "100%",
+                      height: "auto",
+                      display: "block",
+                    }}
+                  />
+                ) : (
+                  <Typography variant="caption" color="text.secondary">
+                    No image
+                  </Typography>
+                )}
+              </Box>
+            )}
           </Paper>
         );
       })}
@@ -1557,6 +1593,7 @@ export default function Map({
       setDisambiguationState({
         point: interactionPoint,
         bannerIds: candidates.map((candidate) => candidate.id),
+        markerMode,
       });
       return;
     }
@@ -1583,6 +1620,7 @@ export default function Map({
     setDisambiguationState({
       point: interactionPoint,
       bannerIds: descriptorBanners.map((banner) => banner.id),
+      markerMode,
     });
   };
 
@@ -1612,6 +1650,7 @@ export default function Map({
       setDisambiguationState({
         point: interactionPoint,
         bannerIds: candidates.map((candidate) => candidate.id),
+        markerMode,
       });
       return;
     }
@@ -1827,9 +1866,11 @@ export default function Map({
 
       <BannerDisambiguationMenu
         banners={disambiguationBanners}
+        markerMode={disambiguationState?.markerMode}
         point={disambiguationState?.point}
         onClose={() => setDisambiguationState(null)}
         onSelect={handleBannerSelection}
+        syncState={syncState}
       />
 
       <Stack

@@ -43,6 +43,8 @@ The `/map` marker toggle supports image markers and Bannergress-style dots; dot 
 
 In `/map` dot marker mode, overlapping banners should cluster into numbered dots instead of being displaced with connector lines.
 
+When a `/map` dot marker cluster opens the disambiguation picker, render the choices as list-colored dots rather than banner thumbnails.
+
 ## Commit & Pull Request Guidelines
 
 Recent history uses short imperative commits, with occasional conventional scope prefixes such as `fix(bannerguider): don't open new missions on blank`. Prefer concise subject lines that describe the behavior change, for example `Fix browse pagination after filters`.

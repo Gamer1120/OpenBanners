@@ -68,13 +68,25 @@ vi.mock("react-leaflet", async () => {
     MapContainer,
     TileLayer: ({ children }) => <div data-testid="tile-layer">{children}</div>,
     Polyline: ({ children }) => <div data-testid="polyline">{children}</div>,
-    Marker: ({ children, position }) => (
+    Marker: ({ children, position, eventHandlers }) => (
       <div
         data-testid={`marker-${
           Array.isArray(position)
             ? position.join("-")
             : `${position?.lat}-${position?.lng}`
         }`}
+        onClick={() =>
+          eventHandlers?.click?.({
+            latlng: Array.isArray(position)
+              ? { lat: position?.[0], lng: position?.[1] }
+              : { lat: position?.lat, lng: position?.lng },
+            containerPoint: mapInstance?.latLngToContainerPoint(
+              Array.isArray(position)
+                ? { lat: position?.[0], lng: position?.[1] }
+                : { lat: position?.lat, lng: position?.lng }
+            ),
+          })
+        }
       >
         {children}
       </div>
@@ -399,6 +411,16 @@ test("clusters nearby dot markers into numbered dots without connector lines", a
   });
 
   expect(screen.queryByTestId("polyline")).not.toBeInTheDocument();
+
+  fireEvent.click(screen.getAllByTestId(/marker-/)[0]);
+
+  const firstPickerChoice = await screen.findByRole("button", {
+    name: /select cluster dot banner 1/i,
+  });
+
+  expect(firstPickerChoice).toHaveAttribute("data-marker-mode", "dots");
+  expect(firstPickerChoice.querySelector("img")).toBeNull();
+  expect(screen.getAllByTestId("disambiguation-dot")).toHaveLength(3);
 });
 
 test("fetches additional discovery map pages when more than 50 banners are in view", async () => {

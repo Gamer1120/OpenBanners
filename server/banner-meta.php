@@ -7,7 +7,7 @@ const DEFAULT_TITLE = 'OpenBanners';
 const DEFAULT_DESCRIPTION = 'An open-source front-end for banners';
 const DEFAULT_IMAGE = SITE_ORIGIN . '/logo512.png';
 const BANNERGRESS_IMAGE_ORIGIN = 'https://api.bannergress.com';
-const INDEX_HTML_PATH = __DIR__ . '/../dist/index.html';
+const DEFAULT_INDEX_HTML_PATH = __DIR__ . '/../dist/index.html';
 const CACHE_TTL_SECONDS = 900;
 
 function sendHtml(string $html, int $statusCode = 200): never
@@ -20,7 +20,11 @@ function sendHtml(string $html, int $statusCode = 200): never
 
 function loadIndexHtml(): string
 {
-    $html = @file_get_contents(INDEX_HTML_PATH);
+    $configuredPath = getenv('OPENBANNERS_INDEX_HTML');
+    $path = is_string($configuredPath) && trim($configuredPath) !== ''
+        ? $configuredPath
+        : DEFAULT_INDEX_HTML_PATH;
+    $html = @file_get_contents($path);
 
     if ($html === false || $html === '') {
         sendHtml('OpenBanners shell not found.', 500);

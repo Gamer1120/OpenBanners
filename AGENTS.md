@@ -19,6 +19,7 @@ Use Yarn 1, as pinned in `package.json`.
 - `docker compose -f docker-compose.public.yml up -d`: run the published GHCR image on local backend port `18080`; nginx exposes it publicly on the existing HTTPS port `443` using `docker/openbanners-nginx-container-location.conf` from the `openbanners.org` vhost. The included Watchtower service checks for new images and updates the container automatically.
 - Do not deploy production by running `yarn build` locally or by restarting nginx for app code changes. After a completed change, commit and push to GitHub, wait for the Docker image workflow to publish `ghcr.io/gamer1120/openbanners:latest`, let Watchtower update the `openbanners-public` container, and then verify production at `https://openbanners.org/`.
 - Always commit and push completed changes after verification; use the GitHub Docker image plus Watchtower path for production testing.
+- The Docker image includes PHP-FPM solely for `/banner/:id` metadata fallback. Keep nginx routing for `/banner/` as prerendered static file first, then `server/banner-meta.php`, then normal SPA behavior for unavailable banner metadata.
 
 ## Coding Style & Naming Conventions
 

@@ -5,3 +5,6 @@
 !dist/**
 !docker
 !docker/nginx.conf
+!docker/entrypoint.sh
+!server
+!server/banner-meta.php

@@ -45,7 +45,7 @@ docker run --rm -p 8080:80 openbanners
 
 Then open `http://localhost:8080`.
 
-The container is a small static runtime: it copies the existing `dist/` directory into nginx and does not include Node, Yarn, or PHP. Non-prerendered `/banner/:id` routes fall back to the SPA shell. Use the standalone `server/banner-meta.php` fallback outside the container when dynamic crawler metadata is required.
+The container copies the existing `dist/` directory into nginx and includes PHP-FPM only for dynamic `/banner/:id` metadata fallback. Non-banner routes are still served as static SPA files.
 
 The GitHub Actions workflow installs dependencies with Yarn cache, runs `yarn build`, and then builds the small static image. Pull requests build the image without publishing it. Pushes to `main`, `v*.*.*` tags, and manual `workflow_dispatch` runs publish to GitHub Container Registry. The workflow lowercases the repository path because container image names must be lowercase, producing tags such as:
 
@@ -84,7 +84,7 @@ That command fetches Bannergress JSON for each requested banner id and writes a 
 dist/banner/<banner-id>/index.html
 ```
 
-For banner ids that are not prerendered yet, the deployment can use `server/banner-meta.php` as a fallback renderer. It reads the built SPA shell from `dist/index.html`, fetches the requested Bannergress banner, injects the banner-specific metadata into the initial HTML, and still returns the normal SPA shell.
+For banner ids that are not prerendered yet, the Docker deployment uses `server/banner-meta.php` as a fallback renderer. It reads the built SPA shell, fetches the requested Bannergress banner, injects the banner-specific metadata into the initial HTML, and still returns the normal SPA shell.
 
 This keeps the deployment free of a dedicated Node metadata server while still making any banner URL previewable.
 

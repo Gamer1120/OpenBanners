@@ -370,6 +370,93 @@ test("toggles discovery map markers between images and list-colored dots", async
   );
 });
 
+test("filters discovery map markers to to do banners only", async () => {
+  window.localStorage.setItem("openbanners.discoveryMap.markerMode", "dots");
+  saveBannergressSyncData({
+    bannerLists: {
+      "todo-map-banner": "todo",
+      "done-map-banner": "done",
+    },
+  });
+
+  global.fetch.mockImplementation((url) => {
+    if (url.includes("/bnrs?orderBy=proximityStartPoint")) {
+      return jsonResponse([
+        {
+          id: "todo-map-banner",
+          title: "Todo Map Banner",
+          picture: "/images/todo-map.jpg",
+          numberOfMissions: 6,
+          lengthMeters: 1800,
+          formattedAddress: "Enschede, NL",
+          numberOfDisabledMissions: 0,
+          startLatitude: "52.2",
+          startLongitude: "6.85",
+        },
+        {
+          id: "done-map-banner",
+          title: "Done Map Banner",
+          picture: "/images/done-map.jpg",
+          numberOfMissions: 6,
+          lengthMeters: 1800,
+          formattedAddress: "Enschede, NL",
+          numberOfDisabledMissions: 0,
+          startLatitude: "52.2",
+          startLongitude: "6.9",
+        },
+        {
+          id: "none-map-banner",
+          title: "None Map Banner",
+          picture: "/images/none-map.jpg",
+          numberOfMissions: 6,
+          lengthMeters: 1800,
+          formattedAddress: "Enschede, NL",
+          numberOfDisabledMissions: 0,
+          startLatitude: "52.15",
+          startLongitude: "6.85",
+        },
+      ]);
+    }
+
+    throw new Error(`Unhandled fetch: ${url}`);
+  });
+
+  function FilterableMap() {
+    const [filters, setFilters] = React.useState(DEFAULT_MAP_BANNER_FILTERS);
+
+    return (
+      <Map bannerFilters={filters} onBannerFiltersChange={setFilters} />
+    );
+  }
+
+  renderWithProviders(<FilterableMap />);
+
+  await waitFor(() => {
+    const tooltipLabels = screen
+      .getAllByTestId("marker-tooltip")
+      .map((tooltip) => tooltip.textContent);
+
+    expect(tooltipLabels).toEqual(
+      expect.arrayContaining(["Todo Map Banner", "None Map Banner"])
+    );
+    expect(tooltipLabels).not.toContain("Done Map Banner");
+  });
+
+  fireEvent.click(screen.getByRole("button", { name: /^filters$/i }));
+  fireEvent.click(
+    screen.getByRole("checkbox", { name: /only to do banners/i })
+  );
+
+  await waitFor(() => {
+    expect(screen.getByText("1 banners in view")).toBeInTheDocument();
+    expect(
+      screen
+        .getAllByTestId("marker-tooltip")
+        .map((tooltip) => tooltip.textContent)
+    ).toEqual(["Todo Map Banner"]);
+  });
+});
+
 test("clusters nearby dot markers into numbered dots without connector lines", async () => {
   window.localStorage.setItem("openbanners.discoveryMap.markerMode", "dots");
   saveBannergressSyncData({

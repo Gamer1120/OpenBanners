@@ -1657,6 +1657,8 @@ test("shows an empty state when search returns no places or banners", async () =
 });
 
 test("renders banner details route with actions", async () => {
+  const user = userEvent.setup();
+
   global.fetch.mockImplementation((url) => {
     if (url.endsWith("/bnrs/detail-banner")) {
       return jsonResponse({
@@ -1698,9 +1700,16 @@ test("renders banner details route with actions", async () => {
   );
 
   expect(await screen.findByText("Detail Banner")).toBeInTheDocument();
-  expect(
-    screen.getByRole("button", { name: /share banner/i })
-  ).toBeInTheDocument();
+  await user.click(screen.getByRole("button", { name: /share banner/i }));
+
+  expect(navigator.share).toHaveBeenCalledWith({
+    title: "Detail Banner",
+    text: [
+      "Detail Banner",
+      "https://openbanners.org/banner/detail-banner",
+      "https://bannergress.com/banner/detail-banner",
+    ].join("\n"),
+  });
 });
 
 test("shows separate overview and map tabs for banner details on mobile", async () => {

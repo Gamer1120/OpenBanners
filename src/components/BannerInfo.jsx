@@ -36,11 +36,18 @@ const BannerInfo = ({ banner, loading = false }) => {
     );
   };
 
-  const shareBannerUrl = (bannerURL, successMessage = "Banner link copied to clipboard.") => {
+  const shareBannerText = (
+    text,
+    {
+      title = "OpenBanners",
+      successMessage = "Banner link copied to clipboard.",
+    } = {}
+  ) => {
     if (navigator.share) {
       navigator
         .share({
-          url: bannerURL,
+          title,
+          text,
         })
         .catch((error) => {
           console.error("Error sharing:", error);
@@ -54,7 +61,7 @@ const BannerInfo = ({ banner, loading = false }) => {
 
     if (navigator.clipboard?.writeText) {
       navigator.clipboard
-        .writeText(bannerURL)
+        .writeText(text)
         .then(() => {
           setShareFeedback({
             severity: "success",
@@ -72,7 +79,7 @@ const BannerInfo = ({ banner, loading = false }) => {
     }
 
     const textarea = document.createElement("textarea");
-    textarea.value = bannerURL;
+    textarea.value = text;
     document.body.appendChild(textarea);
     textarea.select();
 
@@ -94,13 +101,29 @@ const BannerInfo = ({ banner, loading = false }) => {
   };
 
   const handleShareBanner = () => {
-    shareBannerUrl(`https://openbanners.org/${banner.id}`);
+    const encodedBannerId = encodeURIComponent(banner.id);
+    const bannerTitle =
+      typeof banner.title === "string" && banner.title.trim() !== ""
+        ? banner.title.trim()
+        : "OpenBanners banner";
+    const shareText = [
+      bannerTitle,
+      `https://openbanners.org/banner/${encodedBannerId}`,
+      `https://bannergress.com/banner/${encodedBannerId}`,
+    ].join("\n");
+
+    shareBannerText(shareText, {
+      title: bannerTitle,
+    });
   };
 
   const handleShareBannergressOverlay = () => {
-    shareBannerUrl(
+    shareBannerText(
       `https://bannergress.com/banner/${banner.id}`,
-      "Bannergress Overlay link copied to clipboard."
+      {
+        title: banner.title,
+        successMessage: "Bannergress Overlay link copied to clipboard.",
+      }
     );
   };
 

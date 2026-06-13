@@ -2174,6 +2174,7 @@ export default function Map({
               doneBannersFilterMode="show"
               showKilometerFilter
               showMinimumMissionsFilter
+              showTodoListFilter
               labelSx={{ display: { xs: "none", lg: "inline" } }}
               sx={{
                 justifyContent: "space-between",

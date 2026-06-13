@@ -13,6 +13,7 @@ function MapFilterHarness() {
       filters={filters}
       onChange={setFilters}
       doneBannersFilterMode="show"
+      showTodoListFilter
     />
   );
 }
@@ -37,6 +38,31 @@ test("shows the map done banner filter as unchecked by default", async () => {
   await user.click(showDoneBanners);
 
   expect(showDoneBanners).toBeChecked();
+  expect(screen.getByText("Filters (1)")).toBeInTheDocument();
+});
+
+test("shows the map to do list filter when enabled", async () => {
+  const user = userEvent.setup();
+
+  render(<MapFilterHarness />);
+
+  await user.click(screen.getByRole("button", { name: /^filters$/i }));
+
+  const showHiddenBanners = screen.getByRole("checkbox", {
+    name: /show hidden banners/i,
+  });
+  const onlyTodoBanners = screen.getByRole("checkbox", {
+    name: /only to do banners/i,
+  });
+  const showDoneBanners = screen.getByRole("checkbox", {
+    name: /show done banners/i,
+  });
+
+  await user.click(onlyTodoBanners);
+
+  expect(onlyTodoBanners).toBeChecked();
+  expect(showHiddenBanners).toBeDisabled();
+  expect(showDoneBanners).toBeDisabled();
   expect(screen.getByText("Filters (1)")).toBeInTheDocument();
 });
 

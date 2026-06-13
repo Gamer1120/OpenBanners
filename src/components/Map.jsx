@@ -38,6 +38,7 @@ import BannerFilterButton from "./BannerFilterButton";
 import {
   applyBannerFilters,
   DEFAULT_MAP_BANNER_FILTERS,
+  getKilometerBounds,
   getMissionCountBounds,
 } from "../bannerFilters";
 
@@ -1549,10 +1550,14 @@ export default function Map({
   const { minimumMissions, maximumMissions } = getMissionCountBounds(
     bannerFilters
   );
+  const { minimumKilometers, maximumKilometers } = getKilometerBounds(
+    bannerFilters
+  );
   const filteredBanners = useMemo(
     () =>
       applyBannerFilters(banners, syncState, bannerFilters).filter((banner) => {
         const missionCount = Number(banner?.numberOfMissions);
+        const lengthMeters = Number(banner?.lengthMeters);
 
         if (!Number.isFinite(missionCount)) {
           return minimumMissions === null && maximumMissions === null;
@@ -1566,9 +1571,38 @@ export default function Map({
           return false;
         }
 
+        if (minimumKilometers !== null || maximumKilometers !== null) {
+          if (!Number.isFinite(lengthMeters)) {
+            return false;
+          }
+
+          if (
+            minimumKilometers !== null &&
+            minimumKilometers > 0 &&
+            lengthMeters < minimumKilometers * 1000
+          ) {
+            return false;
+          }
+
+          if (
+            maximumKilometers !== null &&
+            lengthMeters > maximumKilometers * 1000
+          ) {
+            return false;
+          }
+        }
+
         return true;
       }),
-    [bannerFilters, banners, maximumMissions, minimumMissions, syncState]
+    [
+      bannerFilters,
+      banners,
+      maximumKilometers,
+      maximumMissions,
+      minimumKilometers,
+      minimumMissions,
+      syncState,
+    ]
   );
 
   const displayedBanners = filteredBanners;
@@ -2138,6 +2172,7 @@ export default function Map({
               onChange={onBannerFiltersChange}
               color="inherit"
               doneBannersFilterMode="show"
+              showKilometerFilter
               showMinimumMissionsFilter
               labelSx={{ display: { xs: "none", lg: "inline" } }}
               sx={{

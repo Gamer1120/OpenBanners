@@ -39,3 +39,30 @@ test("shows the map done banner filter as unchecked by default", async () => {
   expect(showDoneBanners).toBeChecked();
   expect(screen.getByText("Filters (1)")).toBeInTheDocument();
 });
+
+test("shows map route length kilometer filters when enabled", async () => {
+  const user = userEvent.setup();
+
+  function KilometerFilterHarness() {
+    const [filters, setFilters] = useState(DEFAULT_MAP_BANNER_FILTERS);
+
+    return (
+      <BannerFilterButton
+        filters={filters}
+        onChange={setFilters}
+        doneBannersFilterMode="show"
+        showKilometerFilter
+      />
+    );
+  }
+
+  render(<KilometerFilterHarness />);
+
+  await user.click(screen.getByRole("button", { name: /^filters$/i }));
+  await user.type(screen.getByLabelText("Minimum km"), "2.5");
+  await user.type(screen.getByLabelText("Maximum km"), "5");
+
+  expect(screen.getByText("Filters (1)")).toBeInTheDocument();
+  expect(screen.getByDisplayValue("2.5")).toBeInTheDocument();
+  expect(screen.getByDisplayValue("5")).toBeInTheDocument();
+});

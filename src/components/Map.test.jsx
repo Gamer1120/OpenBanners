@@ -136,6 +136,12 @@ function renderWithProviders(ui) {
   );
 }
 
+function ControlledMap() {
+  const [filters, setFilters] = React.useState(DEFAULT_MAP_BANNER_FILTERS);
+
+  return <Map bannerFilters={filters} onBannerFiltersChange={setFilters} />;
+}
+
 beforeEach(() => {
   __resetDiscoveryMapCacheForTests();
   L.divIcon.mockClear();
@@ -490,4 +496,65 @@ test("fetches additional discovery map pages when more than 50 banners are in vi
   );
 
   expect(fetchedOffsets).toEqual(["0", "50", "100"]);
+});
+
+test("filters discovery map banners by minimum and maximum route kilometers", async () => {
+  global.fetch.mockImplementation((url) => {
+    if (url.includes("/bnrs?orderBy=proximityStartPoint")) {
+      return jsonResponse([
+        {
+          id: "short-route-banner",
+          title: "Short Route Banner",
+          picture: "/images/short-route.jpg",
+          numberOfMissions: 6,
+          lengthMeters: 1200,
+          formattedAddress: "Enschede, NL",
+          numberOfDisabledMissions: 0,
+          startLatitude: "52.2",
+          startLongitude: "6.85",
+        },
+        {
+          id: "middle-route-banner",
+          title: "Middle Route Banner",
+          picture: "/images/middle-route.jpg",
+          numberOfMissions: 6,
+          lengthMeters: 2600,
+          formattedAddress: "Enschede, NL",
+          numberOfDisabledMissions: 0,
+          startLatitude: "52.21",
+          startLongitude: "6.86",
+        },
+        {
+          id: "long-route-banner",
+          title: "Long Route Banner",
+          picture: "/images/long-route.jpg",
+          numberOfMissions: 6,
+          lengthMeters: 5200,
+          formattedAddress: "Enschede, NL",
+          numberOfDisabledMissions: 0,
+          startLatitude: "52.22",
+          startLongitude: "6.87",
+        },
+      ]);
+    }
+
+    throw new Error(`Unhandled fetch: ${url}`);
+  });
+
+  renderWithProviders(<ControlledMap />);
+
+  expect(await screen.findByText("3 banners in view")).toBeInTheDocument();
+
+  fireEvent.click(screen.getByRole("button", { name: /^filters$/i }));
+  fireEvent.change(screen.getByLabelText("Minimum km"), {
+    target: { value: "2" },
+  });
+  fireEvent.change(screen.getByLabelText("Maximum km"), {
+    target: { value: "3" },
+  });
+
+  expect(await screen.findByText("1 banners in view")).toBeInTheDocument();
+  expect(screen.getByText("Middle Route Banner")).toBeInTheDocument();
+  expect(screen.queryByText("Short Route Banner")).not.toBeInTheDocument();
+  expect(screen.queryByText("Long Route Banner")).not.toBeInTheDocument();
 });

@@ -16,11 +16,12 @@ import FilterListRoundedIcon from "@mui/icons-material/FilterListRounded";
 import {
   DEFAULT_BANNER_FILTERS,
   countActiveBannerFilters,
+  getKilometerBounds,
   getMissionCountBounds,
   PRESET_MISSION_COUNT_FILTERS,
 } from "../bannerFilters";
 
-const filterOptions = [
+const baseFilterOptions = [
   {
     key: "showOfflineBanners",
     label: "Show offline banners",
@@ -38,13 +39,31 @@ const filterOptions = [
   },
 ];
 
-const MUTUALLY_EXCLUSIVE_FILTER_KEYS = [
+const todoListFilterOption = {
+  key: "showTodoBannersOnly",
+  label: "Only to do banners",
+  helperText: "Can't be combined with Show hidden banners or Show done banners.",
+};
+
+const LIST_STATE_FILTER_KEYS = [
   "showHiddenBanners",
+  "showTodoBannersOnly",
   "hideDoneBanners",
 ];
 
 function sanitizeMissionInput(value) {
   return value.replace(/[^0-9]/g, "");
+}
+
+function sanitizeKilometerInput(value) {
+  const cleanedValue = value.replace(",", ".").replace(/[^0-9.]/g, "");
+  const [wholeValue, ...decimalParts] = cleanedValue.split(".");
+
+  if (decimalParts.length === 0) {
+    return wholeValue;
+  }
+
+  return `${wholeValue}.${decimalParts.join("")}`;
 }
 
 export default function BannerFilterButton({
@@ -56,9 +75,30 @@ export default function BannerFilterButton({
   sx,
   labelSx,
   showMinimumMissionsFilter = false,
+  showKilometerFilter = false,
+  showTodoListFilter = false,
   doneBannersFilterMode = "hide",
 }) {
   const [anchorEl, setAnchorEl] = useState(null);
+  const visibleFilterOptions = useMemo(
+    () =>
+      showTodoListFilter
+        ? [
+            baseFilterOptions[0],
+            baseFilterOptions[1],
+            todoListFilterOption,
+            baseFilterOptions[2],
+          ]
+        : baseFilterOptions,
+    [showTodoListFilter]
+  );
+  const mutuallyExclusiveFilterKeys = useMemo(
+    () =>
+      visibleFilterOptions
+        .map((option) => option.key)
+        .filter((key) => LIST_STATE_FILTER_KEYS.includes(key)),
+    [visibleFilterOptions]
+  );
   const activeFilterCount = useMemo(
     () => countActiveBannerFilters(filters, { doneBannersFilterMode }),
     [doneBannersFilterMode, filters]
@@ -73,7 +113,7 @@ export default function BannerFilterButton({
 
     return Boolean(filters?.[option.key]);
   };
-  const hasExclusiveFilterEnabled = MUTUALLY_EXCLUSIVE_FILTER_KEYS.some((key) =>
+  const hasExclusiveFilterEnabled = mutuallyExclusiveFilterKeys.some((key) =>
     isFilterOptionChecked({ key })
   );
   const { minimumMissions } = getMissionCountBounds(filters);
@@ -84,6 +124,7 @@ export default function BannerFilterButton({
   const missionToggleValue = isCustomMissionFilter
     ? "custom"
     : String(minimumMissions);
+  const { hasKilometerFilter } = getKilometerBounds(filters);
   const buttonLabel =
     activeFilterCount > 0 ? `Filters (${activeFilterCount})` : "Filters";
 
@@ -117,7 +158,7 @@ export default function BannerFilterButton({
             Banner Filters
           </Typography>
           <FormGroup sx={{ mt: 0.5 }}>
-            {filterOptions.map((option) => {
+            {visibleFilterOptions.map((option) => {
               const isChecked = isFilterOptionChecked(option);
               const optionLabel =
                 option.key === "hideDoneBanners"
@@ -135,7 +176,7 @@ export default function BannerFilterButton({
                       <Checkbox
                         checked={isChecked}
                         disabled={
-                          MUTUALLY_EXCLUSIVE_FILTER_KEYS.includes(option.key) &&
+                          mutuallyExclusiveFilterKeys.includes(option.key) &&
                           !isChecked &&
                           hasExclusiveFilterEnabled
                         }
@@ -155,6 +196,7 @@ export default function BannerFilterButton({
                           ) {
                             nextFilters.hideDoneBanners =
                               doneBannersFilterMode === "show";
+                            nextFilters.showTodoBannersOnly = false;
                           }
 
                           if (
@@ -162,6 +204,15 @@ export default function BannerFilterButton({
                             option.key === "hideDoneBanners"
                           ) {
                             nextFilters.showHiddenBanners = false;
+                            nextFilters.showTodoBannersOnly = false;
+                          }
+
+                          if (
+                            event.target.checked &&
+                            option.key === "showTodoBannersOnly"
+                          ) {
+                            nextFilters.showHiddenBanners = false;
+                            nextFilters.hideDoneBanners = true;
                           }
 
                           onChange?.(nextFilters);
@@ -276,6 +327,59 @@ export default function BannerFilterButton({
                   </Typography>
                 </>
               ) : null}
+            </Box>
+          ) : null}
+
+          {showKilometerFilter ? (
+            <Box sx={{ mt: 1.75 }}>
+              <Typography
+                variant="overline"
+                sx={{ color: "text.secondary", letterSpacing: 0 }}
+              >
+                Route length
+              </Typography>
+              <Stack direction="row" spacing={1} sx={{ mt: 0.75 }}>
+                <TextField
+                  label="Minimum km"
+                  size="small"
+                  type="number"
+                  value={filters?.minimumKilometers ?? ""}
+                  onChange={(event) => {
+                    onChange?.({
+                      ...filters,
+                      minimumKilometers: sanitizeKilometerInput(
+                        event.target.value
+                      ),
+                    });
+                  }}
+                  inputProps={{ min: 0, step: 0.1, inputMode: "decimal" }}
+                  sx={{ width: 120 }}
+                />
+                <TextField
+                  label="Maximum km"
+                  size="small"
+                  type="number"
+                  value={filters?.maximumKilometers ?? ""}
+                  onChange={(event) => {
+                    onChange?.({
+                      ...filters,
+                      maximumKilometers: sanitizeKilometerInput(
+                        event.target.value
+                      ),
+                    });
+                  }}
+                  inputProps={{ min: 0, step: 0.1, inputMode: "decimal" }}
+                  sx={{ width: 120 }}
+                />
+              </Stack>
+              <Typography
+                variant="caption"
+                sx={{ display: "block", mt: 0.75, color: "text.secondary" }}
+              >
+                {hasKilometerFilter
+                  ? "Filtering by banner route length."
+                  : "Leave a field empty to remove that limit."}
+              </Typography>
             </Box>
           ) : null}
         </Box>

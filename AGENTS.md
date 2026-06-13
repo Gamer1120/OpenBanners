@@ -48,6 +48,8 @@ When a `/map` dot marker cluster opens the disambiguation picker, render the cho
 
 Mixed `/map` dot marker clusters should use segmented colors for the represented list states, and single dot markers should expose the banner title on hover.
 
+For `/map`, list-state filters such as to-do-only and show-done depend on Bannergress list metadata and should remain mutually exclusive with Show hidden banners.
+
 ## Commit & Pull Request Guidelines
 
 Recent history uses short imperative commits, with occasional conventional scope prefixes such as `fix(bannerguider): don't open new missions on blank`. Prefer concise subject lines that describe the behavior change, for example `Fix browse pagination after filters`.

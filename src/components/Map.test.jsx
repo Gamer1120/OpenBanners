@@ -336,6 +336,7 @@ test("toggles discovery map markers between images and list-colored dots", async
   );
 
   await screen.findByText("Dot Todo Banner");
+  expect(screen.queryByText(/away/i)).not.toBeInTheDocument();
   fireEvent.click(screen.getByRole("button", { name: /marker mode: images/i }));
 
   expect(

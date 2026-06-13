@@ -347,18 +347,6 @@ function calculateDistanceMeters(latitudeA, longitudeA, latitudeB, longitudeB) {
   return earthRadiusMeters * c;
 }
 
-function formatDistance(distanceMeters) {
-  if (!Number.isFinite(distanceMeters)) {
-    return "Distance unavailable";
-  }
-
-  if (distanceMeters < 1000) {
-    return `${Math.round(distanceMeters)} m away`;
-  }
-
-  return `${(distanceMeters / 1000).toFixed(1)} km away`;
-}
-
 function getMarkerDisplay(zoom, imageScale) {
   let baseDisplay;
 
@@ -790,14 +778,10 @@ function BannerPreviewCard({ banner }) {
   const missions = Number(banner.numberOfMissions);
   const lengthMeters = Number(banner.lengthMeters);
   const missionLabel = `${Number.isFinite(missions) ? missions : "?"} missions`;
-  const distanceLabel = formatDistance(banner._distanceMeters);
-  const mobileDistanceLabel = distanceLabel.replace(/ away$/, "");
   const lengthLabel = Number.isFinite(lengthMeters)
     ? `${(lengthMeters / 1000).toFixed(1)} km`
     : null;
-  const mobileMeta = [missionLabel, mobileDistanceLabel, lengthLabel]
-    .filter(Boolean)
-    .join(" / ");
+  const mobileMeta = [missionLabel, lengthLabel].filter(Boolean).join(" / ");
 
   return (
     <Paper
@@ -936,11 +920,6 @@ function BannerPreviewCard({ banner }) {
               <Chip
                 size="small"
                 label={missionLabel}
-                sx={{ bgcolor: "rgba(255,255,255,0.05)", borderRadius: 999 }}
-              />
-              <Chip
-                size="small"
-                label={distanceLabel}
                 sx={{ bgcolor: "rgba(255,255,255,0.05)", borderRadius: 999 }}
               />
               {Number(banner.numberOfDisabledMissions) > 0 ? (

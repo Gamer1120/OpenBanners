@@ -3104,7 +3104,7 @@ test("renders a discovery map with proximity-sorted poster markers and preview l
     })
   );
   expect(screen.getByText("Map Banner")).toBeInTheDocument();
-  expect(screen.getByText(/away/i)).toBeInTheDocument();
+  expect(screen.queryByText(/away/i)).not.toBeInTheDocument();
 });
 
 test("lets you change discovery map poster size with presets and a custom slider", async () => {

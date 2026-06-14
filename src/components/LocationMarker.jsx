@@ -15,6 +15,8 @@ const GEOLOCATION_OPTIONS = {
   maximumAge: 5000,
   timeout: 15000,
 };
+const MISSION_CONTROLS_OVERLAY_SELECTOR =
+  '[data-map-overlay="mission-controls"]';
 
 function toRadians(degrees) {
   return (degrees * Math.PI) / 180;
@@ -172,6 +174,39 @@ function getRectCenter(rect) {
   };
 }
 
+function getMissionControlsOverlayRect() {
+  if (typeof document === "undefined") {
+    return null;
+  }
+
+  return normalizeRect(
+    document
+      .querySelector(MISSION_CONTROLS_OVERLAY_SELECTOR)
+      ?.getBoundingClientRect?.()
+  );
+}
+
+function getPreferredHorizontalCenter(visibleRect) {
+  const visibleCenter = getRectCenter(visibleRect);
+  const overlayRect = getMissionControlsOverlayRect();
+
+  if (!overlayRect) {
+    return visibleCenter.x;
+  }
+
+  const overlayRight = clamp(
+    overlayRect.right,
+    visibleRect.left,
+    visibleRect.right
+  );
+
+  if (overlayRight <= visibleRect.left || overlayRight >= visibleRect.right) {
+    return visibleCenter.x;
+  }
+
+  return overlayRight + (visibleRect.right - overlayRight) / 2;
+}
+
 function getPreferredTargetPoint(map) {
   const containerRect = normalizeRect(map.getContainer?.()?.getBoundingClientRect?.());
 
@@ -185,11 +220,12 @@ function getPreferredTargetPoint(map) {
   const targetRect = visibleRect;
 
   const targetCenter = getRectCenter(targetRect);
+  const targetX = getPreferredHorizontalCenter(targetRect);
   const mapSize = map.getSize?.();
   const maxX = Number.isFinite(mapSize?.x) ? mapSize.x : containerRect.width;
   const maxY = Number.isFinite(mapSize?.y) ? mapSize.y : containerRect.height;
   const targetPoint = {
-    x: clamp(targetCenter.x - containerRect.left, 0, maxX),
+    x: clamp(targetX - containerRect.left, 0, maxX),
     y: clamp(targetCenter.y - containerRect.top, 0, maxY),
   };
 

@@ -2288,13 +2288,13 @@ test("keeps the BannerGuider user marker visible in the safe area on small scree
   const { useMap } = await import("react-leaflet");
   const map = useMap();
   expect(map.setView).toHaveBeenCalled();
-  const target = map.setView.mock.calls.at(-1)?.[0];
-  const point = map.latLngToContainerPoint(target);
+  const point = map.latLngToContainerPoint({
+    lat: 52.3702,
+    lng: 4.8902,
+  });
 
-  expect(point.x).toBeGreaterThan(150);
-  expect(point.x).toBeLessThan(360);
-  expect(point.y).toBeGreaterThan(110);
-  expect(point.y).toBeLessThan(640);
+  expect(point.x).toBe(255);
+  expect(point.y).toBe(320);
 });
 
 
@@ -2403,13 +2403,13 @@ test("keeps the BannerGuider centered within the visible viewport when the map c
       });
     });
 
-    const target = map.setView.mock.calls.at(-1)?.[0];
-    const point = map.latLngToContainerPoint(target);
+    const point = map.latLngToContainerPoint({
+      lat: 52.37,
+      lng: 4.89,
+    });
 
-    expect(point.x).toBeGreaterThan(130);
-    expect(point.x).toBeLessThan(220);
-    expect(point.y).toBeGreaterThan(92);
-    expect(point.y).toBeLessThan(520);
+    expect(point.x).toBe(175);
+    expect(point.y).toBe(260);
   } finally {
     Object.defineProperty(window, "innerWidth", {
       configurable: true,

@@ -2293,7 +2293,7 @@ test("keeps the BannerGuider user marker visible in the safe area on small scree
     lng: 4.8902,
   });
 
-  expect(point.x).toBe(255);
+  expect(point.x).toBe(218);
   expect(point.y).toBe(320);
 });
 
@@ -2408,7 +2408,7 @@ test("keeps the BannerGuider centered within the visible viewport when the map c
       lng: 4.89,
     });
 
-    expect(point.x).toBe(175);
+    expect(point.x).toBe(143);
     expect(point.y).toBe(260);
   } finally {
     Object.defineProperty(window, "innerWidth", {

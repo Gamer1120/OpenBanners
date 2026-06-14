@@ -17,6 +17,9 @@ const GEOLOCATION_OPTIONS = {
 };
 const MISSION_CONTROLS_OVERLAY_SELECTOR =
   '[data-map-overlay="mission-controls"]';
+const COMPACT_VIEWPORT_MAX_WIDTH = 480;
+const FULL_OVERLAY_OFFSET_MIN_WIDTH = 768;
+const COMPACT_OVERLAY_OFFSET_WEIGHT = 0.5;
 
 function toRadians(degrees) {
   return (degrees * Math.PI) / 180;
@@ -204,7 +207,23 @@ function getPreferredHorizontalCenter(visibleRect) {
     return visibleCenter.x;
   }
 
-  return overlayRight + (visibleRect.right - overlayRight) / 2;
+  const overlayBandCenter = overlayRight + (visibleRect.right - overlayRight) / 2;
+  const overlayOffsetWeight =
+    visibleRect.width <= COMPACT_VIEWPORT_MAX_WIDTH
+      ? COMPACT_OVERLAY_OFFSET_WEIGHT
+      : clamp(
+          COMPACT_OVERLAY_OFFSET_WEIGHT +
+            ((visibleRect.width - COMPACT_VIEWPORT_MAX_WIDTH) /
+              (FULL_OVERLAY_OFFSET_MIN_WIDTH - COMPACT_VIEWPORT_MAX_WIDTH)) *
+              (1 - COMPACT_OVERLAY_OFFSET_WEIGHT),
+          COMPACT_OVERLAY_OFFSET_WEIGHT,
+          1
+        );
+
+  return (
+    visibleCenter.x +
+    (overlayBandCenter - visibleCenter.x) * overlayOffsetWeight
+  );
 }
 
 function getPreferredTargetPoint(map) {

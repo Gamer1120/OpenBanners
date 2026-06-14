@@ -30,6 +30,7 @@ export default function Map() {
   const mapRef = useRef(null);
   const [mapInitialized, setMapInitialized] = useState(false);
   const [locationDebugSnapshot, setLocationDebugSnapshot] = useState(null);
+  const [mapViewportRevision, setMapViewportRevision] = useState(0);
   const missions = useMemo(
     () => Object.values(items.missions ?? {}),
     [items.missions]
@@ -76,12 +77,13 @@ export default function Map() {
 
   useEffect(() => {
     if (!isLoading && mapRef.current && mapInitialized && missionCoordinates.length > 0) {
-        const bounds = L.latLngBounds(missionCoordinates);
-        mapRef.current.stop?.();
-        mapRef.current.fitBounds(bounds, {
-          padding: [50, 50],
-          animate: false,
-        });
+      const bounds = L.latLngBounds(missionCoordinates);
+      mapRef.current.stop?.();
+      mapRef.current.fitBounds(bounds, {
+        padding: [50, 50],
+        animate: false,
+      });
+      setMapViewportRevision((revision) => revision + 1);
     }
   }, [bannerId, isLoading, mapInitialized, missionCoordinates]);
 
@@ -114,7 +116,10 @@ export default function Map() {
           currentMission={currentMission}
           showStepMarkers={true}
         />
-        <LocationMarker onDebugSnapshot={setLocationDebugSnapshot} />
+        <LocationMarker
+          onDebugSnapshot={setLocationDebugSnapshot}
+          mapViewportRevision={mapViewportRevision}
+        />
       </MapContainer>
       <MapOverlay
         missions={missions}

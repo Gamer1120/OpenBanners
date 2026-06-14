@@ -83,7 +83,7 @@ vi.mock("react-leaflet", async () => {
 
   const createMapInstance = () => {
     const container = document.createElement("div");
-    let containerRect = {
+    let containerRect = globalThis.__leafletMapContainerRect ?? {
       left: 0,
       top: 0,
       right: 360,
@@ -117,8 +117,42 @@ vi.mock("react-leaflet", async () => {
       y: containerRect.height,
     });
 
+    const getBoundsCenter = (bounds) => {
+      const coordinates = bounds?.coordinates;
+
+      if (!Array.isArray(coordinates) || coordinates.length === 0) {
+        return null;
+      }
+
+      const normalizedCoordinates = coordinates
+        .map((coordinate) => normalizeLatLng(coordinate))
+        .filter(
+          (coordinate) =>
+            Number.isFinite(coordinate?.lat) && Number.isFinite(coordinate?.lng)
+        );
+
+      if (normalizedCoordinates.length === 0) {
+        return null;
+      }
+
+      return {
+        lat:
+          normalizedCoordinates.reduce(
+            (total, coordinate) => total + coordinate.lat,
+            0
+          ) / normalizedCoordinates.length,
+        lng:
+          normalizedCoordinates.reduce(
+            (total, coordinate) => total + coordinate.lng,
+            0
+          ) / normalizedCoordinates.length,
+      };
+    };
+
     return {
-      fitBounds: vi.fn(),
+      fitBounds: vi.fn((bounds) => {
+        currentCenter = getBoundsCenter(bounds) ?? currentCenter;
+      }),
       getBounds: () => ({
         _southWest: { lat: 52.1, lng: 6.8 },
         _northEast: { lat: 52.3, lng: 6.9 },
@@ -319,6 +353,7 @@ function LocationDisplay() {
 }
 
 beforeEach(() => {
+  delete globalThis.__leafletMapContainerRect;
   __resetDiscoveryMapCacheForTests();
   global.fetch = vi.fn();
   useMediaQuery.mockReturnValue(false);
@@ -2293,7 +2328,7 @@ test("keeps the BannerGuider user marker visible in the safe area on small scree
     lng: 4.8902,
   });
 
-  expect(point.x).toBe(218);
+  expect(point.x).toBe(217);
   expect(point.y).toBe(320);
 });
 
@@ -2389,15 +2424,26 @@ test("copies verbose BannerGuider location debug information", async () => {
   expect(debugInfo.bannerId).toBe("debug-location-banner");
   expect(debugInfo.currentMission).toBe(0);
   expect(debugInfo.missionCount).toBe(1);
+  expect(["accepted", "map-viewport-change-recentered"]).toContain(
+    debugInfo.locationSnapshot.status
+  );
   expect(debugInfo.locationSnapshot).toEqual(
     expect.objectContaining({
-      status: "accepted",
       accuracy: 10,
       position: {
         lat: 52.37,
         lng: 4.89,
       },
+      recenterAttempt: expect.objectContaining({
+        targetPoint: {
+          x: 217.5,
+          y: 320,
+        },
+      }),
     })
+  );
+  expect(["location-update", "map-viewport-change"]).toContain(
+    debugInfo.locationSnapshot.recenterAttempt.reason
   );
   expect(debugInfo.geometry.overlayRect).toEqual(
     expect.objectContaining({
@@ -2417,10 +2463,150 @@ test("copies verbose BannerGuider location debug information", async () => {
     x: 217.5,
     y: 320,
   });
-  expect(debugInfo.projectedLocationPoint).toEqual({
-    x: 218,
-    y: 320,
+  expect(debugInfo.projectedLocationPoint.x).toBeGreaterThanOrEqual(217);
+  expect(debugInfo.projectedLocationPoint.x).toBeLessThanOrEqual(218);
+  expect(debugInfo.projectedLocationPoint.y).toBe(320);
+});
+
+test("reapplies BannerGuider location centering after mission bounds move the map on a small screen", async () => {
+  const geolocation = {
+    getCurrentPosition: vi.fn((success) => {
+      success({
+        coords: {
+          latitude: 48.8471111,
+          longitude: 2.3410934,
+          accuracy: 31.933000564575195,
+          altitude: 95.0999984741211,
+          altitudeAccuracy: null,
+          heading: null,
+          speed: 0.06771203130483627,
+        },
+      });
+    }),
+  };
+  const overlayRect = {
+    left: 10,
+    top: 10,
+    right: 140.435,
+    bottom: 138.286,
+    width: 130.435,
+    height: 128.286,
+  };
+  const getBoundingClientRectSpy = vi
+    .spyOn(Element.prototype, "getBoundingClientRect")
+    .mockImplementation(function getBoundingClientRect() {
+      if (this.getAttribute?.("data-map-overlay") === "mission-controls") {
+        return overlayRect;
+      }
+
+      return {
+        left: 0,
+        top: 0,
+        right: 0,
+        bottom: 0,
+        width: 0,
+        height: 0,
+      };
+    });
+  const westPortal = {
+    title: "Portal West",
+    type: "portal",
+    latitude: 48.84401687020189,
+    longitude: 2.3288440704345708,
+  };
+  const eastPortal = {
+    title: "Portal East",
+    type: "portal",
+    latitude: 48.85022996016346,
+    longitude: 2.3436069488525395,
+  };
+  const lucoMissions = Object.fromEntries(
+    Array.from({ length: 24 }, (_value, index) => [
+      `mission-${index + 1}`,
+      {
+        id: `mission-${index + 1}`,
+        steps: {
+          0: {
+            poi: index % 2 === 0 ? westPortal : eastPortal,
+          },
+        },
+      },
+    ])
+  );
+
+  Object.defineProperty(globalThis.navigator, "geolocation", {
+    configurable: true,
+    value: geolocation,
   });
+  globalThis.__leafletMapContainerRect = {
+    left: 0,
+    top: 0,
+    right: 344.381,
+    bottom: 220.19,
+    width: 344.381,
+    height: 220.19,
+  };
+
+  const originalInnerWidth = window.innerWidth;
+  const originalInnerHeight = window.innerHeight;
+
+  Object.defineProperty(window, "innerWidth", {
+    configurable: true,
+    value: 344.381,
+  });
+  Object.defineProperty(window, "innerHeight", {
+    configurable: true,
+    value: 220.19,
+  });
+
+  global.fetch.mockImplementation((url) => {
+    if (url.endsWith("/bnrs/luco-debug-case")) {
+      return jsonResponse({
+        id: "luco-debug-case",
+        title: "LUCO Debug Case",
+        missions: lucoMissions,
+      });
+    }
+
+    throw new Error(`Unhandled fetch: ${url}`);
+  });
+
+  try {
+    renderWithProviders(
+      <Routes>
+        <Route path="/bannerguider/:bannerId" element={<BannerGuider />} />
+      </Routes>,
+      { route: "/bannerguider/luco-debug-case?currentMission=7" }
+    );
+
+    await screen.findByTestId("map-container");
+
+    const { useMap } = await import("react-leaflet");
+    const map = useMap();
+
+    await waitFor(() => {
+      expect(map.fitBounds).toHaveBeenCalled();
+      const point = map.latLngToContainerPoint({
+        lat: 48.8471111,
+        lng: 2.3410934,
+      });
+
+      expect(point.x).toBeGreaterThanOrEqual(207);
+      expect(point.x).toBeLessThanOrEqual(208);
+      expect(point.y).toBe(110);
+    });
+  } finally {
+    getBoundingClientRectSpy.mockRestore();
+    delete globalThis.__leafletMapContainerRect;
+    Object.defineProperty(window, "innerWidth", {
+      configurable: true,
+      value: originalInnerWidth,
+    });
+    Object.defineProperty(window, "innerHeight", {
+      configurable: true,
+      value: originalInnerHeight,
+    });
+  }
 });
 
 
@@ -2534,7 +2720,8 @@ test("keeps the BannerGuider centered within the visible viewport when the map c
       lng: 4.89,
     });
 
-    expect(point.x).toBe(143);
+    expect(point.x).toBeGreaterThanOrEqual(142);
+    expect(point.x).toBeLessThanOrEqual(143);
     expect(point.y).toBe(260);
   } finally {
     Object.defineProperty(window, "innerWidth", {

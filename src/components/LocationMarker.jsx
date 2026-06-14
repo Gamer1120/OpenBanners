@@ -4,7 +4,10 @@ import "leaflet-easybutton/src/easy-button.js";
 import "leaflet-easybutton/src/easy-button.css";
 import "font-awesome/css/font-awesome.min.css";
 import icon, { locationIcon } from "../constants";
-import { getCenteredMapTarget } from "../bannerGuiderLocationGeometry";
+import {
+  getBannerGuiderLocationGeometry,
+  getCenteredMapTarget,
+} from "../bannerGuiderLocationGeometry";
 
 const MIN_DIRECTION_DISTANCE_METERS = 5;
 const MIN_DIRECTION_CHANGE_DEGREES = 8;
@@ -83,7 +86,10 @@ function shouldAcceptPositionUpdate({
   return distance >= accuracyThreshold;
 }
 
-export default function LocationMarker({ onDebugSnapshot = null }) {
+export default function LocationMarker({
+  onDebugSnapshot = null,
+  mapViewportRevision = 0,
+}) {
   const [position, setPosition] = useState(null);
   const [direction, setDirection] = useState(null);
   const map = useMap();
@@ -93,6 +99,7 @@ export default function LocationMarker({ onDebugSnapshot = null }) {
   const manualInteractionAnchorRef = useRef(null);
   const followSuspendedRef = useRef(false);
   const hasCenteredRef = useRef(false);
+  const lastRecenterAttemptRef = useRef(null);
 
   const publishDebugSnapshot = useCallback(
     (snapshot) => {
@@ -125,12 +132,26 @@ export default function LocationMarker({ onDebugSnapshot = null }) {
   }, []);
 
   const recenterMap = useCallback(
-    (nextPosition, { forceSetView = false } = {}) => {
+    (
+      nextPosition,
+      { forceSetView = false, reason = "location-update" } = {}
+    ) => {
+      const attemptedAt = new Date().toISOString();
+
       if (!nextPosition) {
-        return;
+        const attempt = {
+          attemptedAt,
+          reason,
+          attempted: false,
+          skipped: true,
+          skipReason: "missing-position",
+        };
+        lastRecenterAttemptRef.current = attempt;
+        return attempt;
       }
 
       const shouldResetView = forceSetView || !hasCenteredRef.current;
+      const geometry = getBannerGuiderLocationGeometry(map);
 
       if (shouldResetView) {
         map.stop?.();
@@ -146,6 +167,23 @@ export default function LocationMarker({ onDebugSnapshot = null }) {
         currentCenter && typeof map.distance === "function"
           ? map.distance(currentCenter, centeredTarget)
           : Infinity;
+      const attemptBase = {
+        attemptedAt,
+        reason,
+        attempted: true,
+        skipped: false,
+        forceSetView,
+        shouldResetView,
+        nextPosition,
+        currentCenterBefore: currentCenter ?? null,
+        centeredTarget,
+        targetPoint: geometry.canCalculate ? geometry.targetPoint : null,
+        geometryReason: geometry.canCalculate ? geometry.horizontal?.reason : geometry.reason,
+        recenterDistanceMeters: Number.isFinite(recenterDistance)
+          ? recenterDistance
+          : null,
+        zoom: map.getZoom?.() ?? null,
+      };
 
       if (
         !forceSetView &&
@@ -153,18 +191,34 @@ export default function LocationMarker({ onDebugSnapshot = null }) {
         Number.isFinite(recenterDistance) &&
         recenterDistance < 1
       ) {
-        return;
+        const attempt = {
+          ...attemptBase,
+          skipped: true,
+          skipReason: "already-centered",
+          currentCenterAfter: currentCenter ?? null,
+        };
+        lastRecenterAttemptRef.current = attempt;
+        return attempt;
       }
 
-      map.setView(centeredTarget, map.getZoom(), shouldResetView
+      const setViewOptions = shouldResetView
         ? {
             animate: false,
             reset: true,
           }
         : {
             animate: false,
-          });
+          };
+
+      map.setView(centeredTarget, map.getZoom(), setViewOptions);
       hasCenteredRef.current = true;
+      const attempt = {
+        ...attemptBase,
+        setViewOptions,
+        currentCenterAfter: map.getCenter?.() ?? null,
+      };
+      lastRecenterAttemptRef.current = attempt;
+      return attempt;
     },
     [map]
   );
@@ -244,9 +298,10 @@ export default function LocationMarker({ onDebugSnapshot = null }) {
       }
 
       const recentered = !followSuspendedRef.current;
+      let recenterAttempt = null;
 
       if (!followSuspendedRef.current) {
-        recenterMap(nextPosition);
+        recenterAttempt = recenterMap(nextPosition);
       }
 
       const acceptedPositionUpdate = shouldAcceptPositionUpdate({
@@ -278,6 +333,8 @@ export default function LocationMarker({ onDebugSnapshot = null }) {
         followSuspended: followSuspendedRef.current,
         manualInteractionAnchor: manualInteractionAnchorRef.current,
         recentered,
+        recenterAttempt,
+        lastRecenterAttempt: lastRecenterAttemptRef.current,
         hasCentered: hasCenteredRef.current,
       });
 
@@ -324,6 +381,37 @@ export default function LocationMarker({ onDebugSnapshot = null }) {
       window.clearInterval(intervalId);
     };
   }, [map, publishDebugSnapshot, recenterMap, updateDirectionFromMovement]);
+
+  useEffect(() => {
+    if (
+      !mapViewportRevision ||
+      !latestProcessedPositionRef.current ||
+      followSuspendedRef.current
+    ) {
+      return;
+    }
+
+    const recenterAttempt = recenterMap(latestProcessedPositionRef.current, {
+      forceSetView: true,
+      reason: "map-viewport-change",
+    });
+
+    publishDebugSnapshot({
+      status: "map-viewport-change-recentered",
+      receivedAt: new Date().toISOString(),
+      position: latestProcessedPositionRef.current,
+      previousPosition: previousPositionRef.current,
+      accuracy: previousAccuracyRef.current,
+      previousAccuracy: previousAccuracyRef.current,
+      followSuspended: followSuspendedRef.current,
+      manualInteractionAnchor: manualInteractionAnchorRef.current,
+      recentered: true,
+      recenterAttempt,
+      lastRecenterAttempt: lastRecenterAttemptRef.current,
+      hasCentered: hasCenteredRef.current,
+      mapViewportRevision,
+    });
+  }, [mapViewportRevision, publishDebugSnapshot, recenterMap]);
 
   useEffect(() => {
     if (typeof window === "undefined") {

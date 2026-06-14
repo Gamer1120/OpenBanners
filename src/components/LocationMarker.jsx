@@ -4,6 +4,7 @@ import "leaflet-easybutton/src/easy-button.js";
 import "leaflet-easybutton/src/easy-button.css";
 import "font-awesome/css/font-awesome.min.css";
 import icon, { locationIcon } from "../constants";
+import { getCenteredMapTarget } from "../bannerGuiderLocationGeometry";
 
 const MIN_DIRECTION_DISTANCE_METERS = 5;
 const MIN_DIRECTION_CHANGE_DEGREES = 8;
@@ -15,11 +16,6 @@ const GEOLOCATION_OPTIONS = {
   maximumAge: 5000,
   timeout: 15000,
 };
-const MISSION_CONTROLS_OVERLAY_SELECTOR =
-  '[data-map-overlay="mission-controls"]';
-const COMPACT_VIEWPORT_MAX_WIDTH = 480;
-const FULL_OVERLAY_OFFSET_MIN_WIDTH = 768;
-const COMPACT_OVERLAY_OFFSET_WEIGHT = 0.5;
 
 function toRadians(degrees) {
   return (degrees * Math.PI) / 180;
@@ -87,201 +83,7 @@ function shouldAcceptPositionUpdate({
   return distance >= accuracyThreshold;
 }
 
-function clamp(value, min, max) {
-  return Math.min(Math.max(value, min), max);
-}
-
-function normalizeRect(rect) {
-  const left = Number(rect?.left);
-  const top = Number(rect?.top);
-  const right = Number(rect?.right);
-  const bottom = Number(rect?.bottom);
-  const width = Number(rect?.width ?? right - left);
-  const height = Number(rect?.height ?? bottom - top);
-
-  if (
-    !Number.isFinite(left) ||
-    !Number.isFinite(top) ||
-    !Number.isFinite(right) ||
-    !Number.isFinite(bottom) ||
-    !Number.isFinite(width) ||
-    !Number.isFinite(height) ||
-    width <= 0 ||
-    height <= 0
-  ) {
-    return null;
-  }
-
-  return {
-    left,
-    top,
-    right,
-    bottom,
-    width,
-    height,
-  };
-}
-
-function getViewportRect() {
-  if (typeof window === "undefined") {
-    return null;
-  }
-
-  const width = Number(window.visualViewport?.width ?? window.innerWidth);
-  const height = Number(window.visualViewport?.height ?? window.innerHeight);
-
-  if (!Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) {
-    return null;
-  }
-
-  return {
-    left: 0,
-    top: 0,
-    right: width,
-    bottom: height,
-    width,
-    height,
-  };
-}
-
-function getIntersectionRect(firstRect, secondRect) {
-  if (!firstRect || !secondRect) {
-    return null;
-  }
-
-  const left = Math.max(firstRect.left, secondRect.left);
-  const top = Math.max(firstRect.top, secondRect.top);
-  const right = Math.min(firstRect.right, secondRect.right);
-  const bottom = Math.min(firstRect.bottom, secondRect.bottom);
-  const width = right - left;
-  const height = bottom - top;
-
-  if (width <= 0 || height <= 0) {
-    return null;
-  }
-
-  return {
-    left,
-    top,
-    right,
-    bottom,
-    width,
-    height,
-  };
-}
-
-function getRectCenter(rect) {
-  return {
-    x: rect.left + rect.width / 2,
-    y: rect.top + rect.height / 2,
-  };
-}
-
-function getMissionControlsOverlayRect() {
-  if (typeof document === "undefined") {
-    return null;
-  }
-
-  return normalizeRect(
-    document
-      .querySelector(MISSION_CONTROLS_OVERLAY_SELECTOR)
-      ?.getBoundingClientRect?.()
-  );
-}
-
-function getPreferredHorizontalCenter(visibleRect) {
-  const visibleCenter = getRectCenter(visibleRect);
-  const overlayRect = getMissionControlsOverlayRect();
-
-  if (!overlayRect) {
-    return visibleCenter.x;
-  }
-
-  const overlayRight = clamp(
-    overlayRect.right,
-    visibleRect.left,
-    visibleRect.right
-  );
-
-  if (overlayRight <= visibleRect.left || overlayRight >= visibleRect.right) {
-    return visibleCenter.x;
-  }
-
-  const overlayBandCenter = overlayRight + (visibleRect.right - overlayRight) / 2;
-  const overlayOffsetWeight =
-    visibleRect.width <= COMPACT_VIEWPORT_MAX_WIDTH
-      ? COMPACT_OVERLAY_OFFSET_WEIGHT
-      : clamp(
-          COMPACT_OVERLAY_OFFSET_WEIGHT +
-            ((visibleRect.width - COMPACT_VIEWPORT_MAX_WIDTH) /
-              (FULL_OVERLAY_OFFSET_MIN_WIDTH - COMPACT_VIEWPORT_MAX_WIDTH)) *
-              (1 - COMPACT_OVERLAY_OFFSET_WEIGHT),
-          COMPACT_OVERLAY_OFFSET_WEIGHT,
-          1
-        );
-
-  return (
-    visibleCenter.x +
-    (overlayBandCenter - visibleCenter.x) * overlayOffsetWeight
-  );
-}
-
-function getPreferredTargetPoint(map) {
-  const containerRect = normalizeRect(map.getContainer?.()?.getBoundingClientRect?.());
-
-  if (!containerRect) {
-    return null;
-  }
-
-  const viewportRect = getViewportRect();
-  const visibleRect =
-    getIntersectionRect(containerRect, viewportRect) ?? containerRect;
-  const targetRect = visibleRect;
-
-  const targetCenter = getRectCenter(targetRect);
-  const targetX = getPreferredHorizontalCenter(targetRect);
-  const mapSize = map.getSize?.();
-  const maxX = Number.isFinite(mapSize?.x) ? mapSize.x : containerRect.width;
-  const maxY = Number.isFinite(mapSize?.y) ? mapSize.y : containerRect.height;
-  const targetPoint = {
-    x: clamp(targetX - containerRect.left, 0, maxX),
-    y: clamp(targetCenter.y - containerRect.top, 0, maxY),
-  };
-
-  return targetPoint;
-}
-
-function getCenteredMapTarget(map, nextPosition) {
-  const targetPoint = getPreferredTargetPoint(map);
-  const userPoint = map.latLngToContainerPoint?.(nextPosition);
-  const currentCenter = map.getCenter?.();
-  const currentCenterPoint = currentCenter
-    ? map.latLngToContainerPoint?.(currentCenter)
-    : null;
-
-  if (
-    !targetPoint ||
-    !userPoint ||
-    !currentCenterPoint ||
-    typeof map.containerPointToLatLng !== "function"
-  ) {
-    return nextPosition;
-  }
-
-  const desiredCenterPoint = {
-    x: currentCenterPoint.x - (targetPoint.x - userPoint.x),
-    y: currentCenterPoint.y - (targetPoint.y - userPoint.y),
-  };
-  const desiredCenter = map.containerPointToLatLng(desiredCenterPoint);
-
-  if (!Number.isFinite(desiredCenter?.lat) || !Number.isFinite(desiredCenter?.lng)) {
-    return nextPosition;
-  }
-
-  return desiredCenter;
-}
-
-export default function LocationMarker() {
+export default function LocationMarker({ onDebugSnapshot = null }) {
   const [position, setPosition] = useState(null);
   const [direction, setDirection] = useState(null);
   const map = useMap();
@@ -291,6 +93,18 @@ export default function LocationMarker() {
   const manualInteractionAnchorRef = useRef(null);
   const followSuspendedRef = useRef(false);
   const hasCenteredRef = useRef(false);
+
+  const publishDebugSnapshot = useCallback(
+    (snapshot) => {
+      onDebugSnapshot?.({
+        ...snapshot,
+        pollIntervalMs: GEOLOCATION_POLL_INTERVAL_MS,
+        geolocationOptions: GEOLOCATION_OPTIONS,
+        maxTrackedAccuracyMeters: MAX_TRACKED_ACCURACY_METERS,
+      });
+    },
+    [onDebugSnapshot]
+  );
 
   const updateDirectionFromMovement = useCallback((nextDirection) => {
     setDirection((currentDirection) => {
@@ -357,11 +171,30 @@ export default function LocationMarker() {
 
   useEffect(() => {
     if (!navigator.geolocation) {
+      publishDebugSnapshot({
+        status: "geolocation-unavailable",
+        receivedAt: new Date().toISOString(),
+      });
+
       return () => {};
     }
 
     const handlePositionUpdate = ({ coords }) => {
       if (!Number.isFinite(coords?.latitude) || !Number.isFinite(coords?.longitude)) {
+        publishDebugSnapshot({
+          status: "invalid-coordinates",
+          receivedAt: new Date().toISOString(),
+          rawCoords: {
+            latitude: coords?.latitude ?? null,
+            longitude: coords?.longitude ?? null,
+            accuracy: coords?.accuracy ?? null,
+            altitude: coords?.altitude ?? null,
+            altitudeAccuracy: coords?.altitudeAccuracy ?? null,
+            heading: coords?.heading ?? null,
+            speed: coords?.speed ?? null,
+          },
+        });
+
         return;
       }
 
@@ -373,6 +206,22 @@ export default function LocationMarker() {
       const nextAccuracy = Number(coords.accuracy);
 
       if (Number.isFinite(nextAccuracy) && nextAccuracy > MAX_TRACKED_ACCURACY_METERS) {
+        publishDebugSnapshot({
+          status: "ignored-inaccurate",
+          receivedAt: new Date().toISOString(),
+          position: nextPosition,
+          accuracy: nextAccuracy,
+          rawCoords: {
+            latitude: coords.latitude,
+            longitude: coords.longitude,
+            accuracy: coords.accuracy ?? null,
+            altitude: coords.altitude ?? null,
+            altitudeAccuracy: coords.altitudeAccuracy ?? null,
+            heading: coords.heading ?? null,
+            speed: coords.speed ?? null,
+          },
+        });
+
         return;
       }
 
@@ -394,19 +243,45 @@ export default function LocationMarker() {
         manualInteractionAnchorRef.current = null;
       }
 
+      const recentered = !followSuspendedRef.current;
+
       if (!followSuspendedRef.current) {
         recenterMap(nextPosition);
       }
 
-      if (
-        !shouldAcceptPositionUpdate({
-          previousPosition,
-          previousAccuracy: previousAccuracyRef.current,
-          nextPosition,
-          nextAccuracy,
-          map,
-        })
-      ) {
+      const acceptedPositionUpdate = shouldAcceptPositionUpdate({
+        previousPosition,
+        previousAccuracy: previousAccuracyRef.current,
+        nextPosition,
+        nextAccuracy,
+        map,
+      });
+
+      publishDebugSnapshot({
+        status: acceptedPositionUpdate ? "accepted" : "stationary",
+        receivedAt: new Date().toISOString(),
+        position: nextPosition,
+        previousPosition,
+        accuracy: Number.isFinite(nextAccuracy) ? nextAccuracy : null,
+        previousAccuracy: previousAccuracyRef.current,
+        rawCoords: {
+          latitude: coords.latitude,
+          longitude: coords.longitude,
+          accuracy: coords.accuracy ?? null,
+          altitude: coords.altitude ?? null,
+          altitudeAccuracy: coords.altitudeAccuracy ?? null,
+          heading: coords.heading ?? null,
+          speed: coords.speed ?? null,
+        },
+        acceptedPositionUpdate,
+        shouldResumeFollow,
+        followSuspended: followSuspendedRef.current,
+        manualInteractionAnchor: manualInteractionAnchorRef.current,
+        recentered,
+        hasCentered: hasCenteredRef.current,
+      });
+
+      if (!acceptedPositionUpdate) {
         return;
       }
 
@@ -448,7 +323,7 @@ export default function LocationMarker() {
     return () => {
       window.clearInterval(intervalId);
     };
-  }, [map, recenterMap, updateDirectionFromMovement]);
+  }, [map, publishDebugSnapshot, recenterMap, updateDirectionFromMovement]);
 
   useEffect(() => {
     if (typeof window === "undefined") {

@@ -1,12 +1,39 @@
-import React from "react";
+import React, { useState } from "react";
+import { getBannerGuiderLocationDebugInfo } from "../bannerGuiderLocationGeometry";
+
+function copyTextToClipboard(text) {
+  if (navigator.clipboard?.writeText) {
+    return navigator.clipboard.writeText(text);
+  }
+
+  const textarea = document.createElement("textarea");
+  textarea.value = text;
+  textarea.setAttribute("readonly", "");
+  textarea.style.position = "fixed";
+  textarea.style.top = "-9999px";
+  document.body.appendChild(textarea);
+  textarea.select();
+
+  try {
+    document.execCommand("copy");
+    return Promise.resolve();
+  } catch (error) {
+    return Promise.reject(error);
+  } finally {
+    document.body.removeChild(textarea);
+  }
+}
 
 export default function MapOverlay({
   missions,
   currentMission,
   setCurrentMission,
   bannerId,
+  map = null,
+  locationDebugSnapshot = null,
 }) {
   const missionCount = missions.length;
+  const [debugCopyStatus, setDebugCopyStatus] = useState("");
 
   const stopPropagation = (event) => {
     event.stopPropagation();
@@ -36,6 +63,26 @@ export default function MapOverlay({
       const missionUrl = `https://link.ingress.com/?link=https%3a%2f%2fintel.ingress.com%2fmission%2f${missions[currentMission].id}&apn=com.nianticproject.ingress&isi=576505181&ibi=com.google.ingress&ifl=https%3a%2f%2fapps.apple.com%2fapp%2fingress%2fid576505181&ofl=https%3a%2f%2fintel.ingress.com%2fmission%2f${missions[currentMission].id}`;
       window.open(missionUrl);
     }
+  };
+
+  const handleCopyDebugInformation = () => {
+    const debugInfo = getBannerGuiderLocationDebugInfo({
+      map,
+      bannerId,
+      currentMission,
+      missionCount,
+      locationSnapshot: locationDebugSnapshot,
+    });
+    const debugText = JSON.stringify(debugInfo, null, 2);
+
+    copyTextToClipboard(debugText).then(
+      () => {
+        setDebugCopyStatus("Copied");
+      },
+      () => {
+        setDebugCopyStatus("Copy failed");
+      }
+    );
   };
 
   return (
@@ -88,6 +135,18 @@ export default function MapOverlay({
       >
         {currentMission === missionCount ? "OPEN BG" : "NEXT"}
       </button>
+      <button
+        className="debug-button"
+        onClick={handleCopyDebugInformation}
+        aria-label="Copy BannerGuider debug information"
+      >
+        COPY DEBUG
+      </button>
+      {debugCopyStatus ? (
+        <span className="debug-copy-status" aria-live="polite">
+          {debugCopyStatus}
+        </span>
+      ) : null}
     </div>
   );
 }

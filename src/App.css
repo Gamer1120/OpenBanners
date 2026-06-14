@@ -153,9 +153,15 @@
   width: 100%;
 }
 
+.debug-button {
+  margin-top: 6px;
+  width: 100%;
+}
+
 .overlay-button-minus,
 .overlay-button-plus,
-.start-button {
+.start-button,
+.debug-button {
   padding: 10px 15px;
   font-size: 16px;
   background-color: #616161;
@@ -163,6 +169,20 @@
   border: none;
   border-radius: 0;
   cursor: pointer;
+}
+
+.debug-button {
+  padding: 6px 10px;
+  font-size: 11px;
+  letter-spacing: 0;
+  background-color: #555;
+}
+
+.debug-copy-status {
+  margin-top: 4px;
+  font-size: 11px;
+  line-height: 1.2;
+  color: #e6f4ea;
 }
 
 .disable-click {

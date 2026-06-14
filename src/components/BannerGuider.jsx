@@ -29,6 +29,7 @@ export default function Map() {
   const [isLoading, setIsLoading] = useState(true);
   const mapRef = useRef(null);
   const [mapInitialized, setMapInitialized] = useState(false);
+  const [locationDebugSnapshot, setLocationDebugSnapshot] = useState(null);
   const missions = useMemo(
     () => Object.values(items.missions ?? {}),
     [items.missions]
@@ -113,13 +114,15 @@ export default function Map() {
           currentMission={currentMission}
           showStepMarkers={true}
         />
-        <LocationMarker />
+        <LocationMarker onDebugSnapshot={setLocationDebugSnapshot} />
       </MapContainer>
       <MapOverlay
         missions={missions}
         currentMission={currentMission}
         setCurrentMission={setCurrentMission}
         bannerId={bannerId}
+        map={mapRef.current}
+        locationDebugSnapshot={locationDebugSnapshot}
       />
     </div>
   );

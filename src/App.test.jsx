@@ -2297,6 +2297,132 @@ test("keeps the BannerGuider user marker visible in the safe area on small scree
   expect(point.y).toBe(320);
 });
 
+test("copies verbose BannerGuider location debug information", async () => {
+  const user = userEvent.setup();
+  const writeText = vi.fn().mockResolvedValue(undefined);
+  const geoSuccessCallbacks = [];
+  const geolocation = {
+    getCurrentPosition: vi.fn((success) => {
+      geoSuccessCallbacks.push(success);
+    }),
+  };
+
+  Object.defineProperty(globalThis.navigator, "geolocation", {
+    configurable: true,
+    value: geolocation,
+  });
+  Object.defineProperty(globalThis.navigator, "clipboard", {
+    configurable: true,
+    value: {
+      writeText,
+    },
+  });
+
+  global.fetch.mockImplementation((url) => {
+    if (url.endsWith("/bnrs/debug-location-banner")) {
+      return jsonResponse({
+        id: "debug-location-banner",
+        title: "Debug Location Banner",
+        missions: {
+          "mission-1": {
+            id: "mission-1",
+            steps: {
+              0: {
+                poi: {
+                  title: "Portal One",
+                  type: "portal",
+                  latitude: 52.37,
+                  longitude: 4.89,
+                },
+              },
+            },
+          },
+        },
+      });
+    }
+
+    throw new Error(`Unhandled fetch: ${url}`);
+  });
+
+  renderWithProviders(
+    <Routes>
+      <Route path="/bannerguider/:bannerId" element={<BannerGuider />} />
+    </Routes>,
+    { route: "/bannerguider/debug-location-banner" }
+  );
+
+  await screen.findByTestId("map-container");
+
+  const overlay = document.querySelector('[data-map-overlay="mission-controls"]');
+  expect(overlay).toBeTruthy();
+  Object.defineProperty(overlay, "getBoundingClientRect", {
+    configurable: true,
+    value: () => ({ left: 10, top: 10, right: 150, bottom: 110, width: 140, height: 100 }),
+  });
+
+  expect(geoSuccessCallbacks.length).toBeGreaterThanOrEqual(1);
+
+  await act(async () => {
+    geoSuccessCallbacks.at(-1)({
+      coords: {
+        latitude: 52.37,
+        longitude: 4.89,
+        accuracy: 10,
+        heading: null,
+        speed: 0,
+      },
+    });
+  });
+
+  await user.click(
+    screen.getByRole("button", {
+      name: /copy bannerguider debug information/i,
+    })
+  );
+
+  await waitFor(() => {
+    expect(writeText).toHaveBeenCalled();
+  });
+
+  const debugInfo = JSON.parse(writeText.mock.calls.at(-1)[0]);
+
+  expect(debugInfo.bannerId).toBe("debug-location-banner");
+  expect(debugInfo.currentMission).toBe(0);
+  expect(debugInfo.missionCount).toBe(1);
+  expect(debugInfo.locationSnapshot).toEqual(
+    expect.objectContaining({
+      status: "accepted",
+      accuracy: 10,
+      position: {
+        lat: 52.37,
+        lng: 4.89,
+      },
+    })
+  );
+  expect(debugInfo.geometry.overlayRect).toEqual(
+    expect.objectContaining({
+      right: 150,
+      width: 140,
+    })
+  );
+  expect(debugInfo.geometry.horizontal).toEqual(
+    expect.objectContaining({
+      visibleCenterX: 180,
+      overlayBandCenterX: 255,
+      overlayOffsetWeight: 0.5,
+      targetX: 217.5,
+    })
+  );
+  expect(debugInfo.geometry.targetPoint).toEqual({
+    x: 217.5,
+    y: 320,
+  });
+  expect(debugInfo.projectedLocationPoint).toEqual({
+    x: 218,
+    y: 320,
+  });
+});
+
 
 test("keeps the BannerGuider centered within the visible viewport when the map container is wider than the window", async () => {
   const geoSuccessCallbacks = [];

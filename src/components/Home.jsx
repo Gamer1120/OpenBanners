@@ -8,16 +8,17 @@ import SearchResults from "./SearchResults";
 import BannerDetailsPage from "./BannerDetailsPage";
 import Map from "./Map";
 import BannerRerouterPage from "./BannerRerouterPage";
+import { DEFAULT_BANNER_FILTERS } from "../bannerFilters";
 import {
-  DEFAULT_BANNER_FILTERS,
-  DEFAULT_MAP_BANNER_FILTERS,
-} from "../bannerFilters";
+  readDiscoveryMapFilters,
+  saveDiscoveryMapFilters,
+} from "../discoveryMapState";
 
 export default function Home() {
   const [currentView, setCurrentView] = useState("bannersNearMe");
   const [bannerFilters, setBannerFilters] = useState(DEFAULT_BANNER_FILTERS);
-  const [mapBannerFilters, setMapBannerFilters] = useState(
-    DEFAULT_MAP_BANNER_FILTERS
+  const [mapBannerFilters, setMapBannerFiltersState] = useState(
+    readDiscoveryMapFilters
   );
   const isMobile = useMediaQuery("(max-width:768px)");
   const { placeId, agentName } = useParams();
@@ -42,6 +43,18 @@ export default function Home() {
   const handleRerouterClick = () => {
     setCurrentView("rerouter");
     navigate("/rerouter");
+  };
+
+  const setMapBannerFilters = (nextFilters) => {
+    setMapBannerFiltersState((currentFilters) => {
+      const resolvedFilters =
+        typeof nextFilters === "function"
+          ? nextFilters(currentFilters)
+          : nextFilters;
+
+      saveDiscoveryMapFilters(resolvedFilters);
+      return resolvedFilters;
+    });
   };
 
   useEffect(() => {

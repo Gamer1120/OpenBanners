@@ -7,6 +7,11 @@ import L from "leaflet";
 import Map, { __resetDiscoveryMapCacheForTests } from "./Map";
 import { DEFAULT_MAP_BANNER_FILTERS } from "../bannerFilters";
 import { saveBannergressSyncData } from "../bannergressSync";
+import {
+  saveDiscoveryMapFilters,
+  saveDiscoveryMapSelectedBanner,
+  saveDiscoveryMapViewport,
+} from "../discoveryMapState";
 
 vi.mock("leaflet", () => {
   return {
@@ -24,33 +29,60 @@ vi.mock("react-leaflet", async () => {
   const React = await vi.importActual("react");
 
   let mapInstance = null;
+  const defaultMapCenter = [52.221058, 6.893297];
+  const legacyMockCenter = [52.2, 6.85];
 
-  const createMapInstance = () => ({
-    getBounds: () => ({
-      _southWest: { lat: 52.1, lng: 6.8 },
-      _northEast: { lat: 52.3, lng: 6.9 },
-    }),
-    getZoom: () => 15,
-    getContainer: () => document.createElement("div"),
-    setView: vi.fn(),
-    distance: vi.fn((a, b) => {
-      const dx = (b.lng - a.lng) * 111000;
-      const dy = (b.lat - a.lat) * 111000;
-      return Math.sqrt(dx * dx + dy * dy);
-    }),
-    latLngToContainerPoint: ({ lat, lng }) => ({
-      x: Math.round((lng - 6.85) * 1000 + 180),
-      y: Math.round((52.2 - lat) * 1000 + 320),
-    }),
-    containerPointToLatLng: ({ x, y }) => ({
-      lat: 52.2 - (y - 320) / 1000,
-      lng: 6.85 + (x - 180) / 1000,
-    }),
-  });
+  const isDefaultMapCenter = (center) =>
+    Array.isArray(center) &&
+    Math.abs(center[0] - defaultMapCenter[0]) < 0.0000001 &&
+    Math.abs(center[1] - defaultMapCenter[1]) < 0.0000001;
 
-  const MapContainer = React.forwardRef(({ children, whenReady }, ref) => {
+  const createMapInstance = ({ center = [52.2, 6.85], zoom = 15 } = {}) => {
+    const resolvedCenter = isDefaultMapCenter(center) ? legacyMockCenter : center;
+    let currentCenter = Array.isArray(resolvedCenter)
+      ? { lat: resolvedCenter[0], lng: resolvedCenter[1] }
+      : { lat: resolvedCenter.lat, lng: resolvedCenter.lng };
+    let currentZoom = zoom;
+
+    return {
+      getBounds: () => ({
+        _southWest: {
+          lat: currentCenter.lat - 0.1,
+          lng: currentCenter.lng - 0.05,
+        },
+        _northEast: {
+          lat: currentCenter.lat + 0.1,
+          lng: currentCenter.lng + 0.05,
+        },
+      }),
+      getCenter: () => currentCenter,
+      getZoom: () => currentZoom,
+      getContainer: () => document.createElement("div"),
+      setView: vi.fn((nextCenter, nextZoom = currentZoom) => {
+        currentCenter = Array.isArray(nextCenter)
+          ? { lat: nextCenter[0], lng: nextCenter[1] }
+          : { lat: nextCenter.lat, lng: nextCenter.lng };
+        currentZoom = nextZoom;
+      }),
+      distance: vi.fn((a, b) => {
+        const dx = (b.lng - a.lng) * 111000;
+        const dy = (b.lat - a.lat) * 111000;
+        return Math.sqrt(dx * dx + dy * dy);
+      }),
+      latLngToContainerPoint: ({ lat, lng }) => ({
+        x: Math.round((lng - currentCenter.lng) * 1000 + 180),
+        y: Math.round((currentCenter.lat - lat) * 1000 + 320),
+      }),
+      containerPointToLatLng: ({ x, y }) => ({
+        lat: currentCenter.lat - (y - 320) / 1000,
+        lng: currentCenter.lng + (x - 180) / 1000,
+      }),
+    };
+  };
+
+  const MapContainer = React.forwardRef(({ children, center, zoom, whenReady }, ref) => {
     React.useEffect(() => {
-      mapInstance = createMapInstance();
+      mapInstance = createMapInstance({ center, zoom });
 
       if (typeof ref === "function") {
         ref(mapInstance);
@@ -61,7 +93,15 @@ vi.mock("react-leaflet", async () => {
       whenReady?.({ target: mapInstance });
     }, [ref, whenReady]);
 
-    return <div data-testid="map-container">{children}</div>;
+    return (
+      <div
+        data-testid="map-container"
+        data-center={Array.isArray(center) ? center.join(",") : ""}
+        data-zoom={String(zoom)}
+      >
+        {children}
+      </div>
+    );
   });
 
   return {
@@ -261,6 +301,106 @@ test("reuses partially loaded discovery map pages until refresh", async () => {
   });
 
   expect(await screen.findByText("60 banners in view")).toBeInTheDocument();
+});
+
+test("restores discovery map viewport and selected banner after remount", async () => {
+  saveDiscoveryMapViewport({
+    center: {
+      latitude: 52.42,
+      longitude: 6.99,
+    },
+    zoom: 12,
+  });
+  saveDiscoveryMapSelectedBanner("restored-map-banner-2");
+
+  global.fetch.mockImplementation((url) => {
+    if (url.includes("/bnrs?orderBy=proximityStartPoint")) {
+      return jsonResponse([
+        {
+          id: "restored-map-banner-1",
+          title: "Restored Map Banner One",
+          picture: "/images/restored-map-1.jpg",
+          numberOfMissions: 6,
+          lengthMeters: 1800,
+          formattedAddress: "Enschede, NL",
+          numberOfDisabledMissions: 0,
+          startLatitude: "52.42",
+          startLongitude: "6.99",
+        },
+        {
+          id: "restored-map-banner-2",
+          title: "Restored Map Banner Two",
+          picture: "/images/restored-map-2.jpg",
+          numberOfMissions: 12,
+          lengthMeters: 2400,
+          formattedAddress: "Hengelo, NL",
+          numberOfDisabledMissions: 0,
+          startLatitude: "52.421",
+          startLongitude: "6.991",
+        },
+      ]);
+    }
+
+    throw new Error(`Unhandled fetch: ${url}`);
+  });
+
+  renderWithProviders(<Map />);
+
+  const mapContainer = await screen.findByTestId("map-container");
+  expect(mapContainer).toHaveAttribute("data-center", "52.42,6.99");
+  expect(mapContainer).toHaveAttribute("data-zoom", "12");
+  expect(await screen.findByText("Restored Map Banner Two")).toBeInTheDocument();
+  expect(screen.queryByText("Restored Map Banner One")).not.toBeInTheDocument();
+});
+
+test("restores discovery map filters after remount", async () => {
+  saveDiscoveryMapFilters({
+    ...DEFAULT_MAP_BANNER_FILTERS,
+    minimumKilometers: "2",
+    maximumKilometers: "3",
+  });
+
+  global.fetch.mockImplementation((url) => {
+    if (url.includes("/bnrs?orderBy=proximityStartPoint")) {
+      return jsonResponse([
+        {
+          id: "short-map-filter-banner",
+          title: "Short Map Filter Banner",
+          picture: "/images/short-map-filter.jpg",
+          numberOfMissions: 6,
+          lengthMeters: 1200,
+          formattedAddress: "Enschede, NL",
+          numberOfDisabledMissions: 0,
+          startLatitude: "52.2",
+          startLongitude: "6.85",
+        },
+        {
+          id: "restored-map-filter-banner",
+          title: "Restored Map Filter Banner",
+          picture: "/images/restored-map-filter.jpg",
+          numberOfMissions: 6,
+          lengthMeters: 2400,
+          formattedAddress: "Hengelo, NL",
+          numberOfDisabledMissions: 0,
+          startLatitude: "52.201",
+          startLongitude: "6.851",
+        },
+      ]);
+    }
+
+    throw new Error(`Unhandled fetch: ${url}`);
+  });
+
+  const firstRender = renderWithProviders(<Map />);
+
+  expect(await screen.findByText("Restored Map Filter Banner")).toBeInTheDocument();
+  expect(screen.queryByText("Short Map Filter Banner")).not.toBeInTheDocument();
+
+  firstRender.unmount();
+  renderWithProviders(<Map />);
+
+  expect(await screen.findByText("Restored Map Filter Banner")).toBeInTheDocument();
+  expect(screen.queryByText("Short Map Filter Banner")).not.toBeInTheDocument();
 });
 
 test("toggles discovery map markers between images and list-colored dots", async () => {

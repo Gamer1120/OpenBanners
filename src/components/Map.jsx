@@ -41,6 +41,12 @@ import {
   getKilometerBounds,
   getMissionCountBounds,
 } from "../bannerFilters";
+import {
+  readDiscoveryMapState,
+  saveDiscoveryMapFilters,
+  saveDiscoveryMapSelectedBanner,
+  saveDiscoveryMapViewport,
+} from "../discoveryMapState";
 
 const DEFAULT_CENTER = [52.221058, 6.893297];
 const DEFAULT_ZOOM = 15;
@@ -1191,21 +1197,32 @@ function setMapInteractionsEnabled(mapInstance, enabled) {
 }
 
 export default function Map({
-  bannerFilters = DEFAULT_MAP_BANNER_FILTERS,
+  bannerFilters,
   onBannerFiltersChange,
 }) {
+  const [initialDiscoveryMapState] = useState(readDiscoveryMapState);
   const initialImageSizePreference = readInitialImageSizePreference();
   const initialMarkerModePreference = readInitialMarkerModePreference();
+  const restoredViewport = initialDiscoveryMapState.viewport;
+  const [internalBannerFilters, setInternalBannerFilters] = useState(
+    initialDiscoveryMapState.filters
+  );
+  const effectiveBannerFilters =
+    bannerFilters ?? internalBannerFilters ?? DEFAULT_MAP_BANNER_FILTERS;
   const [visibleArea, setVisibleArea] = useState(null);
   const [banners, setBanners] = useState([]);
   const [hasMoreBannersInView, setHasMoreBannersInView] = useState(false);
-  const [selectedBannerId, setSelectedBannerId] = useState(null);
+  const [selectedBannerId, setSelectedBannerId] = useState(
+    initialDiscoveryMapState.selectedBannerId
+  );
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [locationStatus, setLocationStatus] = useState("checking");
   const [locationError, setLocationError] = useState("");
   const [userLocation, setUserLocation] = useState(null);
-  const [currentZoom, setCurrentZoom] = useState(DEFAULT_ZOOM);
+  const [currentZoom, setCurrentZoom] = useState(
+    restoredViewport?.zoom ?? DEFAULT_ZOOM
+  );
   const syncState = useBannergressSync();
   const [imageSizeMode, setImageSizeMode] = useState(initialImageSizePreference.mode);
   const [customImageScale, setCustomImageScale] = useState(
@@ -1216,7 +1233,7 @@ export default function Map({
   const [isCompactControlsOpen, setIsCompactControlsOpen] = useState(false);
   const [disambiguationState, setDisambiguationState] = useState(null);
   const mapRef = useRef(null);
-  const hasCenteredOnUserRef = useRef(false);
+  const hasCenteredOnUserRef = useRef(Boolean(restoredViewport));
   const iconCacheRef = useRef(bannerMarkerIconCache);
 
   const locationIcon = useMemo(() => createUserLocationIcon(), []);
@@ -1232,7 +1249,18 @@ export default function Map({
       : IMAGE_SIZE_PRESETS[imageSizeMode]?.label ?? IMAGE_SIZE_PRESETS.medium.label;
   const activeMarkerModeLabel = markerMode === "dots" ? "Dots" : "Images";
 
-  const requestCurrentPosition = () => {
+  const handleBannerFiltersChange = (nextFilters) => {
+    const resolvedFilters =
+      typeof nextFilters === "function"
+        ? nextFilters(effectiveBannerFilters)
+        : nextFilters;
+
+    setInternalBannerFilters(resolvedFilters);
+    saveDiscoveryMapFilters(resolvedFilters);
+    onBannerFiltersChange?.(resolvedFilters);
+  };
+
+  const requestCurrentPosition = ({ recenterMap = false } = {}) => {
     if (!("geolocation" in navigator)) {
       setLocationStatus("unsupported");
       setLocationError("This browser does not support location.");
@@ -1250,6 +1278,18 @@ export default function Map({
 
         setUserLocation(nextLocation);
         setLocationStatus("granted");
+
+        if (recenterMap && mapRef.current) {
+          mapRef.current.setView([nextLocation.latitude, nextLocation.longitude], 14);
+          hasCenteredOnUserRef.current = true;
+          saveDiscoveryMapViewport({
+            center: {
+              latitude: nextLocation.latitude,
+              longitude: nextLocation.longitude,
+            },
+            zoom: 14,
+          });
+        }
       },
       () => {
         setLocationStatus("denied");
@@ -1324,12 +1364,27 @@ export default function Map({
   }, [markerMode]);
 
   useEffect(() => {
+    saveDiscoveryMapFilters(effectiveBannerFilters);
+  }, [effectiveBannerFilters]);
+
+  useEffect(() => {
+    saveDiscoveryMapSelectedBanner(selectedBannerId);
+  }, [selectedBannerId]);
+
+  useEffect(() => {
     if (!userLocation || !mapRef.current || hasCenteredOnUserRef.current) {
       return;
     }
 
     mapRef.current.setView([userLocation.latitude, userLocation.longitude], 14);
     hasCenteredOnUserRef.current = true;
+    saveDiscoveryMapViewport({
+      center: {
+        latitude: userLocation.latitude,
+        longitude: userLocation.longitude,
+      },
+      zoom: 14,
+    });
   }, [userLocation]);
 
   useEffect(() => {
@@ -1371,14 +1426,14 @@ export default function Map({
       discoveryMapQueryKey
         ? [
             discoveryMapQueryKey,
-            bannerFilters.showOfflineBanners ? "offline" : "online-only",
-            bannerFilters.showHiddenBanners ? "show-hidden" : "hide-hidden",
+            effectiveBannerFilters.showOfflineBanners ? "offline" : "online-only",
+            effectiveBannerFilters.showHiddenBanners ? "show-hidden" : "hide-hidden",
           ].join(":")
         : "",
     [
-      bannerFilters.showHiddenBanners,
-      bannerFilters.showOfflineBanners,
       discoveryMapQueryKey,
+      effectiveBannerFilters.showHiddenBanners,
+      effectiveBannerFilters.showOfflineBanners,
     ]
   );
 
@@ -1417,8 +1472,8 @@ export default function Map({
             visibleArea: normalizedVisibleArea,
             originLatitude,
             originLongitude,
-            showOfflineBanners: bannerFilters.showOfflineBanners,
-            showHiddenBanners: bannerFilters.showHiddenBanners,
+            showOfflineBanners: effectiveBannerFilters.showOfflineBanners,
+            showHiddenBanners: effectiveBannerFilters.showHiddenBanners,
             onPage: (pageData) => {
               const normalizedBanners = normalizeFetchedBanners(
                 pageData.banners,
@@ -1496,8 +1551,8 @@ export default function Map({
     };
   }, [
     discoveryMapRequestKey,
-    bannerFilters.showHiddenBanners,
-    bannerFilters.showOfflineBanners,
+    effectiveBannerFilters.showHiddenBanners,
+    effectiveBannerFilters.showOfflineBanners,
     normalizedOriginLocation,
     normalizedVisibleArea,
   ]);
@@ -1509,8 +1564,24 @@ export default function Map({
 
     mapRef.current = mapInstance;
     const nextVisibleArea = getVisibleAreaFromBounds(mapInstance.getBounds());
+    const nextZoom = mapInstance.getZoom();
+    const mapCenter = mapInstance.getCenter?.();
+    const viewportCenter =
+      Number.isFinite(mapCenter?.lat) && Number.isFinite(mapCenter?.lng)
+        ? {
+            latitude: mapCenter.lat,
+            longitude: mapCenter.lng,
+          }
+        : {
+            latitude: nextVisibleArea.centerLatitude,
+            longitude: nextVisibleArea.centerLongitude,
+          };
 
-    setCurrentZoom(mapInstance.getZoom());
+    setCurrentZoom(nextZoom);
+    saveDiscoveryMapViewport({
+      center: viewportCenter,
+      zoom: nextZoom,
+    });
     setVisibleArea((currentVisibleArea) => {
       if (
         currentVisibleArea &&
@@ -1527,14 +1598,14 @@ export default function Map({
   };
 
   const { minimumMissions, maximumMissions } = getMissionCountBounds(
-    bannerFilters
+    effectiveBannerFilters
   );
   const { minimumKilometers, maximumKilometers } = getKilometerBounds(
-    bannerFilters
+    effectiveBannerFilters
   );
   const filteredBanners = useMemo(
     () =>
-      applyBannerFilters(banners, syncState, bannerFilters).filter((banner) => {
+      applyBannerFilters(banners, syncState, effectiveBannerFilters).filter((banner) => {
         const missionCount = Number(banner?.numberOfMissions);
         const lengthMeters = Number(banner?.lengthMeters);
 
@@ -1574,7 +1645,7 @@ export default function Map({
         return true;
       }),
     [
-      bannerFilters,
+      effectiveBannerFilters,
       banners,
       maximumKilometers,
       maximumMissions,
@@ -1588,7 +1659,6 @@ export default function Map({
 
   useEffect(() => {
     if (displayedBanners.length === 0) {
-      setSelectedBannerId(null);
       setDisambiguationState(null);
       return;
     }
@@ -1888,8 +1958,15 @@ export default function Map({
     <Box sx={{ position: "relative", flex: 1, minHeight: 0 }}>
       <MapContainer
         id="map"
-        center={DEFAULT_CENTER}
-        zoom={DEFAULT_ZOOM}
+        center={
+          restoredViewport
+            ? [
+                restoredViewport.center.latitude,
+                restoredViewport.center.longitude,
+              ]
+            : DEFAULT_CENTER
+        }
+        zoom={restoredViewport?.zoom ?? DEFAULT_ZOOM}
         zoomControl={!L.Browser.mobile}
         scrollWheelZoom
         ref={mapRef}
@@ -2031,7 +2108,7 @@ export default function Map({
                 size="small"
                 aria-label={userLocation ? "Recenter map" : "Locate me"}
                 startIcon={<MyLocationRoundedIcon />}
-                onClick={requestCurrentPosition}
+                onClick={() => requestCurrentPosition({ recenterMap: true })}
                 sx={{
                   minWidth: { xs: 36, lg: 64 },
                   width: { xs: 36, lg: "auto" },
@@ -2147,8 +2224,8 @@ export default function Map({
             </Button>
 
             <BannerFilterButton
-              filters={bannerFilters}
-              onChange={onBannerFiltersChange}
+              filters={effectiveBannerFilters}
+              onChange={handleBannerFiltersChange}
               color="inherit"
               doneBannersFilterMode="show"
               showKilometerFilter
@@ -2242,7 +2319,11 @@ export default function Map({
           <Alert
             severity="info"
             action={
-              <Button color="inherit" size="small" onClick={requestCurrentPosition}>
+              <Button
+                color="inherit"
+                size="small"
+                onClick={() => requestCurrentPosition()}
+              >
                 Enable
               </Button>
             }

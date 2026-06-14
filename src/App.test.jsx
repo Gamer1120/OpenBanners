@@ -3491,7 +3491,7 @@ test("lets you change discovery map poster size with presets and a custom slider
     .filter((options) => options.className === "banner-map-icon");
 
   expect(
-    bannerIconCalls.some((options) => options.html?.includes("width:172px"))
+    bannerIconCalls.some((options) => options.html?.includes("width:102px"))
   ).toBe(true);
 });
 

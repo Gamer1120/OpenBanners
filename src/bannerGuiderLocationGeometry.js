@@ -3,7 +3,7 @@ export const MISSION_CONTROLS_OVERLAY_SELECTOR =
 
 const COMPACT_VIEWPORT_MAX_WIDTH = 480;
 const FULL_OVERLAY_OFFSET_MIN_WIDTH = 768;
-const COMPACT_OVERLAY_OFFSET_WEIGHT = 0.5;
+const COMPACT_OVERLAY_OFFSET_WEIGHT = 1;
 
 function clamp(value, min, max) {
   return Math.min(Math.max(value, min), max);

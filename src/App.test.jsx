@@ -2384,7 +2384,7 @@ test("keeps the BannerGuider user marker visible in the safe area on small scree
     lng: 4.8902,
   });
 
-  expect(point.x).toBe(217);
+  expect(point.x).toBe(255);
   expect(point.y).toBe(320);
 });
 
@@ -2588,7 +2588,7 @@ test("copies verbose BannerGuider location debug information", async () => {
       },
       recenterAttempt: expect.objectContaining({
         targetPoint: {
-          x: 217.5,
+          x: 255,
           y: 320,
         },
       }),
@@ -2607,16 +2607,15 @@ test("copies verbose BannerGuider location debug information", async () => {
     expect.objectContaining({
       visibleCenterX: 180,
       overlayBandCenterX: 255,
-      overlayOffsetWeight: 0.5,
-      targetX: 217.5,
+      overlayOffsetWeight: 1,
+      targetX: 255,
     })
   );
   expect(debugInfo.geometry.targetPoint).toEqual({
-    x: 217.5,
+    x: 255,
     y: 320,
   });
-  expect(debugInfo.projectedLocationPoint.x).toBeGreaterThanOrEqual(217);
-  expect(debugInfo.projectedLocationPoint.x).toBeLessThanOrEqual(218);
+  expect(debugInfo.projectedLocationPoint.x).toBe(255);
   expect(debugInfo.projectedLocationPoint.y).toBe(320);
 });
 
@@ -2743,8 +2742,8 @@ test("reapplies BannerGuider location centering after mission bounds move the ma
         lng: 2.3410934,
       });
 
-      expect(point.x).toBeGreaterThanOrEqual(207);
-      expect(point.x).toBeLessThanOrEqual(208);
+      expect(point.x).toBeGreaterThanOrEqual(242);
+      expect(point.x).toBeLessThanOrEqual(243);
       expect(point.y).toBe(110);
     });
   } finally {
@@ -2872,8 +2871,7 @@ test("keeps the BannerGuider centered within the visible viewport when the map c
       lng: 4.89,
     });
 
-    expect(point.x).toBeGreaterThanOrEqual(142);
-    expect(point.x).toBeLessThanOrEqual(143);
+    expect(point.x).toBe(175);
     expect(point.y).toBe(260);
   } finally {
     Object.defineProperty(window, "innerWidth", {

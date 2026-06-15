@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Box, useMediaQuery } from "@mui/material";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import TopMenu from "./TopMenu";
@@ -8,20 +8,30 @@ import SearchResults from "./SearchResults";
 import BannerDetailsPage from "./BannerDetailsPage";
 import Map from "./Map";
 import BannerRerouterPage from "./BannerRerouterPage";
-import { DEFAULT_BANNER_FILTERS } from "../bannerFilters";
 import {
   readDiscoveryMapFilters,
   saveDiscoveryMapFilters,
 } from "../discoveryMapState";
+import {
+  getBrowseStateScope,
+  readBrowseFilters,
+  saveBrowseFilters,
+} from "../browseState";
 
 export default function Home() {
+  const { placeId, agentName } = useParams();
+  const browseStateScope = useMemo(
+    () => getBrowseStateScope({ placeId, authorName: agentName }),
+    [agentName, placeId]
+  );
   const [currentView, setCurrentView] = useState("bannersNearMe");
-  const [bannerFilters, setBannerFilters] = useState(DEFAULT_BANNER_FILTERS);
+  const [bannerFilters, setBannerFilters] = useState(() =>
+    readBrowseFilters(browseStateScope)
+  );
   const [mapBannerFilters, setMapBannerFiltersState] = useState(
     readDiscoveryMapFilters
   );
   const isMobile = useMediaQuery("(max-width:768px)");
-  const { placeId, agentName } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -57,6 +67,18 @@ export default function Home() {
     });
   };
 
+  const setBrowseBannerFilters = (nextFilters) => {
+    setBannerFilters((currentFilters) => {
+      const resolvedFilters =
+        typeof nextFilters === "function"
+          ? nextFilters(currentFilters)
+          : nextFilters;
+
+      saveBrowseFilters(browseStateScope, resolvedFilters);
+      return resolvedFilters;
+    });
+  };
+
   useEffect(() => {
     if (location.pathname.startsWith("/search/")) {
       setCurrentView("searching");
@@ -74,6 +96,15 @@ export default function Home() {
       setCurrentView("bannersNearMe");
     }
   }, [location.pathname]);
+
+  useEffect(() => {
+    if (
+      location.pathname.startsWith("/browse/") ||
+      location.pathname.startsWith("/agent/")
+    ) {
+      setBannerFilters(readBrowseFilters(browseStateScope));
+    }
+  }, [browseStateScope, location.pathname]);
 
   return (
     <Box
@@ -114,14 +145,14 @@ export default function Home() {
           <BrowsingPage
             placeId={placeId}
             bannerFilters={bannerFilters}
-            onBannerFiltersChange={setBannerFilters}
+            onBannerFiltersChange={setBrowseBannerFilters}
           />
         )}
         {currentView === "agentBrowsing" && (
           <BrowsingPage
             authorName={agentName}
             bannerFilters={bannerFilters}
-            onBannerFiltersChange={setBannerFilters}
+            onBannerFiltersChange={setBrowseBannerFilters}
           />
         )}
         {currentView === "searching" && <SearchResults />}

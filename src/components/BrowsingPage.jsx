@@ -1,4 +1,10 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import BannerListItem from "./BannerListItem";
 import BannerCard from "./BannerCard";
 import BannerResultsViewToggle from "./BannerResultsViewToggle";
@@ -22,6 +28,11 @@ import {
   DEFAULT_BANNER_FILTERS,
   getMissionCountBounds,
 } from "../bannerFilters";
+import {
+  getBrowseStateScope,
+  readBrowseState,
+  saveBrowseState,
+} from "../browseState";
 
 function sortJsonByMissionsPerLength(data, sortOrder) {
   return [...data].sort((a, b) => {
@@ -90,23 +101,44 @@ export default function BrowsingPage({
   bannerFilters = DEFAULT_BANNER_FILTERS,
   onBannerFiltersChange,
 }) {
-  const [banners, setBanners] = useState([]);
-  const [sortOption, setSortOption] = useState("Created");
-  const [sortOrder, setSortOrder] = useState("DESC");
+  const browseStateScope = useMemo(
+    () => getBrowseStateScope({ placeId, authorName }),
+    [authorName, placeId]
+  );
+  const [initialBrowseState] = useState(() =>
+    readBrowseState(browseStateScope)
+  );
+  const [banners, setBanners] = useState(initialBrowseState.banners);
+  const [sortOption, setSortOption] = useState(
+    initialBrowseState.sortOption
+  );
+  const [sortOrder, setSortOrder] = useState(initialBrowseState.sortOrder);
   const [bannersFetchedForEfficiency, setBannersFetchedForEfficiency] =
-    useState(false);
+    useState(initialBrowseState.bannersFetchedForEfficiency);
   const [loading, setLoading] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
-  const [hasMore, setHasMore] = useState(true);
-  const [requestedOffset, setRequestedOffset] = useState(0);
-  const [isPlacesListExpanded, setIsPlacesListExpanded] = useState(false);
+  const [hasMore, setHasMore] = useState(initialBrowseState.hasMore);
+  const [requestedOffset, setRequestedOffset] = useState(
+    initialBrowseState.requestedOffset
+  );
+  const [isPlacesListExpanded, setIsPlacesListExpanded] = useState(
+    initialBrowseState.isPlacesListExpanded
+  );
   const [error, setError] = useState("");
   const [reloadToken, setReloadToken] = useState(0);
+  const [hasLoaded, setHasLoaded] = useState(initialBrowseState.hasLoaded);
   const syncState = useBannergressSync();
   const loadMoreRef = useRef(null);
   const resultsAreaRef = useRef(null);
   const resultsContentRef = useRef(null);
-  const [activeBrowseQueryKey, setActiveBrowseQueryKey] = useState("");
+  const [activeBrowseQueryKey, setActiveBrowseQueryKey] = useState(
+    initialBrowseState.queryKey
+  );
+  const shouldSkipRestoredLoadRef = useRef(initialBrowseState.hasLoaded);
+  const restoredScrollYRef = useRef(initialBrowseState.scrollY);
+  const shouldRestoreScrollRef = useRef(
+    initialBrowseState.hasLoaded && initialBrowseState.scrollY > 0
+  );
   const [viewMode, setViewMode] = useState(() => {
     const storedValue = window.localStorage.getItem(viewModeStorageKey);
     return storedValue === "compact" ? "compact" : "visual";
@@ -150,9 +182,27 @@ export default function BrowsingPage({
   };
 
   useEffect(() => {
-    setSortOption("Created");
-    setSortOrder("DESC");
-  }, [authorName, placeId]);
+    const nextState = readBrowseState(browseStateScope);
+
+    shouldSkipRestoredLoadRef.current = nextState.hasLoaded;
+    restoredScrollYRef.current = nextState.scrollY;
+    shouldRestoreScrollRef.current =
+      nextState.hasLoaded && nextState.scrollY > 0;
+
+    setSortOption(nextState.sortOption);
+    setSortOrder(nextState.sortOrder);
+    setBanners(nextState.banners);
+    setBannersFetchedForEfficiency(nextState.bannersFetchedForEfficiency);
+    setHasMore(nextState.hasMore);
+    setRequestedOffset(nextState.requestedOffset);
+    setIsPlacesListExpanded(nextState.isPlacesListExpanded);
+    setActiveBrowseQueryKey(nextState.queryKey);
+    setHasLoaded(nextState.hasLoaded);
+    setLoading(false);
+    setLoadingMore(false);
+    setError("");
+    setReloadToken(0);
+  }, [browseStateScope]);
 
   useEffect(() => {
     const updateVisualCardSliderMax = () => {
@@ -188,18 +238,30 @@ export default function BrowsingPage({
   ].join("|");
 
   useEffect(() => {
+    if (browseQueryKey === activeBrowseQueryKey) {
+      return;
+    }
+
+    shouldSkipRestoredLoadRef.current = false;
+    shouldRestoreScrollRef.current = false;
     setActiveBrowseQueryKey(browseQueryKey);
     setBanners([]);
     setBannersFetchedForEfficiency(false);
+    setHasLoaded(false);
     setLoading(false);
     setLoadingMore(false);
     setHasMore(true);
     setRequestedOffset(0);
     setError("");
-  }, [browseQueryKey]);
+  }, [activeBrowseQueryKey, browseQueryKey]);
 
   useEffect(() => {
     if (browseQueryKey !== activeBrowseQueryKey) {
+      return undefined;
+    }
+
+    if (shouldSkipRestoredLoadRef.current) {
+      shouldSkipRestoredLoadRef.current = false;
       return undefined;
     }
 
@@ -232,6 +294,7 @@ export default function BrowsingPage({
             setLoading(false);
             setLoadingMore(false);
             setHasMore(false);
+            setHasLoaded(true);
             return;
           }
 
@@ -275,6 +338,7 @@ export default function BrowsingPage({
             setBanners(sortJsonByMissionsPerLength(allBanners, sortOrder));
             setBannersFetchedForEfficiency(true);
             setHasMore(false);
+            setHasLoaded(true);
           }
 
           return;
@@ -301,6 +365,7 @@ export default function BrowsingPage({
               requestedOffset === 0 ? data : [...currentBanners, ...data]
             );
             setHasMore(data.length === BROWSE_PAGE_SIZE);
+            setHasLoaded(true);
           } else {
             console.error("Invalid response data:", data);
             if (requestedOffset === 0) {
@@ -308,6 +373,7 @@ export default function BrowsingPage({
             }
             setError("Couldn't load banners.");
             setHasMore(false);
+            setHasLoaded(false);
           }
         }
       } catch (fetchError) {
@@ -317,6 +383,7 @@ export default function BrowsingPage({
             setBanners([]);
           }
           setError("Couldn't load banners. Please try again.");
+          setHasLoaded(false);
         }
       } finally {
         if (!ignore) {
@@ -372,6 +439,88 @@ export default function BrowsingPage({
       }),
     [banners, bannerFilters, maximumMissions, minimumMissions, syncState]
   );
+  const saveCurrentScrollPosition = useCallback(() => {
+    saveBrowseState(browseStateScope, {
+      scrollY: window.scrollY || window.pageYOffset || 0,
+    });
+  }, [browseStateScope]);
+
+  useEffect(() => {
+    saveBrowseState(browseStateScope, {
+      filters: bannerFilters,
+      sortOption,
+      sortOrder,
+      banners,
+      hasMore,
+      requestedOffset,
+      bannersFetchedForEfficiency,
+      isPlacesListExpanded,
+      scrollY: window.scrollY || window.pageYOffset || 0,
+      queryKey: browseQueryKey,
+      hasLoaded,
+    });
+  }, [
+    bannerFilters,
+    banners,
+    bannersFetchedForEfficiency,
+    browseQueryKey,
+    browseStateScope,
+    hasLoaded,
+    hasMore,
+    isPlacesListExpanded,
+    requestedOffset,
+    sortOption,
+    sortOrder,
+  ]);
+
+  useEffect(() => {
+    let animationFrameId = null;
+
+    const handleScroll = () => {
+      if (animationFrameId !== null) {
+        return;
+      }
+
+      animationFrameId = window.requestAnimationFrame(() => {
+        animationFrameId = null;
+        saveCurrentScrollPosition();
+      });
+    };
+
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    window.addEventListener("pagehide", saveCurrentScrollPosition);
+
+    return () => {
+      if (animationFrameId !== null) {
+        window.cancelAnimationFrame(animationFrameId);
+      }
+
+      window.removeEventListener("scroll", handleScroll);
+      window.removeEventListener("pagehide", saveCurrentScrollPosition);
+      saveCurrentScrollPosition();
+    };
+  }, [saveCurrentScrollPosition]);
+
+  useEffect(() => {
+    if (!shouldRestoreScrollRef.current || !hasLoaded || loading) {
+      return undefined;
+    }
+
+    const scrollY = restoredScrollYRef.current;
+    shouldRestoreScrollRef.current = false;
+
+    const restoreScroll = () => {
+      window.scrollTo(0, scrollY);
+    };
+    const animationFrameId = window.requestAnimationFrame(restoreScroll);
+    const timeoutId = window.setTimeout(restoreScroll, 120);
+
+    return () => {
+      window.cancelAnimationFrame(animationFrameId);
+      window.clearTimeout(timeoutId);
+    };
+  }, [displayedBanners.length, hasLoaded, loading]);
+
   const filteredPrefetchTarget =
     hasMissionCountFilter ||
     bannerFilters.showHiddenBanners ||

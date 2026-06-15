@@ -31,6 +31,7 @@ export default function MapOverlay({
   bannerId,
   map = null,
   locationDebugSnapshot = null,
+  showDebugControls = false,
 }) {
   const missionCount = missions.length;
   const [debugCopyStatus, setDebugCopyStatus] = useState("");
@@ -135,14 +136,16 @@ export default function MapOverlay({
       >
         {currentMission === missionCount ? "OPEN BG" : "NEXT"}
       </button>
-      <button
-        className="debug-button"
-        onClick={handleCopyDebugInformation}
-        aria-label="Copy BannerGuider debug information"
-      >
-        COPY DEBUG
-      </button>
-      {debugCopyStatus ? (
+      {showDebugControls ? (
+        <button
+          className="debug-button"
+          onClick={handleCopyDebugInformation}
+          aria-label="Copy BannerGuider debug information"
+        >
+          COPY DEBUG
+        </button>
+      ) : null}
+      {showDebugControls && debugCopyStatus ? (
         <span className="debug-copy-status" aria-live="polite">
           {debugCopyStatus}
         </span>

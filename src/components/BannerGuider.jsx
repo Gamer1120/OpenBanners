@@ -17,6 +17,11 @@ export default function Map() {
   const { bannerId } = useParams();
   const navigate = useNavigate();
   const location = useLocation(); // Access the current location
+  const pathHasDebugControls = /\/debug\/?$/.test(location.pathname);
+  const showDebugControls =
+    pathHasDebugControls ||
+    /\/debug\/?$/.test(location.search) ||
+    /\/debug\/?$/.test(location.hash);
 
   // Parse the 'currentMission' query parameter from the URL
   const searchParams = new URLSearchParams(location.search);
@@ -114,8 +119,30 @@ export default function Map() {
 
   useEffect(() => {
     // Update the URL with the new 'currentMission' value
-    navigate(`?currentMission=${currentMission}`);
-  }, [navigate, currentMission]);
+    const nextPathname =
+      showDebugControls && !pathHasDebugControls
+        ? `${location.pathname.replace(/\/$/, "")}/debug`
+        : location.pathname;
+    const nextSearch = `?currentMission=${currentMission}`;
+
+    if (location.pathname !== nextPathname || location.search !== nextSearch) {
+      navigate(
+        {
+          pathname: nextPathname,
+          search: nextSearch,
+        },
+        { replace: true }
+      );
+    }
+  }, [
+    navigate,
+    currentMission,
+    location.hash,
+    location.pathname,
+    location.search,
+    pathHasDebugControls,
+    showDebugControls,
+  ]);
 
   useEffect(() => {
     if (!isLoading && mapRef.current && mapInitialized && missionCoordinates.length > 0) {
@@ -170,6 +197,7 @@ export default function Map() {
         bannerId={bannerId}
         map={mapRef.current}
         locationDebugSnapshot={locationDebugSnapshot}
+        showDebugControls={showDebugControls}
       />
     </div>
   );

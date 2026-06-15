@@ -2388,6 +2388,101 @@ test("keeps the BannerGuider user marker visible in the safe area on small scree
   expect(point.y).toBe(320);
 });
 
+test("hides BannerGuider copy debug information outside debug URLs", async () => {
+  global.fetch.mockImplementation((url) => {
+    if (url.endsWith("/bnrs/debug-location-banner")) {
+      return jsonResponse({
+        id: "debug-location-banner",
+        title: "Debug Location Banner",
+        missions: {
+          "mission-1": {
+            id: "mission-1",
+            steps: {
+              0: {
+                poi: {
+                  title: "Portal One",
+                  type: "portal",
+                  latitude: 52.37,
+                  longitude: 4.89,
+                },
+              },
+            },
+          },
+        },
+      });
+    }
+
+    throw new Error(`Unhandled fetch: ${url}`);
+  });
+
+  renderWithProviders(
+    <Routes>
+      <Route path="/bannerguider/:bannerId" element={<BannerGuider />} />
+      <Route path="/bannerguider/:bannerId/debug" element={<BannerGuider />} />
+    </Routes>,
+    { route: "/bannerguider/debug-location-banner" }
+  );
+
+  await screen.findByTestId("map-container");
+
+  expect(
+    screen.queryByRole("button", {
+      name: /copy bannerguider debug information/i,
+    })
+  ).not.toBeInTheDocument();
+});
+
+test("shows BannerGuider copy debug information when debug is appended after the current mission query", async () => {
+  global.fetch.mockImplementation((url) => {
+    if (url.endsWith("/bnrs/debug-location-banner")) {
+      return jsonResponse({
+        id: "debug-location-banner",
+        title: "Debug Location Banner",
+        missions: {
+          "mission-1": {
+            id: "mission-1",
+            steps: {
+              0: {
+                poi: {
+                  title: "Portal One",
+                  type: "portal",
+                  latitude: 52.37,
+                  longitude: 4.89,
+                },
+              },
+            },
+          },
+        },
+      });
+    }
+
+    throw new Error(`Unhandled fetch: ${url}`);
+  });
+
+  renderWithProviders(
+    <>
+      <LocationDisplay />
+      <Routes>
+        <Route path="/bannerguider/:bannerId" element={<BannerGuider />} />
+        <Route path="/bannerguider/:bannerId/debug" element={<BannerGuider />} />
+      </Routes>
+    </>,
+    { route: "/bannerguider/debug-location-banner?currentMission=0/debug" }
+  );
+
+  expect(
+    await screen.findByRole("button", {
+      name: /copy bannerguider debug information/i,
+    })
+  ).toBeInTheDocument();
+
+  await waitFor(() => {
+    expect(screen.getByTestId("location-display")).toHaveTextContent(
+      "/bannerguider/debug-location-banner/debug"
+    );
+  });
+});
+
 test("copies verbose BannerGuider location debug information", async () => {
   const user = userEvent.setup();
   const writeText = vi.fn().mockResolvedValue(undefined);
@@ -2438,8 +2533,9 @@ test("copies verbose BannerGuider location debug information", async () => {
   renderWithProviders(
     <Routes>
       <Route path="/bannerguider/:bannerId" element={<BannerGuider />} />
+      <Route path="/bannerguider/:bannerId/debug" element={<BannerGuider />} />
     </Routes>,
-    { route: "/bannerguider/debug-location-banner" }
+    { route: "/bannerguider/debug-location-banner/debug" }
   );
 
   await screen.findByTestId("map-container");

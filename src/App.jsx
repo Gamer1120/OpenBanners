@@ -33,6 +33,10 @@ function App() {
           <Route path="/banner/:bannerId" element={<Home />} />
           <Route path="/agent/:agentName" element={<Home />} />
           <Route path="/rerouter" element={<Home />} />
+          <Route
+            path="/bannerguider/:bannerId/debug"
+            element={<BannerGuider />}
+          />
           <Route path="/bannerguider/:bannerId" element={<BannerGuider />} />
           <Route
             path="/bannerguiderwithoutlocation/:bannerId"

@@ -13,6 +13,7 @@ import {
   Typography,
 } from "@mui/material";
 import { fetchBannergress } from "../bannergressSync";
+import { getBrowseStateScope, resetBrowseState } from "../browseState";
 
 const viewModeStorageKey = "openbanners-banner-view-mode";
 const visualCardColumnsStorageKey = "openbanners-visual-card-columns";
@@ -195,6 +196,11 @@ export default function SearchResults() {
                   key={index}
                   component={Link}
                   to={`/browse/${result.id}`}
+                  onClick={() => {
+                    resetBrowseState(
+                      getBrowseStateScope({ placeId: result.id })
+                    );
+                  }}
                   sx={{
                     color: "common.white",
                     cursor: "pointer",

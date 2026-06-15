@@ -2,9 +2,17 @@ import React from "react";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { ThemeProvider, createTheme } from "@mui/material/styles";
-import { MemoryRouter } from "react-router-dom";
+import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { beforeEach, expect, test, vi } from "vitest";
 import BrowsingPage from "./BrowsingPage";
+import Home from "./Home";
+import SearchResults from "./SearchResults";
+import { DEFAULT_BANNER_FILTERS } from "../bannerFilters";
+import {
+  getBrowseStateScope,
+  readBrowseState,
+  saveBrowseState,
+} from "../browseState";
 
 const theme = createTheme({
   palette: {
@@ -136,4 +144,120 @@ test("restores browse sort, loaded banners, and scroll after remount", async () 
   await waitFor(() => {
     expect(window.scrollTo).toHaveBeenCalledWith(0, 420);
   });
+});
+
+test("top browse navigation resets saved root browse filters", async () => {
+  const rootScope = getBrowseStateScope();
+
+  saveBrowseState(rootScope, {
+    filters: {
+      ...DEFAULT_BANNER_FILTERS,
+      minimumMissions: 12,
+    },
+    hasLoaded: true,
+    banners: [
+      {
+        id: "stale-root-banner",
+        title: "Stale Root Banner",
+        numberOfMissions: 12,
+        numberOfDisabledMissions: 0,
+      },
+    ],
+  });
+
+  global.fetch.mockImplementation((url) => {
+    if (url.includes("/places?used=true&collapsePlaces=true")) {
+      return jsonResponse([]);
+    }
+
+    if (url.includes("/bnrs?orderBy=relevance")) {
+      return jsonResponse([]);
+    }
+
+    if (url.includes("/places?used=true&type=country")) {
+      return jsonResponse([]);
+    }
+
+    if (url.includes("/bnrs?limit=9&offset=0&orderBy=created")) {
+      return jsonResponse([]);
+    }
+
+    throw new Error(`Unhandled fetch: ${url}`);
+  });
+
+  const user = userEvent.setup();
+
+  renderWithProviders(
+    <Routes>
+      <Route path="/search/:query" element={<Home />} />
+      <Route path="/browse/" element={<Home />} />
+    </Routes>,
+    { route: "/search/reset" }
+  );
+
+  expect(await screen.findByText("Search: reset")).toBeInTheDocument();
+  await user.click(screen.getByRole("button", { name: /^browse$/i }));
+
+  await waitFor(() => {
+    expect(readBrowseState(rootScope).filters).toEqual(DEFAULT_BANNER_FILTERS);
+  });
+  expect(readBrowseState(rootScope).banners).toEqual([]);
+});
+
+test("search place links reset the target browse filters", async () => {
+  const placeScope = getBrowseStateScope({ placeId: "search-place" });
+
+  saveBrowseState(placeScope, {
+    filters: {
+      ...DEFAULT_BANNER_FILTERS,
+      missionCountFilterMode: "custom",
+      customMinimumMissions: "7",
+      customMaximumMissions: "12",
+    },
+    hasLoaded: true,
+    banners: [
+      {
+        id: "stale-place-banner",
+        title: "Stale Place Banner",
+        numberOfMissions: 12,
+        numberOfDisabledMissions: 0,
+      },
+    ],
+  });
+
+  global.fetch.mockImplementation((url) => {
+    if (url.includes("/places?used=true&collapsePlaces=true")) {
+      return jsonResponse([
+        {
+          id: "search-place",
+          shortName: "Search Place",
+          type: "CITY",
+          numberOfBanners: 4,
+        },
+      ]);
+    }
+
+    if (url.includes("/bnrs?orderBy=relevance")) {
+      return jsonResponse([]);
+    }
+
+    throw new Error(`Unhandled fetch: ${url}`);
+  });
+
+  const user = userEvent.setup();
+
+  renderWithProviders(
+    <Routes>
+      <Route path="/search/:query" element={<SearchResults />} />
+      <Route path="/browse/:placeId" element={<div>Browse target</div>} />
+    </Routes>,
+    { route: "/search/search-place" }
+  );
+
+  await user.click(
+    await screen.findByRole("link", { name: /search place/i })
+  );
+
+  expect(readBrowseState(placeScope).filters).toEqual(DEFAULT_BANNER_FILTERS);
+  expect(readBrowseState(placeScope).banners).toEqual([]);
 });

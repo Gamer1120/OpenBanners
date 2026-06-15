@@ -183,3 +183,14 @@ export function saveBrowseState(scope, patch) {
 export function saveBrowseFilters(scope, filters) {
   saveBrowseState(scope, { filters });
 }
+
+export function resetBrowseState(scope) {
+  if (!scope) {
+    return;
+  }
+
+  writeStoredState({
+    ...getDefaultBrowseState(),
+    scope,
+  });
+}

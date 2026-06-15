@@ -8,6 +8,7 @@ import SearchResults from "./SearchResults";
 import BannerDetailsPage from "./BannerDetailsPage";
 import Map from "./Map";
 import BannerRerouterPage from "./BannerRerouterPage";
+import { DEFAULT_BANNER_FILTERS } from "../bannerFilters";
 import {
   readDiscoveryMapFilters,
   saveDiscoveryMapFilters,
@@ -15,6 +16,7 @@ import {
 import {
   getBrowseStateScope,
   readBrowseFilters,
+  resetBrowseState,
   saveBrowseFilters,
 } from "../browseState";
 import { applyPageMetadata } from "../seo";
@@ -104,6 +106,10 @@ export default function Home() {
   const location = useLocation();
 
   const handleBrowseClick = () => {
+    const rootBrowseStateScope = getBrowseStateScope();
+
+    resetBrowseState(rootBrowseStateScope);
+    setBannerFilters(DEFAULT_BANNER_FILTERS);
     setCurrentView("browsing");
     navigate("/browse/");
   };

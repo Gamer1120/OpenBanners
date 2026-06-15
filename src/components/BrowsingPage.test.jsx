@@ -123,6 +123,8 @@ test("restores browse sort, loaded banners, and scroll after remount", async () 
   expect(getBannerFetchCalls()).toHaveLength(2);
 
   window.scrollTo(0, 420);
+  await user.click(screen.getByRole("link", { name: /sorted browse banner/i }));
+  window.scrollTo(0, 0);
   firstRender.unmount();
   global.fetch.mockClear();
   window.scrollTo.mockClear();

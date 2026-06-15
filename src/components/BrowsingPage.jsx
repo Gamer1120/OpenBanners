@@ -444,8 +444,26 @@ export default function BrowsingPage({
       scrollY: window.scrollY || window.pageYOffset || 0,
     });
   }, [browseStateScope]);
+  const handleResultsClickCapture = useCallback(
+    (event) => {
+      const target = event.target;
+
+      if (!(target instanceof Element)) {
+        return;
+      }
+
+      if (target.closest('a[href^="/banner/"]')) {
+        saveCurrentScrollPosition();
+      }
+    },
+    [saveCurrentScrollPosition]
+  );
 
   useEffect(() => {
+    const scrollY = shouldRestoreScrollRef.current
+      ? restoredScrollYRef.current
+      : window.scrollY || window.pageYOffset || 0;
+
     saveBrowseState(browseStateScope, {
       filters: bannerFilters,
       sortOption,
@@ -455,7 +473,7 @@ export default function BrowsingPage({
       requestedOffset,
       bannersFetchedForEfficiency,
       isPlacesListExpanded,
-      scrollY: window.scrollY || window.pageYOffset || 0,
+      scrollY,
       queryKey: browseQueryKey,
       hasLoaded,
     });
@@ -497,7 +515,6 @@ export default function BrowsingPage({
 
       window.removeEventListener("scroll", handleScroll);
       window.removeEventListener("pagehide", saveCurrentScrollPosition);
-      saveCurrentScrollPosition();
     };
   }, [saveCurrentScrollPosition]);
 
@@ -680,7 +697,10 @@ export default function BrowsingPage({
           md={isAgentView || isSmallScreen ? 12 : 10}
           ref={resultsAreaRef}
         >
-          <Box ref={resultsContentRef}>
+          <Box
+            ref={resultsContentRef}
+            onClickCapture={handleResultsClickCapture}
+          >
           <Box
             sx={{
               display: "flex",

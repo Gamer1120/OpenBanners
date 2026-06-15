@@ -5,6 +5,12 @@ import MapOverlay from "./MapOverlay";
 import { useState, useEffect, useMemo, useRef } from "react";
 import L from "leaflet";
 import { fetchBannergress } from "../bannergressSync";
+import {
+  applyPageMetadata,
+  buildBannerMetadata,
+  formatDocumentTitle,
+  resetPageMetadata,
+} from "../seo";
 
 export default function Map() {
   const { bannerId } = useParams();
@@ -66,6 +72,42 @@ export default function Map() {
         }
       );
   }, [bannerId]);
+
+  useEffect(() => {
+    applyPageMetadata({
+      title: "BannerGuider",
+      description: "Follow an OpenBanners banner mission by mission.",
+    });
+
+    return () => {
+      resetPageMetadata();
+    };
+  }, [bannerId]);
+
+  useEffect(() => {
+    if (isLoading || !items?.id) {
+      return;
+    }
+
+    const metadata = buildBannerMetadata(items);
+
+    if (!metadata) {
+      return;
+    }
+
+    const title = `Guide: ${metadata.title}`;
+
+    applyPageMetadata({
+      ...metadata,
+      title,
+      documentTitle: formatDocumentTitle(title),
+      url: new URL(
+        `${location.pathname}${location.search}`,
+        window.location.origin
+      ).toString(),
+      type: "article",
+    });
+  }, [isLoading, items, location.pathname, location.search]);
 
   useEffect(() => {
     // Update the URL with the new 'currentMission' value

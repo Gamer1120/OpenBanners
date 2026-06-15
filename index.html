@@ -34,6 +34,7 @@
     <title>OpenBanners</title>
     <script>
       (function () {
+        const SITE_NAME = "OpenBanners";
         const DEFAULT_DESCRIPTION = "An open-source front-end for banners";
         const DEFAULT_IMAGE = "https://openbanners.org/logo512.png";
         const BANNERGRESS_IMAGE_ORIGIN = "https://api.bannergress.com";
@@ -107,7 +108,10 @@
               ? new URL(banner.picture, BANNERGRESS_IMAGE_ORIGIN).toString()
               : DEFAULT_IMAGE;
 
-            document.title = banner.title;
+            document.title =
+              banner.title === SITE_NAME
+                ? SITE_NAME
+                : `${banner.title} | ${SITE_NAME}`;
             setMeta("name", "description", description || DEFAULT_DESCRIPTION);
             setMeta("property", "og:type", "article");
             setMeta("property", "og:title", banner.title);

@@ -5,6 +5,17 @@ const DEFAULT_PATH = "/";
 const DEFAULT_IMAGE_PATH = "/logo512.png";
 const BANNERGRESS_IMAGE_ORIGIN = "https://api.bannergress.com";
 
+export function formatDocumentTitle(title = DEFAULT_TITLE) {
+  const normalizedTitle =
+    typeof title === "string" && title.trim() !== ""
+      ? title.trim()
+      : DEFAULT_TITLE;
+
+  return normalizedTitle === SITE_NAME
+    ? SITE_NAME
+    : `${normalizedTitle} | ${SITE_NAME}`;
+}
+
 function getDocumentOrigin() {
   if (typeof window === "undefined" || !window.location?.origin) {
     return "https://openbanners.org";
@@ -130,6 +141,7 @@ export function buildBannerMetadata(banner) {
 
 export function applyPageMetadata({
   title = DEFAULT_TITLE,
+  documentTitle = formatDocumentTitle(title),
   description = DEFAULT_DESCRIPTION,
   image = toAbsoluteSiteUrl(DEFAULT_IMAGE_PATH, DEFAULT_IMAGE_PATH),
   url = toAbsoluteSiteUrl(DEFAULT_PATH, DEFAULT_PATH),
@@ -139,7 +151,7 @@ export function applyPageMetadata({
     return;
   }
 
-  document.title = title;
+  document.title = documentTitle;
   setCanonicalUrl(url);
   setMetaContent("name", "description", description);
   setMetaContent("property", "og:type", type);

@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 const SITE_ORIGIN = 'https://openbanners.org';
+const SITE_NAME = 'OpenBanners';
 const DEFAULT_TITLE = 'OpenBanners';
 const DEFAULT_DESCRIPTION = 'An open-source front-end for banners';
 const DEFAULT_IMAGE = SITE_ORIGIN . '/logo512.png';
@@ -41,6 +42,16 @@ function escapeHtml(string $value): string
 function normalizeText(mixed $value): string
 {
     return is_string($value) ? trim($value) : '';
+}
+
+function formatDocumentTitle(string $title): string
+{
+    $normalizedTitle = normalizeText($title);
+    $normalizedTitle = $normalizedTitle !== '' ? $normalizedTitle : SITE_NAME;
+
+    return $normalizedTitle === SITE_NAME
+        ? SITE_NAME
+        : $normalizedTitle . ' | ' . SITE_NAME;
 }
 
 function buildDescription(array $banner): string
@@ -189,7 +200,7 @@ function fetchBanner(string $bannerId): ?array
 function injectMetadata(string $html, array $metadata): string
 {
     $replacements = [
-        '~<title>[\\s\\S]*?</title>~i' => '<title>' . escapeHtml($metadata['title']) . '</title>',
+        '~<title>[\\s\\S]*?</title>~i' => '<title>' . escapeHtml(formatDocumentTitle($metadata['title'])) . '</title>',
         '~<meta\\s+name="description"\\s+content="[\\s\\S]*?"\\s*/>~i' => '<meta name="description" content="' . escapeHtml($metadata['description']) . '" />',
         '~<meta\\s+property="og:type"\\s+content="[\\s\\S]*?"\\s*/>~i' => '<meta property="og:type" content="article" />',
         '~<meta\\s+property="og:title"\\s+content="[\\s\\S]*?"\\s*/>~i' => '<meta property="og:title" content="' . escapeHtml($metadata['title']) . '" />',

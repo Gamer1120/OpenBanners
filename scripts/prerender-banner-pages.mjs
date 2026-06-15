@@ -2,6 +2,7 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 
 const SITE_ORIGIN = "https://openbanners.org";
+const SITE_NAME = "OpenBanners";
 const DEFAULT_DESCRIPTION = "An open-source front-end for banners";
 const DEFAULT_IMAGE = `${SITE_ORIGIN}/logo512.png`;
 const BANNERGRESS_IMAGE_ORIGIN = "https://api.bannergress.com";
@@ -18,6 +19,14 @@ function escapeHtml(value) {
 
 function normalizeText(value) {
   return typeof value === "string" ? value.trim() : "";
+}
+
+function formatDocumentTitle(title) {
+  const normalizedTitle = normalizeText(title) || SITE_NAME;
+
+  return normalizedTitle === SITE_NAME
+    ? SITE_NAME
+    : `${normalizedTitle} | ${SITE_NAME}`;
 }
 
 function buildDescription(banner) {
@@ -52,7 +61,10 @@ function toImageUrl(value) {
 
 function injectMetadata(template, metadata) {
   const replacements = new Map([
-    [/<title>[\s\S]*?<\/title>/i, `<title>${escapeHtml(metadata.title)}</title>`],
+    [
+      /<title>[\s\S]*?<\/title>/i,
+      `<title>${escapeHtml(formatDocumentTitle(metadata.title))}</title>`,
+    ],
     [
       /<meta\s+name="description"\s+content="[\s\S]*?"\s*\/>/i,
       `<meta name="description" content="${escapeHtml(metadata.description)}" />`,

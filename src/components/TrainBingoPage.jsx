@@ -9,6 +9,7 @@ import {
   getTrainBingoPlayerFromPassword,
   normalizeTrainBingoSquares,
 } from "../trainBingo";
+import { applyPageMetadata, resetPageMetadata } from "../seo";
 import "./TrainBingoPage.css";
 
 const API_URL = "/api/train-bingo";
@@ -108,6 +109,18 @@ const TrainBingoPage = () => {
     () => detectTrainBingo(boardState.squares, "red"),
     [boardState.squares]
   );
+
+  useEffect(() => {
+    applyPageMetadata({
+      title: "Treinbingo",
+      description: "Live treinbingo board.",
+      url: new URL("/bingo", window.location.origin).toString(),
+    });
+
+    return () => {
+      resetPageMetadata();
+    };
+  }, []);
 
   const loadBoard = useCallback(async ({ signal, silent = false } = {}) => {
     if (!silent) {

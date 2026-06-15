@@ -355,6 +355,7 @@ function LocationDisplay() {
 beforeEach(() => {
   delete globalThis.__leafletMapContainerRect;
   __resetDiscoveryMapCacheForTests();
+  document.title = "OpenBanners";
   global.fetch = vi.fn();
   useMediaQuery.mockReturnValue(false);
   Object.defineProperty(globalThis.navigator, "geolocation", {
@@ -1150,6 +1151,61 @@ test("submits top menu searches, fires menu callbacks, and navigates map route",
 
   await userEvent.click(screen.getByRole("button", { name: /map/i }));
   expect(screen.getByTestId("location-display")).toHaveTextContent("/map");
+});
+
+test("sets useful browser titles for app routes", async () => {
+  global.fetch.mockImplementation((url) => {
+    if (url.includes("/places?used=true&collapsePlaces=true&query=enschede")) {
+      return jsonResponse([]);
+    }
+
+    if (url.includes("/bnrs?orderBy=relevance") && url.includes("query=enschede")) {
+      return jsonResponse([]);
+    }
+
+    if (url.includes("/bnrs?orderBy=proximityStartPoint")) {
+      return jsonResponse([]);
+    }
+
+    throw new Error(`Unhandled fetch: ${url}`);
+  });
+
+  const searchRender = renderWithProviders(
+    <Routes>
+      <Route path="/search/:query" element={<Home />} />
+    </Routes>,
+    { route: "/search/enschede" }
+  );
+
+  await waitFor(() => {
+    expect(document.title).toBe("Search: enschede | OpenBanners");
+  });
+
+  searchRender.unmount();
+
+  const mapRender = renderWithProviders(
+    <Routes>
+      <Route path="/map" element={<Home />} />
+    </Routes>,
+    { route: "/map" }
+  );
+
+  await waitFor(() => {
+    expect(document.title).toBe("Discovery Map | OpenBanners");
+  });
+
+  mapRender.unmount();
+
+  renderWithProviders(
+    <Routes>
+      <Route path="/rerouter" element={<Home />} />
+    </Routes>,
+    { route: "/rerouter" }
+  );
+
+  await waitFor(() => {
+    expect(document.title).toBe("Banner Rerouter | OpenBanners");
+  });
 });
 
 test("imports a banner into the rerouter, generates a reroute, and stores history locally", async () => {
@@ -3734,7 +3790,7 @@ test("updates banner metadata tags when banner details load", async () => {
   expect(await screen.findByText("Meta Banner")).toBeInTheDocument();
 
   await waitFor(() => {
-    expect(document.title).toBe("Meta Banner");
+    expect(document.title).toBe("Meta Banner | OpenBanners");
     expect(
       document.head.querySelector('meta[property="og:title"]')
     ).toHaveAttribute("content", "Meta Banner");

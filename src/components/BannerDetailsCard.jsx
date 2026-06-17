@@ -18,6 +18,7 @@ import {
   useBannergressSync,
 } from "../bannergressSync";
 import { getBannergressCardSurface } from "../bannergressCardStyles";
+import { getBrowseStateScope, resetBrowseState } from "../browseState";
 
 function formatDistance(lengthMeters) {
   return Number.isFinite(lengthMeters)
@@ -89,6 +90,15 @@ export default function BannerDetailsCard({ banner, loading = false }) {
   const missions = Number(banner.numberOfMissions);
   const showImage = Boolean(banner.picture);
   const bannerAuthors = loading ? [] : getBannerAuthors(banner.missions);
+  const formattedAddress =
+    typeof banner.formattedAddress === "string" &&
+    banner.formattedAddress.trim() !== ""
+      ? banner.formattedAddress.trim()
+      : "";
+  const startPlaceId =
+    typeof banner.startPlaceId === "string" && banner.startPlaceId.trim() !== ""
+      ? banner.startPlaceId.trim()
+      : "";
   const efficiency =
     Number.isFinite(missions) && Number.isFinite(lengthMeters) && lengthMeters > 0
       ? `${((missions / lengthMeters) * 1000).toFixed(3)} /km`
@@ -203,9 +213,33 @@ export default function BannerDetailsCard({ banner, loading = false }) {
               />
             </Stack>
 
-            <Typography variant="body2" color="text.secondary">
-              {banner.formattedAddress || "Address unavailable"}
-            </Typography>
+            {formattedAddress && startPlaceId ? (
+              <Typography
+                component={Link}
+                to={`/browse/${encodeURIComponent(startPlaceId)}`}
+                onClick={() =>
+                  resetBrowseState(getBrowseStateScope({ placeId: startPlaceId }))
+                }
+                variant="body2"
+                color="text.secondary"
+                sx={{
+                  display: "inline-block",
+                  textDecoration: "underline",
+                  textDecorationColor: "rgba(151, 165, 174, 0.55)",
+                  textUnderlineOffset: "3px",
+                  "&:hover": {
+                    color: "text.primary",
+                    textDecorationColor: "currentColor",
+                  },
+                }}
+              >
+                {formattedAddress}
+              </Typography>
+            ) : (
+              <Typography variant="body2" color="text.secondary">
+                {formattedAddress || "Address unavailable"}
+              </Typography>
+            )}
             {bannerAuthors.length > 0 ? (
               <Box sx={{ mt: 1.5 }}>
                 <Typography

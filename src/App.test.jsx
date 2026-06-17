@@ -28,6 +28,11 @@ import TopMenu from "./components/TopMenu";
 import { getFlagForPlace } from "./components/CountryFlags";
 import { applyBannerFilters, DEFAULT_BANNER_FILTERS } from "./bannerFilters";
 import {
+  getBrowseStateScope,
+  readBrowseState,
+  saveBrowseState,
+} from "./browseState";
+import {
   BANNERGRESS_AUTH_STORAGE_KEY,
   BANNERGRESS_SYNC_STORAGE_KEY,
 } from "./bannergressSync";
@@ -1801,6 +1806,83 @@ test("renders banner details route with actions", async () => {
       "https://bannergress.com/banner/detail-banner",
     ].join("\n"),
   });
+});
+
+test("links banner detail location to that place browse page", async () => {
+  const user = userEvent.setup();
+  const placeScope = getBrowseStateScope({ placeId: "amsterdam-1234" });
+
+  saveBrowseState(placeScope, {
+    filters: {
+      ...DEFAULT_BANNER_FILTERS,
+      showOfflineBanners: true,
+    },
+    banners: [
+      {
+        id: "stale-banner",
+        title: "Stale Banner",
+      },
+    ],
+    hasLoaded: true,
+  });
+
+  global.fetch.mockImplementation((url) => {
+    if (url.endsWith("/bnrs/location-link-banner")) {
+      return jsonResponse({
+        id: "location-link-banner",
+        title: "Location Link Banner",
+        picture: "/images/detail.jpg",
+        numberOfMissions: 6,
+        lengthMeters: 2100,
+        formattedAddress: "Amsterdam, NL",
+        startPlaceId: "amsterdam-1234",
+        description: "A banner used for location link testing.",
+        startLatitude: 52.37,
+        startLongitude: 4.89,
+        missions: {
+          "mission-1": {
+            id: "mission-1",
+            steps: {
+              0: {
+                poi: {
+                  title: "Portal One",
+                  type: "portal",
+                  latitude: 52.37,
+                  longitude: 4.89,
+                },
+              },
+            },
+          },
+        },
+      });
+    }
+
+    throw new Error(`Unhandled fetch: ${url}`);
+  });
+
+  renderWithProviders(
+    <>
+      <LocationDisplay />
+      <Routes>
+        <Route path="/banner/:bannerId" element={<BannerDetailsPage />} />
+        <Route path="/browse/:placeId" element={<div>Browse target</div>} />
+      </Routes>
+    </>,
+    { route: "/banner/location-link-banner" }
+  );
+
+  const locationLink = await screen.findByRole("link", {
+    name: "Amsterdam, NL",
+  });
+  expect(locationLink).toHaveAttribute("href", "/browse/amsterdam-1234");
+
+  await user.click(locationLink);
+
+  expect(screen.getByTestId("location-display")).toHaveTextContent(
+    "/browse/amsterdam-1234"
+  );
+  expect(readBrowseState(placeScope).filters).toEqual(DEFAULT_BANNER_FILTERS);
+  expect(readBrowseState(placeScope).banners).toEqual([]);
 });
 
 test("shows separate overview and map tabs for banner details on mobile", async () => {

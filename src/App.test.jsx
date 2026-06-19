@@ -1885,6 +1885,58 @@ test("links banner detail location to that place browse page", async () => {
   expect(readBrowseState(placeScope).banners).toEqual([]);
 });
 
+test("shows Bannergress warnings on the banner details page", async () => {
+  global.fetch.mockImplementation((url) => {
+    if (url.endsWith("/bnrs/warning-banner")) {
+      return jsonResponse({
+        id: "warning-banner",
+        title: "Warning Banner",
+        picture: "/images/detail.jpg",
+        numberOfMissions: 6,
+        lengthMeters: 2100,
+        formattedAddress: "Geneva, Switzerland",
+        warning:
+          "This mission goes over a graveyard that's only open between 07:30 and 19:00",
+        description: "A banner used for warning testing.",
+        startLatitude: 46.2,
+        startLongitude: 6.14,
+        missions: {
+          "mission-1": {
+            id: "mission-1",
+            steps: {
+              0: {
+                poi: {
+                  title: "Portal One",
+                  type: "portal",
+                  latitude: 46.2,
+                  longitude: 6.14,
+                },
+              },
+            },
+          },
+        },
+      });
+    }
+
+    throw new Error(`Unhandled fetch: ${url}`);
+  });
+
+  renderWithProviders(
+    <Routes>
+      <Route path="/banner/:bannerId" element={<BannerDetailsPage />} />
+    </Routes>,
+    { route: "/banner/warning-banner" }
+  );
+
+  expect(await screen.findByText("Warning Banner")).toBeInTheDocument();
+
+  const warning = screen.getByRole("alert");
+  expect(warning).toHaveTextContent("Bannergress warning");
+  expect(warning).toHaveTextContent(
+    "This mission goes over a graveyard that's only open between 07:30 and 19:00"
+  );
+});
+
 test("shows separate overview and map tabs for banner details on mobile", async () => {
   useMediaQuery.mockReturnValue(true);
 

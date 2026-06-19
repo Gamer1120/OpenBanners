@@ -1,6 +1,7 @@
 import React from "react";
 import { Link } from "react-router-dom";
 import {
+  Alert,
   Box,
   Card,
   CardContent,
@@ -98,6 +99,10 @@ export default function BannerDetailsCard({ banner, loading = false }) {
   const startPlaceId =
     typeof banner.startPlaceId === "string" && banner.startPlaceId.trim() !== ""
       ? banner.startPlaceId.trim()
+      : "";
+  const bannerWarning =
+    typeof banner.warning === "string" && banner.warning.trim() !== ""
+      ? banner.warning.trim()
       : "";
   const efficiency =
     Number.isFinite(missions) && Number.isFinite(lengthMeters) && lengthMeters > 0
@@ -240,6 +245,24 @@ export default function BannerDetailsCard({ banner, loading = false }) {
                 {formattedAddress || "Address unavailable"}
               </Typography>
             )}
+            {bannerWarning ? (
+              <Alert severity="warning" sx={{ mt: 1.5, borderRadius: 2 }}>
+                <Typography
+                  variant="subtitle2"
+                  component="div"
+                  sx={{ fontWeight: 700, mb: 0.25 }}
+                >
+                  Bannergress warning
+                </Typography>
+                <Typography
+                  variant="body2"
+                  component="div"
+                  sx={{ whiteSpace: "pre-line" }}
+                >
+                  {bannerWarning}
+                </Typography>
+              </Alert>
+            ) : null}
             {bannerAuthors.length > 0 ? (
               <Box sx={{ mt: 1.5 }}>
                 <Typography

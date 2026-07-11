@@ -10,6 +10,8 @@ export const BANNERGRESS_AUTH_PENDING_STORAGE_KEY =
   "openbanners:bannergress-auth-pending";
 export const BANNERGRESS_AUTH_COMPLETE_MESSAGE =
   "openbanners:bannergress-auth-complete";
+export const BANNERGRESS_AUTH_REQUEST_EVENT =
+  "openbanners:bannergress-auth-request";
 export const BANNERGRESS_AUTH_PENDING_WINDOW_NAME_PREFIX =
   "openbanners:bannergress-auth-pending:";
 
@@ -48,6 +50,7 @@ let cachedSyncStorageValue = null;
 let cachedSyncSnapshot = EMPTY_SYNC_STATE;
 let cachedAuthStorageValue = null;
 let cachedAuthSnapshot = EMPTY_AUTH_STATE;
+let refreshAuthPromise = null;
 const temporarilyVisibleHiddenBannerIds = new Set();
 
 function normalizeListType(listType) {
@@ -368,6 +371,38 @@ export function useBannergressSync() {
   );
 }
 
+function subscribeToAuthChanges(callback) {
+  if (typeof window === "undefined") {
+    return () => {};
+  }
+
+  const handleStorage = (event) => {
+    if (
+      !event ||
+      event.key === null ||
+      event.key === BANNERGRESS_AUTH_STORAGE_KEY
+    ) {
+      callback();
+    }
+  };
+
+  window.addEventListener(BANNERGRESS_AUTH_CHANGE_EVENT, callback);
+  window.addEventListener("storage", handleStorage);
+
+  return () => {
+    window.removeEventListener(BANNERGRESS_AUTH_CHANGE_EVENT, callback);
+    window.removeEventListener("storage", handleStorage);
+  };
+}
+
+export function useBannergressAuth() {
+  return useSyncExternalStore(
+    subscribeToAuthChanges,
+    loadBannergressAuthData,
+    () => EMPTY_AUTH_STATE
+  );
+}
+
 export function getBannerListType(syncState, bannerId, fallbackListType = null) {
   if (bannerId && Object.hasOwn(syncState?.bannerLists ?? {}, bannerId)) {
     const syncedListType = normalizeListType(syncState?.bannerLists?.[bannerId]);
@@ -552,7 +587,9 @@ async function refreshBannergressAuthData(currentAuthData) {
   const payload = currentAuthData ?? loadBannergressAuthData();
 
   if (!hasUsableRefreshToken(payload)) {
-    clearBannergressAuthData();
+    if (loadBannergressAuthData().refreshToken === payload.refreshToken) {
+      clearBannergressAuthData();
+    }
     return null;
   }
 
@@ -573,11 +610,19 @@ async function refreshBannergressAuthData(currentAuthData) {
   const result = await response.json().catch(() => null);
 
   if (!response.ok) {
-    clearBannergressAuthData();
+    if (loadBannergressAuthData().refreshToken === payload.refreshToken) {
+      clearBannergressAuthData();
+    }
     throw Object.assign(new Error("Bannergress token refresh failed."), {
       status: response.status,
       result,
     });
+  }
+
+  const latestAuthData = loadBannergressAuthData();
+
+  if (latestAuthData.refreshToken !== payload.refreshToken) {
+    return latestAuthData;
   }
 
   return saveBannergressAuthData({
@@ -585,6 +630,16 @@ async function refreshBannergressAuthData(currentAuthData) {
     refreshToken: result?.refresh_token ?? payload.refreshToken,
     updatedAt: Date.now(),
   });
+}
+
+function requestBannergressAuthRefresh(currentAuthData) {
+  if (!refreshAuthPromise) {
+    refreshAuthPromise = refreshBannergressAuthData(currentAuthData).finally(() => {
+      refreshAuthPromise = null;
+    });
+  }
+
+  return refreshAuthPromise;
 }
 
 export async function requestBannergressAccessToken() {
@@ -596,13 +651,16 @@ export async function requestBannergressAccessToken() {
 
   if (hasUsableRefreshToken(authData)) {
     try {
-      const refreshedAuthData = await refreshBannergressAuthData(authData);
+      const refreshedAuthData = await requestBannergressAuthRefresh(authData);
       return hasFreshAccessToken(refreshedAuthData)
         ? refreshedAuthData.accessToken
         : null;
     } catch (error) {
       console.error("Couldn't refresh Bannergress access token.", error);
-      return null;
+      const latestAuthData = loadBannergressAuthData();
+      return hasFreshAccessToken(latestAuthData)
+        ? latestAuthData.accessToken
+        : null;
     }
   }
 
@@ -624,7 +682,7 @@ export async function requestBannergressAuthStatus({
     hasUsableRefreshToken(authData)
   ) {
     try {
-      const refreshedAuthData = await refreshBannergressAuthData(authData);
+      const refreshedAuthData = await requestBannergressAuthRefresh(authData);
       return summarizeAuthPayload(refreshedAuthData);
     } catch (error) {
       console.error("Couldn't refresh Bannergress auth status.", error);

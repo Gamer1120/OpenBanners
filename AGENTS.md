@@ -51,6 +51,8 @@ Mixed `/map` dot marker clusters should use segmented colors for the represented
 
 For `/map`, list-state filters such as to-do-only and show-done depend on Bannergress list metadata and should remain mutually exclusive with Show hidden banners.
 
+Banner Together uses backend-free, place-scoped snapshot invites under `/together/:placeId`. Invite data belongs in the URL fragment and may contain only the inviter's banner IDs, place ID, version, and timestamp; never include Bannergress auth tokens or global list state. Each participant must authenticate on their own device, and comparisons are computed locally against an authenticated `placeId + listTypes=todo` response. Keep snapshots limited to seven days, 16 KiB encoded, and 1,000 IDs, with bounded API pagination and incremental result rendering. Keep `/api/` blocked unless a separately designed persistent rendezvous service is deployed.
+
 ## Commit & Pull Request Guidelines
 
 Recent history uses short imperative commits, with occasional conventional scope prefixes such as `fix(bannerguider): don't open new missions on blank`. Prefer concise subject lines that describe the behavior change, for example `Fix browse pagination after filters`.

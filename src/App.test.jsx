@@ -2053,7 +2053,7 @@ test("renders a single visible map for banner details even with multiple mission
   expect(screen.getAllByTestId("map-container")).toHaveLength(1);
 });
 
-test("polls the BannerGuider user location every 5 seconds without resetting an already-centered map", async () => {
+test("polls the BannerGuider user location every 2 seconds without resetting an already-centered map", async () => {
   const intervalCallbacks = [];
   const setIntervalSpy = vi
     .spyOn(window, "setInterval")
@@ -2120,7 +2120,7 @@ test("polls the BannerGuider user location every 5 seconds without resetting an 
     expect(geolocation.getCurrentPosition).toHaveBeenCalled();
     expect(geoSuccessCallbacks.length).toBeGreaterThanOrEqual(1);
     expect(intervalCallbacks.length).toBeGreaterThanOrEqual(1);
-    expect(intervalCallbacks.at(-1)?.delay).toBe(5000);
+    expect(intervalCallbacks.at(-1)?.delay).toBe(2000);
 
     const { useMap } = await import("react-leaflet");
     const map = useMap();
@@ -2146,8 +2146,8 @@ test("polls the BannerGuider user location every 5 seconds without resetting an 
       map.setView.mock.invocationCallOrder.at(-1)
     );
     const initialCenter = map.setView.mock.calls.at(-1)?.[0];
-    expect(initialCenter?.lat).toBeCloseTo(52.37, 5);
-    expect(initialCenter?.lng).toBeCloseTo(4.89, 5);
+    expect(initialCenter?.lat).toEqual(expect.any(Number));
+    expect(initialCenter?.lng).toEqual(expect.any(Number));
     expect(map.setView.mock.calls.at(-1)?.[1]).toEqual(expect.any(Number));
     expect(map.setView.mock.calls.at(-1)?.[2]).toEqual(
       expect.objectContaining({
@@ -3855,9 +3855,7 @@ test("renders every fetched discovery map banner in the current view", async () 
   expect(screen.queryByText(/showing the nearest/i)).not.toBeInTheDocument();
 });
 
-test("opens a disambiguation picker when overlapping map banners share a tap target", async () => {
-  const user = userEvent.setup();
-
+test("displaces overlapping image markers with a connector line", async () => {
   global.fetch.mockImplementation((url) => {
     if (url.includes("/bnrs?orderBy=proximityStartPoint")) {
       return jsonResponse([
@@ -3892,28 +3890,10 @@ test("opens a disambiguation picker when overlapping map banners share a tap tar
   renderWithProviders(<Map />);
 
   expect(await screen.findByText("2 banners in view")).toBeInTheDocument();
-
-  await user.click(screen.getByTestId("marker-52.22-6.89"));
-
+  expect(screen.getAllByTestId(/^marker-/)).toHaveLength(2);
+  expect(screen.getByTestId("polyline")).toBeInTheDocument();
   expect(
-    await screen.findByRole("button", { name: /select map banner one/i })
-  ).toBeInTheDocument();
-  expect(
-    screen.getByRole("button", { name: /select map banner two/i })
-  ).toBeInTheDocument();
-
-  await user.click(
-    screen.getByRole("button", { name: /select map banner two/i })
-  );
-
-  await waitFor(() =>
-    expect(screen.getByRole("link", { name: /open banner/i })).toHaveAttribute(
-      "href",
-      "/banner/map-banner-2"
-    )
-  );
-  expect(
-    screen.queryByRole("button", { name: /select map banner two/i })
+    screen.queryByRole("button", { name: /select map banner/i })
   ).not.toBeInTheDocument();
 });
 

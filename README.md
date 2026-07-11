@@ -118,15 +118,25 @@ These tests are intentionally shallow. They are meant to catch obvious route and
 
 The core tooling migration is complete. The next maintenance project should focus on product-level cleanup: simplifying the remaining route/component structure and hardening runtime behavior around external APIs.
 
-## Bannergress Sync Prototype
+## Bannergress Authentication and Sync
 
-This repo now includes a prototype bridge for importing Bannergress `todo`, `done`, and `hidden` lists into OpenBanners, and for letting OpenBanners make authenticated Bannergress banner requests with a short-lived access token supplied by the userscript.
+OpenBanners uses Bannergress's OIDC authorization-code flow with PKCE on the supported HTTPS OpenBanners domains. Tokens remain in same-origin browser storage and are sent only to Bannergress login and API endpoints.
 
-- Install the userscript from `/userscripts/openbanners-bannergress-sync.user.js` on the deployed site.
-- Log into `https://bannergress.com/` in the same browser.
-- Click `Sync Lists` in the OpenBanners top bar.
+- Select **Authenticate** in the OpenBanners top bar and complete the Bannergress login popup.
+- OpenBanners refreshes the short-lived access token when necessary and automatically syncs `todo`, `done`, and `blacklist` banner states.
+- Authentication is enabled on `test.openbanners.org`, `openbanners.org`, and `www.openbanners.org`; normal local Vite origins cannot complete the production OIDC callback.
 
-The current approach is unofficial. It relies on a userscript running on both `bannergress.com` and OpenBanners domains. The userscript keeps Bannergress auth in userscript storage, refreshes the access token when needed, and provides either:
+The integration depends on Bannergress's current login and API contracts and is not an official Bannergress client.
 
-- synced list state for `todo`, `done`, and `hidden` banner badges
-- an access token that OpenBanners can use for authenticated `api.bannergress.com` banner requests
+### Banner Together
+
+Open a specific place under `/browse/:placeId` and select **Together** to compare that place's Bannergress to-do banners with another agent.
+
+- The creator authenticates on their own device and copies a snapshot invite containing only their to-do banner IDs for that place.
+- The recipient authenticates on their own device. OpenBanners requests their current to-do banners for the same place and computes the intersection locally.
+- Bannergress access, refresh, and ID tokens are never added to the invite.
+- The snapshot is stored in the URL fragment, so it is not sent to OpenBanners in the HTTP request. Anyone who receives the link can still decode the included banner IDs.
+- Snapshot invites expire after seven days and are capped at a 16 KiB URL fragment and 1,000 banner IDs. Use a more specific place when either limit is exceeded.
+- Ordinary invites use raw UTF-8-safe encoding. Larger invites use gzip only when the creator browser supports it; recipients of those larger links also need browser gzip-stream support.
+
+This first version uses snapshots rather than a live room. The creator does not automatically receive the recipient's result, but the recipient can copy a result link containing only the intersection and send it back. A copied snapshot cannot be revoked from OpenBanners because there is no server-side invite state.

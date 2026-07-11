@@ -25,6 +25,7 @@ import {
 import { useNavigate } from "react-router-dom";
 import {
   BANNERGRESS_AUTH_COMPLETE_MESSAGE,
+  BANNERGRESS_AUTH_REQUEST_EVENT,
   BANNERGRESS_AUTH_STORAGE_KEY,
   buildBannergressAuthorizationUrl,
   getBannergressSyncCounts,
@@ -405,6 +406,10 @@ export default function TopMenu({
 
     window.addEventListener("storage", handleStorage);
     window.addEventListener("message", handleMessage);
+    window.addEventListener(
+      BANNERGRESS_AUTH_REQUEST_EVENT,
+      openAuthenticationPopup
+    );
 
     if (authSupportedOrigin) {
       void refreshAuthStatus({ suppressLoading: true });
@@ -415,6 +420,10 @@ export default function TopMenu({
     return () => {
       window.removeEventListener("storage", handleStorage);
       window.removeEventListener("message", handleMessage);
+      window.removeEventListener(
+        BANNERGRESS_AUTH_REQUEST_EVENT,
+        openAuthenticationPopup
+      );
       closeAuthPopup();
     };
   }, [authSupportedOrigin]);

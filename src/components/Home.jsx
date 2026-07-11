@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
-import { Box, useMediaQuery } from "@mui/material";
+import { Box } from "@mui/material";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import TopMenu from "./TopMenu";
 import BannersNearMe from "./BannersNearMe";
@@ -8,6 +8,7 @@ import SearchResults from "./SearchResults";
 import BannerDetailsPage from "./BannerDetailsPage";
 import Map from "./Map";
 import BannerRerouterPage from "./BannerRerouterPage";
+import BannerTogetherPage from "./BannerTogetherPage";
 import { DEFAULT_BANNER_FILTERS } from "../bannerFilters";
 import {
   readDiscoveryMapFilters,
@@ -75,6 +76,13 @@ function getRouteMetadata({ pathname, placeId, agentName, query }) {
     };
   }
 
+  if (pathname.startsWith("/together/")) {
+    return {
+      title: "Banner Together",
+      description: "Compare two Bannergress to-do lists for one place.",
+    };
+  }
+
   if (pathname.startsWith("/rerouter")) {
     return {
       title: "Banner Rerouter",
@@ -88,22 +96,55 @@ function getRouteMetadata({ pathname, placeId, agentName, query }) {
   };
 }
 
+function getCurrentView(pathname) {
+  if (pathname.startsWith("/search/")) {
+    return "searching";
+  }
+
+  if (pathname.startsWith("/browse/")) {
+    return "browsing";
+  }
+
+  if (pathname.startsWith("/banner/")) {
+    return "bannerDetails";
+  }
+
+  if (pathname.startsWith("/agent/")) {
+    return "agentBrowsing";
+  }
+
+  if (pathname.startsWith("/together/")) {
+    return "together";
+  }
+
+  if (pathname.startsWith("/map")) {
+    return "map";
+  }
+
+  if (pathname.startsWith("/rerouter")) {
+    return "rerouter";
+  }
+
+  return "bannersNearMe";
+}
+
 export default function Home() {
   const { placeId, agentName, query } = useParams();
+  const navigate = useNavigate();
+  const location = useLocation();
   const browseStateScope = useMemo(
     () => getBrowseStateScope({ placeId, authorName: agentName }),
     [agentName, placeId]
   );
-  const [currentView, setCurrentView] = useState("bannersNearMe");
+  const [currentView, setCurrentView] = useState(() =>
+    getCurrentView(location.pathname)
+  );
   const [bannerFilters, setBannerFilters] = useState(() =>
     readBrowseFilters(browseStateScope)
   );
   const [mapBannerFilters, setMapBannerFiltersState] = useState(
     readDiscoveryMapFilters
   );
-  const isMobile = useMediaQuery("(max-width:768px)");
-  const navigate = useNavigate();
-  const location = useLocation();
 
   const handleBrowseClick = () => {
     const rootBrowseStateScope = getBrowseStateScope();
@@ -154,21 +195,7 @@ export default function Home() {
   };
 
   useEffect(() => {
-    if (location.pathname.startsWith("/search/")) {
-      setCurrentView("searching");
-    } else if (location.pathname.startsWith("/browse/")) {
-      setCurrentView("browsing");
-    } else if (location.pathname.startsWith("/banner/")) {
-      setCurrentView("bannerDetails");
-    } else if (location.pathname.startsWith("/agent/")) {
-      setCurrentView("agentBrowsing");
-    } else if (location.pathname.startsWith("/map")) {
-      setCurrentView("map");
-    } else if (location.pathname.startsWith("/rerouter")) {
-      setCurrentView("rerouter");
-    } else {
-      setCurrentView("bannersNearMe");
-    }
+    setCurrentView(getCurrentView(location.pathname));
   }, [location.pathname]);
 
   useEffect(() => {
@@ -252,6 +279,7 @@ export default function Home() {
         )}
         {currentView === "searching" && <SearchResults />}
         {currentView === "bannerDetails" && <BannerDetailsPage />}
+        {currentView === "together" && <BannerTogetherPage placeId={placeId} />}
         {currentView === "map" && (
           <Map
             bannerFilters={mapBannerFilters}

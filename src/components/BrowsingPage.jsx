@@ -19,6 +19,8 @@ import {
   Typography,
   useMediaQuery,
 } from "@mui/material";
+import GroupAddRoundedIcon from "@mui/icons-material/GroupAddRounded";
+import { Link } from "react-router-dom";
 import BrowsingHeader from "./BrowsingHeader";
 import SortingButtons from "./SortingButtons";
 import PlacesList from "./PlacesList";
@@ -723,21 +725,37 @@ export default function BrowsingPage({
               bannerFilters={bannerFilters}
               onBannerFiltersChange={onBannerFiltersChange}
               leadingControls={
-                viewMode === "visual" ? (
-                  <VisualCardSizeButton
-                    columns={visualCardColumns}
-                    sliderMin={VISUAL_CARD_COLUMN_MIN}
-                    sliderMax={visualCardSliderMax}
-                    onColumnsChange={(nextValue) => {
-                      const value = Math.min(
-                        Math.max(nextValue, VISUAL_CARD_COLUMN_MIN),
-                        visualCardSliderMax
-                      );
-                      setVisualCardColumns(value);
-                      window.localStorage.setItem(visualCardColumnsStorageKey, String(value));
-                    }}
-                  />
-                ) : null
+                <>
+                  {placeId ? (
+                    <Button
+                      component={Link}
+                      to={`/together/${encodeURIComponent(placeId)}`}
+                      variant="contained"
+                      size="small"
+                      startIcon={<GroupAddRoundedIcon />}
+                    >
+                      Together
+                    </Button>
+                  ) : null}
+                  {viewMode === "visual" ? (
+                    <VisualCardSizeButton
+                      columns={visualCardColumns}
+                      sliderMin={VISUAL_CARD_COLUMN_MIN}
+                      sliderMax={visualCardSliderMax}
+                      onColumnsChange={(nextValue) => {
+                        const value = Math.min(
+                          Math.max(nextValue, VISUAL_CARD_COLUMN_MIN),
+                          visualCardSliderMax
+                        );
+                        setVisualCardColumns(value);
+                        window.localStorage.setItem(
+                          visualCardColumnsStorageKey,
+                          String(value)
+                        );
+                      }}
+                    />
+                  ) : null}
+                </>
               }
             />
           </Box>

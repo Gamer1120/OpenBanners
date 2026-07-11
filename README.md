@@ -130,17 +130,18 @@ The integration depends on Bannergress's current login and API contracts and is 
 
 ### Banner Together
 
-Open a specific place under `/browse/:placeId` and select **Together** to compare Bannergress list states with another agent.
+Open a specific place under `/browse/:placeId` and select **Together** to compare Bannergress list states in a live peer room.
 
-- The creator loads Todo, Done, and Hide membership for one place, then creates a short encrypted room invite. Invite length is fixed and does not grow with the number of banners.
-- The recipient authenticates on their own device and explicitly joins before their list memberships are encrypted and shared.
-- Room keys and the one-time join capability remain in the URL fragment. Bannergress access, refresh, and ID tokens are never included in room links or room requests.
-- The server stores only capability hashes and AES-GCM encrypted snapshots. It cannot decrypt either participant's lists.
-- Anyone holding the complete invite can decrypt snapshots shared in that room. The creator can revoke future room access, but revocation cannot erase data someone already viewed.
-- Rooms expire after seven days. Each encrypted snapshot supports up to 10,000 listed banner IDs while staying below the existing proxy request limit.
-- The comparison builder supports Todo, Done, Hide, and Not listed for both participants, including alternatives such as shared to-do, my to-do only, and my to-do excluding banners hidden by the other person.
-- Public place banners form the comparison catalog, so Not listed combinations are evaluated without disclosing private metadata to the room service.
+- A creator opens a room and shares an invite whose secret stays in the URL fragment.
+- Up to eight people can join. Joining does not share any Bannergress data; every participant must explicitly enable **Share my lists**.
+- Todo, Done, and Hide snapshots are AES-GCM encrypted in the browser and sent directly over WebRTC data channels. Bannergress access, refresh, and ID tokens never enter room links, signaling requests, or peer messages.
+- The signaling process keeps only temporary presence, room-verifier, SDP, and ICE data in memory. It accepts no banner payloads and writes no room data to files or a database.
+- Rooms last at most four hours and disappear when everyone leaves or the signaling process restarts. At least one participant must remain online for the invite to stay usable.
+- The comparison builder supports Todo, Done, Hide, and Not listed across everyone currently sharing, including arbitrary AND/OR alternatives and presets such as everyone to-do or my to-do with nobody else hiding it.
+- Public place banners form the local comparison catalog. Peer snapshots support up to 10,000 listed banner IDs and are never sent to OpenBanners.
+- Private list membership is cached only in the browser for up to four hours, scoped to the Bannergress account and place. The page shows when a cached snapshot was captured and provides an explicit refresh action.
+- WebRTC uses public STUN discovery. Networks that require a TURN relay may be unable to establish a direct room connection.
 
-Legacy `#banner-together=` snapshot links remain readable for their original seven-day lifetime, but all new invitations use encrypted rooms.
+Legacy `#banner-together=` snapshot links remain readable for their original seven-day lifetime, but new invitations use live rooms under `/together/:placeId/live/:roomId`.
 
-The room service uses `/_openbanners/banner-together/v2/` so the deployment-wide `/api/` 404 remains intact. Persistent data lives in the `openbanners-banner-together-data` named volume. The first deployment that enables rooms needs one explicit `docker compose -f docker-compose.public.yml up -d` after the image is published; subsequent image updates continue through Watchtower without losing active rooms.
+Signaling is exposed only at `/_openbanners/banner-together/v3/`; the deployment-wide `/api/` 404 remains intact. The service is ephemeral and requires no persistent volume or separate production migration.

@@ -1,4 +1,4 @@
-import { useId } from "react";
+import { Fragment, useId, useMemo } from "react";
 import {
   Box,
   Button,
@@ -19,12 +19,13 @@ import {
 import AddRoundedIcon from "@mui/icons-material/AddRounded";
 import DeleteOutlineRoundedIcon from "@mui/icons-material/DeleteOutlineRounded";
 import {
-  BANNER_TOGETHER_COMPARISON_STATUS_OPTIONS,
-  findBannerTogetherComparisonPresetId,
-  getBannerTogetherComparisonPresetClauses,
-  getBannerTogetherComparisonPresetOptions,
-  getBannerTogetherComparisonRoleLabels,
-} from "../bannerTogetherComparison";
+  BANNER_TOGETHER_GROUP_PRESET_IDS,
+  BANNER_TOGETHER_GROUP_STATUS_OPTIONS,
+  findBannerTogetherGroupPresetId,
+  getBannerTogetherGroupPresetClauses,
+  getBannerTogetherGroupPresetOptions,
+  normalizeBannerTogetherGroupParticipantIdentities,
+} from "../bannerTogetherGroupComparison";
 
 const CUSTOM_PRESET_ID = "custom";
 const STATUS_COLORS = {
@@ -34,18 +35,24 @@ const STATUS_COLORS = {
   unlisted: "#8fa3b5",
 };
 
-function getSelectedPresetId(clauses) {
+function orderSelectedStatuses(statuses) {
+  return BANNER_TOGETHER_GROUP_STATUS_OPTIONS.filter((option) =>
+    statuses.includes(option.value)
+  ).map((option) => option.value);
+}
+
+function getSelectedPresetId(participants, localParticipantId, clauses) {
   try {
-    return findBannerTogetherComparisonPresetId(clauses) ?? CUSTOM_PRESET_ID;
+    return (
+      findBannerTogetherGroupPresetId({
+        participants,
+        localParticipantId,
+        clauses,
+      }) ?? CUSTOM_PRESET_ID
+    );
   } catch {
     return CUSTOM_PRESET_ID;
   }
-}
-
-function orderSelectedStatuses(statuses) {
-  return BANNER_TOGETHER_COMPARISON_STATUS_OPTIONS.filter((option) =>
-    statuses.includes(option.value)
-  ).map((option) => option.value);
 }
 
 function StatusSelect({ label, value, onChange }) {
@@ -76,17 +83,21 @@ function StatusSelect({ label, value, onChange }) {
           "aria-describedby": hasSelection ? undefined : helperTextId,
           "aria-invalid": hasSelection ? undefined : "true",
         }}
-        renderValue={(selectedStatuses) =>
-          BANNER_TOGETHER_COMPARISON_STATUS_OPTIONS.filter((option) =>
-            selectedStatuses.includes(option.value)
+        renderValue={(selected) =>
+          BANNER_TOGETHER_GROUP_STATUS_OPTIONS.filter((option) =>
+            selected.includes(option.value)
           )
             .map((option) => option.label)
             .join(", ")
         }
         sx={{ minHeight: 44 }}
       >
-        {BANNER_TOGETHER_COMPARISON_STATUS_OPTIONS.map((option) => (
-          <MenuItem key={option.value} value={option.value}>
+        {BANNER_TOGETHER_GROUP_STATUS_OPTIONS.map((option) => (
+          <MenuItem
+            key={option.value}
+            value={option.value}
+            sx={{ minHeight: 44 }}
+          >
             <Checkbox
               checked={selectedStatuses.includes(option.value)}
               size="small"
@@ -115,29 +126,57 @@ function StatusSelect({ label, value, onChange }) {
   );
 }
 
-export default function BannerTogetherComparisonBuilder({
-  viewerRole,
+export default function BannerTogetherGroupComparisonBuilder({
+  participants,
+  localParticipantId,
   clauses,
   onChange,
   resultCount = 0,
 }) {
   const presetSelectId = useId();
   const presetLabelId = `${presetSelectId}-label`;
+  const normalizedParticipants = useMemo(
+    () => normalizeBannerTogetherGroupParticipantIdentities(participants),
+    [participants]
+  );
   const safeClauses = Array.isArray(clauses) ? clauses : [];
-  const roleLabels = getBannerTogetherComparisonRoleLabels(viewerRole);
-  const presetOptions = getBannerTogetherComparisonPresetOptions(viewerRole);
-  const selectedPresetId = getSelectedPresetId(safeClauses);
+  const presetOptions = getBannerTogetherGroupPresetOptions(
+    normalizedParticipants,
+    localParticipantId
+  );
+  const selectedPresetId = getSelectedPresetId(
+    normalizedParticipants,
+    localParticipantId,
+    safeClauses
+  );
   const normalizedResultCount = Number.isFinite(resultCount)
     ? Math.max(0, resultCount)
     : 0;
 
-  const updateClause = (clauseIndex, side, statuses) => {
+  const updateParticipantStatuses = (
+    clauseIndex,
+    participantId,
+    statuses
+  ) => {
     onChange(
       safeClauses.map((clause, index) =>
-        index === clauseIndex ? { ...clause, [side]: statuses } : clause
+        index === clauseIndex
+          ? {
+              ...clause,
+              participantStatuses: {
+                ...clause.participantStatuses,
+                [participantId]: statuses,
+              },
+            }
+          : clause
       )
     );
   };
+
+  const getParticipantLabel = (participant) =>
+    participant.id === localParticipantId
+      ? `${participant.label} (you)`
+      : participant.label;
 
   return (
     <Box>
@@ -151,7 +190,7 @@ export default function BannerTogetherComparisonBuilder({
         <FormControl
           fullWidth
           size="small"
-          sx={{ maxWidth: { sm: 360 }, minWidth: { sm: 260 } }}
+          sx={{ maxWidth: { sm: 420 }, minWidth: { sm: 300 } }}
         >
           <InputLabel id={presetLabelId}>Comparison</InputLabel>
           <Select
@@ -162,18 +201,22 @@ export default function BannerTogetherComparisonBuilder({
             onChange={(event) => {
               if (event.target.value !== CUSTOM_PRESET_ID) {
                 onChange(
-                  getBannerTogetherComparisonPresetClauses(event.target.value)
+                  getBannerTogetherGroupPresetClauses(
+                    event.target.value,
+                    normalizedParticipants,
+                    localParticipantId
+                  )
                 );
               }
             }}
             sx={{ minHeight: 44 }}
           >
             {presetOptions.map((option) => (
-              <MenuItem key={option.id} value={option.id}>
+              <MenuItem key={option.id} value={option.id} sx={{ minHeight: 44 }}>
                 {option.label}
               </MenuItem>
             ))}
-            <MenuItem value={CUSTOM_PRESET_ID} disabled>
+            <MenuItem value={CUSTOM_PRESET_ID} disabled sx={{ minHeight: 44 }}>
               Custom
             </MenuItem>
           </Select>
@@ -212,69 +255,74 @@ export default function BannerTogetherComparisonBuilder({
       >
         {safeClauses.map((clause, clauseIndex) => (
           <Box
-            key={`comparison-clause-${clauseIndex}`}
+            key={`group-comparison-clause-${clauseIndex}`}
             role="group"
             aria-label={`Comparison alternative ${clauseIndex + 1}`}
             sx={{
-              display: "grid",
-              gridTemplateColumns: {
-                xs: "minmax(0, 1fr)",
-                sm: "minmax(0, 1fr) auto minmax(0, 1fr) 44px",
-              },
-              gap: 1.25,
-              alignItems: "center",
-              pt: clauseIndex === 0 ? 0 : 1.5,
+              border: 1,
+              borderColor: "divider",
+              borderRadius: 1,
+              p: { xs: 1.5, sm: 2 },
             }}
           >
-            <StatusSelect
-              label={roleLabels.creator}
-              value={clause.creator}
-              onChange={(statuses) =>
-                updateClause(clauseIndex, "creator", statuses)
-              }
-            />
-            <Typography
-              variant="caption"
-              color="text.secondary"
-              sx={{ textAlign: "center", fontWeight: 700 }}
+            <Stack
+              direction="row"
+              alignItems="center"
+              justifyContent="space-between"
+              spacing={1}
+              sx={{ mb: 1.5 }}
             >
-              AND
-            </Typography>
-            <StatusSelect
-              label={roleLabels.recipient}
-              value={clause.recipient}
-              onChange={(statuses) =>
-                updateClause(clauseIndex, "recipient", statuses)
-              }
-            />
-            <Tooltip title="Remove alternative">
-              <Box
-                component="span"
-                sx={{
-                  display: "inline-flex",
-                  justifySelf: { xs: "end", sm: "auto" },
-                }}
-              >
-                <IconButton
-                  aria-label={`Remove comparison alternative ${clauseIndex + 1}`}
-                  disabled={safeClauses.length === 1}
-                  onClick={() =>
-                    onChange(
-                      safeClauses.filter(
-                        (_clause, index) => index !== clauseIndex
+              <Typography variant="subtitle2">
+                Alternative {clauseIndex + 1}
+              </Typography>
+              <Tooltip title="Remove alternative">
+                <Box component="span" sx={{ display: "inline-flex" }}>
+                  <IconButton
+                    aria-label={`Remove comparison alternative ${
+                      clauseIndex + 1
+                    }`}
+                    disabled={safeClauses.length === 1}
+                    onClick={() =>
+                      onChange(
+                        safeClauses.filter(
+                          (_clause, index) => index !== clauseIndex
+                        )
                       )
-                    )
-                  }
-                  sx={{
-                    width: 44,
-                    height: 44,
-                    borderRadius: 1,
-                  }}
-                >
-                  <DeleteOutlineRoundedIcon />
-                </IconButton>
-              </Box>
-            </Tooltip>
+                    }
+                    sx={{ width: 44, height: 44, borderRadius: 1 }}
+                  >
+                    <DeleteOutlineRoundedIcon />
+                  </IconButton>
+                </Box>
+              </Tooltip>
+            </Stack>
+
+            <Stack spacing={1}>
+              {normalizedParticipants.map((participant, participantIndex) => (
+                <Fragment key={participant.id}>
+                  {participantIndex > 0 ? (
+                    <Typography
+                      variant="caption"
+                      color="text.secondary"
+                      sx={{ alignSelf: "center", fontWeight: 700 }}
+                    >
+                      AND
+                    </Typography>
+                  ) : null}
+                  <StatusSelect
+                    label={getParticipantLabel(participant)}
+                    value={clause.participantStatuses?.[participant.id]}
+                    onChange={(statuses) =>
+                      updateParticipantStatuses(
+                        clauseIndex,
+                        participant.id,
+                        statuses
+                      )
+                    }
+                  />
+                </Fragment>
+              ))}
+            </Stack>
           </Box>
         ))}
       </Stack>
@@ -285,7 +333,11 @@ export default function BannerTogetherComparisonBuilder({
         onClick={() =>
           onChange([
             ...safeClauses,
-            { creator: ["todo"], recipient: ["unlisted"] },
+            getBannerTogetherGroupPresetClauses(
+              BANNER_TOGETHER_GROUP_PRESET_IDS.MY_TODO_OTHERS_UNLISTED,
+              normalizedParticipants,
+              localParticipantId
+            )[0],
           ])
         }
         sx={{ minHeight: 44, mt: 2, width: { xs: "100%", sm: "auto" } }}

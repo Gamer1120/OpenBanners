@@ -8,11 +8,6 @@ services:
     pull_policy: always
     ports:
       - "127.0.0.1:18080:80"
-    environment:
-      OPENBANNERS_BANNER_TOGETHER_ENABLED: "1"
-      OPENBANNERS_BANNER_TOGETHER_STORAGE: "/var/lib/openbanners/banner-together"
-    volumes:
-      - banner-together-data:/var/lib/openbanners/banner-together
     labels:
       com.centurylinklabs.watchtower.enable: "true"
       com.centurylinklabs.watchtower.scope: "openbanners-public"
@@ -32,7 +27,3 @@ services:
       - "--label-enable"
       - "--scope"
       - "openbanners-public"
-
-volumes:
-  banner-together-data:
-    name: openbanners-banner-together-data

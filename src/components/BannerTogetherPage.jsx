@@ -18,7 +18,7 @@ import ContentCopyRoundedIcon from "@mui/icons-material/ContentCopyRounded";
 import GroupRoundedIcon from "@mui/icons-material/GroupRounded";
 import RefreshRoundedIcon from "@mui/icons-material/RefreshRounded";
 import BannerCard from "./BannerCard";
-import BannerTogetherRoomPage from "./BannerTogetherRoomPage";
+import BannerTogetherLivePage from "./BannerTogetherLivePage";
 import {
   BANNERGRESS_AUTH_REQUEST_EVENT,
   clearBannergressAuthData,
@@ -774,5 +774,5 @@ export default function BannerTogetherPage({ placeId, roomId = null }) {
     return <LegacyBannerTogetherPage placeId={placeId} />;
   }
 
-  return <BannerTogetherRoomPage placeId={placeId} roomId={roomId} />;
+  return <BannerTogetherLivePage placeId={placeId} roomId={roomId} />;
 }

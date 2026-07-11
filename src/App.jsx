@@ -30,7 +30,7 @@ function App() {
           <Route exact path="/browse/" element={<Home />} />
           <Route exact path="/browse/:placeId" element={<Home />} />
           <Route path="/banner/:bannerId" element={<Home />} />
-          <Route path="/together/:placeId/room/:roomId" element={<Home />} />
+          <Route path="/together/:placeId/live/:roomId" element={<Home />} />
           <Route path="/together/:placeId" element={<Home />} />
           <Route path="/agent/:agentName" element={<Home />} />
           <Route path="/rerouter" element={<Home />} />

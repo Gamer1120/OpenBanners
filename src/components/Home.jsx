@@ -79,7 +79,8 @@ function getRouteMetadata({ pathname, placeId, agentName, query }) {
   if (pathname.startsWith("/together/")) {
     return {
       title: "Banner Together",
-      description: "Compare two Bannergress to-do lists for one place.",
+      description:
+        "Compare Bannergress banner list states in a live peer room.",
     };
   }
 

@@ -1,9 +1,13 @@
 import { beforeEach, expect, test, vi } from "vitest";
 import {
+  BANNER_TOGETHER_MEMBERSHIP_CACHE_STORAGE_PREFIX,
+  BANNER_TOGETHER_MEMBERSHIP_CACHE_TTL_MS,
   createBannerTogetherCatalogUrl,
   createBannerTogetherMembershipUrl,
   fetchBannerTogetherCatalog,
   fetchBannerTogetherMembership,
+  loadBannerTogetherMembershipCache,
+  saveBannerTogetherMembershipCache,
 } from "./bannerTogetherData";
 import { saveBannergressAuthData } from "./bannergressSync";
 
@@ -160,4 +164,98 @@ test("accepts exactly 10,000 memberships after checking the next page", async ()
 
   expect(snapshot.lists.todo).toHaveLength(10000);
   expect(global.fetch).toHaveBeenCalledTimes(101);
+});
+
+test("reuses an account-scoped membership cache for four hours", async () => {
+  const capturedAt = new Date("2026-07-11T10:00:00.000Z").toISOString();
+  const authData = {
+    accessToken: "account-one-access-token",
+    refreshToken: "account-one-refresh-token",
+  };
+  const snapshot = {
+    capturedAt,
+    lists: {
+      todo: ["todo-one"],
+      done: ["done-one"],
+      blacklist: ["hidden-one"],
+    },
+  };
+
+  await expect(
+    saveBannerTogetherMembershipCache("enschede-place", snapshot, {
+      authData,
+      now: new Date(capturedAt).getTime(),
+    })
+  ).resolves.toEqual(snapshot);
+
+  await expect(
+    loadBannerTogetherMembershipCache("enschede-place", {
+      authData,
+      now:
+        new Date(capturedAt).getTime() +
+        BANNER_TOGETHER_MEMBERSHIP_CACHE_TTL_MS -
+        1,
+    })
+  ).resolves.toEqual(snapshot);
+  const cacheKeys = [...Array(window.localStorage.length)].map(
+    (_value, index) => window.localStorage.key(index)
+  );
+  expect(cacheKeys).toEqual([
+    expect.stringMatching(
+      new RegExp(`^${BANNER_TOGETHER_MEMBERSHIP_CACHE_STORAGE_PREFIX}`)
+    ),
+  ]);
+  expect(
+    cacheKeys.map((key) => window.localStorage.getItem(key)).join("")
+  ).not.toContain("account-one-refresh-token");
+});
+
+test("does not reuse membership cache across accounts or after four hours", async () => {
+  const capturedAt = "2026-07-11T10:00:00.000Z";
+  const accountOne = { refreshToken: "account-one-refresh-token" };
+  const snapshot = {
+    capturedAt,
+    lists: { todo: ["private-banner"], done: [], blacklist: [] },
+  };
+
+  await saveBannerTogetherMembershipCache("enschede-place", snapshot, {
+    authData: accountOne,
+    now: new Date(capturedAt).getTime(),
+  });
+
+  await expect(
+    loadBannerTogetherMembershipCache("enschede-place", {
+      authData: { refreshToken: "account-two-refresh-token" },
+      now: new Date(capturedAt).getTime() + 60 * 1000,
+    })
+  ).resolves.toBeNull();
+  await expect(
+    loadBannerTogetherMembershipCache("enschede-place", {
+      authData: accountOne,
+      now:
+        new Date(capturedAt).getTime() +
+        BANNER_TOGETHER_MEMBERSHIP_CACHE_TTL_MS,
+    })
+  ).resolves.toBeNull();
+  expect(window.localStorage.length).toBe(0);
+});
+
+test("rejects malformed cached memberships without exposing stale data", async () => {
+  const capturedAt = "2026-07-11T10:00:00.000Z";
+  const authData = { refreshToken: "account-one-refresh-token" };
+
+  await expect(
+    saveBannerTogetherMembershipCache(
+      "enschede-place",
+      {
+        capturedAt,
+        lists: {
+          todo: ["same-banner"],
+          done: ["same-banner"],
+          blacklist: [],
+        },
+      },
+      { authData, now: new Date(capturedAt).getTime() }
+    )
+  ).rejects.toThrow(/more than one list/i);
 });

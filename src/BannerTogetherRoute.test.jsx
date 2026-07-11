@@ -35,11 +35,11 @@ test("routes place-scoped Banner Together links through Home", () => {
   expect(screen.queryByText("Banners Near Me mounted")).not.toBeInTheDocument();
 });
 
-test("routes short encrypted room links without mounting the nearby view", () => {
+test("routes live peer room links without mounting the nearby view", () => {
   window.history.replaceState(
     {},
     "",
-    "/together/enschede-place/room/room-123"
+    "/together/enschede-place/live/room-123"
   );
 
   render(<App />);

@@ -51,7 +51,9 @@ Mixed `/map` dot marker clusters should use segmented colors for the represented
 
 For `/map`, list-state filters such as to-do-only and show-done depend on Bannergress list metadata and should remain mutually exclusive with Show hidden banners.
 
-Banner Together uses backend-free, place-scoped snapshot invites under `/together/:placeId`. Invite data belongs in the URL fragment and may contain only the inviter's banner IDs, place ID, version, and timestamp; never include Bannergress auth tokens or global list state. Each participant must authenticate on their own device, and comparisons are computed locally against an authenticated `placeId + listTypes=todo` response. Keep snapshots limited to seven days, 16 KiB encoded, and 1,000 IDs, with bounded API pagination and incremental result rendering. Keep `/api/` blocked unless a separately designed persistent rendezvous service is deployed.
+Banner Together creates end-to-end encrypted, two-participant rooms under `/together/:placeId/room/:roomId`. Keep room keys and join capabilities in the invite fragment, keep Bannergress tokens out of all room requests, and store only capability hashes plus opaque encrypted snapshots on the server. The room service is exposed only at `/_openbanners/banner-together/v2/`; `/api/` must continue to return 404. Rooms expire after seven days, use bounded list/catalog pagination, and evaluate Todo, Done, Hide, and Not listed combinations locally against the public place catalog. Legacy `#banner-together=` snapshot links remain read-only until their normal expiry.
+
+Encrypted room persistence requires the `openbanners-banner-together-data` named volume and `OPENBANNERS_BANNER_TOGETHER_ENABLED=1` from `docker-compose.public.yml`. Watchtower does not apply new mounts or environment variables from Compose; the first room-service rollout requires one explicit `docker compose -f docker-compose.public.yml up -d` on the production host after the image publishes. Later image replacements use the existing volume and normal Watchtower flow.
 
 ## Commit & Pull Request Guidelines
 

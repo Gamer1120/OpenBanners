@@ -129,7 +129,7 @@ function getCurrentView(pathname) {
 }
 
 export default function Home() {
-  const { placeId, agentName, query } = useParams();
+  const { placeId, roomId, agentName, query } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
   const browseStateScope = useMemo(
@@ -279,7 +279,9 @@ export default function Home() {
         )}
         {currentView === "searching" && <SearchResults />}
         {currentView === "bannerDetails" && <BannerDetailsPage />}
-        {currentView === "together" && <BannerTogetherPage placeId={placeId} />}
+        {currentView === "together" && (
+          <BannerTogetherPage placeId={placeId} roomId={roomId} />
+        )}
         {currentView === "map" && (
           <Map
             bannerFilters={mapBannerFilters}

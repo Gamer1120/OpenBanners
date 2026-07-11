@@ -130,13 +130,17 @@ The integration depends on Bannergress's current login and API contracts and is 
 
 ### Banner Together
 
-Open a specific place under `/browse/:placeId` and select **Together** to compare that place's Bannergress to-do banners with another agent.
+Open a specific place under `/browse/:placeId` and select **Together** to compare Bannergress list states with another agent.
 
-- The creator authenticates on their own device and copies a snapshot invite containing only their to-do banner IDs for that place.
-- The recipient authenticates on their own device. OpenBanners requests their current to-do banners for the same place and computes the intersection locally.
-- Bannergress access, refresh, and ID tokens are never added to the invite.
-- The snapshot is stored in the URL fragment, so it is not sent to OpenBanners in the HTTP request. Anyone who receives the link can still decode the included banner IDs.
-- Snapshot invites expire after seven days and are capped at a 16 KiB URL fragment and 1,000 banner IDs. Use a more specific place when either limit is exceeded.
-- Ordinary invites use raw UTF-8-safe encoding. Larger invites use gzip only when the creator browser supports it; recipients of those larger links also need browser gzip-stream support.
+- The creator loads Todo, Done, and Hide membership for one place, then creates a short encrypted room invite. Invite length is fixed and does not grow with the number of banners.
+- The recipient authenticates on their own device and explicitly joins before their list memberships are encrypted and shared.
+- Room keys and the one-time join capability remain in the URL fragment. Bannergress access, refresh, and ID tokens are never included in room links or room requests.
+- The server stores only capability hashes and AES-GCM encrypted snapshots. It cannot decrypt either participant's lists.
+- Anyone holding the complete invite can decrypt snapshots shared in that room. The creator can revoke future room access, but revocation cannot erase data someone already viewed.
+- Rooms expire after seven days. Each encrypted snapshot supports up to 10,000 listed banner IDs while staying below the existing proxy request limit.
+- The comparison builder supports Todo, Done, Hide, and Not listed for both participants, including alternatives such as shared to-do, my to-do only, and my to-do excluding banners hidden by the other person.
+- Public place banners form the comparison catalog, so Not listed combinations are evaluated without disclosing private metadata to the room service.
 
-This first version uses snapshots rather than a live room. The creator does not automatically receive the recipient's result, but the recipient can copy a result link containing only the intersection and send it back. A copied snapshot cannot be revoked from OpenBanners because there is no server-side invite state.
+Legacy `#banner-together=` snapshot links remain readable for their original seven-day lifetime, but all new invitations use encrypted rooms.
+
+The room service uses `/_openbanners/banner-together/v2/` so the deployment-wide `/api/` 404 remains intact. Persistent data lives in the `openbanners-banner-together-data` named volume. The first deployment that enables rooms needs one explicit `docker compose -f docker-compose.public.yml up -d` after the image is published; subsequent image updates continue through Watchtower without losing active rooms.

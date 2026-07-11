@@ -8,3 +8,7 @@
 !docker/entrypoint.sh
 !server
 !server/banner-meta.php
+!server/banner-together-store.php
+!server/banner-together-api.php
+!server/banner-together-maintenance.php
+!server/banner-together-self-test.php

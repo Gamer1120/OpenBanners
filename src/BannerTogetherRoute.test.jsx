@@ -8,7 +8,11 @@ vi.mock("./components/TopMenu", () => ({
 }));
 
 vi.mock("./components/BannerTogetherPage", () => ({
-  default: ({ placeId }) => <div>Banner Together route: {placeId}</div>,
+  default: ({ placeId, roomId }) => (
+    <div>
+      Banner Together route: {placeId} / {roomId ?? "new"}
+    </div>
+  ),
 }));
 
 vi.mock("./components/BannersNearMe", () => ({
@@ -26,7 +30,22 @@ test("routes place-scoped Banner Together links through Home", () => {
   render(<App />);
 
   expect(
-    screen.getByText("Banner Together route: enschede-place")
+    screen.getByText("Banner Together route: enschede-place / new")
+  ).toBeInTheDocument();
+  expect(screen.queryByText("Banners Near Me mounted")).not.toBeInTheDocument();
+});
+
+test("routes short encrypted room links without mounting the nearby view", () => {
+  window.history.replaceState(
+    {},
+    "",
+    "/together/enschede-place/room/room-123"
+  );
+
+  render(<App />);
+
+  expect(
+    screen.getByText("Banner Together route: enschede-place / room-123")
   ).toBeInTheDocument();
   expect(screen.queryByText("Banners Near Me mounted")).not.toBeInTheDocument();
 });

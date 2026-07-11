@@ -18,6 +18,7 @@ import ContentCopyRoundedIcon from "@mui/icons-material/ContentCopyRounded";
 import GroupRoundedIcon from "@mui/icons-material/GroupRounded";
 import RefreshRoundedIcon from "@mui/icons-material/RefreshRounded";
 import BannerCard from "./BannerCard";
+import BannerTogetherRoomPage from "./BannerTogetherRoomPage";
 import {
   BANNERGRESS_AUTH_REQUEST_EVENT,
   clearBannergressAuthData,
@@ -180,7 +181,7 @@ async function fetchTodoBannersForPlace(
   throw new Error("The Bannergress to-do list exceeded the safe page limit.");
 }
 
-export default function BannerTogetherPage({ placeId }) {
+export function LegacyBannerTogetherPage({ placeId }) {
   const location = useLocation();
   const authState = useBannergressAuth();
   const hasAuthCredentials = Boolean(
@@ -764,4 +765,14 @@ export default function BannerTogetherPage({ placeId }) {
       ) : null}
     </Container>
   );
+}
+
+export default function BannerTogetherPage({ placeId, roomId = null }) {
+  const location = useLocation();
+
+  if (!roomId && location.hash.startsWith(BANNER_TOGETHER_HASH_PREFIX)) {
+    return <LegacyBannerTogetherPage placeId={placeId} />;
+  }
+
+  return <BannerTogetherRoomPage placeId={placeId} roomId={roomId} />;
 }

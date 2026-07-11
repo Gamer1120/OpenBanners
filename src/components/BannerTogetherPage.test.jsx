@@ -3,7 +3,7 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { ThemeProvider, createTheme } from "@mui/material/styles";
 import { MemoryRouter } from "react-router-dom";
 import { beforeEach, expect, test, vi } from "vitest";
-import BannerTogetherPage from "./BannerTogetherPage";
+import BannerTogetherPage, { LegacyBannerTogetherPage } from "./BannerTogetherPage";
 import {
   BANNERGRESS_AUTH_STORAGE_KEY,
   loadBannergressAuthData,
@@ -69,7 +69,7 @@ function renderPage(placeId = "enschede-place") {
       <MemoryRouter
         initialEntries={[`${window.location.pathname}${window.location.hash}`]}
       >
-        <BannerTogetherPage placeId={placeId} />
+        <LegacyBannerTogetherPage placeId={placeId} />
       </MemoryRouter>
     </ThemeProvider>
   );
@@ -375,7 +375,7 @@ test("does not request the next place's private list before validating it", asyn
   renderResult.rerender(
     <ThemeProvider theme={theme}>
       <MemoryRouter>
-        <BannerTogetherPage placeId="missing-place" />
+        <LegacyBannerTogetherPage placeId="missing-place" />
       </MemoryRouter>
     </ThemeProvider>
   );
@@ -499,4 +499,36 @@ test("stops host pagination once the snapshot limit is exceeded", async () => {
   expect(
     screen.getByRole("button", { name: /copy snapshot invite/i })
   ).toBeDisabled();
+});
+
+test("prioritizes a room route over an unrelated legacy snapshot fragment", async () => {
+  const roomId = "Q".repeat(22);
+  const legacyHash = await createBannerTogetherInviteHash({
+    placeId: "enschede-place",
+    bannerIds: ["legacy-banner"],
+  });
+  global.fetch.mockResolvedValue({
+    ok: true,
+    json: () =>
+      Promise.resolve({
+        id: "enschede-place",
+        formattedAddress: "Enschede, Netherlands",
+      }),
+  });
+
+  render(
+    <ThemeProvider theme={theme}>
+      <MemoryRouter
+        initialEntries={[
+          `/together/enschede-place/room/${roomId}${legacyHash}`,
+        ]}
+      >
+        <BannerTogetherPage placeId="enschede-place" roomId={roomId} />
+      </MemoryRouter>
+    </ThemeProvider>
+  );
+
+  expect(
+    await screen.findByText("Room invite hash has an invalid prefix.")
+  ).toBeInTheDocument();
 });

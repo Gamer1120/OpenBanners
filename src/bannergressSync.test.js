@@ -1,9 +1,20 @@
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import {
+  getBannergressAgentName,
   loadBannergressAuthData,
   requestBannergressAccessToken,
   saveBannergressAuthData,
 } from "./bannergressSync";
+
+function createJwt(payload) {
+  const payloadBytes = new TextEncoder().encode(JSON.stringify(payload));
+  const encodedPayload = window
+    .btoa(String.fromCharCode(...payloadBytes))
+    .replace(/\+/g, "-")
+    .replace(/\//g, "_")
+    .replace(/=+$/g, "");
+  return `header.${encodedPayload}.signature`;
+}
 
 function deferred() {
   let resolve;
@@ -96,4 +107,29 @@ test("does not clear newer credentials when an older refresh fails", async () =>
     accessToken: "new-access-token",
     refreshToken: "new-refresh-token",
   });
+});
+
+test("reads the Bannergress agent name from local token claims", () => {
+  expect(
+    getBannergressAgentName({
+      idToken: createJwt({ preferred_username: "AgéntOne" }),
+      accessToken: createJwt({ preferred_username: "AccessFallback" }),
+    })
+  ).toBe("AgéntOne");
+  expect(
+    getBannergressAgentName({
+      idToken: "malformed",
+      accessToken: createJwt({ preferred_username: "AccessFallback" }),
+    })
+  ).toBe("AccessFallback");
+  expect(
+    getBannergressAgentName({
+      idToken: createJwt({ preferred_username: "Bad\u202eName" }),
+    })
+  ).toBeNull();
+  expect(
+    getBannergressAgentName({
+      idToken: createJwt({ preferred_username: "A".repeat(65) }),
+    })
+  ).toBeNull();
 });

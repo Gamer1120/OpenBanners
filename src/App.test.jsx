@@ -1528,10 +1528,12 @@ test("top menu shows authenticate when bannergress auth has no valid session", a
 });
 
 test("top menu shows authenticated when bannergress auth is stored locally", async () => {
-  vi.spyOn(bannergressSync, "requestBannergressSyncData").mockResolvedValue({
-    syncedAt: new Date().toISOString(),
-    bannerLists: {},
-  });
+  const syncSpy = vi
+    .spyOn(bannergressSync, "requestBannergressSyncData")
+    .mockResolvedValue({
+      syncedAt: new Date().toISOString(),
+      bannerLists: {},
+    });
 
   window.localStorage.setItem(
     BANNERGRESS_AUTH_STORAGE_KEY,
@@ -1562,6 +1564,48 @@ test("top menu shows authenticated when bannergress auth is stored locally", asy
   expect(
     await screen.findByRole("button", { name: /authenticated/i }, { timeout: 3000 })
   ).toBeInTheDocument();
+  await waitFor(() => expect(syncSpy).toHaveBeenCalledTimes(1));
+});
+
+test("top menu does not duplicate Banner Together list loading", async () => {
+  const syncSpy = vi
+    .spyOn(bannergressSync, "requestBannergressSyncData")
+    .mockResolvedValue({
+      syncedAt: new Date().toISOString(),
+      bannerLists: {},
+    });
+  window.localStorage.setItem(
+    BANNERGRESS_AUTH_STORAGE_KEY,
+    JSON.stringify({
+      accessToken: "test-access-token",
+      refreshToken: "test-refresh-token",
+      accessExpiresAt: Date.now() + 5 * 60 * 1000,
+      refreshExpiresAt: Date.now() + 30 * 60 * 1000,
+      updatedAt: Date.now(),
+    })
+  );
+
+  renderWithProviders(
+    <Routes>
+      <Route
+        path="*"
+        element={
+          <TopMenu
+            onBrowseClick={vi.fn()}
+            onTitleClick={vi.fn()}
+            onSearch={vi.fn()}
+          />
+        }
+      />
+    </Routes>,
+    { route: "/together/enschede-place" }
+  );
+
+  expect(
+    await screen.findByRole("button", { name: /authenticated/i }, { timeout: 3000 })
+  ).toBeInTheDocument();
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  expect(syncSpy).not.toHaveBeenCalled();
 });
 
 test("renders place and banner search results", async () => {

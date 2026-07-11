@@ -273,6 +273,24 @@ describe("evaluateBannerTogetherGroupComparison", () => {
       cara: "unlisted",
     });
     expect(comparison.missingCatalogCount).toBe(1);
+    expect(comparison.missingMatchingCatalogCount).toBe(0);
+  });
+
+  test("distinguishes matching list IDs that are missing from the catalog", () => {
+    const roomParticipants = participants.slice(0, 2);
+    const comparison = evaluateBannerTogetherGroupComparison({
+      catalogBanners: catalogBanners.filter((banner) => banner.id !== "all"),
+      participants: roomParticipants,
+      localParticipantId: "alice",
+      clauses: getBannerTogetherGroupPresetClauses(
+        BANNER_TOGETHER_GROUP_PRESET_IDS.EVERYONE_TODO,
+        roomParticipants,
+        "alice"
+      ),
+    });
+
+    expect(comparison.results.map((result) => result.id)).toEqual(["pair-12"]);
+    expect(comparison.missingMatchingCatalogCount).toBe(1);
   });
 
   test("uses the public catalog as the universe for not-listed combinations", () => {

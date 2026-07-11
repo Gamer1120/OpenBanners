@@ -34,6 +34,10 @@ const SNAPSHOT_KEYS = Object.freeze([
   "capturedAt",
   "lists",
 ]);
+const SNAPSHOT_KEYS_WITH_AGENT_NAME = Object.freeze([
+  ...SNAPSHOT_KEYS,
+  "agentName",
+]);
 const ENVELOPE_KEYS = Object.freeze([
   "version",
   "algorithm",
@@ -382,11 +386,37 @@ function normalizeLists(lists, { requireSorted = false } = {}) {
   return normalizedLists;
 }
 
+export function validateBannerTogetherLiveAgentName(agentName) {
+  if (typeof agentName !== "string") {
+    throw new Error("Live room agent name must be a string.");
+  }
+
+  const normalizedAgentName = agentName.normalize("NFC");
+
+  if (
+    normalizedAgentName.length === 0 ||
+    normalizedAgentName.trim() !== normalizedAgentName ||
+    Array.from(normalizedAgentName).length > 64 ||
+    /[\u0000-\u001f\u007f-\u009f\u202a-\u202e\u2066-\u2069]/.test(
+      normalizedAgentName
+    )
+  ) {
+    throw new Error("Live room agent name is invalid.");
+  }
+
+  return normalizedAgentName;
+}
+
 function normalizeSnapshot(
   value,
   { roomId, placeId, participantId, sequence, now, requireSorted }
 ) {
-  assertExactKeys(value, SNAPSHOT_KEYS, "Live room snapshot");
+  const hasAgentName = Object.hasOwn(value ?? {}, "agentName");
+  assertExactKeys(
+    value,
+    hasAgentName ? SNAPSHOT_KEYS_WITH_AGENT_NAME : SNAPSHOT_KEYS,
+    "Live room snapshot"
+  );
 
   if (value.version !== SNAPSHOT_VERSION) {
     throw new Error(
@@ -405,6 +435,10 @@ function normalizeSnapshot(
     capturedAt: normalizeDate(value.capturedAt, "Snapshot capturedAt"),
     lists: normalizeLists(value.lists, { requireSorted }),
   };
+
+  if (hasAgentName) {
+    normalized.agentName = validateBannerTogetherLiveAgentName(value.agentName);
+  }
 
   if (normalized.roomId !== roomId) {
     throw new Error("Live room snapshot belongs to a different room.");
@@ -522,6 +556,7 @@ export async function encryptBannerTogetherLiveSnapshot({
   participantId,
   sequence,
   capturedAt = new Date(),
+  agentName = null,
   lists,
   now = Date.now(),
 }) {
@@ -536,6 +571,9 @@ export async function encryptBannerTogetherLiveSnapshot({
       version: SNAPSHOT_VERSION,
       ...context,
       capturedAt: normalizeDate(capturedAt, "Snapshot capturedAt"),
+      ...(agentName === null || agentName === undefined
+        ? {}
+        : { agentName: validateBannerTogetherLiveAgentName(agentName) }),
       lists,
     },
     { ...context, now, requireSorted: false }

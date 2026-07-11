@@ -22,7 +22,7 @@ import {
   Login,
   Search,
 } from "@mui/icons-material";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import {
   BANNERGRESS_AUTH_COMPLETE_MESSAGE,
   BANNERGRESS_AUTH_REQUEST_EVENT,
@@ -114,6 +114,10 @@ export default function TopMenu({
   const [isAuthenticating, setIsAuthenticating] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
   const navigate = useNavigate();
+  const location = useLocation();
+  const isBannerTogetherRoute = /^\/together(?:\/|$)/.test(
+    location.pathname
+  );
   const authPopupRef = useRef(null);
   const authIntervalRef = useRef(null);
   const authTimeoutRef = useRef(null);
@@ -257,7 +261,7 @@ export default function TopMenu({
         });
       }
 
-      if (!hasAutoSyncedRef.current) {
+      if (!hasAutoSyncedRef.current && !isBannerTogetherRoute) {
         hasAutoSyncedRef.current = true;
         void syncBannergressLists();
       }
@@ -426,7 +430,7 @@ export default function TopMenu({
       );
       closeAuthPopup();
     };
-  }, [authSupportedOrigin]);
+  }, [authSupportedOrigin, isBannerTogetherRoute]);
 
   let authButtonLabel = "Authenticate";
   let authButtonIcon = <Login />;

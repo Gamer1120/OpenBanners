@@ -17,6 +17,8 @@ const mocks = vi.hoisted(() => ({
   joinRoom: vi.fn(),
   fetchMembership: vi.fn(),
   fetchCatalog: vi.fn(),
+  loadCatalogCache: vi.fn(),
+  saveCatalogCache: vi.fn(),
   loadMembershipCache: vi.fn(),
   saveMembershipCache: vi.fn(),
   createSecrets: vi.fn(),
@@ -34,7 +36,9 @@ vi.mock("../bannerTogetherLiveApi", () => ({
 vi.mock("../bannerTogetherData", () => ({
   fetchBannerTogetherMembership: mocks.fetchMembership,
   fetchBannerTogetherCatalog: mocks.fetchCatalog,
+  loadBannerTogetherCatalogCache: mocks.loadCatalogCache,
   loadBannerTogetherMembershipCache: mocks.loadMembershipCache,
+  saveBannerTogetherCatalogCache: mocks.saveCatalogCache,
   saveBannerTogetherMembershipCache: mocks.saveMembershipCache,
 }));
 
@@ -82,9 +86,21 @@ const ENVELOPE = {
 let sessionOptions;
 let session;
 
-function authenticate() {
+function createJwt(payload) {
+  const encodedPayload = window
+    .btoa(JSON.stringify(payload))
+    .replace(/\+/g, "-")
+    .replace(/\//g, "_")
+    .replace(/=+$/g, "");
+  return `header.${encodedPayload}.signature`;
+}
+
+function authenticate(agentName = null) {
   saveBannergressAuthData({
     accessToken: "live-page-access-token",
+    idToken: agentName
+      ? createJwt({ preferred_username: agentName })
+      : null,
     refreshToken: "live-page-refresh-token",
     accessExpiresAt: Date.now() + 5 * 60 * 1000,
     refreshExpiresAt: Date.now() + 30 * 60 * 1000,
@@ -162,8 +178,15 @@ beforeEach(() => {
     roomResponse({ participantId: GUEST_PARTICIPANT_ID })
   );
   mocks.encryptSnapshot.mockResolvedValue(ENVELOPE);
+  mocks.loadCatalogCache.mockReturnValue(null);
+  mocks.saveCatalogCache.mockImplementation((_placeId, banners) => ({
+    capturedAt: new Date().toISOString(),
+    banners,
+  }));
   mocks.loadMembershipCache.mockResolvedValue(null);
-  mocks.saveMembershipCache.mockResolvedValue(undefined);
+  mocks.saveMembershipCache.mockImplementation((_placeId, snapshot) =>
+    Promise.resolve(snapshot)
+  );
   mocks.fetchCatalog.mockImplementation(async (_placeId, { onPage }) => {
     const catalog = [
       { id: "shared", title: "Shared Banner" },
@@ -218,7 +241,7 @@ test("creates a fixed-length live invite without sharing hundreds of list IDs", 
   });
 });
 
-test("uses a four-hour browser cache until the user refreshes private lists", async () => {
+test("uses four-hour browser caches until the user refreshes all lists", async () => {
   authenticate();
   const capturedAt = new Date(Date.now() - 90 * 60 * 1000).toISOString();
   const cachedMembership = {
@@ -226,28 +249,76 @@ test("uses a four-hour browser cache until the user refreshes private lists", as
     lists: { todo: ["shared"], done: [], blacklist: [] },
   };
   const refreshedMembership = membership({ todo: ["mine-only"] });
+  const cachedCatalog = {
+    capturedAt,
+    banners: [{ id: "shared", title: "Cached shared banner" }],
+  };
+  mocks.loadCatalogCache.mockReturnValue(cachedCatalog);
   mocks.loadMembershipCache.mockResolvedValue(cachedMembership);
   mocks.fetchMembership.mockResolvedValue(refreshedMembership);
 
   renderPage();
 
   expect(
-    await screen.findByText(/using a browser-cached list snapshot/i)
+    await screen.findByText(/using browser-cached comparison data/i)
   ).toHaveTextContent(/1 hour 30 minutes old/i);
   expect(mocks.fetchMembership).not.toHaveBeenCalled();
+  expect(mocks.fetchCatalog).not.toHaveBeenCalled();
 
   fireEvent.click(screen.getByRole("button", { name: /refresh lists/i }));
 
   await waitFor(() => {
     expect(mocks.fetchMembership).toHaveBeenCalledTimes(1);
+    expect(mocks.fetchCatalog).toHaveBeenCalledTimes(1);
     expect(mocks.saveMembershipCache).toHaveBeenCalledWith(
       PLACE_ID,
       refreshedMembership
     );
   });
   expect(
-    screen.queryByText(/using a browser-cached list snapshot/i)
+    screen.queryByText(/using browser-cached comparison data/i)
   ).not.toBeInTheDocument();
+});
+
+test("retries a failed catalog without refetching private memberships", async () => {
+  const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
+  authenticate();
+  mocks.fetchMembership.mockResolvedValue(membership({ todo: ["shared"] }));
+  mocks.fetchCatalog.mockRejectedValueOnce(new Error("Catalog temporarily down"));
+
+  renderPage();
+
+  expect(
+    await screen.findByText("Catalog temporarily down")
+  ).toBeInTheDocument();
+  expect(mocks.fetchMembership).toHaveBeenCalledTimes(1);
+
+  fireEvent.click(screen.getByRole("button", { name: "Retry" }));
+
+  await waitFor(() => expect(mocks.fetchCatalog).toHaveBeenCalledTimes(2));
+  expect(mocks.fetchMembership).toHaveBeenCalledTimes(1);
+  await waitFor(() =>
+    expect(screen.queryByText("Catalog temporarily down")).not.toBeInTheDocument()
+  );
+  consoleError.mockRestore();
+});
+
+test("warns when comparison data cannot be retained in browser storage", async () => {
+  authenticate();
+  mocks.fetchMembership.mockResolvedValue(membership({ todo: ["shared"] }));
+  mocks.saveCatalogCache.mockReturnValue(null);
+
+  renderPage();
+
+  expect(
+    await screen.findByText(/could not cache all comparison data/i)
+  ).toBeInTheDocument();
+  fireEvent.click(
+    screen.getByRole("button", { name: /create and copy invite/i })
+  );
+  expect(
+    await screen.findByText(/could not cache all comparison data/i)
+  ).toBeInTheDocument();
 });
 
 test("rejoins privately when a suspended session token expires", async () => {
@@ -288,7 +359,7 @@ test("rejoins privately when a suspended session token expires", async () => {
 });
 
 test("joins a room with sharing off until the participant explicitly enables it", async () => {
-  authenticate();
+  authenticate("JoiningAgent");
   mocks.fetchMembership.mockResolvedValue(membership({ todo: ["shared"] }));
   const inviteHash = createBannerTogetherLiveInviteHash({
     roomSecret: ROOM_SECRET,
@@ -316,6 +387,7 @@ test("joins a room with sharing off until the participant explicitly enables it"
   expect(mocks.encryptSnapshot).toHaveBeenCalledWith(
     expect.objectContaining({
       participantId: GUEST_PARTICIPANT_ID,
+      agentName: "JoiningAgent",
       lists: { todo: ["shared"], done: [], blacklist: [] },
     })
   );
@@ -328,8 +400,8 @@ test("joins a room with sharing off until the participant explicitly enables it"
   expect(shareSwitch).not.toBeChecked();
 });
 
-test("compares local lists with two peers that explicitly share", async () => {
-  authenticate();
+test("compares local lists with two named peers that explicitly share", async () => {
+  authenticate("LocalAgent");
   const ownMembership = membership({
     todo: ["shared", "mine-only", "peer-hidden"],
   });
@@ -340,11 +412,17 @@ test("compares local lists with two peers that explicitly share", async () => {
   mocks.decryptSnapshot.mockImplementation(({ participantId }) =>
     Promise.resolve(
       participantId === PEER_ONE_ID
-        ? membership({ todo: ["shared"] })
-        : membership({
-            todo: ["shared"],
-            blacklist: ["peer-hidden"],
-          })
+        ? {
+            ...membership({ todo: ["shared"] }),
+            agentName: "AgentOne",
+          }
+        : {
+            ...membership({
+              todo: ["shared"],
+              blacklist: ["peer-hidden"],
+            }),
+            agentName: "AgentTwo",
+          }
     )
   );
   saveBannerTogetherLiveAccess({
@@ -384,7 +462,9 @@ test("compares local lists with two peers that explicitly share", async () => {
 
   expect(await screen.findByText("Shared Banner")).toBeInTheDocument();
   expect(screen.getByText("Everyone to-do")).toBeInTheDocument();
-  expect(screen.getAllByText(/Peer .* - sharing/)).toHaveLength(2);
+  expect(screen.getByText("AgentOne - sharing")).toBeInTheDocument();
+  expect(screen.getByText("AgentTwo - sharing")).toBeInTheDocument();
+  expect(screen.getByText(/AgentOne: 1 to do, 0 done, 0 hidden/)).toBeInTheDocument();
 
   fireEvent.mouseDown(screen.getByLabelText("Comparison"));
   fireEvent.click(
@@ -403,7 +483,7 @@ test("compares local lists with two peers that explicitly share", async () => {
   });
   expect(
     await screen.findByText(
-      `Peer ${PEER_TWO_ID.slice(0, 4)} - disconnected`
+      "AgentTwo - disconnected"
     )
   ).toBeInTheDocument();
   fireEvent.mouseDown(screen.getByLabelText("Comparison"));
@@ -421,7 +501,7 @@ test("compares local lists with two peers that explicitly share", async () => {
     });
   });
   expect(
-    await screen.findByText(`Peer ${PEER_TWO_ID.slice(0, 4)} - sharing`)
+    await screen.findByText("AgentTwo - sharing")
   ).toBeInTheDocument();
   fireEvent.mouseDown(screen.getByLabelText("Comparison"));
   fireEvent.click(
@@ -444,7 +524,7 @@ test("compares local lists with two peers that explicitly share", async () => {
   expect(
     await screen.findByText(/waiting for other people/i)
   ).toBeInTheDocument();
-  expect(screen.queryByText(/Peer .* - left/)).not.toBeInTheDocument();
+  expect(screen.queryByText(/Agent.* - left/)).not.toBeInTheDocument();
 });
 
 test("leaves the ephemeral room and clears local access", async () => {

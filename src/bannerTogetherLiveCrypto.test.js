@@ -116,6 +116,7 @@ test("round trips a sorted participant-bound encrypted snapshot", async () => {
     participantId: secrets.participantId,
     sequence: 4,
     capturedAt: CAPTURED_AT,
+    agentName: "AgentExample",
     now: NOW,
     lists: {
       todo: ["todo-z", "todo-a"],
@@ -129,6 +130,7 @@ test("round trips a sorted participant-bound encrypted snapshot", async () => {
     algorithm: "AES-256-GCM",
     iv: expect.stringMatching(/^[A-Za-z0-9_-]{16}$/),
   });
+  expect(JSON.stringify(envelope)).not.toContain("AgentExample");
   await expect(
     decryptBannerTogetherLiveSnapshot({
       roomSecret: secrets.roomSecret,
@@ -146,12 +148,39 @@ test("round trips a sorted participant-bound encrypted snapshot", async () => {
     participantId: secrets.participantId,
     sequence: 4,
     capturedAt: CAPTURED_AT,
+    agentName: "AgentExample",
     lists: {
       todo: ["todo-a", "todo-z"],
       done: ["done-one"],
       blacklist: ["hidden-one"],
     },
   });
+});
+
+test("accepts legacy encrypted snapshots without an agent name", async () => {
+  const secrets = await createBannerTogetherLiveSecrets();
+  const envelope = await encryptBannerTogetherLiveSnapshot({
+    roomSecret: secrets.roomSecret,
+    roomId: ROOM_ID,
+    placeId: PLACE_ID,
+    participantId: secrets.participantId,
+    sequence: 5,
+    capturedAt: CAPTURED_AT,
+    now: NOW,
+    lists: { todo: ["legacy"], done: [], blacklist: [] },
+  });
+  const snapshot = await decryptBannerTogetherLiveSnapshot({
+    roomSecret: secrets.roomSecret,
+    roomId: ROOM_ID,
+    placeId: PLACE_ID,
+    participantId: secrets.participantId,
+    sequence: 5,
+    envelope,
+    now: NOW,
+  });
+
+  expect(snapshot.agentName).toBeUndefined();
+  expect(snapshot.lists.todo).toEqual(["legacy"]);
 });
 
 test("rejects tampering, wrong context, stale data, and ambiguous membership", async () => {
@@ -215,6 +244,19 @@ test("rejects tampering, wrong context, stale data, and ambiguous membership", a
       lists: { todo: ["duplicate"], done: ["duplicate"], blacklist: [] },
     })
   ).rejects.toThrow(/only one/i);
+  await expect(
+    encryptBannerTogetherLiveSnapshot({
+      roomSecret: secrets.roomSecret,
+      roomId: ROOM_ID,
+      placeId: PLACE_ID,
+      participantId: secrets.participantId,
+      sequence: 2,
+      capturedAt: CAPTURED_AT,
+      agentName: "Bad\u202eName",
+      now: NOW,
+      lists: { todo: [], done: [], blacklist: [] },
+    })
+  ).rejects.toThrow(/agent name.*invalid/i);
 });
 
 test("strictly stores expiring access and retry-safe pending join identity", async () => {

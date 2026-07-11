@@ -26,6 +26,7 @@ import BannerCard from "./BannerCard";
 import BannerTogetherGroupComparisonBuilder from "./BannerTogetherGroupComparisonBuilder";
 import {
   BANNERGRESS_AUTH_REQUEST_EVENT,
+  getBannergressAgentName,
   useBannergressAuth,
 } from "../bannergressSync";
 import {
@@ -37,7 +38,9 @@ import {
 import {
   fetchBannerTogetherCatalog,
   fetchBannerTogetherMembership,
+  loadBannerTogetherCatalogCache,
   loadBannerTogetherMembershipCache,
+  saveBannerTogetherCatalogCache,
   saveBannerTogetherMembershipCache,
 } from "../bannerTogetherData";
 import {
@@ -65,6 +68,8 @@ import { createBannerTogetherPeerMeshSession } from "../bannerTogetherPeerMesh";
 const RESULT_PAGE_SIZE = 24;
 const MAX_ROOM_PARTICIPANTS = 8;
 const ROOM_MAX_AGE_MS = 4 * 60 * 60 * 1000;
+const CACHE_WRITE_WARNING =
+  "This browser could not cache all comparison data, so a reload may need to fetch it again.";
 
 const STATUS_COLORS = {
   todo: "warning",
@@ -143,8 +148,8 @@ function getMembershipCount(membership) {
   );
 }
 
-function getPeerLabel(participantId) {
-  return `Peer ${participantId.slice(0, 4)}`;
+function getPeerLabel(participantId, snapshot = null) {
+  return snapshot?.agentName || `Participant ${participantId.slice(0, 4)}`;
 }
 
 function getNextSequence(previousSequence) {
@@ -207,6 +212,10 @@ export default function BannerTogetherLivePage({ placeId, roomId = null }) {
   const location = useLocation();
   const navigate = useNavigate();
   const authState = useBannergressAuth();
+  const localAgentName = useMemo(
+    () => getBannergressAgentName(authState),
+    [authState.accessToken, authState.idToken]
+  );
   const hasAuthCredentials = Boolean(
     authState.accessToken || authState.refreshToken
   );
@@ -219,8 +228,11 @@ export default function BannerTogetherLivePage({ placeId, roomId = null }) {
   const [membershipProgress, setMembershipProgress] = useState(0);
   const [membershipError, setMembershipError] = useState("");
   const [membershipReloadToken, setMembershipReloadToken] = useState(0);
+  const [catalogReloadToken, setCatalogReloadToken] = useState(0);
   const [catalog, setCatalog] = useState([]);
   const [catalogStatus, setCatalogStatus] = useState("idle");
+  const [catalogSource, setCatalogSource] = useState(null);
+  const [catalogCapturedAt, setCatalogCapturedAt] = useState(null);
   const [catalogError, setCatalogError] = useState("");
   const [invite, setInvite] = useState(null);
   const [access, setAccess] = useState(null);
@@ -234,6 +246,7 @@ export default function BannerTogetherLivePage({ placeId, roomId = null }) {
   const [shareEnabled, setShareEnabled] = useState(false);
   const [operation, setOperation] = useState(null);
   const [feedback, setFeedback] = useState(null);
+  const [cacheWarning, setCacheWarning] = useState("");
   const [clauses, setClauses] = useState([]);
   const [visibleResultCount, setVisibleResultCount] = useState(RESULT_PAGE_SIZE);
   const [cacheAgeNow, setCacheAgeNow] = useState(() => Date.now());
@@ -242,15 +255,27 @@ export default function BannerTogetherLivePage({ placeId, roomId = null }) {
   const pendingCreateSecretsRef = useRef(null);
   const highestRemoteSequencesRef = useRef(new Map());
   const localSequenceRef = useRef(0);
+  const lastForcedCatalogReloadRef = useRef(0);
   const lastForcedMembershipReloadRef = useRef(0);
   const lastPublishedCapturedAtRef = useRef(null);
+  const cacheWriteFailuresRef = useRef({ catalog: false, membership: false });
   const isPlaceReady = placeStatus === "ready" && place?.id === placeId;
+  const recordCacheWriteResult = (source, succeeded) => {
+    cacheWriteFailuresRef.current[source] = !succeeded;
+    setCacheWarning(
+      Object.values(cacheWriteFailuresRef.current).some(Boolean)
+        ? CACHE_WRITE_WARNING
+        : ""
+    );
+  };
 
   useEffect(() => {
     let ignore = false;
     setPlace(null);
     setPlaceStatus("loading");
     setPlaceError("");
+    cacheWriteFailuresRef.current = { catalog: false, membership: false };
+    setCacheWarning("");
 
     fetch(`https://api.bannergress.com/places/${encodeURIComponent(placeId)}`)
       .then(async (response) => {
@@ -291,50 +316,97 @@ export default function BannerTogetherLivePage({ placeId, roomId = null }) {
     if (!isPlaceReady) {
       setCatalog([]);
       setCatalogStatus("idle");
+      setCatalogSource(null);
+      setCatalogCapturedAt(null);
       setCatalogError("");
       return undefined;
     }
 
     let ignore = false;
     const abortController = new AbortController();
-    setCatalog([]);
-    setCatalogStatus("loading");
+    const forceRefresh =
+      catalogReloadToken > lastForcedCatalogReloadRef.current;
+
+    if (forceRefresh) {
+      lastForcedCatalogReloadRef.current = catalogReloadToken;
+      setCatalogSource(null);
+      setCatalogCapturedAt(null);
+    } else {
+      setCatalog([]);
+      setCatalogSource(null);
+      setCatalogCapturedAt(null);
+    }
+
+    setCatalogStatus(forceRefresh ? "refreshing" : "loading");
     setCatalogError("");
 
-    fetchBannerTogetherCatalog(placeId, {
-      signal: abortController.signal,
-      onPage: (nextCatalog) => {
-        if (!ignore) {
-          setCatalog(nextCatalog);
-        }
-      },
-    })
-      .then((nextCatalog) => {
-        if (!ignore) {
-          setCatalog(nextCatalog);
-          setCatalogStatus("ready");
-        }
-      })
-      .catch((error) => {
-        if (ignore || error?.name === "AbortError") {
+    const loadCatalog = async () => {
+      if (!forceRefresh) {
+        const cachedCatalog = loadBannerTogetherCatalogCache(placeId);
+
+        if (cachedCatalog) {
+          if (!ignore) {
+            setCatalog(cachedCatalog.banners);
+            setCatalogSource("cache");
+            setCatalogCapturedAt(cachedCatalog.capturedAt);
+            setCacheAgeNow(Date.now());
+            setCatalogStatus("ready");
+          }
+
           return;
         }
+      }
 
-        console.error("Couldn't load Banner Together catalog.", error);
-        setCatalog([]);
-        setCatalogStatus("error");
-        setCatalogError(
-          error instanceof Error
-            ? error.message
-            : "The place banner catalog could not be loaded."
-        );
+      const nextCatalog = await fetchBannerTogetherCatalog(placeId, {
+        signal: abortController.signal,
+        onPage: (nextPageCatalog) => {
+          if (!ignore) {
+            setCatalog(nextPageCatalog);
+          }
+        },
       });
+
+      if (ignore) {
+        return;
+      }
+
+      setCatalog(nextCatalog);
+      setCatalogSource("network");
+      setCatalogStatus("ready");
+
+      try {
+        const savedCatalog = saveBannerTogetherCatalogCache(
+          placeId,
+          nextCatalog
+        );
+        setCatalogCapturedAt(savedCatalog?.capturedAt ?? null);
+        recordCacheWriteResult("catalog", Boolean(savedCatalog));
+      } catch (error) {
+        console.warn("Couldn't cache Banner Together catalog.", error);
+        recordCacheWriteResult("catalog", false);
+      }
+    };
+
+    loadCatalog().catch((error) => {
+      if (ignore || error?.name === "AbortError") {
+        return;
+      }
+
+      console.error("Couldn't load Banner Together catalog.", error);
+      setCatalog([]);
+      setCatalogStatus("error");
+      setCatalogError(
+        error instanceof Error
+          ? error.message
+          : "The place banner catalog could not be loaded."
+      );
+    });
 
     return () => {
       ignore = true;
       abortController.abort();
     };
-  }, [isPlaceReady, placeId]);
+  }, [catalogReloadToken, isPlaceReady, placeId]);
 
   useEffect(() => {
     if (!isPlaceReady) {
@@ -404,27 +476,34 @@ export default function BannerTogetherLivePage({ placeId, roomId = null }) {
       setMembership(nextMembership);
       setMembershipSource("network");
       setMembershipStatus("ready");
-      await saveBannerTogetherMembershipCache(placeId, nextMembership);
+      const savedMembership = await saveBannerTogetherMembershipCache(
+        placeId,
+        nextMembership
+      );
+
+      if (!ignore) {
+        recordCacheWriteResult("membership", Boolean(savedMembership));
+      }
     };
 
     loadMembership().catch((error) => {
-        if (ignore || error?.name === "AbortError") {
-          return;
-        }
+      if (ignore || error?.name === "AbortError") {
+        return;
+      }
 
-        if (error?.code === "AUTH_REQUIRED") {
-          setMembershipStatus("auth-required");
-          return;
-        }
+      if (error?.code === "AUTH_REQUIRED") {
+        setMembershipStatus("auth-required");
+        return;
+      }
 
-        console.error("Couldn't load Banner Together memberships.", error);
-        setMembershipStatus("error");
-        setMembershipError(
-          error instanceof Error
-            ? error.message
-            : "The private banner lists could not be loaded."
-        );
-      });
+      console.error("Couldn't load Banner Together memberships.", error);
+      setMembershipStatus("error");
+      setMembershipError(
+        error instanceof Error
+          ? error.message
+          : "The private banner lists could not be loaded."
+      );
+    });
 
     return () => {
       ignore = true;
@@ -441,13 +520,13 @@ export default function BannerTogetherLivePage({ placeId, roomId = null }) {
   ]);
 
   useEffect(() => {
-    if (membershipSource !== "cache") {
+    if (membershipSource !== "cache" && catalogSource !== "cache") {
       return undefined;
     }
 
     const timer = window.setInterval(() => setCacheAgeNow(Date.now()), 60 * 1000);
     return () => window.clearInterval(timer);
-  }, [membershipSource]);
+  }, [catalogSource, membershipSource]);
 
   useEffect(() => {
     let ignore = false;
@@ -761,6 +840,7 @@ export default function BannerTogetherLivePage({ placeId, roomId = null }) {
         participantId: access.participantId,
         sequence,
         capturedAt: membership.capturedAt,
+        agentName: localAgentName,
         lists: membership.lists,
       });
       const delivery = await sessionRef.current.publishSnapshot({
@@ -802,7 +882,14 @@ export default function BannerTogetherLivePage({ placeId, roomId = null }) {
     return () => {
       active = false;
     };
-  }, [access, membership, placeId, sessionReady, shareEnabled]);
+  }, [
+    access,
+    localAgentName,
+    membership,
+    placeId,
+    sessionReady,
+    shareEnabled,
+  ]);
 
   const comparisonParticipants = useMemo(() => {
     if (!access || !membership || catalogStatus !== "ready") {
@@ -824,7 +911,7 @@ export default function BannerTogetherLivePage({ placeId, roomId = null }) {
         )
         .map(([participantId, snapshot]) => ({
           id: participantId,
-          label: getPeerLabel(participantId),
+          label: getPeerLabel(participantId, snapshot),
           lists: snapshot.lists,
         })),
     ];
@@ -855,7 +942,12 @@ export default function BannerTogetherLivePage({ placeId, roomId = null }) {
       catalogStatus !== "ready" ||
       clauses.length === 0
     ) {
-      return { results: [], missingCatalogCount: 0, error: "" };
+      return {
+        results: [],
+        missingCatalogCount: 0,
+        missingMatchingCatalogCount: 0,
+        error: "",
+      };
     }
 
     try {
@@ -872,6 +964,7 @@ export default function BannerTogetherLivePage({ placeId, roomId = null }) {
       return {
         results: [],
         missingCatalogCount: 0,
+        missingMatchingCatalogCount: 0,
         error:
           error instanceof Error
             ? error.message
@@ -1062,6 +1155,7 @@ export default function BannerTogetherLivePage({ placeId, roomId = null }) {
           participantId: access.participantId,
           sequence,
           capturedAt: membership.capturedAt,
+          agentName: localAgentName,
           lists: membership.lists,
         });
         const delivery = await sessionRef.current.publishSnapshot({
@@ -1177,6 +1271,12 @@ export default function BannerTogetherLivePage({ placeId, roomId = null }) {
         peerStates[participantId] !== "left"
     )
     .sort();
+  const cachedComparisonCapturedAt = [
+    membershipSource === "cache" ? membership?.capturedAt : null,
+    catalogSource === "cache" ? catalogCapturedAt : null,
+  ]
+    .filter(Boolean)
+    .sort()[0] ?? null;
 
   return (
     <Container maxWidth={false} sx={{ py: { xs: 3, md: 5 } }}>
@@ -1222,6 +1322,12 @@ export default function BannerTogetherLivePage({ placeId, roomId = null }) {
         </Alert>
       ) : null}
 
+      {cacheWarning ? (
+        <Alert severity="warning" sx={{ mb: 2, maxWidth: 960 }}>
+          {cacheWarning}
+        </Alert>
+      ) : null}
+
       {membershipStatus === "auth-required" && isPlaceReady ? (
         <Alert
           severity="info"
@@ -1264,7 +1370,20 @@ export default function BannerTogetherLivePage({ placeId, roomId = null }) {
       ) : null}
 
       {catalogStatus === "error" ? (
-        <Alert severity="error" sx={{ mb: 2, maxWidth: 960 }}>
+        <Alert
+          severity="error"
+          action={
+            <Button
+              color="inherit"
+              onClick={() =>
+                setCatalogReloadToken((currentValue) => currentValue + 1)
+              }
+            >
+              Retry
+            </Button>
+          }
+          sx={{ mb: 2, maxWidth: 960 }}
+        >
           {catalogError}
         </Alert>
       ) : null}
@@ -1273,6 +1392,7 @@ export default function BannerTogetherLivePage({ placeId, roomId = null }) {
         membershipStatus === "loading" ||
         membershipStatus === "refreshing" ||
         catalogStatus === "loading" ||
+        catalogStatus === "refreshing" ||
         roomStatus === "reconnecting") &&
       roomStatus !== "error" ? (
         <Stack direction="row" spacing={1.5} alignItems="center" sx={{ mb: 2 }}>
@@ -1285,7 +1405,7 @@ export default function BannerTogetherLivePage({ placeId, roomId = null }) {
                 ? `Loading private lists${
                     membershipProgress ? ` (${membershipProgress})` : ""
                   }...`
-                : catalogStatus === "loading"
+                : catalogStatus === "loading" || catalogStatus === "refreshing"
                   ? `Loading place catalog${
                       catalog.length ? ` (${catalog.length})` : ""
                     }...`
@@ -1294,26 +1414,34 @@ export default function BannerTogetherLivePage({ placeId, roomId = null }) {
         </Stack>
       ) : null}
 
-      {membershipSource === "cache" && membership ? (
+      {(membershipSource === "cache" || catalogSource === "cache") &&
+      cachedComparisonCapturedAt ? (
         <Alert
           severity="info"
           action={
             <Button
               color="inherit"
               startIcon={<RefreshRoundedIcon />}
-              onClick={() =>
-                setMembershipReloadToken((currentValue) => currentValue + 1)
+              onClick={() => {
+                setMembershipReloadToken((currentValue) => currentValue + 1);
+                setCatalogReloadToken((currentValue) => currentValue + 1);
+              }}
+              disabled={
+                membershipStatus === "refreshing" ||
+                catalogStatus === "refreshing"
               }
-              disabled={membershipStatus === "refreshing"}
             >
               Refresh lists
             </Button>
           }
           sx={{ mb: 2, maxWidth: 960 }}
         >
-          Using a browser-cached list snapshot from{" "}
-          {formatDateTime(membership.capturedAt)} ({
-            formatSnapshotAge(membership.capturedAt, cacheAgeNow)
+          Using browser-cached comparison data from{" "}
+          {formatDateTime(cachedComparisonCapturedAt)} ({
+            formatSnapshotAge(
+              cachedComparisonCapturedAt,
+              cacheAgeNow
+            )
           }).
         </Alert>
       ) : null}
@@ -1526,28 +1654,64 @@ export default function BannerTogetherLivePage({ placeId, roomId = null }) {
           </Typography>
           <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
             <Chip
-              label={shareEnabled ? "You - sharing" : "You - private"}
+              label={`${
+                localAgentName ? `You (${localAgentName})` : "You"
+              } - ${shareEnabled ? "sharing" : "private"}`}
               color={shareEnabled ? "success" : "default"}
-              sx={{ borderRadius: 1 }}
+              sx={{ borderRadius: 1, maxWidth: "100%" }}
             />
             {knownPeerIds.map((participantId) => {
               const peerState = peerStates[participantId] ?? "connecting";
+              const peerSnapshot = remoteSnapshots[participantId];
               const peerSharing = Boolean(
-                remoteSnapshots[participantId] && peerState === "connected"
+                peerSnapshot && peerState === "connected"
               );
 
               return (
                 <Chip
                   key={participantId}
-                  label={`${getPeerLabel(participantId)} - ${
+                  label={`${getPeerLabel(participantId, peerSnapshot)} - ${
                     peerSharing ? "sharing" : peerState
                   }`}
                   color={peerSharing ? "success" : "default"}
-                  sx={{ borderRadius: 1 }}
+                  sx={{ borderRadius: 1, maxWidth: "100%" }}
                 />
               );
             })}
           </Stack>
+
+          {knownPeerIds.some(
+            (participantId) =>
+              remoteSnapshots[participantId] &&
+              peerStates[participantId] === "connected"
+          ) ? (
+            <Stack spacing={0.25} sx={{ mt: 1 }}>
+              {knownPeerIds.map((participantId) => {
+                const peerSnapshot = remoteSnapshots[participantId];
+
+                if (
+                  !peerSnapshot ||
+                  peerStates[participantId] !== "connected"
+                ) {
+                  return null;
+                }
+
+                return (
+                  <Typography
+                    key={participantId}
+                    variant="caption"
+                    color="text.secondary"
+                    sx={{ overflowWrap: "anywhere" }}
+                  >
+                    {getPeerLabel(participantId, peerSnapshot)}: {" "}
+                    {peerSnapshot.lists.todo.length} to do, {" "}
+                    {peerSnapshot.lists.done.length} done, {" "}
+                    {peerSnapshot.lists.blacklist.length} hidden
+                  </Typography>
+                );
+              })}
+            </Stack>
+          ) : null}
 
           {knownPeerIds.length === 0 ? (
             <Alert severity="info" sx={{ mt: 2 }}>
@@ -1604,16 +1768,29 @@ export default function BannerTogetherLivePage({ placeId, roomId = null }) {
             Matching banners
           </Typography>
 
-          {comparison.missingCatalogCount > 0 ? (
+          {comparison.missingMatchingCatalogCount > 0 ? (
+            <Alert severity="warning" sx={{ mb: 2, maxWidth: 960 }}>
+              {comparison.missingMatchingCatalogCount} {" "}
+              {comparison.missingMatchingCatalogCount === 1
+                ? "shared list entry matches"
+                : "shared list entries match"} {" "}
+              this comparison but cannot be shown because {" "}
+              {comparison.missingMatchingCatalogCount === 1 ? "it is" : "they are"} {" "}
+              missing from the current place catalog.
+            </Alert>
+          ) : comparison.missingCatalogCount > 0 ? (
             <Alert severity="info" sx={{ mb: 2, maxWidth: 960 }}>
-              {comparison.missingCatalogCount} shared list entries are no longer
-              available in this place catalog.
+              {comparison.missingCatalogCount} shared list {" "}
+              {comparison.missingCatalogCount === 1 ? "entry is" : "entries are"} {" "}
+              no longer available in this place catalog.
             </Alert>
           ) : null}
 
           {comparison.results.length === 0 ? (
             <Alert severity="info" sx={{ maxWidth: 960 }}>
-              No banners match this comparison.
+              {comparison.missingMatchingCatalogCount > 0
+                ? "No matching catalog cards are available."
+                : "No banners match this comparison."}
             </Alert>
           ) : (
             <Box

@@ -472,32 +472,37 @@ export function evaluateBannerTogetherGroupComparison({
     });
   });
 
-  const results = [...catalogById.entries()]
-    .map(([bannerId, banner]) => {
-      const participantStatuses = Object.fromEntries(
-        normalizedParticipants.map((participant) => [
-          participant.id,
-          membershipIndexes.get(participant.id).get(bannerId) ?? "unlisted",
-        ])
-      );
-
-      return { id: bannerId, banner, participantStatuses };
-    })
-    .filter((result) =>
-      normalizedClauses.some((clause) =>
-        normalizedParticipants.every((participant) =>
-          clause.participantStatuses[participant.id].includes(
-            result.participantStatuses[participant.id]
-          )
+  const createResult = (bannerId, banner = null) => ({
+    id: bannerId,
+    banner,
+    participantStatuses: Object.fromEntries(
+      normalizedParticipants.map((participant) => [
+        participant.id,
+        membershipIndexes.get(participant.id).get(bannerId) ?? "unlisted",
+      ])
+    ),
+  });
+  const matchesComparison = (result) =>
+    normalizedClauses.some((clause) =>
+      normalizedParticipants.every((participant) =>
+        clause.participantStatuses[participant.id].includes(
+          result.participantStatuses[participant.id]
         )
       )
-    )
+    );
+  const results = [...catalogById.entries()]
+    .map(([bannerId, banner]) => createResult(bannerId, banner))
+    .filter(matchesComparison)
     .sort(compareResultTitles);
+  const missingMatchingCatalogCount = [...missingCatalogIds]
+    .map((bannerId) => createResult(bannerId))
+    .filter(matchesComparison).length;
 
   return {
     participants: normalizedParticipants,
     clauses: normalizedClauses,
     results,
     missingCatalogCount: missingCatalogIds.size,
+    missingMatchingCatalogCount,
   };
 }

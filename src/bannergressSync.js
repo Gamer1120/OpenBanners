@@ -131,7 +131,7 @@ function normalizeSyncState(rawValue) {
   };
 }
 
-function decodeJwtExpiryTimestamp(token) {
+function decodeJwtPayload(token) {
   if (typeof token !== "string") {
     return null;
   }
@@ -148,11 +148,61 @@ function decodeJwtExpiryTimestamp(token) {
       .replace(/_/g, "/");
     const paddingLength = (4 - (normalizedPayload.length % 4)) % 4;
     const paddedPayload = `${normalizedPayload}${"=".repeat(paddingLength)}`;
-    const payload = JSON.parse(window.atob(paddedPayload));
-    return Number.isFinite(payload?.exp) ? payload.exp * 1000 : null;
+    const payloadBytes = Uint8Array.from(
+      globalThis.atob(paddedPayload),
+      (character) => character.charCodeAt(0)
+    );
+    const payload = JSON.parse(
+      new TextDecoder("utf-8", { fatal: true }).decode(payloadBytes)
+    );
+    return payload && typeof payload === "object" && !Array.isArray(payload)
+      ? payload
+      : null;
   } catch {
     return null;
   }
+}
+
+function decodeJwtExpiryTimestamp(token) {
+  const payload = decodeJwtPayload(token);
+  return Number.isFinite(payload?.exp) ? payload.exp * 1000 : null;
+}
+
+function normalizeBannergressAgentName(value) {
+  if (typeof value !== "string") {
+    return null;
+  }
+
+  const normalizedValue = value.normalize("NFC");
+
+  if (
+    normalizedValue.length === 0 ||
+    normalizedValue.trim() !== normalizedValue ||
+    Array.from(normalizedValue).length > 64 ||
+    /[\u0000-\u001f\u007f-\u009f\u202a-\u202e\u2066-\u2069]/.test(
+      normalizedValue
+    )
+  ) {
+    return null;
+  }
+
+  return normalizedValue;
+}
+
+export function getBannergressAgentName(
+  authData = loadBannergressAuthData()
+) {
+  for (const token of [authData?.idToken, authData?.accessToken]) {
+    const agentName = normalizeBannergressAgentName(
+      decodeJwtPayload(token)?.preferred_username
+    );
+
+    if (agentName) {
+      return agentName;
+    }
+  }
+
+  return null;
 }
 
 function normalizeAuthState(rawValue) {

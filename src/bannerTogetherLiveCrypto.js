@@ -38,6 +38,7 @@ const SNAPSHOT_KEYS_WITH_AGENT_NAME = Object.freeze([
   ...SNAPSHOT_KEYS,
   "agentName",
 ]);
+const SNAPSHOT_OFFLINE_SHARING_KEY = "shareWhileOffline";
 const ENVELOPE_KEYS = Object.freeze([
   "version",
   "algorithm",
@@ -412,9 +413,16 @@ function normalizeSnapshot(
   { roomId, placeId, participantId, sequence, now, requireSorted }
 ) {
   const hasAgentName = Object.hasOwn(value ?? {}, "agentName");
+  const hasOfflineSharing = Object.hasOwn(
+    value ?? {},
+    SNAPSHOT_OFFLINE_SHARING_KEY
+  );
   assertExactKeys(
     value,
-    hasAgentName ? SNAPSHOT_KEYS_WITH_AGENT_NAME : SNAPSHOT_KEYS,
+    [
+      ...(hasAgentName ? SNAPSHOT_KEYS_WITH_AGENT_NAME : SNAPSHOT_KEYS),
+      ...(hasOfflineSharing ? [SNAPSHOT_OFFLINE_SHARING_KEY] : []),
+    ],
     "Live room snapshot"
   );
 
@@ -433,8 +441,15 @@ function normalizeSnapshot(
     ),
     sequence: validateBannerTogetherLiveSequence(value.sequence),
     capturedAt: normalizeDate(value.capturedAt, "Snapshot capturedAt"),
+    shareWhileOffline: hasOfflineSharing ? value.shareWhileOffline : false,
     lists: normalizeLists(value.lists, { requireSorted }),
   };
+
+  if (typeof normalized.shareWhileOffline !== "boolean") {
+    throw new Error(
+      "Live room snapshot offline sharing setting must be a boolean."
+    );
+  }
 
   if (hasAgentName) {
     normalized.agentName = validateBannerTogetherLiveAgentName(value.agentName);
@@ -557,6 +572,7 @@ export async function encryptBannerTogetherLiveSnapshot({
   sequence,
   capturedAt = new Date(),
   agentName = null,
+  shareWhileOffline = false,
   lists,
   now = Date.now(),
 }) {
@@ -574,6 +590,7 @@ export async function encryptBannerTogetherLiveSnapshot({
       ...(agentName === null || agentName === undefined
         ? {}
         : { agentName: validateBannerTogetherLiveAgentName(agentName) }),
+      shareWhileOffline,
       lists,
     },
     { ...context, now, requireSorted: false }

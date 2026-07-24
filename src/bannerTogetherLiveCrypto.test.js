@@ -117,6 +117,7 @@ test("round trips a sorted participant-bound encrypted snapshot", async () => {
     sequence: 4,
     capturedAt: CAPTURED_AT,
     agentName: "AgentExample",
+    shareWhileOffline: true,
     now: NOW,
     lists: {
       todo: ["todo-z", "todo-a"],
@@ -149,6 +150,7 @@ test("round trips a sorted participant-bound encrypted snapshot", async () => {
     sequence: 4,
     capturedAt: CAPTURED_AT,
     agentName: "AgentExample",
+    shareWhileOffline: true,
     lists: {
       todo: ["todo-a", "todo-z"],
       done: ["done-one"],
@@ -180,6 +182,7 @@ test("accepts legacy encrypted snapshots without an agent name", async () => {
   });
 
   expect(snapshot.agentName).toBeUndefined();
+  expect(snapshot.shareWhileOffline).toBe(false);
   expect(snapshot.lists.todo).toEqual(["legacy"]);
 });
 
@@ -257,6 +260,19 @@ test("rejects tampering, wrong context, stale data, and ambiguous membership", a
       lists: { todo: [], done: [], blacklist: [] },
     })
   ).rejects.toThrow(/agent name.*invalid/i);
+  await expect(
+    encryptBannerTogetherLiveSnapshot({
+      roomSecret: secrets.roomSecret,
+      roomId: ROOM_ID,
+      placeId: PLACE_ID,
+      participantId: secrets.participantId,
+      sequence: 3,
+      capturedAt: CAPTURED_AT,
+      shareWhileOffline: "yes",
+      now: NOW,
+      lists: { todo: [], done: [], blacklist: [] },
+    })
+  ).rejects.toThrow(/offline sharing.*boolean/i);
 });
 
 test("strictly stores expiring access and retry-safe pending join identity", async () => {

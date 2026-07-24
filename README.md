@@ -133,7 +133,7 @@ The integration depends on Bannergress's current login and API contracts and is 
 Open a specific place under `/browse/:placeId` and select **Together** to compare Bannergress list states in a live peer room.
 
 - A creator opens a room and shares an invite whose secret stays in the URL fragment.
-- Up to eight people can join. Joining does not share any Bannergress data; every participant must explicitly enable **Share my lists**.
+- Up to eight people can join. Joining does not share any Bannergress data; every participant must explicitly enable **Share my lists**. An additional opt-in lets peers who already received that encrypted snapshot keep using it after the participant goes offline.
 - Todo, Done, and Hide snapshots are AES-GCM encrypted in the browser and sent directly over WebRTC data channels. Bannergress access, refresh, and ID tokens never enter room links, signaling requests, or peer messages.
 - The signaling process keeps only temporary presence, room-verifier, SDP, and ICE data in memory. It accepts no banner payloads and writes no room data to files or a database.
 - Rooms last at most four hours and disappear when everyone leaves or the signaling process restarts. At least one participant must remain online for the invite to stay usable.

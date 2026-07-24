@@ -152,6 +152,13 @@ function getPeerLabel(participantId, snapshot = null) {
   return snapshot?.agentName || `Participant ${participantId.slice(0, 4)}`;
 }
 
+function isPeerSnapshotAvailable(snapshot, peerState) {
+  return Boolean(
+    snapshot &&
+      (peerState === "connected" || snapshot.shareWhileOffline === true)
+  );
+}
+
 function getNextSequence(previousSequence) {
   return Math.max(previousSequence + 1, Math.floor(Date.now() / 1000));
 }
@@ -244,6 +251,7 @@ export default function BannerTogetherLivePage({ placeId, roomId = null }) {
   const [remoteSnapshots, setRemoteSnapshots] = useState({});
   const [sessionReady, setSessionReady] = useState(false);
   const [shareEnabled, setShareEnabled] = useState(false);
+  const [shareWhileOffline, setShareWhileOffline] = useState(false);
   const [operation, setOperation] = useState(null);
   const [feedback, setFeedback] = useState(null);
   const [cacheWarning, setCacheWarning] = useState("");
@@ -535,6 +543,7 @@ export default function BannerTogetherLivePage({ placeId, roomId = null }) {
     setPeerStates({});
     setRemoteSnapshots({});
     setShareEnabled(false);
+    setShareWhileOffline(false);
     setSessionReady(false);
     highestRemoteSequencesRef.current = new Map();
 
@@ -685,6 +694,10 @@ export default function BannerTogetherLivePage({ placeId, roomId = null }) {
 
         if (state === "left") {
           setRemoteSnapshots((currentSnapshots) => {
+            if (currentSnapshots[participantId]?.shareWhileOffline === true) {
+              return currentSnapshots;
+            }
+
             const nextSnapshots = { ...currentSnapshots };
             delete nextSnapshots[participantId];
             return nextSnapshots;
@@ -841,6 +854,7 @@ export default function BannerTogetherLivePage({ placeId, roomId = null }) {
         sequence,
         capturedAt: membership.capturedAt,
         agentName: localAgentName,
+        shareWhileOffline,
         lists: membership.lists,
       });
       const delivery = await sessionRef.current.publishSnapshot({
@@ -889,6 +903,7 @@ export default function BannerTogetherLivePage({ placeId, roomId = null }) {
     placeId,
     sessionReady,
     shareEnabled,
+    shareWhileOffline,
   ]);
 
   const comparisonParticipants = useMemo(() => {
@@ -903,8 +918,8 @@ export default function BannerTogetherLivePage({ placeId, roomId = null }) {
         lists: membership.lists,
       },
       ...Object.entries(remoteSnapshots)
-        .filter(
-          ([participantId]) => peerStates[participantId] === "connected"
+        .filter(([participantId, snapshot]) =>
+          isPeerSnapshotAvailable(snapshot, peerStates[participantId])
         )
         .sort(([participantIdA], [participantIdB]) =>
           participantIdA.localeCompare(participantIdB)
@@ -1156,6 +1171,7 @@ export default function BannerTogetherLivePage({ placeId, roomId = null }) {
           sequence,
           capturedAt: membership.capturedAt,
           agentName: localAgentName,
+          shareWhileOffline,
           lists: membership.lists,
         });
         const delivery = await sessionRef.current.publishSnapshot({
@@ -1184,6 +1200,7 @@ export default function BannerTogetherLivePage({ placeId, roomId = null }) {
         });
         lastPublishedCapturedAtRef.current = null;
         setShareEnabled(false);
+        setShareWhileOffline(false);
         const deferredCount = getDeferredDeliveryCount(delivery);
         setFeedback(
           deferredCount > 0
@@ -1206,6 +1223,71 @@ export default function BannerTogetherLivePage({ placeId, roomId = null }) {
           error instanceof Error
             ? error.message
             : "Your sharing setting could not be changed.",
+      });
+    } finally {
+      setOperation(null);
+    }
+  };
+
+  const handleOfflineSharingChange = async (nextEnabled) => {
+    if (
+      !shareEnabled ||
+      !sessionRef.current ||
+      !access ||
+      !membership
+    ) {
+      return;
+    }
+
+    setOperation("offline-sharing");
+    setFeedback(null);
+
+    try {
+      const sequence = getNextSequence(localSequenceRef.current);
+      localSequenceRef.current = sequence;
+      const envelope = await encryptBannerTogetherLiveSnapshot({
+        roomSecret: access.roomSecret,
+        roomId: access.roomId,
+        placeId,
+        participantId: access.participantId,
+        sequence,
+        capturedAt: membership.capturedAt,
+        agentName: localAgentName,
+        shareWhileOffline: nextEnabled,
+        lists: membership.lists,
+      });
+      const delivery = await sessionRef.current.publishSnapshot({
+        sequence,
+        envelope,
+      });
+      lastPublishedCapturedAtRef.current = membership.capturedAt;
+      setShareWhileOffline(nextEnabled);
+      const deferredCount = getDeferredDeliveryCount(delivery);
+
+      setFeedback(
+        nextEnabled
+          ? {
+              severity: deferredCount > 0 ? "warning" : "success",
+              message:
+                deferredCount > 0
+                  ? `Offline sharing is enabled. ${deferredCount} peer ${
+                      deferredCount === 1 ? "connection is" : "connections are"
+                    } not ready to receive the retained snapshot yet.`
+                  : "Current room members can keep comparing your shared lists if you go offline.",
+            }
+          : {
+              severity: "info",
+              message:
+                "Your shared lists will be removed from comparisons when you go offline.",
+            }
+      );
+    } catch (error) {
+      setFeedback({
+        severity: "error",
+        message:
+          error instanceof Error
+            ? error.message
+            : "Your offline sharing setting could not be changed.",
       });
     } finally {
       setOperation(null);
@@ -1268,7 +1350,8 @@ export default function BannerTogetherLivePage({ placeId, roomId = null }) {
     .filter(
       (participantId) =>
         participantId !== access?.participantId &&
-        peerStates[participantId] !== "left"
+        (peerStates[participantId] !== "left" ||
+          remoteSnapshots[participantId]?.shareWhileOffline === true)
     )
     .sort();
   const cachedComparisonCapturedAt = [
@@ -1624,26 +1707,54 @@ export default function BannerTogetherLivePage({ placeId, roomId = null }) {
             alignItems={{ xs: "stretch", sm: "center" }}
           >
             <Box>
-              <FormControlLabel
-                control={
-                  <Switch
-                    checked={shareEnabled}
-                    onChange={(event) => handleShareChange(event.target.checked)}
-                    disabled={
-                      !sessionReady ||
-                      membershipStatus !== "ready" ||
-                      operation !== null
-                    }
-                    inputProps={{ "aria-label": "Share my lists" }}
-                  />
-                }
-                label="Share my lists"
-              />
+              <Stack spacing={0}>
+                <FormControlLabel
+                  control={
+                    <Switch
+                      checked={shareEnabled}
+                      onChange={(event) =>
+                        handleShareChange(event.target.checked)
+                      }
+                      disabled={
+                        !sessionReady ||
+                        membershipStatus !== "ready" ||
+                        operation !== null
+                      }
+                      inputProps={{ "aria-label": "Share my lists" }}
+                    />
+                  }
+                  label="Share my lists"
+                />
+                <FormControlLabel
+                  control={
+                    <Switch
+                      checked={shareWhileOffline}
+                      onChange={(event) =>
+                        handleOfflineSharingChange(event.target.checked)
+                      }
+                      disabled={
+                        !shareEnabled ||
+                        !sessionReady ||
+                        membershipStatus !== "ready" ||
+                        operation !== null
+                      }
+                      inputProps={{
+                        "aria-label": "Continue sharing while offline",
+                      }}
+                    />
+                  }
+                  label="Continue sharing while offline"
+                />
+              </Stack>
               <MembershipChips membership={membership} />
             </Box>
             <Typography variant="body2" color="text.secondary">
               {shareEnabled
-                ? `${getMembershipCount(membership)} list entries shared peer to peer`
+                ? `${getMembershipCount(membership)} list entries shared peer to peer${
+                    shareWhileOffline
+                      ? "; current peers can keep them if you go offline"
+                      : ""
+                  }`
                 : "Your list snapshot is not being sent"}
             </Typography>
           </Stack>
@@ -1656,22 +1767,33 @@ export default function BannerTogetherLivePage({ placeId, roomId = null }) {
             <Chip
               label={`${
                 localAgentName ? `You (${localAgentName})` : "You"
-              } - ${shareEnabled ? "sharing" : "private"}`}
+              } - ${
+                shareEnabled
+                  ? shareWhileOffline
+                    ? "sharing, including offline"
+                    : "sharing"
+                  : "private"
+              }`}
               color={shareEnabled ? "success" : "default"}
               sx={{ borderRadius: 1, maxWidth: "100%" }}
             />
             {knownPeerIds.map((participantId) => {
               const peerState = peerStates[participantId] ?? "connecting";
               const peerSnapshot = remoteSnapshots[participantId];
-              const peerSharing = Boolean(
-                peerSnapshot && peerState === "connected"
+              const peerSharing = isPeerSnapshotAvailable(
+                peerSnapshot,
+                peerState
               );
 
               return (
                 <Chip
                   key={participantId}
                   label={`${getPeerLabel(participantId, peerSnapshot)} - ${
-                    peerSharing ? "sharing" : peerState
+                    peerSharing
+                      ? peerState === "connected"
+                        ? "sharing"
+                        : "sharing offline"
+                      : peerState
                   }`}
                   color={peerSharing ? "success" : "default"}
                   sx={{ borderRadius: 1, maxWidth: "100%" }}
@@ -1680,19 +1802,18 @@ export default function BannerTogetherLivePage({ placeId, roomId = null }) {
             })}
           </Stack>
 
-          {knownPeerIds.some(
-            (participantId) =>
-              remoteSnapshots[participantId] &&
-              peerStates[participantId] === "connected"
+          {knownPeerIds.some((participantId) =>
+            isPeerSnapshotAvailable(
+              remoteSnapshots[participantId],
+              peerStates[participantId]
+            )
           ) ? (
             <Stack spacing={0.25} sx={{ mt: 1 }}>
               {knownPeerIds.map((participantId) => {
                 const peerSnapshot = remoteSnapshots[participantId];
+                const peerState = peerStates[participantId];
 
-                if (
-                  !peerSnapshot ||
-                  peerStates[participantId] !== "connected"
-                ) {
+                if (!isPeerSnapshotAvailable(peerSnapshot, peerState)) {
                   return null;
                 }
 
@@ -1707,6 +1828,11 @@ export default function BannerTogetherLivePage({ placeId, roomId = null }) {
                     {peerSnapshot.lists.todo.length} to do, {" "}
                     {peerSnapshot.lists.done.length} done, {" "}
                     {peerSnapshot.lists.blacklist.length} hidden
+                    {peerState === "connected"
+                      ? ""
+                      : ` (offline snapshot from ${formatDateTime(
+                          peerSnapshot.capturedAt
+                        )})`}
                   </Typography>
                 );
               })}

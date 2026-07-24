@@ -372,7 +372,12 @@ test("joins a room with sharing off until the participant explicitly enables it"
     await screen.findByText("Joined. Your lists are still private.")
   ).toBeInTheDocument();
   const shareSwitch = screen.getByRole("checkbox", { name: "Share my lists" });
+  const offlineShareSwitch = screen.getByRole("checkbox", {
+    name: "Continue sharing while offline",
+  });
   expect(shareSwitch).not.toBeChecked();
+  expect(offlineShareSwitch).not.toBeChecked();
+  expect(offlineShareSwitch).toBeDisabled();
   expect(session.publishSnapshot).not.toHaveBeenCalled();
   expect(mocks.joinRoom).toHaveBeenCalledWith(
     expect.objectContaining({
@@ -388,16 +393,30 @@ test("joins a room with sharing off until the participant explicitly enables it"
     expect.objectContaining({
       participantId: GUEST_PARTICIPANT_ID,
       agentName: "JoiningAgent",
+      shareWhileOffline: false,
       lists: { todo: ["shared"], done: [], blacklist: [] },
     })
   );
   expect(shareSwitch).toBeChecked();
+  expect(offlineShareSwitch).toBeEnabled();
+
+  fireEvent.click(offlineShareSwitch);
+  await waitFor(() => expect(session.publishSnapshot).toHaveBeenCalledTimes(2));
+  expect(mocks.encryptSnapshot).toHaveBeenLastCalledWith(
+    expect.objectContaining({
+      shareWhileOffline: true,
+      lists: { todo: ["shared"], done: [], blacklist: [] },
+    })
+  );
+  expect(offlineShareSwitch).toBeChecked();
 
   fireEvent.click(shareSwitch);
   await waitFor(() => {
     expect(session.clearPublishedSnapshot.mock.calls.length).toBeGreaterThan(1);
   });
   expect(shareSwitch).not.toBeChecked();
+  expect(offlineShareSwitch).not.toBeChecked();
+  expect(offlineShareSwitch).toBeDisabled();
 });
 
 test("compares local lists with two named peers that explicitly share", async () => {
@@ -525,6 +544,62 @@ test("compares local lists with two named peers that explicitly share", async ()
     await screen.findByText(/waiting for other people/i)
   ).toBeInTheDocument();
   expect(screen.queryByText(/Agent.* - left/)).not.toBeInTheDocument();
+});
+
+test("keeps an opted-in peer snapshot available after that peer goes offline", async () => {
+  authenticate("LocalAgent");
+  mocks.fetchMembership.mockResolvedValue(
+    membership({ todo: ["shared", "mine-only"] })
+  );
+  mocks.joinRoom.mockResolvedValue(roomResponse({ peers: [PEER_ONE_ID] }));
+  mocks.decryptSnapshot.mockResolvedValue({
+    ...membership({ todo: ["shared"] }),
+    agentName: "OfflineAgent",
+    shareWhileOffline: true,
+  });
+  saveBannerTogetherLiveAccess({
+    version: BANNER_TOGETHER_LIVE_VERSION,
+    roomId: ROOM_ID,
+    placeId: PLACE_ID,
+    roomSecret: ROOM_SECRET,
+    participantId: LOCAL_PARTICIPANT_ID,
+    participantVerifier: LOCAL_PARTICIPANT_VERIFIER,
+    participantToken: LOCAL_PARTICIPANT_TOKEN,
+    expiresAt: EXPIRES_AT,
+  });
+
+  renderPage({ roomId: ROOM_ID });
+  await waitFor(() => expect(mocks.createSession).toHaveBeenCalledTimes(1));
+
+  await act(async () => {
+    sessionOptions.onParticipantState({
+      participantId: PEER_ONE_ID,
+      state: "connected",
+    });
+    await sessionOptions.onSnapshot({
+      participantId: PEER_ONE_ID,
+      sequence: 1,
+      envelope: ENVELOPE,
+    });
+  });
+
+  expect(await screen.findByText("OfflineAgent - sharing")).toBeInTheDocument();
+  expect(screen.getByText("Shared Banner")).toBeInTheDocument();
+
+  act(() => {
+    sessionOptions.onParticipantState({
+      participantId: PEER_ONE_ID,
+      state: "left",
+    });
+  });
+
+  expect(
+    await screen.findByText("OfflineAgent - sharing offline")
+  ).toBeInTheDocument();
+  expect(screen.getByText("Shared Banner")).toBeInTheDocument();
+  expect(screen.getByText(/OfflineAgent: 1 to do.*offline snapshot from/i))
+    .toBeInTheDocument();
+  expect(screen.queryByText(/waiting for other people/i)).not.toBeInTheDocument();
 });
 
 test("leaves the ephemeral room and clears local access", async () => {

@@ -9,7 +9,6 @@ import {
   NearMe,
 } from "@mui/icons-material";
 import BannerWall, { useInfiniteScroll } from "./BannerWall";
-import CityPicker from "./CityPicker";
 import SearchForm from "./SearchForm";
 import { fetchBannergress } from "../bannergressSync";
 import { getBrowseStateScope, resetBrowseState } from "../browseState";
@@ -17,7 +16,6 @@ import {
   getPlaceName,
   readCachedCity,
   resolveCityAt,
-  savePickedCity,
 } from "../cityPlace";
 
 const NEARBY_PAGE_SIZE = 24;
@@ -105,7 +103,6 @@ export default function BannersNearMe() {
     const cached = readCachedCity();
     return cached?.picked ? cached.place : null;
   });
-  const [cityPickerOpen, setCityPickerOpen] = useState(false);
   const nearSectionRef = useRef(null);
   const sentinelRef = useRef(null);
   const requestInFlightRef = useRef(false);
@@ -399,18 +396,7 @@ export default function BannersNearMe() {
             </span>
             <ChevronRight className="cc-go" />
           </Link>
-        ) : (
-          <button type="button" className="city-cta sl" onClick={() => setCityPickerOpen(true)}>
-            <span className="cc-ic">
-              <LocationCity />
-            </span>
-            <span className="grow">
-              <b>Pick your city</b>
-              <span className="small">See every banner in a city</span>
-            </span>
-            <ChevronRight className="cc-go" />
-          </button>
-        )}
+        ) : null}
       </section>
 
       <section ref={nearSectionRef} aria-labelledby="near-title" style={{ scrollMarginTop: 80 }}>
@@ -421,11 +407,6 @@ export default function BannersNearMe() {
             </h2>
             <p className="small muted">Closest start point first.</p>
           </div>
-          {city ? (
-            <button type="button" className="btn text sl" onClick={() => setCityPickerOpen(true)}>
-              Change city
-            </button>
-          ) : null}
         </div>
 
         <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
@@ -444,10 +425,6 @@ export default function BannersNearMe() {
                   <button type="button" className="btn filled sl" onClick={handleGrantLocationAccess}>
                     <MyLocation fontSize="small" />
                     Grant location access
-                  </button>
-                  <button type="button" className="btn tonal sl" onClick={() => setCityPickerOpen(true)}>
-                    <LocationCity fontSize="small" />
-                    Pick your city
                   </button>
                 </div>
               </div>
@@ -506,16 +483,6 @@ export default function BannersNearMe() {
         back-end.
       </section>
 
-      <CityPicker
-        open={cityPickerOpen}
-        onClose={() => setCityPickerOpen(false)}
-        onPick={(place) => {
-          savePickedCity(place);
-          setCity(place);
-          setCityPickerOpen(false);
-          openCity(place);
-        }}
-      />
     </div>
   );
 }

@@ -12,9 +12,8 @@ import BannerWall, { BannerRows, useInfiniteScroll } from "./BannerWall";
 import ViewModeToggle, { useBannerViewMode } from "./ViewModeToggle";
 import SortingButtons from "./SortingButtons";
 import PlaceCloud, { getChipName, usePlaces } from "./PlaceCloud";
-import CityPicker from "./CityPicker";
 import { getFlagForPlace } from "./CountryFlags";
-import { getPlaceName, savePickedCity } from "../cityPlace";
+import { getPlaceName } from "../cityPlace";
 import {
   fetchBannergress,
   forgetTemporarilyVisibleHiddenBanners,
@@ -188,7 +187,6 @@ export default function BrowsingPage({
     initialBrowseState.hasLoaded && initialBrowseState.scrollY > 0
   );
   const [viewMode, handleViewModeChange] = useBannerViewMode();
-  const [cityPickerOpen, setCityPickerOpen] = useState(false);
   const navigate = useNavigate();
   const currentPlace = useCurrentPlace(placeId);
   const placesState = usePlaces(placeId, !authorName);
@@ -710,15 +708,9 @@ export default function BrowsingPage({
                     <Close fontSize="small" />
                   </button>
                 </span>
-                <button type="button" className="btn text sl" onClick={() => setCityPickerOpen(true)}>
-                  Change city
-                </button>
               </>
             ) : (
-              <button type="button" className="chip sl" onClick={() => setCityPickerOpen(true)}>
-                <LocationCity fontSize="small" />
-                Pick a city
-              </button>
+null
             )}
           </div>
         )}
@@ -747,16 +739,6 @@ export default function BrowsingPage({
         {hasMore && !loading ? <div ref={loadMoreRef} style={{ height: 1 }} /> : null}
       </section>
 
-      <CityPicker
-        open={cityPickerOpen}
-        onClose={() => setCityPickerOpen(false)}
-        onPick={(place) => {
-          savePickedCity(place);
-          setCityPickerOpen(false);
-          resetBrowseState(getBrowseStateScope({ placeId: place.id }));
-          navigate(`/browse/${encodeURIComponent(place.id)}`);
-        }}
-      />
     </div>
   );
 }

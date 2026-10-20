@@ -145,3 +145,18 @@ export function applyBannerFilters(banners, syncState, filters) {
     return true;
   });
 }
+
+// Banners on the user's Hidden list, except one that was hidden a moment ago on
+// the current page (kept so the user can undo it).
+export function isBannerHidden(banner, syncState) {
+  return (
+    getBannerListType(syncState, banner?.id, banner?.listType) === "blacklist" &&
+    !shouldKeepHiddenBannerVisible(banner?.id)
+  );
+}
+
+export function withoutHiddenBanners(banners, syncState) {
+  return Array.isArray(banners)
+    ? banners.filter((banner) => !isBannerHidden(banner, syncState))
+    : [];
+}

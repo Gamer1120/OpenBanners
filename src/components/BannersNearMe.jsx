@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import {
   ChevronRight,
@@ -10,7 +10,12 @@ import {
 } from "@mui/icons-material";
 import BannerWall, { useInfiniteScroll } from "./BannerWall";
 import SearchForm from "./SearchForm";
-import { fetchBannergress } from "../bannergressSync";
+import {
+  fetchBannergress,
+  forgetTemporarilyVisibleHiddenBanners,
+  useBannergressSync,
+} from "../bannergressSync";
+import { withoutHiddenBanners } from "../bannerFilters";
 import { getBrowseStateScope, resetBrowseState } from "../browseState";
 import {
   getPlaceName,
@@ -93,6 +98,13 @@ export default function BannersNearMe() {
   const navigate = useNavigate();
   const [location, setLocation] = useState(null);
   const [bannerData, setBannerData] = useState([]);
+  // Coming back here drops banners that were only kept visible right after "Hide".
+  useState(forgetTemporarilyVisibleHiddenBanners);
+  const syncState = useBannergressSync();
+  const visibleBanners = useMemo(
+    () => withoutHiddenBanners(bannerData, syncState),
+    [bannerData, syncState]
+  );
   const [loading, setLoading] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(true);
@@ -459,20 +471,22 @@ export default function BannersNearMe() {
             </>
           ) : null}
 
-          {!loading && !error && location && bannerData.length === 0 ? (
+          {!loading && !error && location && visibleBanners.length === 0 && (!hasMore || bannerData.length === 0) ? (
             <div className="ob-alert">No nearby banners were found for your current location.</div>
           ) : null}
 
-          {!loading && bannerData.length > 0 ? (
+          {!loading && visibleBanners.length > 0 ? (
             <>
               <BannerWall
-                banners={bannerData}
+                banners={visibleBanners}
                 here={location}
                 loadingMore={loadingMore}
                 label="Banners near you"
               />
-              {hasMore ? <div ref={sentinelRef} style={{ height: 1 }} /> : null}
             </>
+          ) : null}
+          {!loading && bannerData.length > 0 && hasMore ? (
+            <div ref={sentinelRef} style={{ height: 1 }} />
           ) : null}
         </div>
       </section>

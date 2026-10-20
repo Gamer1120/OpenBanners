@@ -3,7 +3,8 @@ import { LocationCity, Place, Search } from "@mui/icons-material";
 import { useNavigate, useParams } from "react-router-dom";
 import { getPlaceName, savePickedCity, searchPlaces } from "../cityPlace";
 import { getBannerPictureUrl } from "../bannerDisplay";
-import { fetchBannergress } from "../bannergressSync";
+import { fetchBannergress, useBannergressSync } from "../bannergressSync";
+import { isBannerHidden } from "../bannerFilters";
 import { getBrowseStateScope, resetBrowseState } from "../browseState";
 import { getFlagForPlace } from "./CountryFlags";
 
@@ -11,12 +12,13 @@ const MIN_QUERY_LENGTH = 2;
 const DEBOUNCE_MS = 300;
 const PLACE_LIMIT = 5;
 const BANNER_LIMIT = 6;
+const BANNER_FETCH_LIMIT = 12; // room for banners on the Hidden list
 
 async function searchBanners(query, signal) {
   const response = await fetchBannergress(
     `https://api.bannergress.com/bnrs?orderBy=relevance&orderDirection=DESC&online=true&query=${encodeURIComponent(
       query
-    )}&limit=${BANNER_LIMIT}&offset=0`,
+    )}&limit=${BANNER_FETCH_LIMIT}&offset=0`,
     { signal }
   );
 
@@ -105,9 +107,13 @@ export default function SearchForm({
     return () => document.removeEventListener("pointerdown", handlePointerDown);
   }, [open]);
 
+  const syncState = useBannergressSync();
   const items = [
     ...places.map((place) => ({ kind: "place", key: `p-${place.id}`, place })),
-    ...banners.map((banner) => ({ kind: "banner", key: `b-${banner.id}`, banner })),
+    ...banners
+      .filter((banner) => !isBannerHidden(banner, syncState))
+      .slice(0, BANNER_LIMIT)
+      .map((banner) => ({ kind: "banner", key: `b-${banner.id}`, banner })),
   ];
   const showList = open && trimmed.length >= MIN_QUERY_LENGTH && status !== "idle";
 

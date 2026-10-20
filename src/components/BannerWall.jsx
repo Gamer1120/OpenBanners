@@ -115,23 +115,6 @@ function OfflineFlag({ banner }) {
   );
 }
 
-function ListFlag({ listType }) {
-  const meta = LIST_META[listType];
-
-  if (!meta) {
-    return null;
-  }
-
-  const Icon = meta.icon;
-
-  return (
-    <span className={`aflag ${listType === "blacklist" ? "" : listType}`}>
-      <Icon />
-      {meta.label}
-    </span>
-  );
-}
-
 function describeBanner(banner, distance, listType) {
   const parts = [
     (banner.title || "Untitled").trim(),
@@ -198,7 +181,6 @@ export function BannerTile({ banner, here, showAddress = true, listType }) {
           ) : null}
           <span className="art-flags">
             <OfflineFlag banner={banner} />
-            <ListFlag listType={listType} />
           </span>
         </span>
         <span className="art-cap" aria-hidden="true">
@@ -414,7 +396,6 @@ export function BannerRows({ banners, here = null, label = "Banners", loadingMor
               </span>
               <span className="brow-end">
                 <OfflineFlag banner={banner} />
-                {canUpdateLists ? null : <ListFlag listType={listType} />}
               </span>
             </Link>
             {canUpdateLists ? <RowListActions banner={banner} listType={listType} /> : null}

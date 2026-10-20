@@ -809,7 +809,11 @@ export default function BannerDetailsPage() {
   return (
     <div className="bp">
       {showPane ? null : tabBar}
-      <section className="bp-pane" hidden={!showPane} aria-label="Banner details">
+      <section
+        className={`bp-pane${effectiveListType ? ` ls-${effectiveListType}` : ""}`}
+        hidden={!showPane}
+        aria-label="Banner details"
+      >
         <header className="bp-hero">
           {pictureUrl ? (
             <div

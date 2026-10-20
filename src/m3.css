@@ -50,6 +50,16 @@
   --on-ok-container: #00391a;
   --warn-container: #ffe08a;
   --on-warn-container: #2a1f00;
+  /* To do / Done / Hidden surfaces: same amber / green / red as the classic cards */
+  --ls-todo: #fcefd0;
+  --ls-todo-hover: #f9e6b8;
+  --ls-todo-line: #e6c06a;
+  --ls-done: #dcf1e1;
+  --ls-done-hover: #cbead3;
+  --ls-done-line: #94cfa3;
+  --ls-blacklist: #fbe3e1;
+  --ls-blacklist-hover: #f7d3d0;
+  --ls-blacklist-line: #e8a5a0;
   --shadow-3: 0 1px 3px rgba(0, 0, 0, 0.3), 0 4px 8px 3px rgba(0, 0, 0, 0.15);
   color-scheme: light;
 }
@@ -76,6 +86,15 @@
   --on-ok-container: #b6f2c4;
   --warn-container: #594400;
   --on-warn-container: #ffe08a;
+  --ls-todo: #4b3410;
+  --ls-todo-hover: #5c4013;
+  --ls-todo-line: rgba(255, 214, 122, 0.3);
+  --ls-done: #173f26;
+  --ls-done-hover: #1c4b2e;
+  --ls-done-line: rgba(154, 236, 174, 0.26);
+  --ls-blacklist: #431e1e;
+  --ls-blacklist-hover: #522424;
+  --ls-blacklist-line: rgba(245, 168, 168, 0.24);
   --shadow-3: 0 1px 3px rgba(0, 0, 0, 0.5), 0 4px 8px 3px rgba(0, 0, 0, 0.3);
   color-scheme: dark;
 }
@@ -2074,4 +2093,61 @@ body {
 :where(.ob-page, .bp, .loc-card, .ob-alert, .card) :where(p, h1, h2, h3, dl, ol, ul) {
   margin-top: 0;
   margin-bottom: 0;
+}
+
+/* List status tint (To do / Done / Hidden) on wall tiles, rows and the banner page */
+.art.ls-todo,
+.brow.ls-todo,
+.bp-pane.ls-todo {
+  --ls-bg: var(--ls-todo);
+  --ls-bg-hover: var(--ls-todo-hover);
+  --ls-line: var(--ls-todo-line);
+}
+
+.art.ls-done,
+.brow.ls-done,
+.bp-pane.ls-done {
+  --ls-bg: var(--ls-done);
+  --ls-bg-hover: var(--ls-done-hover);
+  --ls-line: var(--ls-done-line);
+}
+
+.art.ls-blacklist,
+.brow.ls-blacklist,
+.bp-pane.ls-blacklist {
+  --ls-bg: var(--ls-blacklist);
+  --ls-bg-hover: var(--ls-blacklist-hover);
+  --ls-line: var(--ls-blacklist-line);
+}
+
+.art[class*="ls-"] .art-a {
+  background: var(--ls-bg);
+  box-shadow: inset 0 0 0 1px var(--ls-line);
+}
+
+.art[class*="ls-"] .art-a:hover,
+.art[class*="ls-"] .art-a:focus-visible {
+  background: var(--ls-bg-hover);
+  box-shadow: inset 0 0 0 1px var(--ls-line), var(--shadow-3);
+}
+
+.brow[class*="ls-"] {
+  background: var(--ls-bg);
+}
+
+.brow[class*="ls-"]:hover {
+  background: var(--ls-bg-hover);
+}
+
+.bp-pane[class*="ls-"] {
+  background: var(--ls-bg);
+}
+
+.bp-pane[class*="ls-"] .bp-tabs {
+  background: var(--ls-bg);
+}
+
+.bp-pane[class*="ls-"] .stat,
+.bp-pane[class*="ls-"] .card {
+  background: color-mix(in oklab, var(--surface) 55%, transparent);
 }

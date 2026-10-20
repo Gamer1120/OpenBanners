@@ -15,7 +15,11 @@ import PlaceCloud, { getChipName, usePlaces } from "./PlaceCloud";
 import CityPicker from "./CityPicker";
 import { getFlagForPlace } from "./CountryFlags";
 import { getPlaceName, savePickedCity } from "../cityPlace";
-import { fetchBannergress, useBannergressSync } from "../bannergressSync";
+import {
+  fetchBannergress,
+  forgetTemporarilyVisibleHiddenBanners,
+  useBannergressSync,
+} from "../bannergressSync";
 import {
   applyBannerFilters,
   DEFAULT_BANNER_FILTERS,
@@ -163,6 +167,15 @@ export default function BrowsingPage({
   const [reloadToken, setReloadToken] = useState(0);
   const [hasLoaded, setHasLoaded] = useState(initialBrowseState.hasLoaded);
   const syncState = useBannergressSync();
+  // Entering (or switching) a Browse list drops banners that were only kept
+  // visible right after "Hide"; hidden banners never show up in Browse again.
+  const hiddenScopeRef = useRef(null);
+  const hiddenScope = `${placeId ?? ""}|${authorName ?? ""}`;
+
+  if (hiddenScopeRef.current !== hiddenScope) {
+    hiddenScopeRef.current = hiddenScope;
+    forgetTemporarilyVisibleHiddenBanners();
+  }
   const loadMoreRef = useRef(null);
   const resultsAreaRef = useRef(null);
   const resultsContentRef = useRef(null);

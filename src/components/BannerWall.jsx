@@ -174,6 +174,10 @@ export function BannerTile({ banner, here, showAddress = true, listType }) {
     classes.push("capped");
   }
 
+  if (LIST_META[listType]) {
+    classes.push(`ls-${listType}`);
+  }
+
   return (
     <div className={classes.join(" ")} style={{ "--ar": tileAspect.toFixed(4) }}>
       <Link
@@ -386,7 +390,9 @@ export function BannerRows({ banners, here = null, label = "Banners", loadingMor
         return (
           <li
             key={banner.id}
-            className={`brow${getDisabledMissionCount(banner) ? " off" : ""}`}
+            className={`brow${getDisabledMissionCount(banner) ? " off" : ""}${
+              LIST_META[listType] ? ` ls-${listType}` : ""
+            }`}
           >
             <Link className="brow-a sl" to={`/banner/${encodeURIComponent(banner.id)}`}>
               <span className="brow-pic">

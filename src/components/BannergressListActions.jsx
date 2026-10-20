@@ -236,7 +236,15 @@ export default function BannergressListActions({
                   ...(light ? LIGHT_IDLE_SX : action.idleSx),
                   ...(isActive ? action.activeSx : null),
                   ...styles.buttonSx,
-                  "&.Mui-disabled": light
+                  "&.Mui-disabled": isActive
+                    ? {
+                        // Signed out / pending: still show which list it is on.
+                        color: action.activeSx.color,
+                        bgcolor: action.activeSx.bgcolor,
+                        borderColor: action.activeSx.borderColor,
+                        opacity: 0.8,
+                      }
+                    : light
                     ? {
                         color: "rgba(0,0,0,0.38)",
                         borderColor: "rgba(0,0,0,0.12)",

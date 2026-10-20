@@ -832,6 +832,12 @@ export async function fetchBannergress(url, options = {}) {
   });
 }
 
+// Banners hidden from a row/banner page stay visible only until the user comes
+// back to a list, so Browse never keeps showing banners that are marked Hidden.
+export function forgetTemporarilyVisibleHiddenBanners() {
+  temporarilyVisibleHiddenBannerIds.clear();
+}
+
 export function shouldKeepHiddenBannerVisible(bannerId) {
   return (
     typeof bannerId === "string" &&

@@ -385,9 +385,18 @@ body {
     flex-direction: column;
   }
 
+  /* Fixed, not sticky: sticky only holds while no ancestor clips or scrolls and
+     the page is never wider than the screen, which the Banner Together room
+     could not guarantee (the bar then scrolled away with the content). */
+  .ob-app {
+    padding-bottom: calc(var(--nav-h) + var(--safe-b));
+  }
+
   .ob-nav {
     order: 2;
-    position: sticky;
+    position: fixed;
+    left: 0;
+    right: 0;
     bottom: 0;
     height: calc(var(--nav-h) + var(--safe-b));
     padding-bottom: var(--safe-b);
@@ -396,6 +405,7 @@ body {
 
   .ob-col {
     order: 1;
+    overflow-x: clip;
   }
 
   .ob-app.fill .ob-col {
@@ -2330,4 +2340,9 @@ body {
 
 .bt-page .MuiPaper-root.MuiPaper-elevation0:not(.MuiAlert-root) {
   border: 0 !important;
+}
+
+.bt-page {
+  min-width: 0;
+  overflow-wrap: anywhere;
 }

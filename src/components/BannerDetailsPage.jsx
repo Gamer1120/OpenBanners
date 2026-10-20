@@ -1,4 +1,4 @@
-import { MapContainer, Marker, Polyline, Popup, TileLayer } from "react-leaflet";
+import { CircleMarker, MapContainer, Marker, Polyline, Popup, TileLayer } from "react-leaflet";
 import { Link, useParams } from "react-router-dom";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Skeleton, useMediaQuery } from "@mui/material";
@@ -400,6 +400,43 @@ function RouteMap({
           />
         ) : null
       )}
+      {selectedMission < 0
+        ? missions.flatMap((mission, missionIndex) =>
+            getSteps(mission).map((step, stepIndex) => {
+              const position = getStepPosition(step);
+
+              if (!position || stepIndex === 0 || step?.poi?.type === "unavailable") {
+                return null;
+              }
+
+              const title = step?.poi?.title || "Waypoint";
+
+              return (
+                <CircleMarker
+                  key={`wp-${missionIndex}-${stepIndex}`}
+                  center={position}
+                  radius={4}
+                  pathOptions={{
+                    color: "#fff",
+                    weight: 1.5,
+                    fillColor: colors[missionIndex],
+                    fillOpacity: 1,
+                  }}
+                >
+                  <Popup>
+                    <div>
+                      <div>Mission {missionIndex + 1}</div>
+                      <div>
+                        {stepIndex + 1}. {title}
+                      </div>
+                      <a href={buildGeoUrl(position[0], position[1], title)}>Open in maps app</a>
+                    </div>
+                  </Popup>
+                </CircleMarker>
+              );
+            })
+          )
+        : null}
       {selectedSteps.map((step, stepIndex) => {
         const position = getStepPosition(step);
 

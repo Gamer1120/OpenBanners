@@ -1,15 +1,23 @@
 import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import {
+  Bookmark,
   BookmarkBorder,
+  CheckCircle,
   CheckCircleOutline,
   CloudOff,
   DirectionsWalk,
   FormatListNumbered,
   Straighten,
+  Visibility,
   VisibilityOff,
 } from "@mui/icons-material";
-import { getBannerListType, useBannergressSync } from "../bannergressSync";
+import {
+  getBannerListType,
+  isBannergressAuthSupportedOrigin,
+  updateBannergressBannerListType,
+  useBannergressSync,
+} from "../bannergressSync";
 import {
   formatLength,
   getBannerAspect,
@@ -25,6 +33,72 @@ const LIST_META = {
   blacklist: { label: "Hidden", icon: VisibilityOff },
 };
 const MIN_TILE_ASPECT = 0.8;
+const ROW_ACTIONS = [
+  { listType: "todo", label: "To do", icon: BookmarkBorder, activeIcon: Bookmark },
+  { listType: "done", label: "Done", icon: CheckCircleOutline, activeIcon: CheckCircle },
+  { listType: "blacklist", label: "Hide", icon: Visibility, activeIcon: VisibilityOff },
+];
+
+// To do / Done / Hide toggles on a compact row (same Bannergress call as the banner page).
+function RowListActions({ banner, listType }) {
+  const [pending, setPending] = useState(null);
+  const [error, setError] = useState("");
+  const title = (banner.title || "Untitled").trim();
+
+  const toggle = async (nextListType) => {
+    if (pending) {
+      return;
+    }
+
+    const requested = listType === nextListType ? "none" : nextListType;
+    setPending(nextListType);
+    setError("");
+
+    try {
+      await updateBannergressBannerListType(banner.id, requested, {
+        keepHiddenVisible: requested === "blacklist",
+      });
+    } catch (updateError) {
+      console.error("Couldn't update Bannergress list type.", updateError);
+      setError(
+        updateError?.status === 401 || updateError?.status === 403
+          ? "Authenticate again."
+          : "Update failed."
+      );
+    } finally {
+      setPending(null);
+    }
+  };
+
+  return (
+    <div className="brow-acts" role="group" aria-label={`Lists for ${title}`}>
+      {ROW_ACTIONS.map((action) => {
+        const active = listType === action.listType;
+        const Icon = active ? action.activeIcon : action.icon;
+
+        return (
+          <button
+            key={action.listType}
+            type="button"
+            className={`brow-act sl ${action.listType}${active ? " on" : ""}`}
+            aria-pressed={active}
+            aria-label={`${action.label}: ${title}`}
+            title={action.label}
+            disabled={Boolean(pending)}
+            onClick={() => toggle(action.listType)}
+          >
+            <Icon />
+          </button>
+        );
+      })}
+      {error ? (
+        <span className="brow-err" role="status">
+          {error}
+        </span>
+      ) : null}
+    </div>
+  );
+}
 
 function OfflineFlag({ banner }) {
   const disabled = getDisabledMissionCount(banner);
@@ -294,6 +368,7 @@ export default function BannerWall({
 
 export function BannerRows({ banners, here = null, label = "Banners", loadingMore = false }) {
   const syncState = useBannergressSync();
+  const canUpdateLists = isBannergressAuthSupportedOrigin();
 
   return (
     <ul className="brows" aria-label={label}>
@@ -333,9 +408,10 @@ export function BannerRows({ banners, here = null, label = "Banners", loadingMor
               </span>
               <span className="brow-end">
                 <OfflineFlag banner={banner} />
-                <ListFlag listType={listType} />
+                {canUpdateLists ? null : <ListFlag listType={listType} />}
               </span>
             </Link>
+            {canUpdateLists ? <RowListActions banner={banner} listType={listType} /> : null}
           </li>
         );
       })}

@@ -14,7 +14,7 @@ import { MemoryRouter, Route, Routes, useLocation } from "react-router-dom";
 import { vi } from "vitest";
 import * as bannergressSync from "./bannergressSync";
 import BannersNearMe from "./components/BannersNearMe";
-import BannerListItem from "./components/BannerListItem";
+import { BannerRows } from "./components/BannerWall";
 import BannerFilterButton from "./components/BannerFilterButton";
 import BrowsingPage from "./components/BrowsingPage";
 import SearchResults from "./components/SearchResults";
@@ -268,6 +268,11 @@ vi.mock("react-leaflet", async () => {
       </div>
     ),
     Polyline: ({ children }) => <div data-testid="polyline">{children}</div>,
+    CircleMarker: ({ children, center }) => (
+      <div data-testid={`dot-${Array.isArray(center) ? center.join("-") : `${center?.lat}-${center?.lng}`}`}>
+        {children}
+      </div>
+    ),
     Popup: ({ children }) => <div>{children}</div>,
     useMap: () => mapInstance ?? createMapInstance(),
     useMapEvents: (handlers) => {
@@ -886,16 +891,18 @@ test("compact list actions update the Bannergress list through the API", async (
     });
 
   renderWithProviders(
-    <BannerListItem
-      banner={{
-        id: "list-action-banner",
-        title: "Action Banner",
-        picture: "/images/action-banner.jpg",
-        numberOfMissions: 6,
-        lengthMeters: 2400,
-        formattedAddress: "Enschede, NL",
-        numberOfDisabledMissions: 0,
-      }}
+    <BannerRows
+      banners={[
+        {
+          id: "list-action-banner",
+          title: "Action Banner",
+          picture: "/images/action-banner.jpg",
+          numberOfMissions: 6,
+          lengthMeters: 2400,
+          formattedAddress: "Enschede, NL",
+          numberOfDisabledMissions: 0,
+        },
+      ]}
     />
   );
 
@@ -945,16 +952,18 @@ test("compact list actions toggle todo banners back to none", async () => {
     });
 
   renderWithProviders(
-    <BannerListItem
-      banner={{
-        id: "toggle-banner",
-        title: "Toggle Banner",
-        picture: "/images/toggle-banner.jpg",
-        numberOfMissions: 6,
-        lengthMeters: 2400,
-        formattedAddress: "Enschede, NL",
-        numberOfDisabledMissions: 0,
-      }}
+    <BannerRows
+      banners={[
+        {
+          id: "toggle-banner",
+          title: "Toggle Banner",
+          picture: "/images/toggle-banner.jpg",
+          numberOfMissions: 6,
+          lengthMeters: 2400,
+          formattedAddress: "Enschede, NL",
+          numberOfDisabledMissions: 0,
+        },
+      ]}
     />
   );
 
@@ -3436,10 +3445,12 @@ test("renders mission waypoint dots on the banner details overview map", async (
   );
 
   expect(await screen.findByText("Overview Banner")).toBeInTheDocument();
-  // Whole route: numbered mission starts only, waypoints appear for the selected mission.
+  // Whole route: numbered mission starts plus small waypoint dots for every mission.
   expect(screen.getByTestId("marker-52.37-4.89")).toBeInTheDocument();
   expect(screen.getByTestId("marker-52.38-4.9")).toBeInTheDocument();
   expect(screen.queryByTestId("marker-52.371-4.891")).not.toBeInTheDocument();
+  expect(screen.getByTestId("dot-52.371-4.891")).toBeInTheDocument();
+  expect(screen.getByTestId("dot-52.381-4.901")).toBeInTheDocument();
 
   await userEvent.click(screen.getByRole("tab", { name: /missions/i }));
   await userEvent.click(
@@ -3448,6 +3459,7 @@ test("renders mission waypoint dots on the banner details overview map", async (
 
   expect(screen.getByTestId("marker-52.371-4.891")).toBeInTheDocument();
   expect(screen.queryByTestId("marker-52.381-4.901")).not.toBeInTheDocument();
+  expect(screen.queryByTestId("dot-52.381-4.901")).not.toBeInTheDocument();
   expect(screen.getByRole("link", { name: "Open in maps app" })).toHaveAttribute(
     "href",
     expect.stringMatching(/^geo:52\.371,4\.891\?q=52\.371,4\.891\(/)

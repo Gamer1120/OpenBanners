@@ -122,7 +122,7 @@ const BannerInfo = ({ banner, loading = false }) => {
       `https://bannergress.com/banner/${banner.id}`,
       {
         title: banner.title,
-        successMessage: "Bannergress Overlay link copied to clipboard.",
+        successMessage: "OpenBanners Overlay link copied to clipboard.",
       }
     );
   };
@@ -163,7 +163,7 @@ const BannerInfo = ({ banner, loading = false }) => {
           onClick={handleShareBannergressOverlay}
           disabled={loading}
         >
-          Open with Bannergress Overlay
+          Open with OpenBanners Overlay
         </Button>
         <Button
           variant="contained"

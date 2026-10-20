@@ -125,10 +125,7 @@ test("restores browse sort, loaded banners, and scroll after remount", async () 
   );
 
   expect(await screen.findByText("Initial Browse Banner")).toBeInTheDocument();
-  expect(screen.getByRole("link", { name: /together/i })).toHaveAttribute(
-    "href",
-    "/together/restored-place"
-  );
+  expect(screen.queryByRole("link", { name: /together/i })).not.toBeInTheDocument();
   await user.click(screen.getByRole("button", { name: /^sort:/i }));
   await user.click(screen.getByRole("menuitem", { name: /^a-z$/i }));
   expect(await screen.findByText("Sorted Browse Banner")).toBeInTheDocument();

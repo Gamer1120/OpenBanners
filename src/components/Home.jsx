@@ -97,7 +97,7 @@ function getRouteMetadata({ pathname, placeId, agentName, query }) {
     };
   }
 
-  if (pathname.startsWith("/together/")) {
+  if (pathname.startsWith("/lists/together/")) {
     return {
       title: "Banner Together",
       description:
@@ -142,7 +142,7 @@ function getCurrentView(pathname) {
     return "agentBrowsing";
   }
 
-  if (pathname.startsWith("/together/")) {
+  if (pathname.startsWith("/lists/together/")) {
     return "together";
   }
 
@@ -288,9 +288,7 @@ export default function Home() {
           {currentView === "bannerDetails" && <BannerDetailsPage />}
           {currentView === "lists" && <ListsPage />}
           {currentView === "together" && (
-            <LegacyDark>
-              <BannerTogetherPage placeId={placeId} roomId={roomId} />
-            </LegacyDark>
+            <BannerTogetherPage placeId={placeId} roomId={roomId} />
           )}
           {currentView === "map" && (
             <LegacyDark fill>

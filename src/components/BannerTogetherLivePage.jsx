@@ -6,7 +6,6 @@ import {
   Button,
   Chip,
   CircularProgress,
-  Container,
   Divider,
   FormControlLabel,
   IconButton,
@@ -22,7 +21,8 @@ import GroupAddRoundedIcon from "@mui/icons-material/GroupAddRounded";
 import GroupsRoundedIcon from "@mui/icons-material/GroupsRounded";
 import RefreshRoundedIcon from "@mui/icons-material/RefreshRounded";
 import SecurityRoundedIcon from "@mui/icons-material/SecurityRounded";
-import BannerCard from "./BannerCard";
+import BannerTogetherHeader from "./BannerTogetherHeader";
+import { BannerTile } from "./BannerWall";
 import BannerTogetherGroupComparisonBuilder from "./BannerTogetherGroupComparisonBuilder";
 import {
   BANNERGRESS_AUTH_REQUEST_EVENT,
@@ -1058,7 +1058,7 @@ export default function BannerTogetherLivePage({ placeId, roomId = null }) {
       }
 
       navigate(
-        `/together/${encodeURIComponent(placeId)}/live/${encodeURIComponent(
+        `/lists/together/${encodeURIComponent(placeId)}/live/${encodeURIComponent(
           response.roomId
         )}`,
         { replace: true }
@@ -1335,7 +1335,7 @@ export default function BannerTogetherLivePage({ placeId, roomId = null }) {
     sessionRef.current = null;
     clearBannerTogetherLiveAccess(access.roomId);
     setAccess(null);
-    navigate(`/together/${encodeURIComponent(placeId)}`, { replace: true });
+    navigate(`/lists/together/${encodeURIComponent(placeId)}`, { replace: true });
     setOperation(null);
   };
 
@@ -1362,18 +1362,11 @@ export default function BannerTogetherLivePage({ placeId, roomId = null }) {
     .sort()[0] ?? null;
 
   return (
-    <Container maxWidth={false} sx={{ py: { xs: 3, md: 5 } }}>
-      <Box sx={{ maxWidth: 960, mb: 3 }}>
-        <Typography variant="overline" color="text.secondary">
-          {getPlaceLabel(place, placeId)}
-        </Typography>
-        <Typography variant="h4" component="h1" sx={{ fontWeight: 700 }}>
-          Banner Together
-        </Typography>
-        <Typography variant="body1" color="text.secondary">
-          {roomId ? "Live peer room" : "Start a live peer room"}
-        </Typography>
-      </Box>
+    <div className="ob-page bt-page">
+      <BannerTogetherHeader
+        placeLabel={getPlaceLabel(place, placeId)}
+        subtitle={roomId ? "Live peer room" : "Start a live peer room"}
+      />
 
       {placeError ? (
         <Alert severity="error" sx={{ mb: 2, maxWidth: 960 }}>
@@ -1388,7 +1381,7 @@ export default function BannerTogetherLivePage({ placeId, roomId = null }) {
             <Button
               color="inherit"
               component={Link}
-              to={`/together/${encodeURIComponent(placeId)}`}
+              to={`/lists/together/${encodeURIComponent(placeId)}`}
             >
               Start new
             </Button>
@@ -1537,8 +1530,8 @@ export default function BannerTogetherLivePage({ placeId, roomId = null }) {
             p: { xs: 2, sm: 2.5 },
             mb: 3,
             borderRadius: 1,
-            bgcolor: "rgba(18,25,31,0.92)",
-            border: "1px solid rgba(255,255,255,0.08)",
+            bgcolor: "var(--sc-low)",
+            border: "1px solid var(--outline-variant)",
           }}
         >
           <Stack
@@ -1589,8 +1582,8 @@ export default function BannerTogetherLivePage({ placeId, roomId = null }) {
             p: { xs: 2, sm: 2.5 },
             mb: 3,
             borderRadius: 1,
-            bgcolor: "rgba(18,25,31,0.92)",
-            border: "1px solid rgba(255,255,255,0.08)",
+            bgcolor: "var(--sc-low)",
+            border: "1px solid var(--outline-variant)",
           }}
         >
           <Stack
@@ -1638,8 +1631,8 @@ export default function BannerTogetherLivePage({ placeId, roomId = null }) {
             p: { xs: 2, sm: 2.5 },
             mb: 3,
             borderRadius: 1,
-            bgcolor: "rgba(18,25,31,0.92)",
-            border: "1px solid rgba(255,255,255,0.08)",
+            bgcolor: "var(--sc-low)",
+            border: "1px solid var(--outline-variant)",
           }}
         >
           <Stack
@@ -1689,7 +1682,7 @@ export default function BannerTogetherLivePage({ placeId, roomId = null }) {
                       width: 44,
                       height: 44,
                       borderRadius: 1,
-                      border: "1px solid rgba(255,255,255,0.2)",
+                      border: "1px solid var(--outline-variant)",
                     }}
                   >
                     <ExitToAppRoundedIcon />
@@ -1864,8 +1857,8 @@ export default function BannerTogetherLivePage({ placeId, roomId = null }) {
             p: { xs: 2, sm: 2.5 },
             mb: 3,
             borderRadius: 1,
-            bgcolor: "rgba(18,25,31,0.92)",
-            border: "1px solid rgba(255,255,255,0.08)",
+            bgcolor: "var(--sc-low)",
+            border: "1px solid var(--outline-variant)",
           }}
         >
           <Typography variant="subtitle1" component="h2" sx={{ mb: 2 }}>
@@ -1919,21 +1912,9 @@ export default function BannerTogetherLivePage({ placeId, roomId = null }) {
                 : "No banners match this comparison."}
             </Alert>
           ) : (
-            <Box
-              sx={{
-                display: "grid",
-                gridTemplateColumns: {
-                  xs: "minmax(0, 1fr)",
-                  sm: "repeat(2, minmax(0, 1fr))",
-                  md: "repeat(3, minmax(0, 1fr))",
-                  xl: "repeat(4, minmax(0, 1fr))",
-                },
-                gap: 2.5,
-                alignItems: "stretch",
-              }}
-            >
+            <div className="bt-grid" role="list" aria-label="Matching banners">
               {visibleResults.map((result) => (
-                <Stack key={result.id} spacing={1} sx={{ minWidth: 0 }}>
+                <div key={result.id} className="bt-result" role="listitem">
                   <Stack direction="row" spacing={0.75} useFlexGap flexWrap="wrap">
                     {comparisonParticipants.map((participant) => {
                       const status = result.participantStatuses[participant.id];
@@ -1944,25 +1925,19 @@ export default function BannerTogetherLivePage({ placeId, roomId = null }) {
                           size="small"
                           color={STATUS_COLORS[status]}
                           label={`${participant.label}: ${getStatusLabel(status)}`}
-                          sx={{ borderRadius: 1 }}
                         />
                       );
                     })}
                   </Stack>
-                  <Box sx={{ display: "flex", minWidth: 0, flex: 1 }}>
-                    <BannerCard
-                      banner={{
-                        ...result.banner,
-                        listType: toCardListType(
-                          result.participantStatuses[access.participantId]
-                        ),
-                      }}
-                      maxWidth="100%"
-                    />
-                  </Box>
-                </Stack>
+                  <BannerTile
+                    banner={result.banner}
+                    listType={toCardListType(
+                      result.participantStatuses[access.participantId]
+                    )}
+                  />
+                </div>
               ))}
-            </Box>
+            </div>
           )}
 
           {visibleResultCount < comparison.results.length ? (
@@ -1983,6 +1958,6 @@ export default function BannerTogetherLivePage({ placeId, roomId = null }) {
           ) : null}
         </Box>
       ) : null}
-    </Container>
+    </div>
   );
 }

@@ -6,7 +6,6 @@ import {
   Button,
   Chip,
   CircularProgress,
-  Container,
   Divider,
   IconButton,
   Paper,
@@ -17,7 +16,8 @@ import {
 import ContentCopyRoundedIcon from "@mui/icons-material/ContentCopyRounded";
 import GroupRoundedIcon from "@mui/icons-material/GroupRounded";
 import RefreshRoundedIcon from "@mui/icons-material/RefreshRounded";
-import BannerCard from "./BannerCard";
+import BannerTogetherHeader from "./BannerTogetherHeader";
+import BannerWall from "./BannerWall";
 import BannerTogetherLivePage from "./BannerTogetherLivePage";
 import {
   BANNERGRESS_AUTH_REQUEST_EVENT,
@@ -458,21 +458,11 @@ export function LegacyBannerTogetherPage({ placeId }) {
   };
 
   return (
-    <Container
-      maxWidth="xl"
-      sx={{ color: "common.white", width: "100%", py: { xs: 2.5, sm: 4 } }}
-    >
-      <Box sx={{ maxWidth: 900, mb: 3 }}>
-        <Typography variant="overline" color="text.secondary">
-          {placeLabel}
-        </Typography>
-        <Typography variant="h4" component="h1" sx={{ mb: 0.75 }}>
-          Banner Together
-        </Typography>
-        <Typography variant="body1" color="text.secondary">
-          {isGuest ? "Shared to-do banners" : "Create a to-do snapshot invite"}
-        </Typography>
-      </Box>
+    <div className="ob-page bt-page">
+      <BannerTogetherHeader
+        placeLabel={placeLabel}
+        subtitle={isGuest ? "Shared to-do banners" : "Create a to-do snapshot invite"}
+      />
 
       {placeError ? (
         <Alert severity="error" sx={{ mb: 2, maxWidth: 900 }}>
@@ -487,7 +477,7 @@ export function LegacyBannerTogetherPage({ placeId }) {
             <Button
               color="inherit"
               component={Link}
-              to={`/together/${encodeURIComponent(placeId)}`}
+              to={`/lists/together/${encodeURIComponent(placeId)}`}
             >
               Start new
             </Button>
@@ -507,8 +497,8 @@ export function LegacyBannerTogetherPage({ placeId }) {
             p: { xs: 2, sm: 2.5 },
             mb: 3,
             borderRadius: 2,
-            bgcolor: "rgba(18,25,31,0.92)",
-            border: "1px solid rgba(255,255,255,0.08)",
+            bgcolor: "var(--sc-low)",
+            border: "1px solid var(--outline-variant)",
           }}
         >
           <Stack
@@ -574,7 +564,7 @@ export function LegacyBannerTogetherPage({ placeId }) {
                     sx={{
                       width: 44,
                       height: 44,
-                      border: "1px solid rgba(255,255,255,0.2)",
+                      border: "1px solid var(--outline-variant)",
                       borderRadius: 1,
                     }}
                   >
@@ -724,25 +714,10 @@ export function LegacyBannerTogetherPage({ placeId }) {
                 : "You have no to-do banners in this place."}
             </Alert>
           ) : (
-            <Box
-              sx={{
-                display: "grid",
-                gridTemplateColumns: {
-                  xs: "minmax(0, 1fr)",
-                  sm: "repeat(2, minmax(0, 1fr))",
-                  md: "repeat(3, minmax(0, 1fr))",
-                  xl: "repeat(4, minmax(0, 1fr))",
-                },
-                gap: 2.5,
-                alignItems: "stretch",
-              }}
-            >
-              {visibleBanners.map((banner) => (
-                <Box key={banner.id} sx={{ display: "flex", minWidth: 0 }}>
-                  <BannerCard banner={banner} maxWidth="100%" />
-                </Box>
-              ))}
-            </Box>
+            <BannerWall
+              banners={visibleBanners}
+              label={isGuest ? "Shared to-do banners" : "To-do banners in this place"}
+            />
           )}
 
           {visibleResultCount < displayedBanners.length ? (
@@ -763,7 +738,7 @@ export function LegacyBannerTogetherPage({ placeId }) {
           ) : null}
         </Box>
       ) : null}
-    </Container>
+    </div>
   );
 }
 

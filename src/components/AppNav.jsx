@@ -31,8 +31,7 @@ const NAV_ITEMS = [
     match: (pathname) =>
       pathname.startsWith("/browse") ||
       pathname.startsWith("/agent/") ||
-      pathname.startsWith("/banner/") ||
-      pathname.startsWith("/together/"),
+      pathname.startsWith("/banner/"),
   },
   {
     key: "map",

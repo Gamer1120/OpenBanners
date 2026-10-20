@@ -1,5 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { Login } from "@mui/icons-material";
+import { useLocation, useNavigate } from "react-router-dom";
+import BannerTogetherLauncher from "./BannerTogetherLauncher";
 import BannerWall, { BannerRows, useInfiniteScroll } from "./BannerWall";
 import ViewModeToggle, { useBannerViewMode } from "./ViewModeToggle";
 import {
@@ -23,7 +25,17 @@ export default function ListsPage() {
   const authData = useBannergressAuth();
   const syncState = useBannergressSync();
   const counts = getBannergressSyncCounts(syncState);
-  const [listType, setListType] = useState("todo");
+  const location = useLocation();
+  const navigate = useNavigate();
+  const togetherOpen = location.pathname.startsWith("/lists/together");
+  const [listType, setListTypeState] = useState("todo");
+  const setListType = (nextListType) => {
+    setListTypeState(nextListType);
+
+    if (togetherOpen) {
+      navigate("/lists");
+    }
+  };
   const [banners, setBanners] = useState([]);
   const [loading, setLoading] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -60,7 +72,7 @@ export default function ListsPage() {
   );
 
   useEffect(() => {
-    if (!signedIn) {
+    if (!signedIn || togetherOpen) {
       setBanners([]);
       return undefined;
     }
@@ -99,7 +111,7 @@ export default function ListsPage() {
     return () => {
       ignore = true;
     };
-  }, [loadPage, signedIn]);
+  }, [loadPage, signedIn, togetherOpen]);
 
   const handleLoadMore = useCallback(() => {
     if (!hasMore || loading || inFlightRef.current) {
@@ -124,7 +136,7 @@ export default function ListsPage() {
   }, [banners.length, hasMore, loadPage, loading]);
 
   useInfiniteScroll(sentinelRef, {
-    enabled: signedIn && hasMore && !loading && !loadingMore,
+    enabled: signedIn && !togetherOpen && hasMore && !loading && !loadingMore,
     onLoadMore: handleLoadMore,
     itemCount: banners.length,
   });
@@ -143,7 +155,37 @@ export default function ListsPage() {
         </div>
       </div>
 
-      {!signedIn ? (
+      <div className="toolbar">
+        <div className="seg" role="group" aria-label="List">
+          {LISTS.map((list) => (
+            <button
+              type="button"
+              key={list.key}
+              className="sl"
+              aria-pressed={!togetherOpen && listType === list.key}
+              onClick={() => setListType(list.key)}
+            >
+              {list.label}
+              <span className="small muted">{counts[list.key] ?? 0}</span>
+            </button>
+          ))}
+          <button
+            type="button"
+            className="sl"
+            aria-pressed={togetherOpen}
+            onClick={() => navigate("/lists/together")}
+          >
+            Together
+          </button>
+        </div>
+        <span className="grow" />
+        {togetherOpen || !signedIn ? null : (
+          <ViewModeToggle viewMode={viewMode} onChange={setViewMode} />
+        )}
+      </div>
+      {togetherOpen ? (
+        <BannerTogetherLauncher />
+      ) : !signedIn ? (
         <div className="loc-card">
           <span className="loc-ic">
             <Login />
@@ -169,24 +211,6 @@ export default function ListsPage() {
         </div>
       ) : (
         <>
-          <div className="toolbar">
-            <div className="seg" role="group" aria-label="List">
-              {LISTS.map((list) => (
-                <button
-                  type="button"
-                  key={list.key}
-                  className="sl"
-                  aria-pressed={listType === list.key}
-                  onClick={() => setListType(list.key)}
-                >
-                  {list.label}
-                  <span className="small muted">{counts[list.key] ?? 0}</span>
-                </button>
-              ))}
-            </div>
-            <span className="grow" />
-            <ViewModeToggle viewMode={viewMode} onChange={setViewMode} />
-          </div>
           {error ? (
             <div className="ob-alert bad" role="alert">
               <div className="grow">{error}</div>

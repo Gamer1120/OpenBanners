@@ -92,7 +92,7 @@ export default function TopMenu({
   const [isSyncing, setIsSyncing] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
-  const isBannerTogetherRoute = /^\/together(?:\/|$)/.test(
+  const isBannerTogetherRoute = /^\/(?:lists\/)?together(?:\/|$)/.test(
     location.pathname
   );
   const authPopupRef = useRef(null);

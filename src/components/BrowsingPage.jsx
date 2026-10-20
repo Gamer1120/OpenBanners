@@ -5,9 +5,8 @@ import React, {
   useRef,
   useState,
 } from "react";
-import { Button } from "@mui/material";
 import { Link, useNavigate } from "react-router-dom";
-import { Close, GroupAddRounded, LocationCity } from "@mui/icons-material";
+import { Close, LocationCity } from "@mui/icons-material";
 import BannerWall, { BannerRows, useInfiniteScroll } from "./BannerWall";
 import ViewModeToggle, { useBannerViewMode } from "./ViewModeToggle";
 import SortingButtons from "./SortingButtons";
@@ -674,19 +673,6 @@ export default function BrowsingPage({
             placeId={placeId}
             bannerFilters={bannerFilters}
             onBannerFiltersChange={onBannerFiltersChange}
-            leadingControls={
-              placeId ? (
-                <Button
-                  component={Link}
-                  to={`/together/${encodeURIComponent(placeId)}`}
-                  variant="contained"
-                  size="small"
-                  startIcon={<GroupAddRounded />}
-                >
-                  Together
-                </Button>
-              ) : null
-            }
           />
           <span className="grow" />
           <ViewModeToggle viewMode={viewMode} onChange={handleViewModeChange} />

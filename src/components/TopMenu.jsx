@@ -1,26 +1,23 @@
 import React, { useEffect, useRef, useState } from "react";
 import {
   Alert,
-  AppBar,
-  Box,
-  Container,
+  Divider,
+  ListItemIcon,
+  ListItemText,
+  Menu,
+  MenuItem,
   Snackbar,
-  Toolbar,
-  Typography,
-  Button,
-  TextField,
-  IconButton,
-  InputAdornment,
-  ButtonBase,
 } from "@mui/material";
 import {
+  AccountCircleOutlined,
   AltRoute,
-  CheckCircleOutline,
+  BrightnessAuto,
+  DarkMode,
   Download,
-  Explore,
-  LocationOn,
+  GitHub,
+  LightMode,
   Login,
-  Search,
+  MoreVert,
 } from "@mui/icons-material";
 import { useLocation, useNavigate } from "react-router-dom";
 import {
@@ -28,6 +25,7 @@ import {
   BANNERGRESS_AUTH_REQUEST_EVENT,
   BANNERGRESS_AUTH_STORAGE_KEY,
   buildBannergressAuthorizationUrl,
+  getBannergressAgentName,
   getBannergressSyncCounts,
   isBannergressAuthSupportedOrigin,
   requestBannergressAuthStatus,
@@ -35,37 +33,15 @@ import {
   saveBannergressSyncData,
   serializeBannergressPendingAuth,
 } from "../bannergressSync";
+import { saveThemeMode, useThemeMode } from "../themeMode";
+import AppLogo from "./AppLogo";
+import SearchForm from "./SearchForm";
 
 const AUTH_POLL_INTERVAL_MS = 1500;
 const AUTH_POLL_TIMEOUT_MS = 120000;
 const DEBUG = /(?:^|[?&])openbanners-debug=1(?:&|$)/.test(
   window.location.search
 );
-
-const mobileHiddenLabelSx = {
-  display: { xs: "none", lg: "inline" },
-};
-
-const topMenuActionButtonSx = {
-  minHeight: 44,
-  minWidth: { xs: 44, lg: 64 },
-  width: { xs: 44, lg: "auto" },
-  px: { xs: 0, lg: 1.75 },
-  bgcolor: "rgba(255,255,255,0.03)",
-  border: "1px solid rgba(255,255,255,0.08)",
-  "& .MuiButton-startIcon": {
-    m: { xs: 0, lg: "0 8px 0 -4px" },
-  },
-};
-
-const mobileSearchButtonSx = {
-  display: { xs: "inline-flex", lg: "none" },
-  width: 44,
-  height: 44,
-  bgcolor: "rgba(255,255,255,0.03)",
-  border: "1px solid rgba(255,255,255,0.08)",
-  borderRadius: 1,
-};
 
 function debugLog(...args) {
   if (!DEBUG) {
@@ -98,18 +74,19 @@ function isRunningInAndroidApp() {
 }
 
 export default function TopMenu({
-  onBrowseClick,
   onRerouterClick,
   onTitleClick,
   onSearch,
+  showSearch = true,
+  title = "",
 }) {
   const authSupportedOrigin = isBannergressAuthSupportedOrigin();
   const shouldShowAndroidDownloadButton =
     isAndroidUserAgent() && !isRunningInAndroidApp();
-  const [searchQuery, setSearchQuery] = useState("");
   const [feedback, setFeedback] = useState(null);
   const [authStatus, setAuthStatus] = useState(null);
-  const [isMobileSearchOpen, setIsMobileSearchOpen] = useState(false);
+  const [moreMenuAnchor, setMoreMenuAnchor] = useState(null);
+  const { mode: themeMode } = useThemeMode();
   const [isCheckingAuth, setIsCheckingAuth] = useState(authSupportedOrigin);
   const [isAuthenticating, setIsAuthenticating] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
@@ -123,19 +100,6 @@ export default function TopMenu({
   const authTimeoutRef = useRef(null);
   const syncInFlightRef = useRef(false);
   const hasAutoSyncedRef = useRef(false);
-
-  const handleSearch = (event) => {
-    event.preventDefault();
-    if (searchQuery.trim() === "") {
-      return;
-    }
-    onSearch(searchQuery);
-    setIsMobileSearchOpen(false);
-  };
-
-  const handleMapClick = () => {
-    navigate("/map");
-  };
 
   const handleRerouterClick = () => {
     if (typeof onRerouterClick === "function") {
@@ -433,7 +397,6 @@ export default function TopMenu({
   }, [authSupportedOrigin, isBannerTogetherRoute]);
 
   let authButtonLabel = "Authenticate";
-  let authButtonIcon = <Login />;
   let authButtonDisabled = false;
 
   if (!authSupportedOrigin) {
@@ -441,7 +404,6 @@ export default function TopMenu({
     authButtonDisabled = true;
   } else if (authStatus?.authenticated) {
     authButtonLabel = "Authenticated";
-    authButtonIcon = <CheckCircleOutline />;
     authButtonDisabled = true;
   } else if (isCheckingAuth) {
     authButtonLabel = "Checking...";
@@ -451,211 +413,126 @@ export default function TopMenu({
     authButtonDisabled = true;
   }
 
+  const agentName = authStatus?.authenticated ? getBannergressAgentName() : null;
+  const authButtonTitle = authStatus?.authenticated
+    ? `Signed in with Bannergress${agentName ? ` as ${agentName}` : ""}`
+    : authButtonLabel === "Authenticate"
+      ? "Sign in with Bannergress"
+      : authButtonLabel;
+  const closeMoreMenu = () => setMoreMenuAnchor(null);
+
   return (
     <>
-      <AppBar
-        position="sticky"
-        elevation={0}
-        sx={{
-          bgcolor: "rgba(11, 16, 20, 0.9)",
-          backdropFilter: "blur(14px)",
-          borderBottom: "1px solid rgba(255, 255, 255, 0.08)",
-          backgroundImage: "none",
-        }}
-      >
-        <Toolbar
-          sx={{
-            px: { xs: 1.5, sm: 2.5 },
-            py: { xs: 1.25, sm: 1.5 },
-            display: "flex",
-            flexWrap: { xs: isMobileSearchOpen ? "wrap" : "nowrap", lg: "nowrap" },
-            gap: { xs: 0.75, lg: 2 },
-            alignItems: "center",
-          }}
+      <header className={`ob-bar${showSearch ? " searching" : ""}`}>
+        <button
+          type="button"
+          className="ob-brand sl"
+          onClick={onTitleClick}
+          aria-label="Go to home page"
         >
-          <Container
-            sx={{
-              width: { xs: "auto", lg: "25%" },
-              pl: "0 !important",
-              pr: "0 !important",
-              display: "flex",
-              justifyContent: "flex-start",
-              flex: { xs: "0 0 auto", lg: "0 1 auto" },
-            }}
+          <AppLogo />
+          <span className="ob-brand-text">{title || "OpenBanners"}</span>
+        </button>
+        {showSearch ? (
+          <SearchForm className="ob-bar-search" onSearch={onSearch} />
+        ) : null}
+        <div className="ob-bar-actions">
+          <button
+            type="button"
+            className="icon-btn sl"
+            aria-label={authButtonLabel}
+            title={authButtonTitle}
+            onClick={handleAuthButtonClick}
+            disabled={authButtonDisabled && !authStatus?.authenticated}
+            aria-disabled={authButtonDisabled}
           >
-            <ButtonBase
-              onClick={onTitleClick}
-              aria-label="Go to home page"
-              sx={{
-                borderRadius: 1.5,
-                px: 1.25,
-                py: 0.75,
-                border: "1px solid rgba(255, 255, 255, 0.08)",
-                background: "rgba(255,255,255,0.03)",
+            {authStatus?.authenticated ? (
+              <span className="avatar" aria-hidden="true">
+                {(agentName || "B").slice(0, 1).toUpperCase()}
+              </span>
+            ) : authButtonLabel === "Authenticate" ? (
+              <Login />
+            ) : (
+              <AccountCircleOutlined />
+            )}
+          </button>
+          <button
+            type="button"
+            className="icon-btn sl"
+            aria-label="More options"
+            aria-haspopup="menu"
+            aria-expanded={Boolean(moreMenuAnchor)}
+            onClick={(event) => setMoreMenuAnchor(event.currentTarget)}
+          >
+            <MoreVert />
+          </button>
+          <Menu
+            anchorEl={moreMenuAnchor}
+            open={Boolean(moreMenuAnchor)}
+            onClose={closeMoreMenu}
+            anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
+            transformOrigin={{ vertical: "top", horizontal: "right" }}
+          >
+            <MenuItem
+              onClick={() => {
+                closeMoreMenu();
+                handleRerouterClick();
               }}
             >
-              <Box
-                component="img"
-                src="/logo192.png"
-                alt=""
-                sx={{
-                  display: { xs: "block", lg: "none" },
-                  width: 26,
-                  height: 26,
-                }}
-              />
-              <Typography
-                variant="h6"
-                component="span"
-                sx={{
-                  display: { xs: "none", lg: "inline" },
-                  color: "text.primary",
-                  letterSpacing: "0.08em",
-                }}
-              >
-                OPENBANNERS
-              </Typography>
-            </ButtonBase>
-          </Container>
-
-          <Container
-            sx={{
-              display: "flex",
-              flexDirection: "row",
-              alignItems: "center",
-              justifyContent: { xs: "flex-end", lg: "center" },
-              width: "auto",
-              pl: "0 !important",
-              pr: "0 !important",
-              gap: { xs: 0.5, lg: 1 },
-              flex: { xs: 1, lg: "0 0 auto" },
-              flexWrap: { xs: "nowrap", lg: "wrap" },
-              minWidth: 0,
-            }}
-          >
-            <Button
-              color="inherit"
-              aria-label="Browse"
-              startIcon={<Explore />}
-              onClick={onBrowseClick}
-              sx={topMenuActionButtonSx}
-            >
-              <Box component="span" sx={mobileHiddenLabelSx}>
-                Browse
-              </Box>
-            </Button>
-            <Button
-              color="inherit"
-              aria-label="Map"
-              startIcon={<LocationOn />}
-              onClick={handleMapClick}
-              sx={topMenuActionButtonSx}
-            >
-              <Box component="span" sx={mobileHiddenLabelSx}>
-                Map
-              </Box>
-            </Button>
-            <Button
-              color="inherit"
-              aria-label="Reroute Banner"
-              startIcon={<AltRoute />}
-              onClick={handleRerouterClick}
-              sx={topMenuActionButtonSx}
-            >
-              <Box component="span" sx={mobileHiddenLabelSx}>
-                Reroute Banner
-              </Box>
-            </Button>
+              <ListItemIcon>
+                <AltRoute fontSize="small" />
+              </ListItemIcon>
+              <ListItemText>Reroute Banner</ListItemText>
+            </MenuItem>
             {shouldShowAndroidDownloadButton ? (
-              <Button
-                color="inherit"
-                aria-label="Download App"
-                startIcon={<Download />}
+              <MenuItem
                 component="a"
                 href="/OpenBanners.apk"
                 download="OpenBanners.apk"
-                sx={topMenuActionButtonSx}
+                onClick={closeMoreMenu}
               >
-                <Box component="span" sx={mobileHiddenLabelSx}>
-                  Download App
-                </Box>
-              </Button>
+                <ListItemIcon>
+                  <Download fontSize="small" />
+                </ListItemIcon>
+                <ListItemText>Download App</ListItemText>
+              </MenuItem>
             ) : null}
-            <Button
-              color="inherit"
-              aria-label={authButtonLabel}
-              startIcon={authButtonIcon}
-              onClick={handleAuthButtonClick}
-              disabled={authButtonDisabled}
-              sx={topMenuActionButtonSx}
-            >
-              <Box component="span" sx={mobileHiddenLabelSx}>
-                {authButtonLabel}
-              </Box>
-            </Button>
-            <IconButton
-              color="inherit"
-              aria-label={isMobileSearchOpen ? "Close search" : "Open search"}
-              onClick={() =>
-                setIsMobileSearchOpen((currentValue) => !currentValue)
-              }
-              sx={mobileSearchButtonSx}
-            >
-              <Search />
-            </IconButton>
-          </Container>
-
-          <Container
-            sx={{
-              display: {
-                xs: isMobileSearchOpen ? "flex" : "none",
-                lg: "flex",
-              },
-              flexDirection: "column",
-              justifyContent: "center",
-              alignItems: { xs: "stretch", lg: "flex-end" },
-              width: { xs: "100%", lg: "min(360px, 30vw)" },
-              pl: "0 !important",
-              pr: "0 !important",
-              ml: { lg: "auto" },
-              alignSelf: { lg: "center" },
-              order: { xs: 3, lg: 0 },
-            }}
-          >
-            <Box
-              component="form"
-              onSubmit={handleSearch}
-              role="search"
-              aria-label="Search banners and places"
-              sx={{
-                width: "100%",
-                display: "flex",
-                alignItems: "center",
-                minHeight: 44,
-              }}
-            >
-              <TextField
-                variant="outlined"
-                placeholder="Search banners or places"
-                size="small"
-                fullWidth
-                value={searchQuery}
-                onChange={(event) => setSearchQuery(event.target.value)}
-                inputProps={{ "aria-label": "Search query" }}
-                InputProps={{
-                  endAdornment: (
-                    <InputAdornment position="end">
-                      <IconButton type="submit" aria-label="Submit search">
-                        <Search />
-                      </IconButton>
-                    </InputAdornment>
-                  ),
+            <Divider />
+            {[
+              ["system", "System theme", BrightnessAuto],
+              ["light", "Light theme", LightMode],
+              ["dark", "Dark theme", DarkMode],
+            ].map(([mode, label, Icon]) => (
+              <MenuItem
+                key={mode}
+                selected={themeMode === mode}
+                onClick={() => {
+                  saveThemeMode(mode);
+                  closeMoreMenu();
                 }}
-              />
-            </Box>
-          </Container>
-        </Toolbar>
-      </AppBar>
+              >
+                <ListItemIcon>
+                  <Icon fontSize="small" />
+                </ListItemIcon>
+                <ListItemText>{label}</ListItemText>
+              </MenuItem>
+            ))}
+            <Divider />
+            <MenuItem
+              component="a"
+              href="https://github.com/Gamer1120/OpenBanners"
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={closeMoreMenu}
+            >
+              <ListItemIcon>
+                <GitHub fontSize="small" />
+              </ListItemIcon>
+              <ListItemText>Source code</ListItemText>
+            </MenuItem>
+          </Menu>
+        </div>
+      </header>
       <Snackbar
         open={Boolean(feedback)}
         autoHideDuration={4500}

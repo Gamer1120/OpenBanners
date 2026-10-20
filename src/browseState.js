@@ -37,6 +37,10 @@ function writeStoredState(nextState) {
       BROWSE_STATE_STORAGE_KEY,
       JSON.stringify({
         ...nextState,
+        // Offline banners are hidden by default; showing them is never remembered.
+        filters: nextState.filters
+          ? { ...nextState.filters, showOfflineBanners: false }
+          : nextState.filters,
         version: BROWSE_STATE_VERSION,
         updatedAt: new Date().toISOString(),
       })

@@ -1,15 +1,26 @@
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import {
-  Alert,
-  Box,
-  Button,
-  Container,
-  Grid,
-  Stack,
-  Typography,
-} from "@mui/material";
-import BannerCard from "./BannerCard";
+  ChevronRight,
+  Explore,
+  LocationCity,
+  Map as MapIcon,
+  MyLocation,
+  NearMe,
+} from "@mui/icons-material";
+import BannerWall, { useInfiniteScroll } from "./BannerWall";
+import CityPicker from "./CityPicker";
+import SearchForm from "./SearchForm";
 import { fetchBannergress } from "../bannergressSync";
+import { getBrowseStateScope, resetBrowseState } from "../browseState";
+import {
+  getPlaceName,
+  readCachedCity,
+  resolveCityAt,
+  savePickedCity,
+} from "../cityPlace";
+
+const NEARBY_PAGE_SIZE = 24;
 
 const NEARBY_LOCATION_STORAGE_KEY = "openbanners-nearby-location";
 const CACHED_LOCATION_MAX_AGE_MS = 10 * 60 * 1000;
@@ -81,13 +92,23 @@ function saveCachedNearbyLocation(location) {
 }
 
 export default function BannersNearMe() {
+  const navigate = useNavigate();
   const [location, setLocation] = useState(null);
   const [bannerData, setBannerData] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(true);
   const [showPermissionPrompt, setShowPermissionPrompt] = useState(false);
-  const [limit, setLimit] = useState(9);
   const [error, setError] = useState("");
   const [permissionState, setPermissionState] = useState("checking");
+  const [city, setCity] = useState(() => {
+    const cached = readCachedCity();
+    return cached?.picked ? cached.place : null;
+  });
+  const [cityPickerOpen, setCityPickerOpen] = useState(false);
+  const nearSectionRef = useRef(null);
+  const sentinelRef = useRef(null);
+  const requestInFlightRef = useRef(false);
 
   const requestCurrentPosition = (options, { silent = false } = {}) => {
     setError("");
@@ -101,7 +122,13 @@ export default function BannersNearMe() {
         const { latitude, longitude } = position.coords;
         const nextLocation = { latitude, longitude };
         saveCachedNearbyLocation(nextLocation);
-        setLocation(nextLocation);
+        setLocation((currentLocation) =>
+          currentLocation &&
+          Math.abs(currentLocation.latitude - latitude) < 0.0005 &&
+          Math.abs(currentLocation.longitude - longitude) < 0.0005
+            ? currentLocation
+            : nextLocation
+        );
       },
       (positionError) => {
         console.error("Error getting location:", positionError);
@@ -153,7 +180,7 @@ export default function BannersNearMe() {
       }
     };
 
-    if ("geolocation" in navigator) {
+    if ("geolocation" in navigator && navigator.permissions?.query) {
       navigator.permissions
         .query({ name: "geolocation" })
         .then((result) => {
@@ -167,6 +194,9 @@ export default function BannersNearMe() {
           setPermissionState("unknown");
           setShowPermissionPrompt(true);
         });
+    } else if ("geolocation" in navigator) {
+      setPermissionState("unknown");
+      setShowPermissionPrompt(true);
     } else {
       setPermissionState("unsupported");
       setLoading(false);
@@ -178,59 +208,112 @@ export default function BannersNearMe() {
     };
   }, []);
 
+  const loadPage = useCallback(
+    async (offset, { signal } = {}) => {
+      const apiUrl = `https://api.bannergress.com/bnrs?orderBy=proximityStartPoint&orderDirection=ASC&online=true&proximityLatitude=${location.latitude}&proximityLongitude=${location.longitude}&limit=${NEARBY_PAGE_SIZE}&offset=${offset}`;
+      const response = await fetchBannergress(apiUrl, { signal });
+      return response.json();
+    },
+    [location]
+  );
+
   useEffect(() => {
     if (!location) {
-      return;
+      return undefined;
     }
 
     let ignore = false;
+    requestInFlightRef.current = true;
+    setLoading(true);
+    setError("");
+    setHasMore(true);
 
-    const loadNearbyBanners = async () => {
-      setLoading(true);
-      setError("");
-
-      const apiUrl = `https://api.bannergress.com/bnrs?orderBy=proximityStartPoint&orderDirection=ASC&online=true&proximityLatitude=${location.latitude}&proximityLongitude=${location.longitude}&limit=${limit}`;
-
-      try {
-        const response = await fetchBannergress(apiUrl);
-        const data = await response.json();
-
-        if (!ignore) {
-          if (Array.isArray(data)) {
-            setBannerData(data);
-          } else {
-            setBannerData([]);
-            setError("Nearby banners returned an unexpected response.");
-          }
+    loadPage(0)
+      .then((data) => {
+        if (ignore) {
+          return;
         }
-      } catch (fetchError) {
+
+        if (Array.isArray(data)) {
+          setBannerData(data);
+          setHasMore(data.length === NEARBY_PAGE_SIZE);
+
+          if (!readCachedCity()?.picked) {
+            resolveCityAt(location, data)
+              .then((resolvedCity) => {
+                if (!ignore) {
+                  setCity(resolvedCity);
+                }
+              })
+              .catch(() => {});
+          }
+        } else {
+          setBannerData([]);
+          setHasMore(false);
+          setError("Nearby banners returned an unexpected response.");
+        }
+      })
+      .catch((fetchError) => {
         console.error("Error fetching banner data:", fetchError);
 
         if (!ignore) {
           setBannerData([]);
+          setHasMore(false);
           setError("Couldn't load nearby banners. Please try again.");
         }
-      } finally {
+      })
+      .finally(() => {
+        requestInFlightRef.current = false;
+
         if (!ignore) {
           setLoading(false);
         }
-      }
-    };
-
-    loadNearbyBanners();
+      });
 
     return () => {
       ignore = true;
     };
-  }, [location, limit]);
+  }, [location, loadPage]);
+
+  const handleLoadMore = useCallback(() => {
+    if (!location || !hasMore || loading || requestInFlightRef.current) {
+      return;
+    }
+
+    requestInFlightRef.current = true;
+    setLoadingMore(true);
+
+    loadPage(bannerData.length)
+      .then((data) => {
+        if (Array.isArray(data)) {
+          setBannerData((currentBanners) => {
+            const seen = new Set(currentBanners.map((banner) => banner.id));
+            return [...currentBanners, ...data.filter((banner) => !seen.has(banner.id))];
+          });
+          setHasMore(data.length === NEARBY_PAGE_SIZE);
+        } else {
+          setHasMore(false);
+        }
+      })
+      .catch((fetchError) => {
+        console.error("Error fetching more banners:", fetchError);
+        setHasMore(false);
+      })
+      .finally(() => {
+        requestInFlightRef.current = false;
+        setLoadingMore(false);
+      });
+  }, [bannerData.length, hasMore, loadPage, loading, location]);
+
+  useInfiniteScroll(sentinelRef, {
+    enabled: Boolean(location) && hasMore && !loading && !loadingMore,
+    onLoadMore: handleLoadMore,
+    itemCount: bannerData.length,
+  });
 
   const handleGrantLocationAccess = () => {
     setShowPermissionPrompt(false);
     requestCurrentPosition(FRESH_LOCATION_OPTIONS);
-  };
-
-  const handleLoadMore = () => {
-    setLimit(60);
   };
 
   const handleRetry = () => {
@@ -247,113 +330,192 @@ export default function BannersNearMe() {
     handleGrantLocationAccess();
   };
 
+  const handleNearbyClick = () => {
+    nearSectionRef.current?.scrollIntoView?.({ behavior: "smooth", block: "start" });
+
+    if (!location && permissionState !== "denied" && permissionState !== "unsupported") {
+      handleGrantLocationAccess();
+    }
+  };
+
+  const openCity = (place) => {
+    resetBrowseState(getBrowseStateScope({ placeId: place.id }));
+    navigate(`/browse/${encodeURIComponent(place.id)}`);
+  };
+
+  const cityName = getPlaceName(city);
+
   return (
-    <Container sx={{ mt: 3, color: "common.white", pb: 4 }}>
-      <Box
-        sx={{
-          p: { xs: 2.25, sm: 3 },
-          borderRadius: 3,
-          border: "1px solid rgba(255, 255, 255, 0.08)",
-          background: "rgba(20, 27, 33, 0.78)",
-          boxShadow: "0 20px 40px rgba(0, 0, 0, 0.22)",
+    <div className="ob-page">
+      <section className="hero-s" aria-labelledby="home-title">
+        <h1 className="ob-h1" id="home-title">
+          Find a banner
+        </h1>
+        <SearchForm big placeholder="Search banners or places" />
+        <div className="quick">
+          <button type="button" className="q-act sl" onClick={handleNearbyClick}>
+            <span className="q-ic">
+              <NearMe />
+            </span>
+            <b>Nearby</b>
+            <span className="small">Closest start points</span>
+          </button>
+          <Link className="q-act sl" to="/map">
+            <span className="q-ic">
+              <MapIcon />
+            </span>
+            <b>Map</b>
+            <span className="small">All banners on a map</span>
+          </Link>
+          <Link
+            className="q-act sl"
+            to="/browse/"
+            onClick={() => resetBrowseState(getBrowseStateScope())}
+          >
+            <span className="q-ic">
+              <Explore />
+            </span>
+            <b>Browse</b>
+            <span className="small">By city or region</span>
+          </Link>
+        </div>
+        {city ? (
+          <Link
+            className="city-cta sl"
+            to={`/browse/${encodeURIComponent(city.id)}`}
+            onClick={() => resetBrowseState(getBrowseStateScope({ placeId: city.id }))}
+          >
+            <span className="cc-ic">
+              <LocationCity />
+            </span>
+            <span className="grow">
+              <b>Banners in {cityName}</b>
+              <span className="small">
+                {Number.isFinite(city.numberOfBanners)
+                  ? `${city.numberOfBanners} banners · `
+                  : ""}
+                {city.formattedAddress}
+              </span>
+            </span>
+            <ChevronRight className="cc-go" />
+          </Link>
+        ) : (
+          <button type="button" className="city-cta sl" onClick={() => setCityPickerOpen(true)}>
+            <span className="cc-ic">
+              <LocationCity />
+            </span>
+            <span className="grow">
+              <b>Pick your city</b>
+              <span className="small">See every banner in a city</span>
+            </span>
+            <ChevronRight className="cc-go" />
+          </button>
+        )}
+      </section>
+
+      <section ref={nearSectionRef} aria-labelledby="near-title" style={{ scrollMarginTop: 80 }}>
+        <div className="ob-sec-head" style={{ marginBottom: 12 }}>
+          <div>
+            <h2 className="ob-h2" id="near-title">
+              Banners near you
+            </h2>
+            <p className="small muted">Closest start point first.</p>
+          </div>
+          {city ? (
+            <button type="button" className="btn text sl" onClick={() => setCityPickerOpen(true)}>
+              Change city
+            </button>
+          ) : null}
+        </div>
+
+        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+          {!location && (showPermissionPrompt || permissionState === "checking" || permissionState === "unknown") ? (
+            <div className="loc-card">
+              <span className="loc-ic">
+                <NearMe />
+              </span>
+              <div className="grow">
+                <b>See what’s around you</b>
+                <span className="small">
+                  Enable location access to load nearby banners. Your location
+                  stays in this browser, only the search itself is sent.
+                </span>
+                <div className="acts">
+                  <button type="button" className="btn filled sl" onClick={handleGrantLocationAccess}>
+                    <MyLocation fontSize="small" />
+                    Grant location access
+                  </button>
+                  <button type="button" className="btn tonal sl" onClick={() => setCityPickerOpen(true)}>
+                    <LocationCity fontSize="small" />
+                    Pick your city
+                  </button>
+                </div>
+              </div>
+            </div>
+          ) : null}
+
+          {!showPermissionPrompt && permissionState === "denied" ? (
+            <div className="ob-alert warn" role="alert">
+              <div className="grow">
+                Location access is blocked. Allow it in your browser to use nearby
+                banners.
+              </div>
+              <button type="button" className="btn text sl" onClick={handleRetry}>
+                Retry
+              </button>
+            </div>
+          ) : null}
+
+          {error ? (
+            <div className="ob-alert bad" role="alert">
+              <div className="grow">{error}</div>
+              <button type="button" className="btn text sl" onClick={handleRetry}>
+                Retry
+              </button>
+            </div>
+          ) : null}
+
+          {loading && !showPermissionPrompt ? (
+            <>
+              <p className="small muted">Loading banners near you...</p>
+              <BannerWall banners={[]} skeletonCount={8} label="Loading banners" />
+            </>
+          ) : null}
+
+          {!loading && !error && location && bannerData.length === 0 ? (
+            <div className="ob-alert">No nearby banners were found for your current location.</div>
+          ) : null}
+
+          {!loading && bannerData.length > 0 ? (
+            <>
+              <BannerWall
+                banners={bannerData}
+                here={location}
+                loadingMore={loadingMore}
+                label="Banners near you"
+              />
+              {hasMore ? <div ref={sentinelRef} style={{ height: 1 }} /> : null}
+            </>
+          ) : null}
+        </div>
+      </section>
+
+      <section className="ob-about small muted">
+        This website is not associated with Bannergress, Ingress and/or Niantic.
+        This website is an alternative, open-source front-end for Bannergress's
+        back-end.
+      </section>
+
+      <CityPicker
+        open={cityPickerOpen}
+        onClose={() => setCityPickerOpen(false)}
+        onPick={(place) => {
+          savePickedCity(place);
+          setCity(place);
+          setCityPickerOpen(false);
+          openCity(place);
         }}
-      >
-        <Typography
-          variant="overline"
-          sx={{ color: "text.secondary", letterSpacing: "0.18em" }}
-        >
-          Discover
-        </Typography>
-        <Typography variant="h4" sx={{ mb: 1 }}>
-          Banners near me
-        </Typography>
-        <Typography variant="subtitle1" color="text.secondary" sx={{ maxWidth: 700 }}>
-          Find live banners around your current location and jump into details
-          quickly.
-        </Typography>
-        <Typography variant="body2" color="text.secondary" sx={{ mt: 1.5 }}>
-          This website is not associated with Bannergress, Ingress and/or
-          Niantic. This website is an alternative, open-source front-end for
-          Bannergress's back-end.
-        </Typography>
-      </Box>
-      <Stack spacing={2} sx={{ mt: 2 }}>
-        {showPermissionPrompt && (
-          <Alert
-            severity="info"
-            action={
-              <Button
-                color="inherit"
-                size="small"
-                onClick={handleGrantLocationAccess}
-              >
-                Grant location access
-              </Button>
-            }
-          >
-            Enable location access to load nearby banners.
-          </Alert>
-        )}
-
-        {!showPermissionPrompt && permissionState === "denied" && (
-          <Alert
-            severity="warning"
-            action={
-              <Button color="inherit" size="small" onClick={handleRetry}>
-                Retry
-              </Button>
-            }
-          >
-            Location access is blocked. Allow it in your browser to use nearby
-            banners.
-          </Alert>
-        )}
-
-        {error && (
-          <Alert
-            severity="error"
-            action={
-              <Button color="inherit" size="small" onClick={handleRetry}>
-                Retry
-              </Button>
-            }
-          >
-            {error}
-          </Alert>
-        )}
-
-        {loading && !showPermissionPrompt && (
-          <Typography variant="body2">Loading banners near you...</Typography>
-        )}
-
-        {!loading && !error && location && bannerData.length === 0 && (
-          <Alert severity="info">
-            No nearby banners were found for your current location.
-          </Alert>
-        )}
-
-        {bannerData.length > 0 && (
-          <>
-            <Grid container spacing={2.5}>
-              {bannerData.map((banner) => (
-                <Grid item xs={12} sm={6} md={4} key={banner.id} sx={{ display: "flex" }}>
-                  <BannerCard banner={banner} />
-                </Grid>
-              ))}
-            </Grid>
-            {limit === 9 && (
-              <Button
-                variant="contained"
-                onClick={handleLoadMore}
-                sx={{ mt: 2, alignSelf: "flex-start" }}
-                disabled={loading}
-              >
-                Load more...
-              </Button>
-            )}
-          </>
-        )}
-      </Stack>
-    </Container>
+      />
+    </div>
   );
 }

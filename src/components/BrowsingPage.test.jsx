@@ -129,7 +129,8 @@ test("restores browse sort, loaded banners, and scroll after remount", async () 
     "href",
     "/together/restored-place"
   );
-  await user.click(screen.getByRole("button", { name: /^a-z$/i }));
+  await user.click(screen.getByRole("button", { name: /^sort:/i }));
+  await user.click(screen.getByRole("menuitem", { name: /^a-z$/i }));
   expect(await screen.findByText("Sorted Browse Banner")).toBeInTheDocument();
   expect(screen.queryByText("Initial Browse Banner")).not.toBeInTheDocument();
   expect(getBannerFetchCalls()).toHaveLength(2);
@@ -182,7 +183,7 @@ test("top browse navigation resets saved root browse filters", async () => {
       return jsonResponse([]);
     }
 
-    if (url.includes("/bnrs?limit=9&offset=0&orderBy=created")) {
+    if (url.includes("/bnrs?limit=24&offset=0&orderBy=created")) {
       return jsonResponse([]);
     }
 
@@ -200,7 +201,7 @@ test("top browse navigation resets saved root browse filters", async () => {
   );
 
   expect(await screen.findByText("Search: reset")).toBeInTheDocument();
-  await user.click(screen.getByRole("button", { name: /^browse$/i }));
+  await user.click(screen.getByRole("link", { name: /^browse$/i }));
 
   await waitFor(() => {
     expect(readBrowseState(rootScope).filters).toEqual(DEFAULT_BANNER_FILTERS);

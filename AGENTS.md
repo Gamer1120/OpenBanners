@@ -66,3 +66,7 @@ Pull requests should include a summary, testing performed (`yarn test`, `yarn bu
 ## Security & Configuration Tips
 
 Do not commit secrets, local tokens, or production certificate material. Treat `server/banner-meta.php`, prerendered metadata, Docker deployment files, nginx proxy snippets, and third-party API contracts as deployment-sensitive paths; verify them through the GitHub Docker image workflow and live production smoke checks when touched.
+
+## Design X (Material 3) UI
+
+The app shell, Home, Browse, Search, Lists and the banner page follow prototype "X" (2026-10-20): Material 3 tokens in `src/m3.css` (light/dark via `data-theme` on `<html>`, set by `src/themeMode.js`; the theme choice lives in the top bar's More menu). Map, Banner Together and the Rerouter still use the original dark styling through the `LegacyDark` wrapper in `Home.jsx`. Keep these decisions: Home has no map (search + Nearby/Map/Browse + "Banners in <city>" + near-you wall); Browse shows places as a folded chip cloud, only Wall and List views, infinite scroll, mosaic tiles one column wide with tall art panning inside the tile; showing offline banners is never persisted; banner page shows route lines, a Start flag and numbered mission starts, portal links are `geo:` URIs, unavailable waypoints are struck through, and each mission links to Ingress (`link.ingress.com`) and Intel. Country flags use the self-hosted Twemoji Country Flags font (`public/fonts`) so they render on Windows.

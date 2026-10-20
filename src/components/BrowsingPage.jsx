@@ -5,25 +5,16 @@ import React, {
   useRef,
   useState,
 } from "react";
-import BannerListItem from "./BannerListItem";
-import BannerCard from "./BannerCard";
-import BannerResultsViewToggle from "./BannerResultsViewToggle";
-import VisualCardSizeButton from "./VisualCardSizeButton";
-import {
-  Alert,
-  Box,
-  Button,
-  Container,
-  Grid,
-  Stack,
-  Typography,
-  useMediaQuery,
-} from "@mui/material";
-import GroupAddRoundedIcon from "@mui/icons-material/GroupAddRounded";
-import { Link } from "react-router-dom";
-import BrowsingHeader from "./BrowsingHeader";
+import { Button } from "@mui/material";
+import { Link, useNavigate } from "react-router-dom";
+import { Close, GroupAddRounded, LocationCity } from "@mui/icons-material";
+import BannerWall, { BannerRows, useInfiniteScroll } from "./BannerWall";
+import ViewModeToggle, { useBannerViewMode } from "./ViewModeToggle";
 import SortingButtons from "./SortingButtons";
-import PlacesList from "./PlacesList";
+import PlaceCloud, { getChipName, usePlaces } from "./PlaceCloud";
+import CityPicker from "./CityPicker";
+import { getFlagForPlace } from "./CountryFlags";
+import { getPlaceName, savePickedCity } from "../cityPlace";
 import { fetchBannergress, useBannergressSync } from "../bannergressSync";
 import {
   applyBannerFilters,
@@ -33,6 +24,7 @@ import {
 import {
   getBrowseStateScope,
   readBrowseState,
+  resetBrowseState,
   saveBrowseState,
 } from "../browseState";
 
@@ -88,14 +80,55 @@ const sortOptionsMap = {
   Distance: "lengthMeters",
   "Nr. of Missions": "numberOfMissions",
 };
-const viewModeStorageKey = "openbanners-banner-view-mode";
-const visualCardColumnsStorageKey = "openbanners-visual-card-columns";
-const BROWSE_PAGE_SIZE = 9;
+const BROWSE_PAGE_SIZE = 24;
 const FILTERED_BROWSE_PREFETCH_TARGET = BROWSE_PAGE_SIZE * 2;
-const VISUAL_CARD_COLUMN_MIN = 3;
-const VISUAL_CARD_FALLBACK_MAX = 8;
-const VISUAL_CARD_GAP_PX = 20;
-const VISUAL_CARD_MIN_WIDTH_PX = 220;
+
+function useCurrentPlace(placeId) {
+  const [currentPlace, setCurrentPlace] = useState(null);
+
+  useEffect(() => {
+    if (!placeId) {
+      setCurrentPlace(null);
+      return undefined;
+    }
+
+    let ignore = false;
+    setCurrentPlace(null);
+
+    fetch(`https://api.bannergress.com/places/${encodeURIComponent(placeId)}`)
+      .then((response) => response.json())
+      .then((data) => {
+        if (!ignore) {
+          setCurrentPlace(data && typeof data === "object" && data.id ? data : null);
+        }
+      })
+      .catch((fetchError) => {
+        console.error(fetchError);
+
+        if (!ignore) {
+          setCurrentPlace(null);
+        }
+      });
+
+    return () => {
+      ignore = true;
+    };
+  }, [placeId]);
+
+  return currentPlace;
+}
+
+function getPlaceTrail(place) {
+  const trail = [];
+  let current = place?.parentPlace;
+
+  while (current && trail.length < 8) {
+    trail.unshift(current);
+    current = current.parentPlace;
+  }
+
+  return trail;
+}
 
 export default function BrowsingPage({
   placeId,
@@ -141,24 +174,12 @@ export default function BrowsingPage({
   const shouldRestoreScrollRef = useRef(
     initialBrowseState.hasLoaded && initialBrowseState.scrollY > 0
   );
-  const [viewMode, setViewMode] = useState(() => {
-    const storedValue = window.localStorage.getItem(viewModeStorageKey);
-    return storedValue === "compact" ? "compact" : "visual";
-  });
-  const [visualCardColumns, setVisualCardColumns] = useState(() => {
-    const storedValue = Number(window.localStorage.getItem(visualCardColumnsStorageKey));
-    return Number.isFinite(storedValue) && storedValue >= VISUAL_CARD_COLUMN_MIN
-      ? storedValue
-      : 5;
-  });
-  const [visualCardSliderMax, setVisualCardSliderMax] = useState(VISUAL_CARD_FALLBACK_MAX);
-
-  const isSmallScreen = useMediaQuery((theme) => theme.breakpoints.down("sm"));
-  const visualCardColumnsTarget = Math.min(
-    Math.max(visualCardColumns, VISUAL_CARD_COLUMN_MIN),
-    visualCardSliderMax
-  );
-  const visualCardWidth = `calc((100% - ${(visualCardColumnsTarget - 1) * VISUAL_CARD_GAP_PX}px) / ${visualCardColumnsTarget})`;
+  const [viewMode, handleViewModeChange] = useBannerViewMode();
+  const [cityPickerOpen, setCityPickerOpen] = useState(false);
+  const navigate = useNavigate();
+  const currentPlace = useCurrentPlace(placeId);
+  const placesState = usePlaces(placeId, !authorName);
+  const placeTrail = useMemo(() => getPlaceTrail(currentPlace), [currentPlace]);
 
   const handleSort = (option) => {
     if (option === sortOption) {
@@ -170,17 +191,8 @@ export default function BrowsingPage({
     }
   };
 
-  const handlePlacesListToggle = () => {
-    setIsPlacesListExpanded(!isPlacesListExpanded);
-  };
-
   const handleRetry = () => {
     setReloadToken((currentValue) => currentValue + 1);
-  };
-
-  const handleViewModeChange = (nextViewMode) => {
-    setViewMode(nextViewMode);
-    window.localStorage.setItem(viewModeStorageKey, nextViewMode);
   };
 
   useEffect(() => {
@@ -205,28 +217,6 @@ export default function BrowsingPage({
     setError("");
     setReloadToken(0);
   }, [browseStateScope]);
-
-  useEffect(() => {
-    const updateVisualCardSliderMax = () => {
-      const width = resultsAreaRef.current?.clientWidth ?? window.innerWidth;
-      const computedMax = Math.max(
-        VISUAL_CARD_COLUMN_MIN,
-        Math.floor((width + VISUAL_CARD_GAP_PX) / (VISUAL_CARD_MIN_WIDTH_PX + VISUAL_CARD_GAP_PX))
-      );
-      setVisualCardSliderMax(computedMax);
-      setVisualCardColumns((currentValue) => {
-        const nextValue = Math.min(Math.max(currentValue, VISUAL_CARD_COLUMN_MIN), computedMax);
-        window.localStorage.setItem(visualCardColumnsStorageKey, String(nextValue));
-        return nextValue;
-      });
-    };
-
-    updateVisualCardSliderMax();
-    window.addEventListener("resize", updateVisualCardSliderMax);
-    return () => {
-      window.removeEventListener("resize", updateVisualCardSliderMax);
-    };
-  }, []);
 
   const browseQueryKey = [
     placeId ?? "",
@@ -553,11 +543,35 @@ export default function BrowsingPage({
     displayedBanners.length === 0 ||
     displayedBanners.length < Math.min(filteredPrefetchTarget, banners.length);
   const isAgentView = Boolean(authorName);
-  const headerEyebrow = isAgentView ? "Agent" : "Explore";
-  const headerTitle = isAgentView ? authorName : "Browsing";
+  const isCity = currentPlace?.type === "locality";
+  const placeName = currentPlace
+    ? getChipName(currentPlace, currentPlace.type === "country")
+    : "";
+  const headerTitle = isAgentView
+    ? authorName
+    : placeId
+      ? placeName || "Loading…"
+      : "All countries";
   const headerDescription = isAgentView
     ? `Banners created by ${authorName}.`
-    : "This website is not associated with Bannergress, Ingress and/or Niantic. This website is an alternative, open-source front-end for Bannergress's back-end.";
+    : placeId
+      ? currentPlace && Number.isFinite(currentPlace.numberOfBanners)
+        ? `${currentPlace.numberOfBanners.toLocaleString("en-US")} banners${
+            currentPlace.formattedAddress && currentPlace.formattedAddress !== placeName
+              ? ` · ${currentPlace.formattedAddress}`
+              : ""
+          }`
+        : ""
+      : placesState.loading
+        ? ""
+        : `${placesState.places
+            .reduce((total, place) => total + (Number(place.numberOfBanners) || 0), 0)
+            .toLocaleString("en-US")} banners in ${placesState.places.length} countries`;
+  const cloudHeading = !placeId
+    ? "Countries"
+    : currentPlace?.type === "country"
+      ? "Regions and cities"
+      : "Places";
 
   useEffect(() => {
     if (
@@ -586,264 +600,150 @@ export default function BrowsingPage({
     sortOption,
   ]);
 
-  useEffect(() => {
-    if (
-      sortOption === "Efficiency" ||
-      !hasMore ||
-      loading ||
-      loadingMore ||
-      !loadMoreRef.current
-    ) {
-      return undefined;
-    }
-
-    const maybeRequestMore = () => {
-      setRequestedOffset((currentOffset) =>
-        currentOffset === nextOffset ? currentOffset : nextOffset
-      );
-    };
-
-    const observer = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((entry) => {
-          if (entry.isIntersecting) {
-            maybeRequestMore();
-          }
-        });
-      },
-      {
-        rootMargin: "320px 0px",
-      }
+  const requestNextPage = useCallback(() => {
+    setRequestedOffset((currentOffset) =>
+      currentOffset === nextOffset ? currentOffset : nextOffset
     );
+  }, [nextOffset]);
 
-    observer.observe(loadMoreRef.current);
-
-    const handleScrollCheck = () => {
-      if (!resultsContentRef.current) {
-        return;
-      }
-
-      const rect = resultsContentRef.current.getBoundingClientRect();
-      const viewportHeight = window.innerHeight || document.documentElement.clientHeight;
-
-      if (rect.bottom - viewportHeight < 320) {
-        maybeRequestMore();
-      }
-    };
-
-    handleScrollCheck();
-    window.addEventListener("scroll", handleScrollCheck, { passive: true });
-    window.addEventListener("resize", handleScrollCheck);
-
-    return () => {
-      observer.disconnect();
-      window.removeEventListener("scroll", handleScrollCheck);
-      window.removeEventListener("resize", handleScrollCheck);
-    };
-  }, [hasMore, loading, loadingMore, nextOffset, sortOption]);
+  useInfiniteScroll(loadMoreRef, {
+    enabled: sortOption !== "Efficiency" && hasMore && !loading && !loadingMore,
+    onLoadMore: requestNextPage,
+    itemCount: displayedBanners.length,
+  });
 
   return (
-    <Container
-      maxWidth={viewMode === "visual" ? false : "lg"}
-      sx={{
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
-        minHeight: "100vh",
-        color: "common.white",
-        fontSize: 24,
-        pt: 3,
-        pb: 4,
-        px: viewMode === "visual" ? { xs: 2, sm: 3, lg: 4 } : undefined,
-      }}
-    >
-      <BrowsingHeader
-        eyebrow={headerEyebrow}
-        title={headerTitle}
-        description={headerDescription}
-      />
-      <Grid container spacing={2.5}>
-        {isAgentView ? null : (
-          <Grid item xs={12} sm={3} md={2}>
-            {isSmallScreen && (
-              <Box sx={{ mb: 1.5 }}>
+    <div className="ob-page" ref={resultsAreaRef}>
+      <header className="ob-sec-head" style={{ alignItems: "flex-start" }}>
+        <div style={{ minWidth: 0 }}>
+          {placeId && !isAgentView ? (
+            <nav className="crumbs" aria-label="Place">
+              <Link to="/browse/">All countries</Link>
+              {placeTrail.map((place) => (
+                <React.Fragment key={place.id}>
+                  <span aria-hidden="true">›</span>
+                  <Link to={`/browse/${encodeURIComponent(place.id)}`}>
+                    {getChipName(place, place.type === "country")}
+                  </Link>
+                </React.Fragment>
+              ))}
+            </nav>
+          ) : null}
+          <h1 className="ob-h1">
+            {currentPlace?.type === "country" && getFlagForPlace(currentPlace.formattedAddress) ? (
+              <span aria-hidden="true">{getFlagForPlace(currentPlace.formattedAddress)} </span>
+            ) : null}
+            {headerTitle}
+          </h1>
+          {headerDescription ? <p className="small muted">{headerDescription}</p> : null}
+        </div>
+      </header>
+
+      {isAgentView ? null : (
+        <PlaceCloud
+          places={placesState.places}
+          loading={placesState.loading}
+          error={placesState.error}
+          isCountryList={!placeId}
+          heading={cloudHeading}
+        />
+      )}
+
+      <section
+        ref={resultsContentRef}
+        onClickCapture={handleResultsClickCapture}
+        aria-label="Banners"
+        style={{ display: "flex", flexDirection: "column", gap: 16 }}
+      >
+        <div className="toolbar">
+          <SortingButtons
+            handleSort={handleSort}
+            sortOption={sortOption}
+            sortOrder={sortOrder}
+            placeId={placeId}
+            bannerFilters={bannerFilters}
+            onBannerFiltersChange={onBannerFiltersChange}
+            leadingControls={
+              placeId ? (
                 <Button
-                  variant="outlined"
-                  onClick={handlePlacesListToggle}
-                  sx={{ width: "100%" }}
+                  component={Link}
+                  to={`/together/${encodeURIComponent(placeId)}`}
+                  variant="contained"
+                  size="small"
+                  startIcon={<GroupAddRounded />}
                 >
-                  {isPlacesListExpanded ? "Collapse Places" : "Expand Places"}
+                  Together
                 </Button>
-              </Box>
+              ) : null
+            }
+          />
+          <span className="grow" />
+          <ViewModeToggle viewMode={viewMode} onChange={handleViewModeChange} />
+        </div>
+
+        {isAgentView ? null : (
+          <div className="toolbar">
+            {isCity ? (
+              <>
+                <span className="chip city-chip">
+                  <LocationCity fontSize="small" />
+                  {getPlaceName(currentPlace)}
+                  <button
+                    type="button"
+                    className="x sl"
+                    aria-label={`Clear city ${getPlaceName(currentPlace)}`}
+                    onClick={() => navigate("/browse/")}
+                  >
+                    <Close fontSize="small" />
+                  </button>
+                </span>
+                <button type="button" className="btn text sl" onClick={() => setCityPickerOpen(true)}>
+                  Change city
+                </button>
+              </>
+            ) : (
+              <button type="button" className="chip sl" onClick={() => setCityPickerOpen(true)}>
+                <LocationCity fontSize="small" />
+                Pick a city
+              </button>
             )}
-            <Box
-              sx={{
-                p: 1.5,
-                borderRadius: 3,
-                bgcolor: "rgba(20, 27, 33, 0.72)",
-                border: "1px solid rgba(255,255,255,0.08)",
-                boxShadow: "0 14px 32px rgba(0,0,0,0.14)",
-              }}
-            >
-              {isPlacesListExpanded || !isSmallScreen ? (
-                <PlacesList parentPlaceId={placeId} />
-              ) : null}
-            </Box>
-          </Grid>
+          </div>
         )}
 
-        <Grid
-          item
-          xs={12}
-          sm={isAgentView || isSmallScreen ? 12 : 9}
-          md={isAgentView || isSmallScreen ? 12 : 10}
-          ref={resultsAreaRef}
-        >
-          <Box
-            ref={resultsContentRef}
-            onClickCapture={handleResultsClickCapture}
-          >
-          <Box
-            sx={{
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
-              gap: 1.5,
-              flexWrap: "wrap",
-              mb: 2,
-            }}
-          >
-            <BannerResultsViewToggle
-              viewMode={viewMode}
-              onChange={handleViewModeChange}
-            />
-            <SortingButtons
-              handleSort={handleSort}
-              sortOption={sortOption}
-              sortOrder={sortOrder}
-              placeId={placeId}
-              bannerFilters={bannerFilters}
-              onBannerFiltersChange={onBannerFiltersChange}
-              leadingControls={
-                <>
-                  {placeId ? (
-                    <Button
-                      component={Link}
-                      to={`/together/${encodeURIComponent(placeId)}`}
-                      variant="contained"
-                      size="small"
-                      startIcon={<GroupAddRoundedIcon />}
-                    >
-                      Together
-                    </Button>
-                  ) : null}
-                  {viewMode === "visual" ? (
-                    <VisualCardSizeButton
-                      columns={visualCardColumns}
-                      sliderMin={VISUAL_CARD_COLUMN_MIN}
-                      sliderMax={visualCardSliderMax}
-                      onColumnsChange={(nextValue) => {
-                        const value = Math.min(
-                          Math.max(nextValue, VISUAL_CARD_COLUMN_MIN),
-                          visualCardSliderMax
-                        );
-                        setVisualCardColumns(value);
-                        window.localStorage.setItem(
-                          visualCardColumnsStorageKey,
-                          String(value)
-                        );
-                      }}
-                    />
-                  ) : null}
-                </>
-              }
-            />
-          </Box>
-          {error && (
-            <Alert
-              severity="error"
-              action={
-                <Button color="inherit" size="small" onClick={handleRetry}>
-                  Retry
-                </Button>
-              }
-            >
-              {error}
-            </Alert>
-          )}
-          {loading ? (
-            viewMode === "compact" ? (
-              <Stack spacing={1.25} sx={{ mt: 2, mb: 2 }}>
-                {Array.from({ length: 4 }).map((_, index) => (
-                  <BannerListItem key={`browse-loading-${index}`} loading />
-                ))}
-              </Stack>
-            ) : (
-              <Grid container spacing={2.5} sx={{ mt: 2, mb: 2 }}>
-                {Array.from({ length: 6 }).map((_, index) => (
-                  <Grid item xs={6} sm={4} key={`browse-grid-loading-${index}`}>
-                    <Box
-                      sx={{
-                        height: 260,
-                        borderRadius: 3,
-                        bgcolor: "rgba(255,255,255,0.04)",
-                        border: "1px solid rgba(255,255,255,0.08)",
-                      }}
-                    />
-                  </Grid>
-                ))}
-              </Grid>
-            )
-          ) : displayedBanners.length === 0 && !error ? (
-            <Alert severity="info">No banners matched this selection.</Alert>
-          ) : viewMode === "compact" ? (
-            <Stack spacing={1.25} sx={{ mt: 2, mb: 2 }}>
-              {displayedBanners.map((banner) => (
-                <BannerListItem key={banner.id} banner={banner} />
-              ))}
-              {loadingMore
-                ? Array.from({ length: 3 }).map((_, index) => (
-                    <BannerListItem key={`browse-loading-more-${index}`} loading />
-                  ))
-                : null}
-              {hasMore ? <Box ref={loadMoreRef} sx={{ height: 1 }} /> : null}
-            </Stack>
+        {error ? (
+          <div className="ob-alert bad" role="alert">
+            <div className="grow">{error}</div>
+            <button type="button" className="btn text sl" onClick={handleRetry}>
+              Retry
+            </button>
+          </div>
+        ) : null}
+        {loading ? (
+          viewMode === "compact" ? (
+            <BannerRows banners={[]} loadingMore label="Loading banners" />
           ) : (
-            <Box
-              sx={{
-                mt: 2,
-                mb: 2,
-                display: "grid",
-                gridTemplateColumns: `repeat(auto-fit, minmax(${VISUAL_CARD_MIN_WIDTH_PX}px, ${visualCardWidth}))`,
-                gap: 2.5,
-                alignItems: "stretch",
-              }}
-            >
-              {displayedBanners.map((banner) => (
-                <Box key={banner.id} sx={{ display: "flex", alignItems: "stretch" }}>
-                  <BannerCard banner={banner} maxWidth="100%" />
-                </Box>
-              ))}
-              {loadingMore
-                ? Array.from({ length: 3 }).map((_, index) => (
-                    <Box key={`browse-grid-loading-more-${index}`}>
-                      <Box
-                        sx={{
-                          height: 260,
-                          borderRadius: 3,
-                          bgcolor: "rgba(255,255,255,0.04)",
-                          border: "1px solid rgba(255,255,255,0.08)",
-                        }}
-                      />
-                    </Box>
-                  ))
-                : null}
-              {hasMore ? <Box ref={loadMoreRef} sx={{ height: 1, gridColumn: "1 / -1" }} /> : null}
-            </Box>
-          )}
-          </Box>
-        </Grid>
-      </Grid>
-    </Container>
+            <BannerWall banners={[]} skeletonCount={8} label="Loading banners" />
+          )
+        ) : displayedBanners.length === 0 && !error ? (
+          <div className="ob-alert">No banners matched this selection.</div>
+        ) : viewMode === "compact" ? (
+          <BannerRows banners={displayedBanners} loadingMore={loadingMore} />
+        ) : (
+          <BannerWall banners={displayedBanners} loadingMore={loadingMore} />
+        )}
+        {hasMore && !loading ? <div ref={loadMoreRef} style={{ height: 1 }} /> : null}
+      </section>
+
+      <CityPicker
+        open={cityPickerOpen}
+        onClose={() => setCityPickerOpen(false)}
+        onPick={(place) => {
+          savePickedCity(place);
+          setCityPickerOpen(false);
+          resetBrowseState(getBrowseStateScope({ placeId: place.id }));
+          navigate(`/browse/${encodeURIComponent(place.id)}`);
+        }}
+      />
+    </div>
   );
 }

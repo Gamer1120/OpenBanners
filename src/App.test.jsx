@@ -25,6 +25,7 @@ import Home from "./components/Home";
 import Map, { __resetDiscoveryMapCacheForTests } from "./components/Map";
 import PlacesList from "./components/PlacesList";
 import TopMenu from "./components/TopMenu";
+import AppNav from "./components/AppNav";
 import { getFlagForPlace } from "./components/CountryFlags";
 import { applyBannerFilters, DEFAULT_BANNER_FILTERS } from "./bannerFilters";
 import {
@@ -510,7 +511,7 @@ test("renders browsing results and places list", async () => {
       ]);
     }
 
-    if (url.includes("/bnrs?limit=9&offset=0&orderBy=created")) {
+    if (url.includes("/bnrs?limit=24&offset=0&orderBy=created")) {
       return jsonResponse([
         {
           id: "browse-banner",
@@ -534,7 +535,7 @@ test("renders browsing results and places list", async () => {
     { route: "/browse/" }
   );
 
-  expect(await screen.findByText("Browsing")).toBeInTheDocument();
+  expect(await screen.findByText("All countries")).toBeInTheDocument();
   expect(await screen.findByText("Browse Banner")).toBeInTheDocument();
   expect(await screen.findByText(/Netherlands/)).toBeInTheDocument();
   expect(
@@ -592,12 +593,12 @@ test("shows parent place as the top places list entry", async () => {
 
   expect(await screen.findByText(/Leiden, Netherlands/)).toBeInTheDocument();
 
-  const browseLinks = screen.getAllByRole("link");
   expect(
-    browseLinks[0]
+    await screen.findByRole("link", { name: /^netherlands$/i })
   ).toHaveAttribute("href", "/browse/netherlands-2585");
-  expect(browseLinks[0]).toHaveAccessibleName(/up to netherlands/i);
-  expect(browseLinks[1]).toHaveAttribute("href", "/browse/leiden-8522");
+  expect(
+    screen.getByRole("link", { name: /Leiden, Netherlands \(281\)/ })
+  ).toHaveAttribute("href", "/browse/leiden-8522");
 });
 
 test("links country browse pages back to all countries", async () => {
@@ -633,7 +634,7 @@ test("links country browse pages back to all countries", async () => {
   );
 
   expect(
-    await screen.findByRole("link", { name: /up to all countries/i })
+    await screen.findByRole("link", { name: /^all countries$/i })
   ).toHaveAttribute("href", "/browse/");
 });
 
@@ -792,7 +793,7 @@ test("browse results respect a custom mission range filter", async () => {
 
 test("browse mission filtering backfills extra pages before scroll gets sparse", async () => {
   const buildMostlyFilteredPage = (pageNumber, visibleBanner) => [
-    ...Array.from({ length: 8 }, (_, itemIndex) => ({
+    ...Array.from({ length: 23 }, (_, itemIndex) => ({
       id: `backfill-small-${pageNumber}-${itemIndex + 1}`,
       title: `Backfill Small ${pageNumber}-${itemIndex + 1}`,
       picture: `/images/backfill-small-${pageNumber}-${itemIndex + 1}.jpg`,
@@ -826,7 +827,7 @@ test("browse mission filtering backfills extra pages before scroll gets sparse",
     if (
       url.includes("/bnrs?") &&
       url.includes("author=BackfillAgent") &&
-      url.includes("offset=9")
+      url.includes("offset=24")
     ) {
       return jsonResponse(
         buildMostlyFilteredPage(2, {
@@ -844,7 +845,7 @@ test("browse mission filtering backfills extra pages before scroll gets sparse",
     if (
       url.includes("/bnrs?") &&
       url.includes("author=BackfillAgent") &&
-      url.includes("offset=18")
+      url.includes("offset=48")
     ) {
       return jsonResponse([
         {
@@ -1106,7 +1107,6 @@ test("uses cached country places without refetching", async () => {
 });
 
 test("submits top menu searches, fires menu callbacks, and navigates map route", async () => {
-  const onBrowseClick = vi.fn();
   const onRerouterClick = vi.fn();
   const onTitleClick = vi.fn();
   const onSearch = vi.fn();
@@ -1117,8 +1117,8 @@ test("submits top menu searches, fires menu callbacks, and navigates map route",
         path="*"
         element={
           <>
+            <AppNav />
             <TopMenu
-              onBrowseClick={onBrowseClick}
               onRerouterClick={onRerouterClick}
               onTitleClick={onTitleClick}
               onSearch={onSearch}
@@ -1132,8 +1132,10 @@ test("submits top menu searches, fires menu callbacks, and navigates map route",
     { route: "/" }
   );
 
-  await userEvent.click(screen.getByRole("button", { name: /browse/i }));
-  expect(onBrowseClick).toHaveBeenCalledTimes(1);
+  expect(screen.getByRole("link", { name: /^browse$/i })).toHaveAttribute(
+    "href",
+    "/browse/"
+  );
 
   await userEvent.click(screen.getByRole("button", { name: /go to home page/i }));
   expect(onTitleClick).toHaveBeenCalledTimes(1);
@@ -1151,10 +1153,11 @@ test("submits top menu searches, fires menu callbacks, and navigates map route",
   );
   expect(onSearch).toHaveBeenCalledTimes(1);
 
-  await userEvent.click(screen.getByRole("button", { name: /reroute banner/i }));
+  await userEvent.click(screen.getByRole("button", { name: /more options/i }));
+  await userEvent.click(screen.getByRole("menuitem", { name: /reroute banner/i }));
   expect(onRerouterClick).toHaveBeenCalledTimes(1);
 
-  await userEvent.click(screen.getByRole("button", { name: /map/i }));
+  await userEvent.click(screen.getByRole("link", { name: /^map$/i }));
   expect(screen.getByTestId("location-display")).toHaveTextContent("/map");
 });
 
@@ -1645,7 +1648,7 @@ test("renders place and banner search results", async () => {
     { route: "/search/enschede" }
   );
 
-  expect(await screen.findByText(/Enschede \(CITY\) \(22\)/)).toBeInTheDocument();
+  expect(await screen.findByRole("link", { name: /Enschede \(CITY\) \(22\)/ })).toBeInTheDocument();
   expect(await screen.findByText("Search Banner")).toBeInTheDocument();
   expect(
     screen.getByRole("button", { name: /visual banner view/i })
@@ -1662,7 +1665,7 @@ test("persists compact banner view preference across result screens", async () =
       return jsonResponse([]);
     }
 
-    if (url.includes("/bnrs?limit=9&offset=0&orderBy=created")) {
+    if (url.includes("/bnrs?limit=24&offset=0&orderBy=created")) {
       return jsonResponse([
         {
           id: "browse-banner",
@@ -1756,7 +1759,7 @@ test("shows place results before banner results finish loading", async () => {
     { route: "/search/enschede" }
   );
 
-  expect(await screen.findByText(/Enschede \(CITY\) \(22\)/)).toBeInTheDocument();
+  expect(await screen.findByRole("link", { name: /Enschede \(CITY\) \(22\)/ })).toBeInTheDocument();
   expect(screen.queryByText("Search Banner")).not.toBeInTheDocument();
 
   bannerResponse.resolve({
@@ -1974,7 +1977,7 @@ test("shows Bannergress warnings on the banner details page", async () => {
 
   expect(await screen.findByText("Warning Banner")).toBeInTheDocument();
 
-  const warning = screen.getByRole("alert");
+  const warning = screen.getByText("Bannergress warning").closest('[role="note"]');
   expect(warning).toHaveTextContent("Bannergress warning");
   expect(warning).toHaveTextContent(
     "This mission goes over a graveyard that's only open between 07:30 and 19:00"
@@ -3433,11 +3436,22 @@ test("renders mission waypoint dots on the banner details overview map", async (
   );
 
   expect(await screen.findByText("Overview Banner")).toBeInTheDocument();
+  // Whole route: numbered mission starts only, waypoints appear for the selected mission.
   expect(screen.getByTestId("marker-52.37-4.89")).toBeInTheDocument();
   expect(screen.getByTestId("marker-52.38-4.9")).toBeInTheDocument();
+  expect(screen.queryByTestId("marker-52.371-4.891")).not.toBeInTheDocument();
+
+  await userEvent.click(screen.getByRole("tab", { name: /missions/i }));
+  await userEvent.click(
+    screen.getByRole("button", { name: /show mission 1 on the map/i })
+  );
+
   expect(screen.getByTestId("marker-52.371-4.891")).toBeInTheDocument();
-  expect(screen.getByTestId("marker-52.381-4.901")).toBeInTheDocument();
-  expect(screen.getAllByText("Navigate to portal").length).toBeGreaterThan(0);
+  expect(screen.queryByTestId("marker-52.381-4.901")).not.toBeInTheDocument();
+  expect(screen.getByRole("link", { name: "Open in maps app" })).toHaveAttribute(
+    "href",
+    expect.stringMatching(/^geo:52\.371,4\.891\?q=52\.371,4\.891\(/)
+  );
 });
 
 test("shows bannergress list action buttons on the banner overview page", async () => {

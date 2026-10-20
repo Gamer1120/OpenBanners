@@ -1,17 +1,37 @@
 import React, { useState } from "react";
+import { Alert, Snackbar } from "@mui/material";
 import {
-  Alert,
-  Box,
-  Button,
-  Skeleton,
-  Snackbar,
-  Typography,
-} from "@mui/material";
+  Directions,
+  Explore,
+  Layers,
+  OpenInNew,
+  Share,
+  TouchApp,
+} from "@mui/icons-material";
 import { useNavigate } from "react-router-dom";
 
+function ActionItem({ icon: Icon, title, subtitle, onClick, disabled, trailing = null }) {
+  return (
+    <li>
+      <button type="button" className="li sl" onClick={onClick} disabled={disabled}>
+        <span className="lead">
+          <Icon fontSize="small" />
+        </span>
+        <span className="txt">
+          <span className="t">{title}</span>
+          <span className="s">{subtitle}</span>
+        </span>
+        {trailing}
+      </button>
+    </li>
+  );
+}
+
+// "Start this banner": share, OpenBanners Overlay, navigation and BannerGuider.
 const BannerInfo = ({ banner, loading = false }) => {
   const navigate = useNavigate();
   const [shareFeedback, setShareFeedback] = useState(null);
+  const hasStartPoint = Boolean(banner.startLatitude && banner.startLongitude);
 
   const handleOpenBannerGuider = () => {
     navigate(`/bannerguider/${banner.id}`);
@@ -22,7 +42,7 @@ const BannerInfo = ({ banner, loading = false }) => {
   };
 
   const handleNavigateToStartPoint = () => {
-    if (!banner.startLatitude || !banner.startLongitude) {
+    if (!hasStartPoint) {
       setShareFeedback({
         severity: "warning",
         message: "This banner does not have a valid start point.",
@@ -118,103 +138,63 @@ const BannerInfo = ({ banner, loading = false }) => {
   };
 
   const handleShareBannergressOverlay = () => {
-    shareBannerText(
-      `https://bannergress.com/banner/${banner.id}`,
-      {
-        title: banner.title,
-        successMessage: "OpenBanners Overlay link copied to clipboard.",
-      }
-    );
+    shareBannerText(`https://bannergress.com/banner/${banner.id}`, {
+      title: banner.title,
+      successMessage: "OpenBanners Overlay link copied to clipboard.",
+    });
   };
 
   return (
     <>
-      <Box
-        sx={{
-          background: "rgba(20, 27, 33, 0.94)",
-          color: "#fff",
-          p: 2.25,
-          m: 2,
-          display: "flex",
-          flexDirection: "column",
-          gap: 1.25,
-          borderRadius: 3,
-          border: "1px solid rgba(255, 255, 255, 0.08)",
-          boxShadow: "0 20px 45px rgba(0, 0, 0, 0.22)",
-        }}
-      >
-        <Typography
-          variant="overline"
-          sx={{ color: "text.secondary", letterSpacing: "0.16em" }}
-        >
-          Banner Tools
-        </Typography>
-        <Button
-          variant="contained"
-          color="primary"
-          onClick={handleShareBanner}
-          disabled={loading}
-        >
-          Share banner
-        </Button>
-        <Button
-          variant="contained"
-          color="primary"
-          onClick={handleShareBannergressOverlay}
-          disabled={loading}
-        >
-          Open with OpenBanners Overlay
-        </Button>
-        <Button
-          variant="contained"
-          color="primary"
-          onClick={handleNavigateToStartPoint}
-          disabled={loading || !banner.startLatitude || !banner.startLongitude}
-        >
-          Navigate to Start Point
-        </Button>
-        <Button
-          variant="contained"
-          color="primary"
-          onClick={handleOpenBannerGuider}
-          disabled={loading}
-        >
-          Open BannerGuider
-        </Button>
-        <Button
-          variant="contained"
-          color="primary"
-          onClick={handleOpenBannerGuiderWithoutLocation}
-          disabled={loading}
-        >
-          Open BannerGuider without location (may prevent "Inaccurate location" in
-          Ingress on iOS)
-        </Button>
-        {!loading && (!banner.startLatitude || !banner.startLongitude) ? (
-          <Alert severity="info" sx={{ mt: 1 }}>
-            No start-point coordinates are available for navigation.
-          </Alert>
+      <div className="card">
+        <h2>Start this banner</h2>
+        <ul className="ob-list">
+          <ActionItem
+            icon={Directions}
+            title="Navigate to Start Point"
+            subtitle="Google Maps directions to the first waypoint"
+            onClick={handleNavigateToStartPoint}
+            disabled={loading || !hasStartPoint}
+            trailing={<OpenInNew fontSize="small" className="muted" />}
+          />
+          <ActionItem
+            icon={Layers}
+            title="Open with OpenBanners Overlay"
+            subtitle="Shows the next waypoint on top of Ingress (Android app)"
+            onClick={handleShareBannergressOverlay}
+            disabled={loading}
+          />
+          <ActionItem
+            icon={Explore}
+            title="Open BannerGuider"
+            subtitle="Guides you to each next portal using your location"
+            onClick={handleOpenBannerGuider}
+            disabled={loading}
+          />
+          <ActionItem
+            icon={TouchApp}
+            title="Open BannerGuider without location"
+            subtitle='Step through manually; may prevent "Inaccurate location" in Ingress on iOS'
+            onClick={handleOpenBannerGuiderWithoutLocation}
+            disabled={loading}
+          />
+          <ActionItem
+            icon={Share}
+            title="Share banner"
+            subtitle="Send this banner to a friend"
+            onClick={handleShareBanner}
+            disabled={loading}
+          />
+        </ul>
+        {!loading && !hasStartPoint ? (
+          <p className="small muted">No start-point coordinates are available for navigation.</p>
         ) : null}
-        <Typography
-          variant="body1"
-          sx={{ fontSize: 16, lineHeight: 1.65, mt: 1, color: "text.secondary" }}
-        >
+        <p className="small muted" style={{ marginTop: 8 }}>
           BannerGuider tutorial: Open BannerGuider, tap NEXT to open the next
           mission in your scanner. Do the mission, then press NEXT again until
           you are done with the banner.
-        </Typography>
-        <Typography variant="body1" sx={{ fontSize: 16, lineHeight: 1.7 }}>
-          {loading ? (
-            <>
-              <Skeleton sx={{ bgcolor: "rgba(255,255,255,0.12)" }} />
-              <Skeleton sx={{ bgcolor: "rgba(255,255,255,0.12)" }} />
-              <Skeleton width="70%" sx={{ bgcolor: "rgba(255,255,255,0.12)" }} />
-            </>
-          ) : (
-            banner.description || "No banner description is available."
-          )}
-        </Typography>
-      </Box>
+        </p>
+      </div>
       <Snackbar
         open={Boolean(shareFeedback)}
         autoHideDuration={2500}

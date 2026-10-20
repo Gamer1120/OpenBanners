@@ -45,6 +45,7 @@ function App() {
           />
           <Route path="/search/:query" element={<Home />} />
           <Route path="/map" element={<Home />} />
+          <Route path="/lists" element={<Home />} />
         </Routes>
       </Router>
     </div>

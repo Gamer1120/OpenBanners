@@ -2,6 +2,17 @@ import React from "react";
 import { Box, Button, CircularProgress, Skeleton, Stack, Typography } from "@mui/material";
 import { updateBannergressBannerListType } from "../bannergressSync";
 
+// Light (design X) theme: outlined M3 segmented look; dark keeps the original tints.
+const LIGHT_IDLE_SX = {
+  color: "var(--on-surface)",
+  borderColor: "var(--outline)",
+  bgcolor: "transparent",
+  "&:hover": {
+    borderColor: "var(--outline)",
+    bgcolor: "var(--sc-high)",
+  },
+};
+
 const bannerListActions = [
   {
     listType: "todo",
@@ -212,21 +223,31 @@ export default function BannergressListActions({
               onClick={() => {
                 handleBannerListAction(action.listType);
               }}
-              sx={{
-                minWidth: 0,
-                borderRadius: 1.75,
-                fontWeight: 800,
-                lineHeight: 1.15,
-                textTransform: "none",
-                boxShadow: "none",
-                ...action.idleSx,
-                ...(isActive ? action.activeSx : null),
-                ...styles.buttonSx,
-                "&.Mui-disabled": {
-                  color: "rgba(255,255,255,0.46)",
-                  borderColor: "rgba(255,255,255,0.1)",
-                  bgcolor: "rgba(255,255,255,0.05)",
-                },
+              sx={(theme) => {
+                const light = theme.palette.mode === "light";
+
+                return {
+                  minWidth: 0,
+                  borderRadius: light ? 5 : 1.75,
+                  fontWeight: light ? 600 : 800,
+                  lineHeight: 1.15,
+                  textTransform: "none",
+                  boxShadow: "none",
+                  ...(light ? LIGHT_IDLE_SX : action.idleSx),
+                  ...(isActive ? action.activeSx : null),
+                  ...styles.buttonSx,
+                  "&.Mui-disabled": light
+                    ? {
+                        color: "rgba(0,0,0,0.38)",
+                        borderColor: "rgba(0,0,0,0.12)",
+                        bgcolor: "transparent",
+                      }
+                    : {
+                        color: "rgba(255,255,255,0.46)",
+                        borderColor: "rgba(255,255,255,0.1)",
+                        bgcolor: "rgba(255,255,255,0.05)",
+                      },
+                };
               }}
             >
               {isPending ? (

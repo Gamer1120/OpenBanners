@@ -1,15 +1,16 @@
 import { useState, useEffect, useMemo } from "react";
-import { Box } from "@mui/material";
+import { ThemeProvider } from "@mui/material/styles";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import TopMenu from "./TopMenu";
+import AppNav from "./AppNav";
 import BannersNearMe from "./BannersNearMe";
+import ListsPage from "./ListsPage";
 import BrowsingPage from "./BrowsingPage";
 import SearchResults from "./SearchResults";
 import BannerDetailsPage from "./BannerDetailsPage";
 import Map from "./Map";
 import BannerRerouterPage from "./BannerRerouterPage";
 import BannerTogetherPage from "./BannerTogetherPage";
-import { DEFAULT_BANNER_FILTERS } from "../bannerFilters";
 import {
   readDiscoveryMapFilters,
   saveDiscoveryMapFilters,
@@ -17,10 +18,30 @@ import {
 import {
   getBrowseStateScope,
   readBrowseFilters,
-  resetBrowseState,
   saveBrowseFilters,
 } from "../browseState";
 import { applyPageMetadata } from "../seo";
+import { buildAppTheme } from "../appTheme";
+
+const legacyDarkTheme = buildAppTheme("dark");
+
+function LegacyDark({ children, fill = false }) {
+  return (
+    <ThemeProvider theme={legacyDarkTheme}>
+      <div className={`legacy-dark${fill ? " fill" : ""}`}>{children}</div>
+    </ThemeProvider>
+  );
+}
+
+const VIEW_TITLES = {
+  browsing: "Browse",
+  agentBrowsing: "Browse",
+  map: "Map",
+  lists: "Lists",
+  searching: "Search",
+  together: "Banner Together",
+  rerouter: "Reroute Banner",
+};
 
 function formatRouteParam(value) {
   if (typeof value !== "string" || value.trim() === "") {
@@ -84,6 +105,13 @@ function getRouteMetadata({ pathname, placeId, agentName, query }) {
     };
   }
 
+  if (pathname.startsWith("/lists")) {
+    return {
+      title: "Your lists",
+      description: "Your Bannergress to-do, done and hidden banners.",
+    };
+  }
+
   if (pathname.startsWith("/rerouter")) {
     return {
       title: "Banner Rerouter",
@@ -126,6 +154,10 @@ function getCurrentView(pathname) {
     return "rerouter";
   }
 
+  if (pathname.startsWith("/lists")) {
+    return "lists";
+  }
+
   return "bannersNearMe";
 }
 
@@ -146,15 +178,6 @@ export default function Home() {
   const [mapBannerFilters, setMapBannerFiltersState] = useState(
     readDiscoveryMapFilters
   );
-
-  const handleBrowseClick = () => {
-    const rootBrowseStateScope = getBrowseStateScope();
-
-    resetBrowseState(rootBrowseStateScope);
-    setBannerFilters(DEFAULT_BANNER_FILTERS);
-    setCurrentView("browsing");
-    navigate("/browse/");
-  };
 
   const handleSearch = (query) => {
     setCurrentView("searching");
@@ -229,68 +252,61 @@ export default function Home() {
     });
   }, [agentName, location.pathname, location.search, placeId, query]);
 
+  const fillViewport = currentView === "bannerDetails" || currentView === "map";
+
   return (
-    <Box
-      sx={{
-        flexGrow: 1,
-        bgcolor: "grey.900",
-        height:
-          currentView === "bannerDetails" || currentView === "map"
-            ? "100dvh"
-            : "auto",
-        minHeight: "100dvh",
-        display: "flex",
-        flexDirection: "column",
-      }}
-    >
-      <TopMenu
-        onBrowseClick={handleBrowseClick}
-        onRerouterClick={handleRerouterClick}
-        onTitleClick={handleTitleClick}
-        onSearch={handleSearch}
-      />
-      <Box
-        component="main"
-        id="main-content"
-        sx={{
-          flex: 1,
-          minHeight: 0,
-          display: "flex",
-          flexDirection: "column",
-          overflow:
-            (currentView === "bannerDetails" || currentView === "map")
-              ? "hidden"
-              : "visible",
-        }}
-      >
-        {currentView === "bannersNearMe" && <BannersNearMe />}
-        {currentView === "browsing" && (
-          <BrowsingPage
-            placeId={placeId}
-            bannerFilters={bannerFilters}
-            onBannerFiltersChange={setBrowseBannerFilters}
-          />
-        )}
-        {currentView === "agentBrowsing" && (
-          <BrowsingPage
-            authorName={agentName}
-            bannerFilters={bannerFilters}
-            onBannerFiltersChange={setBrowseBannerFilters}
-          />
-        )}
-        {currentView === "searching" && <SearchResults />}
-        {currentView === "bannerDetails" && <BannerDetailsPage />}
-        {currentView === "together" && (
-          <BannerTogetherPage placeId={placeId} roomId={roomId} />
-        )}
-        {currentView === "map" && (
-          <Map
-            bannerFilters={mapBannerFilters}
-            onBannerFiltersChange={setMapBannerFilters}
-          />
-        )}
-        {currentView === "rerouter" && <BannerRerouterPage />}
-      </Box>
-    </Box>
+    <div className={`ob-app${fillViewport ? " fill" : ""}`}>
+      <a className="sr" href="#main-content">
+        Skip to content
+      </a>
+      <AppNav />
+      <div className="ob-col">
+        <TopMenu
+          onRerouterClick={handleRerouterClick}
+          onTitleClick={handleTitleClick}
+          onSearch={handleSearch}
+          showSearch={currentView !== "bannersNearMe"}
+          title={VIEW_TITLES[currentView] ?? ""}
+        />
+        <main className="ob-main" id="main-content" tabIndex={-1}>
+          {currentView === "bannersNearMe" && <BannersNearMe />}
+          {currentView === "browsing" && (
+            <BrowsingPage
+              placeId={placeId}
+              bannerFilters={bannerFilters}
+              onBannerFiltersChange={setBrowseBannerFilters}
+            />
+          )}
+          {currentView === "agentBrowsing" && (
+            <BrowsingPage
+              authorName={agentName}
+              bannerFilters={bannerFilters}
+              onBannerFiltersChange={setBrowseBannerFilters}
+            />
+          )}
+          {currentView === "searching" && <SearchResults />}
+          {currentView === "bannerDetails" && <BannerDetailsPage />}
+          {currentView === "lists" && <ListsPage />}
+          {currentView === "together" && (
+            <LegacyDark>
+              <BannerTogetherPage placeId={placeId} roomId={roomId} />
+            </LegacyDark>
+          )}
+          {currentView === "map" && (
+            <LegacyDark fill>
+              <Map
+                bannerFilters={mapBannerFilters}
+                onBannerFiltersChange={setMapBannerFilters}
+              />
+            </LegacyDark>
+          )}
+          {currentView === "rerouter" && (
+            <LegacyDark>
+              <BannerRerouterPage />
+            </LegacyDark>
+          )}
+        </main>
+      </div>
+    </div>
   );
 }

@@ -149,10 +149,20 @@ const flags = {
   Benin: "🇧🇯",
   Zimbabwe: "🇿🇼",
   Botswana: "🇧🇼",
+  "Caribbean Netherlands": "🇧🇶",
+  Ghana: "🇬🇭",
+  "Turks and Caicos Islands": "🇹🇨",
+  Belize: "🇧🇿",
+  Tajikistan: "🇹🇯",
+  Pakistan: "🇵🇰",
+  Bhutan: "🇧🇹",
+  Liechtenstein: "🇱🇮",
 };
 
 const aliases = {
   Bahamas: "The Bahamas",
+  Türkiye: "Turkey",
+  "TKCA 1ZZ, Turks and Caicos Islands": "Turks and Caicos Islands",
   "Czech Republic": "Czechia",
   Curacao: "Curaçao",
   Reunion: "Réunion",

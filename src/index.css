@@ -1,4 +1,4 @@
-@import url("https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&family=Space+Grotesk:wght@400;500;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap");
 
 :root {
   --app-bg: #0b1014;
@@ -17,19 +17,15 @@
 }
 
 html {
-  background:
-    linear-gradient(180deg, #0a0f13 0%, #0b1014 48%, #11171d 100%);
   min-height: 100%;
 }
 
 body {
   margin: 0;
   min-height: 100vh;
-  color: var(--app-text);
-  font-family: "IBM Plex Sans", "Segoe UI", sans-serif;
+  font-family: var(--font);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  background: transparent;
 }
 
 #root {

@@ -1,25 +1,11 @@
 import React, { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import BannerCard from "./BannerCard";
-import BannerListItem from "./BannerListItem";
-import BannerResultsViewToggle from "./BannerResultsViewToggle";
-import {
-  Alert,
-  Box,
-  Button,
-  Grid,
-  Skeleton,
-  Stack,
-  Typography,
-} from "@mui/material";
+import { LocationCity, Place } from "@mui/icons-material";
+import BannerWall, { BannerRows } from "./BannerWall";
+import ViewModeToggle, { useBannerViewMode } from "./ViewModeToggle";
+import { getFlagForPlace } from "./CountryFlags";
 import { fetchBannergress } from "../bannergressSync";
 import { getBrowseStateScope, resetBrowseState } from "../browseState";
-
-const viewModeStorageKey = "openbanners-banner-view-mode";
-const visualCardColumnsStorageKey = "openbanners-visual-card-columns";
-const VISUAL_CARD_COLUMN_MIN = 3;
-const VISUAL_CARD_GAP_PX = 16;
-const VISUAL_CARD_MIN_WIDTH_PX = 220;
 
 export default function SearchResults() {
   const [results, setResults] = useState([]);
@@ -29,18 +15,8 @@ export default function SearchResults() {
   const [placesError, setPlacesError] = useState("");
   const [bannersError, setBannersError] = useState("");
   const [reloadToken, setReloadToken] = useState(0);
-  const [viewMode, setViewMode] = useState(() => {
-    const storedValue = window.localStorage.getItem(viewModeStorageKey);
-    return storedValue === "compact" ? "compact" : "visual";
-  });
+  const [viewMode, setViewMode] = useBannerViewMode();
   const { query } = useParams();
-  const visualCardColumns = Number(window.localStorage.getItem(visualCardColumnsStorageKey));
-  const visualCardColumnsTarget =
-    Number.isFinite(visualCardColumns) && visualCardColumns >= VISUAL_CARD_COLUMN_MIN
-      ? visualCardColumns
-      : 5;
-  const visualCardWidth = `calc((100% - ${(visualCardColumnsTarget - 1) * VISUAL_CARD_GAP_PX}px) / ${visualCardColumnsTarget})`;
-
   useEffect(() => {
     let ignore = false;
 
@@ -122,11 +98,6 @@ export default function SearchResults() {
     setReloadToken((currentValue) => currentValue + 1);
   };
 
-  const handleViewModeChange = (nextViewMode) => {
-    setViewMode(nextViewMode);
-    window.localStorage.setItem(viewModeStorageKey, nextViewMode);
-  };
-
   const finishedLoading = !placesLoading && !bannersLoading;
   const noResults =
     finishedLoading &&
@@ -136,190 +107,92 @@ export default function SearchResults() {
     bannerData.length === 0;
 
   return (
-    <Box sx={{ mt: 3, px: 2, pb: 4, color: "common.white" }}>
-      <Stack spacing={3}>
-        <Box
-          sx={{
-            p: { xs: 2.25, sm: 3 },
-            borderRadius: 3,
-            border: "1px solid rgba(255, 255, 255, 0.08)",
-            background: "rgba(20, 27, 33, 0.78)",
-            boxShadow: "0 20px 40px rgba(0, 0, 0, 0.22)",
-          }}
-        >
-          <Typography
-            variant="overline"
-            sx={{ color: "text.secondary", letterSpacing: "0.18em" }}
-          >
-            Search
-          </Typography>
-          <Typography variant="h4" component="h1" sx={{ mb: 1 }}>
-            Search: {query}
-          </Typography>
-          <Typography variant="body2" color="text.secondary">
-            Places and banners load independently so you can act on early results.
-          </Typography>
-        </Box>
+    <div className="ob-page">
+      <header>
+        <h1 className="ob-h1">Search: {query}</h1>
+      </header>
 
-        <Box
-          sx={{
-            p: { xs: 2, sm: 2.5 },
-            borderRadius: 3,
-            bgcolor: "rgba(20, 27, 33, 0.72)",
-            border: "1px solid rgba(255,255,255,0.08)",
-            boxShadow: "0 14px 32px rgba(0,0,0,0.14)",
-          }}
-        >
-          <Typography variant="h6" component="h2" sx={{ mb: 1 }}>
-            Places
-          </Typography>
-          {placesError ? (
-            <Alert
-              severity="error"
-              action={
-                <Button color="inherit" size="small" onClick={reloadSearch}>
-                  Retry
-                </Button>
-              }
-            >
-              {placesError}
-            </Alert>
-          ) : placesLoading ? (
-            <Stack spacing={1}>
-              <Skeleton variant="text" width={220} height={32} />
-              <Skeleton variant="text" width={260} height={32} />
-            </Stack>
-          ) : results.length > 0 ? (
-            <Stack spacing={1}>
-              {results.map((result, index) => (
-                <Typography
-                  key={index}
-                  component={Link}
-                  to={`/browse/${result.id}`}
-                  onClick={() => {
-                    resetBrowseState(
-                      getBrowseStateScope({ placeId: result.id })
-                    );
-                  }}
-                  sx={{
-                    color: "common.white",
-                    cursor: "pointer",
-                    textDecoration: "none",
-                    "&:hover": {
-                      textDecoration: "underline",
-                    },
-                  }}
-                >
-                  {`${result.shortName} (${result.type}) (${result.numberOfBanners})`}
-                </Typography>
-              ))}
-            </Stack>
-          ) : (
-            <Typography variant="body2" color="text.secondary">
-              No matching places found.
-            </Typography>
-          )}
-        </Box>
+      <section aria-labelledby="search-places">
+        <div className="cloud-head">
+          <h2 id="search-places">Places</h2>
+        </div>
+        {placesError ? (
+          <div className="ob-alert bad" role="alert">
+            <div className="grow">{placesError}</div>
+            <button type="button" className="btn text sl" onClick={reloadSearch}>
+              Retry
+            </button>
+          </div>
+        ) : placesLoading ? (
+          <p className="small muted">Loading places...</p>
+        ) : results.length > 0 ? (
+          <ul className="cloud">
+            {results.map((result) => {
+              const flag = result.type === "country" ? getFlagForPlace(result.formattedAddress) : "";
 
-        <Box
-          sx={{
-            p: { xs: 2, sm: 2.5 },
-            borderRadius: 3,
-            bgcolor: "rgba(20, 27, 33, 0.72)",
-            border: "1px solid rgba(255,255,255,0.08)",
-            boxShadow: "0 14px 32px rgba(0,0,0,0.14)",
-          }}
-        >
-          <Box
-            sx={{
-              mb: 1.5,
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
-              gap: 1.5,
-              flexWrap: "wrap",
-            }}
-          >
-            <Typography variant="h6" component="h2">
-              Banners
-            </Typography>
-            <BannerResultsViewToggle
-              viewMode={viewMode}
-              onChange={handleViewModeChange}
-            />
-          </Box>
-          {bannersError ? (
-            <Alert
-              severity="error"
-              action={
-                <Button color="inherit" size="small" onClick={reloadSearch}>
-                  Retry
-                </Button>
-              }
-            >
-              {bannersError}
-            </Alert>
-          ) : bannersLoading && viewMode === "compact" ? (
-            <Stack spacing={1.25} sx={{ mt: 0.5 }}>
-              {Array.from({ length: 3 }).map((_, index) => (
-                <BannerListItem key={`search-skeleton-${index}`} loading />
-              ))}
-            </Stack>
-          ) : bannersLoading ? (
-            <Box
-              sx={{
-                mt: 0,
-                display: "grid",
-                gridTemplateColumns: `repeat(auto-fit, minmax(${VISUAL_CARD_MIN_WIDTH_PX}px, ${visualCardWidth}))`,
-                gap: 2,
-              }}
-            >
-              {Array.from({ length: 3 }).map((_, index) => (
-                <Box key={`search-grid-skeleton-${index}`}>
-                  <Box
-                    sx={{
-                      height: 260,
-                      borderRadius: 3,
-                      bgcolor: "rgba(255,255,255,0.04)",
-                      border: "1px solid rgba(255,255,255,0.08)",
-                    }}
-                  />
-                </Box>
-              ))}
-            </Box>
-          ) : bannerData.length > 0 && viewMode === "compact" ? (
-            <Stack spacing={1.25} sx={{ mt: 0.5 }}>
-              {bannerData.map((banner) => (
-                <BannerListItem key={banner.id} banner={banner} />
-              ))}
-            </Stack>
-          ) : bannerData.length > 0 ? (
-            <Box
-              sx={{
-                mt: 0,
-                display: "grid",
-                gridTemplateColumns: `repeat(auto-fit, minmax(${VISUAL_CARD_MIN_WIDTH_PX}px, ${visualCardWidth}))`,
-                gap: 2,
-                alignItems: "stretch",
-              }}
-            >
-              {bannerData.map((banner) => (
-                <Box key={banner.id} sx={{ display: "flex", alignItems: "stretch" }}>
-                  <BannerCard banner={banner} maxWidth="100%" />
-                </Box>
-              ))}
-            </Box>
-          ) : (
-            <Typography variant="body2" color="text.secondary">
-              No matching banners found.
-            </Typography>
-          )}
-        </Box>
-
-        {noResults && (
-          <Alert severity="info">No results found for "{query}".</Alert>
+              return (
+                <li key={result.id}>
+                  <Link
+                    className="chip sl"
+                    to={`/browse/${result.id}`}
+                    aria-label={`${result.shortName} (${result.type}) (${result.numberOfBanners})`}
+                    title={result.formattedAddress}
+                    onClick={() => resetBrowseState(getBrowseStateScope({ placeId: result.id }))}
+                  >
+                    {flag ? (
+                      <span className="flag" aria-hidden="true">
+                        {flag}
+                      </span>
+                    ) : result.type === "locality" ? (
+                      <LocationCity fontSize="small" />
+                    ) : (
+                      <Place fontSize="small" />
+                    )}
+                    {result.shortName}
+                    <span className="count">{result.numberOfBanners}</span>
+                  </Link>
+                </li>
+              );
+            })}
+          </ul>
+        ) : (
+          <p className="small muted">No matching places found.</p>
         )}
-      </Stack>
-    </Box>
+      </section>
+
+      <section aria-labelledby="search-banners" style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+        <div className="toolbar">
+          <h2 id="search-banners" className="ob-h2">
+            Banners
+          </h2>
+          <span className="grow" />
+          <ViewModeToggle viewMode={viewMode} onChange={setViewMode} />
+        </div>
+        {bannersError ? (
+          <div className="ob-alert bad" role="alert">
+            <div className="grow">{bannersError}</div>
+            <button type="button" className="btn text sl" onClick={reloadSearch}>
+              Retry
+            </button>
+          </div>
+        ) : bannersLoading ? (
+          viewMode === "compact" ? (
+            <BannerRows banners={[]} loadingMore label="Loading banners" />
+          ) : (
+            <BannerWall banners={[]} skeletonCount={8} label="Loading banners" />
+          )
+        ) : bannerData.length > 0 ? (
+          viewMode === "compact" ? (
+            <BannerRows banners={bannerData} label="Matching banners" />
+          ) : (
+            <BannerWall banners={bannerData} label="Matching banners" />
+          )
+        ) : (
+          <p className="small muted">No matching banners found.</p>
+        )}
+      </section>
+
+      {noResults ? <div className="ob-alert">No results found for "{query}".</div> : null}
+    </div>
   );
 }

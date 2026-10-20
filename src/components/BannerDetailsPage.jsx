@@ -485,6 +485,12 @@ function RouteMap({
   );
 }
 
+// A Leaflet map that was removed (e.g. the map pane unmounts when the window
+// becomes phone-sized) has no map pane any more; touching it throws _leaflet_pos.
+function isLiveMap(map) {
+  return Boolean(map && (map._mapPane || typeof map.getPane !== "function"));
+}
+
 export default function BannerDetailsPage() {
   const { bannerId } = useParams();
   const isMobile = useMediaQuery("(max-width:768px)");
@@ -592,7 +598,7 @@ export default function BannerDetailsPage() {
 
   const fitRoute = useCallback(
     (map = mapRef.current) => {
-      if (!map || allPositions.length === 0) {
+      if (!isLiveMap(map) || allPositions.length === 0) {
         return;
       }
 
@@ -615,7 +621,11 @@ export default function BannerDetailsPage() {
     let observer = null;
 
     if (typeof ResizeObserver !== "undefined" && mapContainerRef.current) {
-      observer = new ResizeObserver(() => mapInstance.invalidateSize?.(false));
+      observer = new ResizeObserver(() => {
+        if (isLiveMap(mapInstance)) {
+          mapInstance.invalidateSize?.(false);
+        }
+      });
       observer.observe(mapContainerRef.current);
     }
 
@@ -637,7 +647,7 @@ export default function BannerDetailsPage() {
       const positions = missionPositions[index];
       const map = mapRef.current;
 
-      if (!map || !positions?.length) {
+      if (!isLiveMap(map) || !positions?.length) {
         return;
       }
 
@@ -720,7 +730,9 @@ export default function BannerDetailsPage() {
         }
 
         setUserLocation({ latitude, longitude });
-        mapRef.current?.panTo?.([latitude, longitude], { animate: true, duration: 0.35 });
+        if (isLiveMap(mapRef.current)) {
+          mapRef.current.panTo?.([latitude, longitude], { animate: true, duration: 0.35 });
+        }
       },
       () => {
         setLocationError("Couldn't determine your location. Please check browser location access.");

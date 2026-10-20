@@ -128,14 +128,86 @@ export async function resolveCityAt(location, nearbyBanners = null) {
   return slimPlace(city);
 }
 
+function normalizeName(value) {
+  return String(value ?? "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
+}
+
+function getCountry(place) {
+  const parts = String(place?.formattedAddress ?? "").split(",");
+  return normalizeName(parts[parts.length - 1]).trim();
+}
+
+const WORD_SPLIT = /[^\p{L}\p{N}]+/u;
+
+// How well a place matches what the user typed, judged only on the names we show:
+// 0 = a name starts with it, 1 = a word in a name starts with it, 2 = somewhere
+// inside a name, null = only matched a name we never display (the API also
+// searches other languages and sub-places, which is how "Ens" finds Moscow).
+export function getPlaceMatchRank(place, query) {
+  const needle = normalizeName(query).trim();
+
+  if (!needle) {
+    return 0;
+  }
+
+  const names = [place?.shortName, place?.longName, place?.formattedAddress]
+    .filter(Boolean)
+    .map(normalizeName);
+
+  if (names.some((name) => name.startsWith(needle))) {
+    return 0;
+  }
+
+  if (names.some((name) => name.split(WORD_SPLIT).some((word) => word.startsWith(needle)))) {
+    return 1;
+  }
+
+  return names.some((name) => name.includes(needle)) ? 2 : null;
+}
+
+// Sort API places for a typed query: best name match first, then the user's own
+// country (from the remembered city), cities before regions, then banner count.
+export function rankPlacesForQuery(places, query, { homeCountry = null } = {}) {
+  if (!Array.isArray(places)) {
+    return [];
+  }
+
+  const country =
+    homeCountry ?? (typeof window !== "undefined" ? getCountry(readCachedCity()?.place) : "");
+
+  const entries = places.map((place, index) => ({
+    place,
+    index,
+    rank: getPlaceMatchRank(place, query),
+  }));
+  const shown = entries.filter((entry) => entry.rank !== null);
+
+  // Nothing matches a shown name (e.g. "Moskau" for Moscow): keep the API's
+  // own matches rather than showing nothing.
+  return (shown.length > 0 ? shown : entries.map((entry) => ({ ...entry, rank: 3 })))
+    .sort(
+      (a, b) =>
+        a.rank - b.rank ||
+        Number(Boolean(country) && getCountry(b.place) === country) -
+          Number(Boolean(country) && getCountry(a.place) === country) ||
+        Number(b.place.type === "locality") - Number(a.place.type === "locality") ||
+        (Number(b.place.numberOfBanners) || 0) - (Number(a.place.numberOfBanners) || 0) ||
+        a.index - b.index
+    )
+    .map((entry) => entry.place);
+}
+
 export async function searchPlaces(query, limit = 12) {
+  // The API orders by banner count, so ask for extra candidates and re-rank.
   const places = await fetchJson(
-    `${API}/places?used=true&collapsePlaces=true&query=${encodeURIComponent(query)}&limit=${limit}`
+    `${API}/places?used=true&collapsePlaces=true&query=${encodeURIComponent(query)}&limit=${Math.max(
+      limit * 4,
+      40
+    )}`
   );
 
-  return Array.isArray(places)
-    ? [...places].sort(
-        (a, b) => Number(b.type === "locality") - Number(a.type === "locality")
-      )
-    : [];
+  return rankPlacesForQuery(places, query).slice(0, limit);
 }

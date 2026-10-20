@@ -5,6 +5,7 @@ import BannerWall, { BannerRows } from "./BannerWall";
 import ViewModeToggle, { useBannerViewMode } from "./ViewModeToggle";
 import { getFlagForPlace } from "./CountryFlags";
 import { fetchBannergress } from "../bannergressSync";
+import { rankPlacesForQuery } from "../cityPlace";
 import { getBrowseStateScope, resetBrowseState } from "../browseState";
 
 export default function SearchResults() {
@@ -34,7 +35,7 @@ export default function SearchResults() {
 
         if (!ignore) {
           if (Array.isArray(data)) {
-            setResults(data);
+            setResults(rankPlacesForQuery(data, query));
           } else {
             setResults([]);
             setPlacesError("Place results returned an unexpected response.");

@@ -10,6 +10,7 @@ import { Close, LocationCity } from "@mui/icons-material";
 import BannerWall, { BannerRows, useInfiniteScroll } from "./BannerWall";
 import ViewModeToggle, { useBannerViewMode } from "./ViewModeToggle";
 import SortingButtons from "./SortingButtons";
+import AboutNotice from "./AboutNotice";
 import PlaceCloud, { getChipName, usePlaces } from "./PlaceCloud";
 import { getFlagForPlace } from "./CountryFlags";
 import { getPlaceName } from "../cityPlace";
@@ -724,6 +725,8 @@ null
         )}
         {hasMore && !loading ? <div ref={loadMoreRef} style={{ height: 1 }} /> : null}
       </section>
+
+      <AboutNotice />
 
     </div>
   );

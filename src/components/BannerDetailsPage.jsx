@@ -13,6 +13,7 @@ import {
 } from "@mui/icons-material";
 import L from "leaflet";
 import BannerInfo from "./BannerInfo";
+import AboutNotice from "./AboutNotice";
 import BannergressListActions from "./BannergressListActions";
 import {
   fetchBannergress,
@@ -948,6 +949,7 @@ export default function BannerDetailsPage() {
                 )}
               </div>
               {authorsNode}
+              <AboutNotice className="bp-about" />
             </div>
 
             <div className="bp-view" role="tabpanel" hidden={paneTab !== "missions"}>

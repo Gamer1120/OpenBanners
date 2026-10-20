@@ -10,6 +10,7 @@ import {
 } from "@mui/icons-material";
 import BannerWall, { useInfiniteScroll } from "./BannerWall";
 import SearchForm from "./SearchForm";
+import AboutNotice from "./AboutNotice";
 import {
   fetchBannergress,
   forgetTemporarilyVisibleHiddenBanners,
@@ -491,11 +492,7 @@ export default function BannersNearMe() {
         </div>
       </section>
 
-      <section className="ob-about small muted">
-        This website is not associated with Bannergress, Ingress and/or Niantic.
-        This website is an alternative, open-source front-end for Bannergress's
-        back-end.
-      </section>
+      <AboutNotice />
 
     </div>
   );

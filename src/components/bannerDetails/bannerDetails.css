@@ -188,15 +188,23 @@
 }
 
 .bp-lightbox-body {
+  display: flex;
   flex: 1;
+  min-height: 0;
   overflow: auto;
   padding: 56px 12px 24px;
   -webkit-overflow-scrolling: touch;
 }
 
+/* Whole artwork on screen, centred both ways (margin: auto still scrolls if it can't fit). */
 .bp-lightbox .mosaic.large {
-  --t: min(140px, calc((100vw - 24px - (var(--w, 6) - 1) * 6px) / var(--w, 6)));
-  margin: 0 auto;
+  --gap: 6px;
+  --t: min(
+    140px,
+    calc((100vw - 24px - (var(--w, 6) - 1) * var(--gap)) / var(--w, 6)),
+    calc((100dvh - 80px - (var(--rows, 1) - 1) * var(--gap)) / var(--rows, 1))
+  );
+  margin: auto;
 }
 
 .bp-lightbox .mosaic.large .tile {
@@ -205,10 +213,12 @@
 
 .bp-lightbox-pic {
   display: block;
-  width: 100%;
-  max-width: 900px;
+  max-width: min(100%, 900px);
+  max-height: calc(100dvh - 80px);
+  width: auto;
   height: auto;
-  margin: 0 auto;
+  margin: auto;
+  object-fit: contain;
 }
 
 .bp-lightbox-close {

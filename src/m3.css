@@ -1948,82 +1948,20 @@ body {
   background: color-mix(in oklab, var(--surface) 55%, transparent);
 }
 
-/* Search-as-you-type suggestions (main search bar) */
+/* Live search: the old results stay (dimmed) while the next ones load */
 .search-wrap {
-  position: relative;
   min-width: 0;
 }
 
-.sg-pop {
-  position: absolute;
-  top: calc(100% + 6px);
-  left: 0;
-  right: 0;
-  z-index: 1300;
-  max-height: min(70vh, 560px);
-  overflow-y: auto;
-  padding: 6px 8px 8px;
-  border-radius: var(--r-l);
-  background: var(--sc);
-  color: var(--on-surface);
-  box-shadow: var(--shadow-3);
+.list-refreshing {
+  opacity: 0.55;
+  transition: opacity 120ms ease;
 }
 
-.sg-list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-}
-
-.sg-head {
-  padding: 10px 8px 4px;
-  font-size: 12px;
-  font-weight: 600;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  color: var(--on-surface-variant);
-}
-
-.sg-list .li.on {
-  background: var(--sc-highest);
-}
-
-.sg-pic {
-  width: 64px;
-  height: 40px;
-  flex: none;
-  display: grid;
-  place-items: center;
-  overflow: hidden;
-  border-radius: var(--r-s);
-  background: var(--sc-high);
-}
-
-.sg-pic img {
-  max-width: 100%;
-  max-height: 100%;
-  object-fit: contain;
-}
-
-.sg-note {
-  margin: 0;
-  padding: 10px 8px;
-}
-
-.sg-all {
+.search-results {
   display: flex;
-  align-items: center;
-  gap: 8px;
-  width: 100%;
-  margin-top: 4px;
-  padding: 10px 8px;
-  border: 0;
-  border-top: 1px solid var(--outline-variant);
-  background: transparent;
-  color: var(--primary);
-  font: 500 14px/20px var(--font);
-  text-align: left;
-  cursor: pointer;
+  flex-direction: column;
+  gap: 20px;
 }
 
 /* Banner Together (Lists → Together) */
@@ -2175,10 +2113,8 @@ body {
   max-width: 760px;
 }
 
-.search-head {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
+.search-page.has-results {
+  max-width: none;
 }
 
 .crumbs [aria-current="page"] {

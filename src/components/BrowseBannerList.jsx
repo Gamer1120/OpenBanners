@@ -105,6 +105,9 @@ export default function BrowseBannerList({
   heading = null,
   label = "Banners",
   onStatusChange,
+  // Search while typing: a new query keeps the sort and shows the current
+  // banners until the new ones are in (no skeleton flash between letters).
+  liveQuery = false,
 }) {
   const browseStateScope = useMemo(
     () => getBrowseStateScope({ placeId, authorName, query }),
@@ -141,6 +144,9 @@ export default function BrowseBannerList({
   const [error, setError] = useState("");
   const [reloadToken, setReloadToken] = useState(0);
   const [hasLoaded, setHasLoaded] = useState(initialBrowseState.hasLoaded);
+  // The previous results, shown while a live query loads its first page.
+  const [placeholderBanners, setPlaceholderBanners] = useState([]);
+  const displayedBannersRef = useRef([]);
   const syncState = useBannergressSync();
   // Entering (or switching) a list drops banners that were only kept
   // visible right after "Hide"; hidden banners never show up in Browse again.
@@ -180,9 +186,26 @@ export default function BrowseBannerList({
       return;
     }
 
+    setStateScope(browseStateScope);
+
+    if (liveQuery && navigationType !== "POP") {
+      shouldSkipRestoredLoadRef.current = false;
+      setPlaceholderBanners(displayedBannersRef.current);
+      setBanners([]);
+      setBannersFetchedForEfficiency(false);
+      setHasMore(true);
+      setRequestedOffset(0);
+      setActiveBrowseQueryKey(null);
+      setHasLoaded(false);
+      setLoading(false);
+      setLoadingMore(false);
+      setError("");
+      setReloadToken(0);
+      return;
+    }
+
     const nextState = readInitialState();
 
-    setStateScope(browseStateScope);
     shouldSkipRestoredLoadRef.current = nextState.hasLoaded;
 
     setSortOption(nextState.sortOption);
@@ -221,6 +244,11 @@ export default function BrowseBannerList({
 
     shouldSkipRestoredLoadRef.current = false;
     setActiveBrowseQueryKey(browseQueryKey);
+
+    if (liveQuery && activeBrowseQueryKey !== null) {
+      setPlaceholderBanners(displayedBannersRef.current);
+    }
+
     setBanners([]);
     setBannersFetchedForEfficiency(false);
     setHasLoaded(false);
@@ -229,6 +257,7 @@ export default function BrowseBannerList({
     setHasMore(true);
     setRequestedOffset(0);
     setError("");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeBrowseQueryKey, browseQueryKey, browseStateScope, stateScope]);
 
   useEffect(() => {
@@ -242,6 +271,8 @@ export default function BrowseBannerList({
     }
 
     let ignore = false;
+    // A newer query (or page) cancels this request; its answer never lands.
+    const controller = new AbortController();
 
     const loadBanners = async () => {
       const isInitialPage = requestedOffset === 0;
@@ -291,6 +322,7 @@ export default function BrowseBannerList({
               }),
               {
                 authenticate: !bannerFilters.showHiddenBanners,
+                signal: controller.signal,
               }
             );
             const data = await response.json();
@@ -337,6 +369,7 @@ export default function BrowseBannerList({
           }),
           {
             authenticate: !bannerFilters.showHiddenBanners,
+            signal: controller.signal,
           }
         );
         const data = await response.json();
@@ -382,6 +415,7 @@ export default function BrowseBannerList({
 
     return () => {
       ignore = true;
+      controller.abort();
     };
   }, [
     activeBrowseQueryKey,
@@ -424,6 +458,15 @@ export default function BrowseBannerList({
       }),
     [banners, bannerFilters, maximumMissions, minimumMissions, syncState]
   );
+  displayedBannersRef.current =
+    displayedBanners.length > 0 || hasLoaded ? displayedBanners : placeholderBanners;
+  const showPlaceholder = !hasLoaded && !error && placeholderBanners.length > 0;
+
+  useEffect(() => {
+    if ((hasLoaded || error) && placeholderBanners.length > 0) {
+      setPlaceholderBanners([]);
+    }
+  }, [error, hasLoaded, placeholderBanners.length]);
   const browseSnapshot = {
     filters: bannerFilters,
     sortOption,
@@ -570,7 +613,15 @@ export default function BrowseBannerList({
           </button>
         </div>
       ) : null}
-      {loading ? (
+      {showPlaceholder ? (
+        <div aria-busy="true" className="list-refreshing">
+          {viewMode === "compact" ? (
+            <BannerRows banners={placeholderBanners} label={label} />
+          ) : (
+            <BannerWall banners={placeholderBanners} label={label} />
+          )}
+        </div>
+      ) : loading ? (
         viewMode === "compact" ? (
           <BannerRows banners={[]} loadingMore label="Loading banners" />
         ) : (

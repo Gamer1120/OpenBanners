@@ -278,7 +278,9 @@ test("Back to search results keeps the chosen sort, filters and loaded pages", a
   fireEvent.click(screen.getByRole("button", { name: "Filters" }));
   fireEvent.click(await screen.findByRole("checkbox", { name: "Show offline banners" }));
   fireEvent.keyDown(screen.getByRole("menu"), { key: "Escape" });
-  expect(await screen.findByText("Banner 330")).toBeInTheDocument();
+  // The old results stay (busy) until the new ones are in.
+  await waitFor(() => expect(document.querySelector("[aria-busy=true]")).toBeNull());
+  expect(screen.getByText("Banner 330")).toBeInTheDocument();
 
   scrollWindowTo(3000);
   openBanner("Banner 330");

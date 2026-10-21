@@ -155,7 +155,7 @@ test("search page lists and clears recent searches", async () => {
     </MemoryRouter>
   );
 
-  expect(screen.getByRole("combobox")).toHaveFocus();
+  expect(screen.getByRole("searchbox")).toHaveFocus();
   expect(screen.getByRole("link", { name: "halloween" })).toHaveAttribute("href", "/search/halloween");
   await userEvent.click(screen.getByRole("button", { name: /clear/i }));
   expect(screen.queryByRole("link", { name: "halloween" })).not.toBeInTheDocument();

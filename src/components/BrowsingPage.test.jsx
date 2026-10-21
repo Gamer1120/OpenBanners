@@ -194,7 +194,7 @@ test("top browse navigation resets saved root browse filters", async () => {
     { route: "/search/reset" }
   );
 
-  expect(await screen.findByText("Search: reset")).toBeInTheDocument();
+  expect(await screen.findByDisplayValue("reset")).toBeInTheDocument();
   await user.click(screen.getByRole("link", { name: /^banners$/i }));
 
   await waitFor(() => {

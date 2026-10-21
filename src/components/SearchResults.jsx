@@ -2,7 +2,6 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { LocationCity, Place } from "@mui/icons-material";
 import BrowseBannerList from "./BrowseBannerList";
-import SearchForm from "./SearchForm";
 import { getFlagForPlace } from "./CountryFlags";
 import { rankPlacesForQuery } from "../cityPlace";
 import {
@@ -18,7 +17,8 @@ import {
 } from "../scrollRestoration";
 
 // The banners of a search, with Browse's sort, filters, Wall/List and paging.
-// Filters belong to this query; Back brings back the ones you picked.
+// Filters are saved per query and Back brings back the ones you picked; while
+// typing they stay as they are for the next query.
 function SearchBanners({ query, onStatusChange }) {
   const scope = getBrowseStateScope({ query });
   const { entryKey, navigationType } = useRestoredEntry(scope);
@@ -28,14 +28,14 @@ function SearchBanners({ query, onStatusChange }) {
       readBrowseFilters(scope)
   );
 
-  const handleFiltersChange = (nextFilters) => {
-    setBannerFilters((currentFilters) => {
-      const resolvedFilters =
-        typeof nextFilters === "function" ? nextFilters(currentFilters) : nextFilters;
+  useEffect(() => {
+    saveBrowseFilters(scope, bannerFilters);
+  }, [scope, bannerFilters]);
 
-      saveBrowseFilters(scope, resolvedFilters);
-      return resolvedFilters;
-    });
+  const handleFiltersChange = (nextFilters) => {
+    setBannerFilters((currentFilters) =>
+      typeof nextFilters === "function" ? nextFilters(currentFilters) : nextFilters
+    );
   };
 
   return (
@@ -46,17 +46,23 @@ function SearchBanners({ query, onStatusChange }) {
       heading="Banners"
       label="Matching banners"
       onStatusChange={onStatusChange}
+      liveQuery
     />
   );
 }
 
-export default function SearchResults() {
-  const { query } = useParams();
+// Places and banners for a query. The query changes while you type: the old
+// results stay until the new ones are in, and late answers are dropped.
+export default function SearchResults({ query: queryProp }) {
+  const params = useParams();
+  const query = queryProp ?? params.query;
   // Back to the results shows them again without a new search.
   const { entryKey, restored } = useRestoredEntry("search");
   const restoredRef = useRef(restored?.query === query ? restored : null);
   const [results, setResults] = useState(restoredRef.current?.results ?? []);
   const [placesLoading, setPlacesLoading] = useState(!restoredRef.current);
+  // The query the shown places belong to (they stay while the next load).
+  const [placesQuery, setPlacesQuery] = useState(restoredRef.current ? query : null);
   const [placesError, setPlacesError] = useState("");
   const [reloadToken, setReloadToken] = useState(0);
   const [bannersStatus, setBannersStatus] = useState({ ready: false, error: false, count: 0 });
@@ -75,7 +81,7 @@ export default function SearchResults() {
       return undefined;
     }
 
-    let ignore = false;
+    const controller = new AbortController();
 
     const fetchPlaces = async () => {
       setPlacesLoading(true);
@@ -85,35 +91,39 @@ export default function SearchResults() {
         const response = await fetch(
           `https://api.bannergress.com/places?used=true&collapsePlaces=true&query=${encodeURIComponent(
             query
-          )}&limit=100&offset=0`
+          )}&limit=100&offset=0`,
+          { signal: controller.signal }
         );
         const data = await response.json();
 
-        if (!ignore) {
-          if (Array.isArray(data)) {
-            setResults(rankPlacesForQuery(data, query));
-          } else {
-            setResults([]);
-            setPlacesError("Place results returned an unexpected response.");
-          }
+        if (controller.signal.aborted) {
+          return;
+        }
+
+        if (Array.isArray(data)) {
+          setResults(rankPlacesForQuery(data, query));
+          setPlacesQuery(query);
+        } else {
+          setResults([]);
+          setPlacesError("Place results returned an unexpected response.");
         }
       } catch (fetchError) {
-        if (!ignore) {
-          console.error("Error fetching place results:", fetchError);
-          setResults([]);
-          setPlacesError("Couldn't load matching places.");
+        if (controller.signal.aborted) {
+          return;
         }
-      } finally {
-        if (!ignore) {
-          setPlacesLoading(false);
-        }
+
+        console.error("Error fetching place results:", fetchError);
+        setResults([]);
+        setPlacesError("Couldn't load matching places.");
       }
+
+      setPlacesLoading(false);
     };
 
     fetchPlaces();
 
     return () => {
-      ignore = true;
+      controller.abort();
     };
   }, [query, reloadToken]);
 
@@ -124,7 +134,7 @@ export default function SearchResults() {
   useRememberEntry(
     entryKey,
     "search",
-    !placesLoading && !placesError ? { query, results } : null
+    !placesLoading && !placesError && placesQuery === query ? { query, results } : null
   );
   const noResults =
     !placesLoading &&
@@ -135,11 +145,7 @@ export default function SearchResults() {
     bannersStatus.count === 0;
 
   return (
-    <div className="ob-page">
-      <header className="search-head">
-        <SearchForm placeholder="Banners, cities or regions" />
-        <h1 className="ob-h1">Search: {query}</h1>
-      </header>
+    <>
 
       <section aria-labelledby="search-places">
         <div className="cloud-head">
@@ -152,10 +158,10 @@ export default function SearchResults() {
               Retry
             </button>
           </div>
-        ) : placesLoading ? (
+        ) : placesLoading && results.length === 0 ? (
           <p className="small muted">Loading places...</p>
         ) : results.length > 0 ? (
-          <ul className="cloud">
+          <ul className="cloud" aria-busy={placesLoading || undefined}>
             {results.map((result) => {
               const flag = result.type === "country" ? getFlagForPlace(result.formattedAddress) : "";
 
@@ -189,9 +195,9 @@ export default function SearchResults() {
         )}
       </section>
 
-      <SearchBanners key={query} query={query} onStatusChange={handleBannersStatus} />
+      <SearchBanners query={query} onStatusChange={handleBannersStatus} />
 
       {noResults ? <div className="ob-alert">No results found for "{query}".</div> : null}
-    </div>
+    </>
   );
 }

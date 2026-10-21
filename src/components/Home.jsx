@@ -8,7 +8,6 @@ import BannersStartPage from "./BannersStartPage";
 import SearchPage from "./SearchPage";
 import ListsPage from "./ListsPage";
 import BrowsingPage from "./BrowsingPage";
-import SearchResults from "./SearchResults";
 import BannerDetailsPage from "./BannerDetailsPage";
 import DiscoveryMap from "./discoveryMap/DiscoveryMap";
 import BannerRerouterPage from "./BannerRerouterPage";
@@ -224,8 +223,8 @@ export default function Home() {
 
       event.preventDefault();
 
-      if (location.pathname === "/search") {
-        document.querySelector(".search-page [role=combobox]")?.focus();
+      if (location.pathname === "/search" || location.pathname.startsWith("/search/")) {
+        document.querySelector(".search-page input[type=search]")?.focus();
       } else {
         navigate("/search");
       }
@@ -288,7 +287,9 @@ export default function Home() {
               onBannerFiltersChange={setBrowseBannerFilters}
             />
           )}
-          {currentView === "search" && <SearchPage />}
+          {/* One element for /search and /search/<query>: typing changes the
+              URL without remounting the field (focus and caret stay). */}
+          {(currentView === "search" || currentView === "searching") && <SearchPage />}
           {currentView === "browsing" && (
             <BrowsingPage
               placeId={placeId}
@@ -303,7 +304,6 @@ export default function Home() {
               onBannerFiltersChange={setBrowseBannerFilters}
             />
           )}
-          {currentView === "searching" && <SearchResults />}
           {currentView === "bannerDetails" && <BannerDetailsPage />}
           {currentView === "lists" && <ListsPage />}
           {currentView === "together" && (

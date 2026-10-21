@@ -1,26 +1,40 @@
 import React, { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useParams } from "react-router-dom";
 import { History } from "@mui/icons-material";
-import SearchForm from "./SearchForm";
-import { clearRecentSearches, useRecentSearches } from "../recentSearches";
+import SearchForm, { MIN_QUERY_LENGTH, searchPath } from "./SearchForm";
+import SearchResults from "./SearchResults";
+import { addRecentSearch, clearRecentSearches, useRecentSearches } from "../recentSearches";
 
-// Search tab: one big field (focused), suggestions while typing, recent searches
-// while it is empty. Enter opens the full results at /search/<query>.
+// Search tab (/search and /search/<query>): one field, and under it the full
+// results, updating while you type. Recent searches while it is empty.
 export default function SearchPage() {
+  const { query } = useParams();
+  const urlQuery = typeof query === "string" ? query.trim() : "";
   const recent = useRecentSearches();
-  const [value, setValue] = useState("");
+  const [value, setValue] = useState(urlQuery);
+  const typing = value.trim();
+
+  // Opening a result counts as a finished search.
+  const handleResultClick = (event) => {
+    if (urlQuery && event.target instanceof Element && event.target.closest("a[href]")) {
+      addRecentSearch(urlQuery);
+    }
+  };
 
   return (
-    <div className="ob-page search-page">
+    <div className={`ob-page search-page${urlQuery ? " has-results" : ""}`}>
       <h1 className="ob-h1">Search</h1>
       <SearchForm
         big
-        autoFocus
-        keepOpen
+        autoFocus={!urlQuery}
         placeholder="Banners, cities or regions"
         onValueChange={setValue}
       />
-      {value.trim() === "" ? (
+      {urlQuery ? (
+        <div className="search-results" onClick={handleResultClick}>
+          <SearchResults query={urlQuery} />
+        </div>
+      ) : typing === "" ? (
         recent.length > 0 ? (
           <section aria-labelledby="recent-title">
             <div className="ob-sec-head">
@@ -34,7 +48,7 @@ export default function SearchPage() {
             <ul className="ob-list" aria-label="Recent searches">
               {recent.map((entry) => (
                 <li key={entry}>
-                  <Link className="li sl" to={`/search/${encodeURIComponent(entry)}`}>
+                  <Link className="li sl" to={searchPath(entry)}>
                     <span className="lead">
                       <History fontSize="small" />
                     </span>
@@ -48,10 +62,14 @@ export default function SearchPage() {
           </section>
         ) : (
           <p className="small muted">
-            Type a banner title, a city or a region. Suggestions show up as you type.
+            Type a banner title, a city or a region. Results show up as you type.
           </p>
         )
-      ) : null}
+      ) : typing.length < MIN_QUERY_LENGTH ? (
+        <p className="small muted">Keep typing…</p>
+      ) : (
+        <p className="small muted">Searching…</p>
+      )}
     </div>
   );
 }

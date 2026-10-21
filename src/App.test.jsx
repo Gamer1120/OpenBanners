@@ -3709,9 +3709,9 @@ test("discovery map filters banners and shows the route card for a tapped banner
   global.fetch.mockImplementation((url) => {
     if (url.includes("/bnrs?orderBy=proximityStartPoint")) {
       return jsonResponse([
-        mapBanner("map-short", "Short Map Banner", { numberOfMissions: 6, lengthMeters: 1800 }),
+        mapBanner("map-short", "Short Map Banner", { numberOfMissions: 30, lengthMeters: 1800 }),
         mapBanner("map-long", "Long Map Banner", {
-          numberOfMissions: 36,
+          numberOfMissions: 12,
           lengthMeters: 14000,
           startLatitude: "52.25",
         }),
@@ -3749,9 +3749,14 @@ test("discovery map filters banners and shows the route card for a tapped banner
   expect(screen.getAllByRole("button", { name: /^filters \(1 on\)$/i })).toHaveLength(1);
   expect(screen.queryByRole("radiogroup", { name: /map prototype/i })).not.toBeInTheDocument();
 
-  fireEvent.click(screen.getByRole("button", { name: /any length/i }));
+  expect(screen.queryByRole("button", { name: /any length/i })).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: /any missions/i }));
   const sheet = screen.getByRole("dialog", { name: /map filters/i });
-  fireEvent.click(within(sheet).getByRole("radio", { name: "< 30 min" }));
+  expect(within(sheet).queryByText("Walking time")).not.toBeInTheDocument();
+  expect(within(sheet).getAllByRole("radio").map((radio) => radio.textContent)).toEqual(
+    expect.arrayContaining(["6+", "12+", "18+", "24+", "30+"])
+  );
+  fireEvent.click(within(sheet).getByRole("radio", { name: "30+" }));
   fireEvent.click(within(sheet).getByRole("button", { name: /show 1 banner$/i }));
 
   expect(screen.getByText(/^1 of 2 in view/)).toBeInTheDocument();

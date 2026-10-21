@@ -16,7 +16,6 @@ import {
   MAP_FILTERS_STORAGE_KEY,
   MISSION_OPTIONS,
   STATUS_OPTIONS,
-  WALK_OPTIONS,
   applyMapFilters,
   countActiveMapFilters,
   filterSummary,
@@ -31,7 +30,6 @@ import "./discoveryMap.css";
 
 const GROUPS = [
   { key: "status", title: "Status", options: STATUS_OPTIONS },
-  { key: "walk", title: "Walking time", options: WALK_OPTIONS, note: "At about 4.5 km/h including portal stops" },
   { key: "missions", title: "Number of missions", options: MISSION_OPTIONS },
 ];
 // Room the filter chips take at the top when fitting a route.

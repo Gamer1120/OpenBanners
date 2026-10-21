@@ -45,20 +45,18 @@ describe("filters", () => {
     expect(ids({ status: "hideDone" })).toEqual(["todo-short", "none-hour", "none-unknown"]);
   });
 
-  test("walking time and mission count; unknown values drop out", () => {
-    expect(ids({ status: "all", walk: "short" })).toEqual(["todo-short"]);
-    expect(ids({ status: "all", walk: "hour" })).toEqual(["none-hour"]);
-    expect(ids({ status: "all", walk: "long" })).toEqual(["done-long"]);
-    expect(ids({ status: "all", missions: "6" })).toEqual(["todo-short"]);
-    expect(ids({ status: "all", missions: "12" })).toEqual(["none-hour"]);
-    expect(ids({ status: "all", missions: "25" })).toEqual(["done-long"]);
+  test("mission count is a minimum (6+ … 30+); unknown counts drop out", () => {
+    expect(ids({ status: "all", missions: "6+" })).toEqual(["todo-short", "done-long", "none-hour"]);
+    expect(ids({ status: "all", missions: "12+" })).toEqual(["done-long", "none-hour"]);
+    expect(ids({ status: "all", missions: "18+" })).toEqual(["done-long"]);
+    expect(ids({ status: "all", missions: "30+" })).toEqual(["done-long"]);
   });
 
   test("normalizes and counts filters", () => {
-    expect(normalizeMapFilters({ walk: "nope" })).toEqual({ walk: "any", missions: "any", status: "hideDone" });
-    expect(countActiveMapFilters({ walk: "short", status: "all" })).toBe(1);
+    expect(normalizeMapFilters({ missions: "nope" })).toEqual({ missions: "any", status: "hideDone" });
+    expect(countActiveMapFilters({ missions: "12+", status: "all" })).toBe(1);
     expect(countActiveMapFilters({ status: "all" })).toBe(0);
-    expect(filterSummary({})).toEqual({ walk: "Any length", missions: "Any missions", status: "Hide Done" });
+    expect(filterSummary({})).toEqual({ missions: "Any missions", status: "Hide Done" });
   });
 });
 

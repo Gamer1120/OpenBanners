@@ -245,8 +245,8 @@ test("search results sort and filter on the server and page with infinite scroll
   // Best match first, both pages through infinite scroll.
   expect(await screen.findByText("Banner 233")).toBeInTheDocument();
   expect(bannerFetches().map((url) => new URL(url).searchParams.toString())).toEqual([
-    "limit=24&offset=0&query=enschede&orderBy=relevance&orderDirection=DESC&online=true",
-    "limit=24&offset=24&query=enschede&orderBy=relevance&orderDirection=DESC&online=true",
+    "limit=24&offset=0&query=enschede*&orderBy=relevance&orderDirection=DESC&online=true",
+    "limit=24&offset=24&query=enschede*&orderBy=relevance&orderDirection=DESC&online=true",
   ]);
 
   global.fetch.mockClear();
@@ -257,7 +257,7 @@ test("search results sort and filter on the server and page with infinite scroll
   expect(screen.queryByText("Banner 200")).not.toBeInTheDocument();
   expect(screen.getByRole("button", { name: "Sort: Newest first" })).toBeInTheDocument();
   expect(new URL(bannerFetches()[0]).searchParams.get("orderBy")).toBe("created");
-  expect(new URL(bannerFetches()[0]).searchParams.get("query")).toBe("enschede");
+  expect(new URL(bannerFetches()[0]).searchParams.get("query")).toBe("enschede*");
 
   global.fetch.mockClear();
   fireEvent.click(screen.getByRole("button", { name: "Filters" }));

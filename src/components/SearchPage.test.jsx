@@ -46,7 +46,8 @@ function placesFor(query) {
 }
 
 function queryOf(url) {
-  return new URL(String(url)).searchParams.get("query");
+  // Banner searches send a trailing * (prefix match); places don't.
+  return new URL(String(url)).searchParams.get("query")?.replace(/\*$/, "");
 }
 
 // Mirrors what a data router exposes: the current location, how we got
@@ -272,4 +273,12 @@ test("typing in a search box elsewhere opens the results and keeps focus and car
   await user.type(input, "ede");
   await waitFor(() => expect(router.state.location.pathname).toBe("/search/enschede"));
   expect(router.state.historyAction).toBe("REPLACE");
+});
+
+test("banner searches match the last word as a prefix", async () => {
+  const { toPrefixQuery } = await import("./BrowseBannerList");
+  expect(toPrefixQuery("Amst")).toBe("Amst*");
+  expect(toPrefixQuery(" silver lio ")).toBe("silver lio*");
+  expect(toPrefixQuery("Amsterdam*")).toBe("Amsterdam*");
+  expect(toPrefixQuery("")).toBe("");
 });

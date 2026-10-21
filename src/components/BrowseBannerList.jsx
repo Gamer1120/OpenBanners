@@ -43,6 +43,13 @@ function sortJsonByMissionsPerLength(data, sortOrder) {
   });
 }
 
+// Bannergress matches whole words; a trailing * makes the last word a
+// prefix, so "Amst" finds Amsterdam while you type.
+export function toPrefixQuery(query) {
+  const trimmed = String(query).trim();
+  return !trimmed || trimmed.endsWith("*") ? trimmed : `${trimmed}*`;
+}
+
 function buildBannersUrl({
   placeId,
   authorName,
@@ -66,7 +73,7 @@ function buildBannersUrl({
   }
 
   if (query) {
-    url.searchParams.set("query", query);
+    url.searchParams.set("query", toPrefixQuery(query));
   }
 
   if (sortOption) {

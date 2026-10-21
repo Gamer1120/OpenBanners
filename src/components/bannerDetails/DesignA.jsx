@@ -3,6 +3,7 @@ import { Place } from "@mui/icons-material";
 import AboutNotice from "../AboutNotice";
 import BannerInfo from "../BannerInfo";
 import BannerImage from "../BannerImage";
+import MarkDoneNotice from "../MarkDoneNotice";
 import {
   AddressLink,
   BannerTitle,
@@ -102,6 +103,7 @@ export default function DesignA() {
       </section>
 
       <MapSection d={d} />
+      <MarkDoneNotice bannerId={d.bannerId} />
     </div>
   );
 }

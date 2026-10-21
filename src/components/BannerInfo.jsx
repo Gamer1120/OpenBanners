@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { Alert, Snackbar } from "@mui/material";
 import { Directions, Explore, Layers, OpenInNew, Share } from "@mui/icons-material";
 import { useNavigate } from "react-router-dom";
+import { buildOverlayStartIntentUrl, isAndroidUserAgent } from "../overlayLink";
 
 function RowAction({ icon: Icon, label, title, onClick, disabled, primary = false }) {
   return (
@@ -38,7 +39,7 @@ function ActionItem({ icon: Icon, title, subtitle, onClick, disabled, trailing =
   );
 }
 
-// "Start this banner": share, OpenBanners Overlay, navigation and BannerGuider.
+// "Start this banner": navigation, BannerGuider, OpenBanners Overlay and share.
 // variant "list" = card with one row per action; "row" = one row of compact
 // buttons (heading optional, e.g. inside a sticky action bar).
 const BannerInfo = ({ banner, loading = false, variant = "list", heading = "Start this banner", className = "" }) => {
@@ -148,7 +149,17 @@ const BannerInfo = ({ banner, loading = false, variant = "list", heading = "Star
     });
   };
 
-  const handleShareBannergressOverlay = () => {
+  // Android: open the Overlay app straight at mission 1 (it opens that mission
+  // in Ingress). Elsewhere the app can't be launched, so copy/share the link
+  // to send to the phone, as before.
+  const handleStartWithOverlay = () => {
+    if (isAndroidUserAgent(navigator.userAgent)) {
+      window.location.assign(
+        buildOverlayStartIntentUrl(banner.id, window.location.origin)
+      );
+      return;
+    }
+
     shareBannerText(`https://bannergress.com/banner/${banner.id}`, {
       title: banner.title,
       successMessage: "OpenBanners Overlay link copied to clipboard.",
@@ -167,15 +178,6 @@ const BannerInfo = ({ banner, loading = false, variant = "list", heading = "Star
       trailing: <OpenInNew fontSize="small" className="muted" />,
     },
     {
-      key: "overlay",
-      icon: Layers,
-      label: "Overlay",
-      title: "Open with OpenBanners Overlay",
-      subtitle: "Shows the next waypoint on top of Ingress (Android app)",
-      onClick: handleShareBannergressOverlay,
-      disabled: loading,
-    },
-    {
       key: "guider",
       icon: Explore,
       label: "BannerGuider",
@@ -184,6 +186,15 @@ const BannerInfo = ({ banner, loading = false, variant = "list", heading = "Star
       onClick: handleOpenBannerGuider,
       disabled: loading,
       primary: true,
+    },
+    {
+      key: "overlay",
+      icon: Layers,
+      label: "Start with Overlay",
+      title: "Start with OpenBanners Overlay",
+      subtitle: "Opens mission 1 in Ingress with the overlay on top (Android app)",
+      onClick: handleStartWithOverlay,
+      disabled: loading,
     },
     {
       key: "share",

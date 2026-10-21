@@ -49,23 +49,37 @@ function getTileAspect(aspect) {
   return aspect < MIN_TILE_ASPECT * (1 - MIN_PAN_FRACTION) ? MIN_TILE_ASPECT : aspect;
 }
 
+// Shared by wall tiles and list-row thumbnails: the pan box carries data-pan-ar
+// (its own aspect) and gets "nopan" when the real picture barely overflows.
 function handlePanImageLoad(event) {
   const image = event.currentTarget;
-  const tile = image.closest(".art");
+  const box = image.closest("[data-pan-ar]");
 
-  if (!tile || !image.naturalWidth || !image.naturalHeight) {
+  if (!box || !image.naturalWidth || !image.naturalHeight) {
     return;
   }
 
-  const tileAspect = Number(tile.style.getPropertyValue("--ar")) || MIN_TILE_ASPECT;
-  const fraction = getPanFraction(image.naturalWidth / image.naturalHeight, tileAspect);
+  const boxAspect = Number(box.dataset.panAr) || MIN_TILE_ASPECT;
+  const fraction = getPanFraction(image.naturalWidth / image.naturalHeight, boxAspect);
   const overflowPx = image.parentElement
     ? image.getBoundingClientRect().height - image.parentElement.getBoundingClientRect().height
     : Infinity;
 
   image.style.setProperty("--pan", `${(-fraction * 100).toFixed(3)}%`);
-  tile.classList.toggle("nopan", fraction < MIN_PAN_FRACTION || overflowPx < MIN_PAN_PX);
+  box.classList.toggle("nopan", fraction < MIN_PAN_FRACTION || overflowPx < MIN_PAN_PX);
 }
+
+// Props for a picture that pans inside a box of aspect boxAspect.
+function getPanImageProps(aspect, boxAspect) {
+  return {
+    style: { "--pan": `${(-getPanFraction(aspect, boxAspect) * 100).toFixed(3)}%` },
+    onLoad: handlePanImageLoad,
+  };
+}
+
+// List-row thumbnails are 112 × 72.
+const ROW_THUMB_ASPECT = 112 / 72;
+
 const ROW_ACTIONS = [
   { listType: "todo", label: "To do", icon: BookmarkBorder, activeIcon: Bookmark },
   { listType: "done", label: "Done", icon: CheckCircleOutline, activeIcon: CheckCircle },
@@ -196,7 +210,11 @@ export function BannerTile({ banner, here, showAddress = true, listType }) {
   }
 
   return (
-    <div className={classes.join(" ")} style={{ "--ar": tileAspect.toFixed(4) }}>
+    <div
+      className={classes.join(" ")}
+      style={{ "--ar": tileAspect.toFixed(4) }}
+      data-pan-ar={capped ? tileAspect.toFixed(4) : undefined}
+    >
       <Link
         className="art-a"
         to={`/banner/${encodeURIComponent(banner.id)}`}
@@ -211,12 +229,7 @@ export function BannerTile({ banner, here, showAddress = true, listType }) {
               decoding="async"
               width="604"
               height={Math.round(604 / aspect)}
-              style={
-                capped
-                  ? { "--pan": `${(-getPanFraction(aspect, tileAspect) * 100).toFixed(3)}%` }
-                  : undefined
-              }
-              onLoad={capped ? handlePanImageLoad : undefined}
+              {...(capped ? getPanImageProps(aspect, tileAspect) : {})}
             />
           ) : null}
           <span className="art-flags">
@@ -408,6 +421,8 @@ export function BannerRows({ banners, here = null, label = "Banners", loadingMor
             })
           : null;
         const perKm = getMissionsPerKm(banner);
+        const aspect = getBannerAspect(banner);
+        const thumbCapped = aspect < ROW_THUMB_ASPECT * (1 - MIN_PAN_FRACTION);
 
         return (
           <li
@@ -417,9 +432,20 @@ export function BannerRows({ banners, here = null, label = "Banners", loadingMor
             }`}
           >
             <Link className="brow-a sl" to={`/banner/${encodeURIComponent(banner.id)}`}>
-              <span className="brow-pic">
+              <span
+                className={`brow-pic${thumbCapped ? " capped" : ""}`}
+                data-pan-ar={thumbCapped ? ROW_THUMB_ASPECT.toFixed(4) : undefined}
+              >
                 {pictureUrl ? (
-                  <img src={pictureUrl} alt="" loading="lazy" decoding="async" />
+                  <img
+                    src={pictureUrl}
+                    alt=""
+                    loading="lazy"
+                    decoding="async"
+                    width="604"
+                    height={Math.round(604 / aspect)}
+                    {...(thumbCapped ? getPanImageProps(aspect, ROW_THUMB_ASPECT) : {})}
+                  />
                 ) : null}
               </span>
               <span className="brow-txt">

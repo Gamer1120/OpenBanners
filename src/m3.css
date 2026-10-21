@@ -963,6 +963,40 @@ body {
   display: block;
 }
 
+/* Tall banners pan inside the thumbnail (112 × 72 shape), same as the wall tiles. */
+.brow-pic.capped {
+  position: relative;
+  display: block;
+  aspect-ratio: 112 / 72; /* also on phones, where the thumbnail is 84 wide */
+}
+
+.brow-pic.capped img {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: auto;
+  min-height: 100%;
+  animation: art-pan 14s ease-in-out infinite alternate;
+}
+
+.brow-pic.capped.nopan img {
+  animation: none;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .brow-a:hover .brow-pic.capped img {
+    animation-play-state: paused;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .brow-pic.capped img {
+    animation-duration: 40s;
+    animation-timing-function: linear;
+  }
+}
+
 .brow.off .brow-pic img {
   filter: grayscale(0.9) brightness(0.7);
 }

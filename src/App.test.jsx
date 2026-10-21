@@ -3458,12 +3458,14 @@ test("renders mission waypoint dots on the banner details overview map", async (
   );
 
   expect(screen.getByTestId("marker-52.371-4.891")).toBeInTheDocument();
-  expect(screen.queryByTestId("marker-52.381-4.901")).not.toBeInTheDocument();
+  // The last portal of the last mission keeps its finish flag marker.
+  expect(screen.getByTestId("marker-52.381-4.901")).toBeInTheDocument();
   expect(screen.queryByTestId("dot-52.381-4.901")).not.toBeInTheDocument();
-  expect(screen.getByRole("link", { name: "Open in maps app" })).toHaveAttribute(
-    "href",
-    expect.stringMatching(/^geo:52\.371,4\.891\?q=52\.371,4\.891\(/)
-  );
+  expect(
+    screen
+      .getAllByRole("link", { name: "Open in maps app" })
+      .map((link) => link.getAttribute("href"))
+  ).toContainEqual(expect.stringMatching(/^geo:52\.371,4\.891\?q=52\.371,4\.891\(/));
 });
 
 test("shows bannergress list action buttons on the banner overview page", async () => {

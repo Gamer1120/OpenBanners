@@ -43,8 +43,11 @@ const OBJECTIVES = {
   viewWaypoint: "View waypoint",
   enterPassphrase: "Enter passphrase",
 };
-const START_FLAG_SVG =
-  '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14.4 6 14 4H5v17h2v-7h5.6l.4 2h7V6z"/></svg>';
+// Checkered flag (Material "sports_score"), inline so it doesn't depend on emoji fonts.
+const FINISH_FLAG_SVG =
+  '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M11 6H9V4h2v2zm4-2h-2v2h2V4zM9 14h2v-2H9v2zm10-4V8h-2v2h2zm0 4v-2h-2v2h2zm-6 0h2v-2h-2v2zm6-10h-2v2h2V4zm-6 4V6h-2v2h2zM7 10V8h2V6H7V4H5v16h2v-8h2v-2H7zm8 2h2v-2h-2v2zm-4-2v2h2v-2h-2zM9 8v2h2V8H9zm4 2h2V8h-2v2zm2-4v2h2V6h-2z"/></svg>';
+// Within ~15 m counts as "the same spot" for the finish marker.
+const SAME_SPOT_DEGREES = 0.00015;
 
 function missionColors(count) {
   return Array.from({ length: count }, (_, index) =>
@@ -103,21 +106,49 @@ function getBannerAuthors(missions) {
 }
 
 function createStartIcon(index, color, selected) {
-  if (index === 0) {
-    return L.divIcon({
-      className: `mk mk-start${selected ? " sel" : ""}`,
-      html: `<span>${START_FLAG_SVG}Start</span>`,
-      iconSize: [72, 44],
-      iconAnchor: [14, 40],
-    });
-  }
-
+  // Mission 1 is the start: same numbered circle as the others, in its own colour.
   return L.divIcon({
-    className: `mk mk-num${selected ? " sel" : ""}`,
+    className: `mk mk-num${index === 0 ? " mk-first" : ""}${selected ? " sel" : ""}`,
     html: `<span style="--c:${color}">${index + 1}</span>`,
     iconSize: [22, 22],
     iconAnchor: [11, 11],
   });
+}
+
+function createFinishIcon(shifted) {
+  // Shifted up-right when a numbered start marker sits on the same portal.
+  return L.divIcon({
+    className: "mk mk-num mk-finish",
+    html: `<span>${FINISH_FLAG_SVG}</span>`,
+    iconSize: [22, 22],
+    iconAnchor: shifted ? [-3, 25] : [11, 11],
+  });
+}
+
+export function isOnStartMarker([latitude, longitude], missionPositions) {
+  return missionPositions.some(
+    (positions) =>
+      positions[0] &&
+      Math.abs(positions[0][0] - latitude) < SAME_SPOT_DEGREES &&
+      Math.abs(positions[0][1] - longitude) < SAME_SPOT_DEGREES
+  );
+}
+
+export function getFinish(missions) {
+  for (let missionIndex = missions.length - 1; missionIndex >= 0; missionIndex -= 1) {
+    const steps = getSteps(missions[missionIndex]);
+
+    for (let stepIndex = steps.length - 1; stepIndex >= 0; stepIndex -= 1) {
+      const step = steps[stepIndex];
+      const position = getStepPosition(step);
+
+      if (position && step?.poi?.type !== "unavailable") {
+        return { position, title: step?.poi?.title || "Last portal", missionIndex, stepIndex };
+      }
+    }
+  }
+
+  return null;
 }
 
 function createWaypointIcon(color) {
@@ -363,6 +394,14 @@ function RouteMap({
     [colors, selectedMission]
   );
   const pointCount = missionPositions.reduce((total, positions) => total + positions.length, 0);
+  const finish = useMemo(() => getFinish(missions), [missions]);
+  const finishIcon = useMemo(() => {
+    if (!finish) {
+      return null;
+    }
+
+    return createFinishIcon(isOnStartMarker(finish.position, missionPositions));
+  }, [finish, missionPositions]);
 
   return (
     <MapContainer
@@ -474,6 +513,27 @@ function RouteMap({
             eventHandlers={{ click: () => onSelectMission(index) }}
           />
         ))}
+      {finish && finishIcon ? (
+        <Marker
+          key="finish"
+          position={finish.position}
+          icon={finishIcon}
+          title={`Finish: ${finish.title}`}
+          zIndexOffset={1500}
+        >
+          <Popup>
+            <div>
+              <div>
+                <b>Finish</b> · mission {finish.missionIndex + 1}
+              </div>
+              <div>{finish.title}</div>
+              <a href={buildGeoUrl(finish.position[0], finish.position[1], finish.title)}>
+                Open in maps app
+              </a>
+            </div>
+          </Popup>
+        </Marker>
+      ) : null}
       {userLocation ? (
         <Marker
           position={[userLocation.latitude, userLocation.longitude]}

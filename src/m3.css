@@ -1815,32 +1815,6 @@ body {
   place-items: center;
 }
 
-.mk.mk-start {
-  width: 72px;
-  height: 44px;
-  place-items: end start;
-}
-
-.mk.mk-start span {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  height: 28px;
-  padding: 0 10px 0 6px;
-  border-radius: 14px 14px 14px 2px;
-  background: var(--primary);
-  color: var(--on-primary);
-  font: 600 12px/28px var(--font);
-  box-shadow: 0 0 0 2px #fff, 0 2px 4px rgba(0, 0, 0, 0.4);
-  white-space: nowrap;
-}
-
-.mk.mk-start svg {
-  width: 16px;
-  height: 16px;
-  fill: currentColor;
-}
-
 .mk.mk-num {
   width: 22px;
   height: 22px;
@@ -1865,6 +1839,26 @@ body {
   transform: scale(1.35);
   background: var(--c, var(--primary));
   color: #fff;
+}
+
+/* Start = mission 1 in green; finish = white checkered flag on black. Same size as the
+   other numbered circles. */
+.mk.mk-first span {
+  background: #1e8e4e;
+  color: #fff;
+  border-color: #fff;
+}
+
+.mk.mk-finish span {
+  background: #111;
+  color: #fff;
+  border-color: #fff;
+}
+
+.mk.mk-finish svg {
+  width: 13px;
+  height: 13px;
+  fill: currentColor;
 }
 
 .mk.mk-wp span {

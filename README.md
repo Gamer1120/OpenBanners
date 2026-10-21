@@ -45,7 +45,7 @@ docker run --rm -p 8080:80 openbanners
 
 Then open `http://localhost:8080`.
 
-The container copies the existing `dist/` directory into nginx and includes PHP-FPM only for dynamic `/banner/:id` metadata fallback. Non-banner routes are still served as static SPA files.
+The container copies the existing `dist/` directory into nginx and runs a small TypeScript service on Node (`server/banner-meta.mts`, no PHP) only for dynamic `/banner/:id` metadata fallback. Non-banner routes are still served as static SPA files.
 
 The GitHub Actions workflow installs dependencies with Yarn cache, runs `yarn build`, and then builds the small static image. Pull requests build the image without publishing it. Pushes to `main`, `v*.*.*` tags, and manual `workflow_dispatch` runs publish to GitHub Container Registry. The workflow lowercases the repository path because container image names must be lowercase, producing tags such as:
 
@@ -84,11 +84,11 @@ That command fetches Bannergress JSON for each requested banner id and writes a 
 dist/banner/<banner-id>/index.html
 ```
 
-For banner ids that are not prerendered yet, the Docker deployment uses `server/banner-meta.php` as a fallback renderer. It reads the built SPA shell, fetches the requested Bannergress banner, injects the banner-specific metadata into the initial HTML, and still returns the normal SPA shell.
+For banner ids that are not prerendered yet, the Docker deployment uses `server/banner-meta.mts` as a fallback renderer (run directly by Node's TypeScript type stripping on `127.0.0.1:8788` inside the container). It reads the built SPA shell, fetches the requested Bannergress banner, injects the banner-specific metadata into the initial HTML, and still returns the normal SPA shell.
 
 This keeps the deployment free of a dedicated Node metadata server while still making any banner URL previewable.
 
-In production, nginx should prefer prerendered files for `/banner/:id`, then fall back to the PHP renderer, and only then fall back to the generic SPA shell when banner data is unavailable.
+In production, nginx should prefer prerendered files for `/banner/:id`, then fall back to the TypeScript renderer, and only then fall back to the generic SPA shell when banner data is unavailable.
 
 ## External Dependencies
 

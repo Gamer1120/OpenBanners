@@ -3,7 +3,7 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter, Route, Routes, useLocation } from "react-router-dom";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
-import { BannersStart } from "./BannersNearMe";
+import BannersStart from "./BannersStartPage";
 import SearchPage from "./SearchPage";
 import { addRecentSearch, readRecentSearches } from "../recentSearches";
 
@@ -48,20 +48,79 @@ function mockPermission(state) {
   });
 }
 
-test("start page opens Near you when location is allowed", async () => {
+test("start page shows the 3 nearest banners and country / province / city buttons", async () => {
   mockPermission("granted");
+  navigator.geolocation.getCurrentPosition = vi.fn((resolve) =>
+    resolve({ coords: { latitude: 52.2215, longitude: 6.8937 } })
+  );
+  const nearby = Array.from({ length: 6 }, (_, index) => ({
+    id: `near-${index}`,
+    title: `Near ${index}`,
+    numberOfMissions: 6,
+    startPlaceId: "enschede-fe79",
+  }));
+  const enschede = {
+    id: "enschede-fe79",
+    type: "locality",
+    longName: "Enschede",
+    numberOfBanners: 94,
+    boundaryMinLatitude: 52.1,
+    boundaryMaxLatitude: 52.3,
+    boundaryMinLongitude: 6.7,
+    boundaryMaxLongitude: 7.0,
+    parentPlace: {
+      id: "overijssel-9f29",
+      type: "administrative_area_level_1",
+      longName: "Overijssel",
+      parentPlace: { id: "netherlands-2585", type: "country", longName: "Netherlands" },
+    },
+  };
+  global.fetch = vi.fn((input) => {
+    const url = String(input);
+    const body = url.includes("/bnrs?") ? nearby : url.includes("/places/enschede-fe79") ? enschede : null;
+    return Promise.resolve({ ok: Boolean(body), status: body ? 200 : 404, json: () => Promise.resolve(body) });
+  });
+
   renderStart();
-  await waitFor(() => expect(screen.getByTestId("where")).toHaveTextContent("/near"));
+
+  expect(await screen.findByText("Near 0")).toBeInTheDocument();
+  expect(screen.getByText("Near 2")).toBeInTheDocument();
+  expect(screen.queryByText("Near 3")).not.toBeInTheDocument();
+  expect(screen.getByRole("link", { name: /more banners near you/i })).toHaveAttribute("href", "/near");
+  expect(await screen.findByRole("link", { name: /netherlands/i })).toHaveAttribute(
+    "href",
+    "/browse/netherlands-2585"
+  );
+  expect(screen.getByRole("link", { name: /overijssel/i })).toHaveAttribute("href", "/browse/overijssel-9f29");
+  expect(screen.getByRole("link", { name: /enschede/i })).toHaveAttribute("href", "/browse/enschede-fe79");
 });
 
-test("start page opens the saved city without location", async () => {
+test("without location the start page uses the saved city's places", async () => {
   mockPermission("prompt");
   window.localStorage.setItem(
     "openbanners-home-city",
-    JSON.stringify({ picked: true, place: { id: "enschede-1", longName: "Enschede" }, savedAt: Date.now() })
+    JSON.stringify({ picked: true, place: { id: "enschede-fe79", longName: "Enschede" }, savedAt: Date.now() })
+  );
+  global.fetch = vi.fn(() =>
+    Promise.resolve({
+      ok: true,
+      status: 200,
+      json: () =>
+        Promise.resolve({
+          id: "enschede-fe79",
+          type: "locality",
+          longName: "Enschede",
+          parentPlace: { id: "netherlands-2585", type: "country", longName: "Netherlands" },
+        }),
+    })
   );
   renderStart();
-  await waitFor(() => expect(screen.getByTestId("where")).toHaveTextContent("/browse/enschede-1"));
+
+  expect(await screen.findByRole("link", { name: /netherlands/i })).toHaveAttribute(
+    "href",
+    "/browse/netherlands-2585"
+  );
+  expect(screen.getByRole("button", { name: /use my location/i })).toBeInTheDocument();
 });
 
 test("start page falls back to all countries", async () => {

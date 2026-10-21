@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { MyLocation, NearMe } from "@mui/icons-material";
 import BannerWall, { BannerRows, useInfiniteScroll } from "./BannerWall";
 import AboutNotice from "./AboutNotice";
@@ -68,7 +68,7 @@ export function loadCachedNearbyLocation() {
   }
 }
 
-function saveCachedNearbyLocation(location) {
+export function saveCachedNearbyLocation(location) {
   if (
     typeof window === "undefined" ||
     !Number.isFinite(location?.latitude) ||
@@ -87,60 +87,6 @@ function saveCachedNearbyLocation(location) {
       })
     );
   } catch {}
-}
-
-// "/" decides where the Banners tab opens: near you when location is usable,
-// else the remembered city, else all countries.
-export function BannersStart() {
-  const navigate = useNavigate();
-
-  useEffect(() => {
-    let ignore = false;
-    const goToPlaces = () => {
-      if (ignore) {
-        return;
-      }
-
-      const city = readCachedCity()?.place;
-      navigate(city?.id ? `/browse/${encodeURIComponent(city.id)}` : "/browse/", {
-        replace: true,
-      });
-    };
-
-    if (loadCachedNearbyLocation()) {
-      navigate("/near", { replace: true });
-      return undefined;
-    }
-
-    if (typeof navigator !== "undefined" && "geolocation" in navigator && navigator.permissions?.query) {
-      navigator.permissions
-        .query({ name: "geolocation" })
-        .then((result) => {
-          if (ignore) {
-            return;
-          }
-
-          if (result.state === "granted") {
-            navigate("/near", { replace: true });
-          } else {
-            goToPlaces();
-          }
-        })
-        .catch(goToPlaces);
-    } else {
-      goToPlaces();
-    }
-
-    return () => {
-      ignore = true;
-    };
-  }, [navigate]);
-
-  return (
-    <div className="ob-page">
-      <BannerWall banners={[]} skeletonCount={8} label="Loading banners" />
-    </div>
-  );
 }
 
 export default function BannersNearMe({

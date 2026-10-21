@@ -2297,3 +2297,102 @@ body {
   color: var(--on-surface);
   font-weight: 500;
 }
+
+/* Banners start page: big one-hand buttons under the 3 nearest banners */
+.start-acts {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.start-btn {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  min-height: 64px;
+  padding: 10px 16px;
+  border: 0;
+  border-radius: var(--r-l);
+  background: var(--sc-high);
+  color: var(--on-surface);
+  font: inherit;
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.start-btn:hover {
+  background: var(--sc-highest);
+}
+
+.start-btn.primary {
+  background: var(--primary-container);
+  color: var(--on-primary-container);
+}
+
+.start-btn b {
+  display: block;
+  font-weight: 500;
+  font-size: 16px;
+}
+
+.start-btn .small {
+  display: block;
+  color: inherit;
+  opacity: 0.75;
+}
+
+.start-btn.sk {
+  animation: ob-pulse 1.4s ease-in-out infinite;
+}
+
+.start-ic {
+  width: 40px;
+  height: 40px;
+  flex: none;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: color-mix(in oklab, currentColor 12%, transparent);
+  font-size: 22px;
+}
+
+.start-go {
+  opacity: 0.6;
+}
+
+.start-all {
+  align-self: center;
+  padding: 10px 16px;
+  color: var(--primary);
+  text-decoration: none;
+  font-weight: 500;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .start-btn.sk {
+    animation: none;
+  }
+}
+
+.start-acts {
+  max-width: 640px;
+  width: 100%;
+}
+
+/* Phones: keep the buttons at thumb height even when there are no banners above them */
+@media (max-width: 839.98px) {
+  .start-page {
+    min-height: calc(100dvh - 64px - var(--nav-h) - var(--safe-b));
+  }
+
+  .start-page .start-acts {
+    margin-top: auto;
+  }
+}
+
+.start-btn .grow {
+  flex: 1;
+  min-width: 0;
+}

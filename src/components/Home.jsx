@@ -3,7 +3,8 @@ import { ThemeProvider } from "@mui/material/styles";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import TopMenu from "./TopMenu";
 import AppNav from "./AppNav";
-import BannersNearMe, { BannersStart } from "./BannersNearMe";
+import BannersNearMe from "./BannersNearMe";
+import BannersStartPage from "./BannersStartPage";
 import SearchPage from "./SearchPage";
 import ListsPage from "./ListsPage";
 import BrowsingPage from "./BrowsingPage";
@@ -304,7 +305,7 @@ export default function Home() {
           title={VIEW_TITLES[currentView] ?? ""}
         />
         <main className="ob-main" id="main-content" tabIndex={-1}>
-          {currentView === "start" && <BannersStart />}
+          {currentView === "start" && <BannersStartPage />}
           {currentView === "near" && (
             <BannersNearMe
               bannerFilters={bannerFilters}

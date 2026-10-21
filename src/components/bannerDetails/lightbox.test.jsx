@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
 import { EnlargeableArt, MissionMosaic } from "./shared";
@@ -24,5 +24,13 @@ test("tapping the banner artwork enlarges it instead of opening a mission", asyn
   await user.click(screen.getByRole("button", { name: /enlarge banner artwork/i }));
   expect(screen.getByRole("dialog", { name: /banner artwork/i })).toBeInTheDocument();
   await user.keyboard("{Escape}");
+  expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+
+  // Tapping the enlarged artwork closes it (and doesn't reopen it).
+  await user.click(screen.getByRole("button", { name: /enlarge banner artwork/i }));
+  await user.click(within(screen.getByRole("dialog")).getByRole("img"));
+  expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  await user.click(screen.getByRole("button", { name: /enlarge banner artwork/i }));
+  await user.click(screen.getByRole("button", { name: "Close" }));
   expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
 });

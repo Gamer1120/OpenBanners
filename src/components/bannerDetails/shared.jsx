@@ -1,6 +1,7 @@
 import { CircleMarker, MapContainer, Marker, Polyline, Popup, TileLayer } from "react-leaflet";
 import { Link, useParams } from "react-router-dom";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { Skeleton, useMediaQuery } from "@mui/material";
 import {
   CloudOff,
@@ -237,15 +238,23 @@ export function BannerLightbox({ banner, missions, colors, onClose }) {
     };
   }, [onClose]);
 
-  return (
-    <div className="bp-lightbox" role="dialog" aria-modal="true" aria-label="Banner artwork" onClick={onClose}>
-      <button type="button" className="bp-lightbox-close" aria-label="Close" onClick={onClose}>
+  // Portal to <body>: inside the page the hero's stacking context let the tabs draw over it.
+  return createPortal(
+    <div className="bp-lightbox" role="dialog" aria-modal="true" aria-label="Banner artwork"
+      onClick={(event) => {
+        // React bubbles portal clicks to the enlarge button, which would reopen it.
+        event.stopPropagation();
+        onClose();
+      }}
+    >
+      <button type="button" className="bp-lightbox-close" aria-label="Close">
         ×
       </button>
       <div className="bp-lightbox-body">
         <MissionMosaic banner={banner} missions={missions} colors={colors} large />
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
 

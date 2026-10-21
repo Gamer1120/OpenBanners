@@ -27,15 +27,35 @@ export function statusDotIcon(status, { selected = false, dim = false } = {}) {
   );
 }
 
-// A group of nearby banners: a bubble with the count, tinted by the most common status.
-export function clusterIcon(count, status, { dim = false } = {}) {
-  const style = getStatusStyle(status);
+// A group of nearby banners: a neutral bubble with the count, ringed by a pie of
+// its statuses (amber To do, green Done, blue the rest) in proportion.
+export function clusterIcon(banners, { dim = false } = {}) {
+  const count = banners.length;
   const size = count < 10 ? 30 : count < 100 ? 36 : 42;
+  const tally = { todo: 0, done: 0, none: 0 };
 
-  return cachedIcon(`cluster:${count}:${status}:${dim}`, () =>
+  for (const banner of banners) {
+    tally[banner._status === "todo" || banner._status === "done" ? banner._status : "none"] += 1;
+  }
+
+  const stops = [];
+  let start = 0;
+
+  for (const status of ["todo", "done", "none"]) {
+    if (!tally[status]) {
+      continue;
+    }
+
+    const style = getStatusStyle(status);
+    const end = start + (tally[status] / count) * 360;
+    stops.push(`${style.dot ?? style.ring} ${start}deg ${end}deg`);
+    start = end;
+  }
+
+  return cachedIcon(`cluster:${count}:${tally.todo}:${tally.done}:${dim}`, () =>
     L.divIcon({
       className: `mv-cluster${dim ? " dim" : ""}`,
-      html: `<span style="--ring:${style.dot ?? style.ring}">${count}</span>`,
+      html: `<span style="--pie:conic-gradient(${stops.join(",")})"><b>${count}</b></span>`,
       iconSize: [size, size],
       iconAnchor: [size / 2, size / 2],
     })

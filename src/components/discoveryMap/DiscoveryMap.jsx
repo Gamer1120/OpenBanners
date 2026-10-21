@@ -36,16 +36,6 @@ const GROUPS = [
 // Room the filter chips take at the top when fitting a route.
 const FILTERBAR_SPACE = 56;
 const CLUSTER_RADIUS_PX = 34;
-
-function mostCommonStatus(banners) {
-  const counts = {};
-
-  for (const banner of banners) {
-    counts[banner._status] = (counts[banner._status] ?? 0) + 1;
-  }
-
-  return Object.keys(counts).sort((a, b) => counts[b] - counts[a])[0];
-}
 // Left over from the map prototypes switcher.
 const OLD_VARIANT_STORAGE_KEY = "openbanners.mapVariant";
 
@@ -358,7 +348,7 @@ export default function DiscoveryMap() {
                   members.reduce((sum, banner) => sum + banner._latitude, 0) / members.length,
                   members.reduce((sum, banner) => sum + banner._longitude, 0) / members.length,
                 ]}
-                icon={clusterIcon(members.length, mostCommonStatus(members), { dim: Boolean(selected) })}
+                icon={clusterIcon(members, { dim: Boolean(selected) })}
                 zIndexOffset={members.length}
                 title={`${members.length} banners`}
                 eventHandlers={{ click: () => openCluster(members) }}

@@ -112,13 +112,13 @@ test("Yours shows an empty state with a link to create a banner", async () => {
   );
 });
 
-test("To do / Done / Hidden counts come from a fresh sync when Lists opens", async () => {
+test("opening Lists runs a fresh sync and the tabs show no counts", async () => {
   const lists = { todo: ["t-1", "t-2", "t-3"], done: ["d-1", "d-2"], blacklist: ["h-1"] };
   global.fetch = vi.fn((input) => {
     const url = new URL(String(input));
     const listType = url.searchParams.get("listTypes");
 
-    // Bannergress refusing the id-only request must not leave the counts at 0.
+    // Bannergress refusing the id-only request must not break the sync.
     if (url.searchParams.getAll("attributes").length) {
       return json({ error: "Bad Request" }, 400);
     }
@@ -135,12 +135,13 @@ test("To do / Done / Hidden counts come from a fresh sync when Lists opens", asy
     </ThemeProvider>
   );
 
-  expect(await screen.findByRole("button", { name: /to do\s*3/i })).toBeInTheDocument();
-  expect(screen.getByRole("button", { name: /done\s*2/i })).toBeInTheDocument();
-  expect(screen.getByRole("button", { name: /hidden\s*1/i })).toBeInTheDocument();
+  await screen.findByText(/synced/i);
+  expect(screen.getByRole("button", { name: /^to do$/i })).toBeInTheDocument();
+  expect(screen.getByRole("button", { name: /^done$/i })).toBeInTheDocument();
+  expect(screen.getByRole("button", { name: /^hidden$/i })).toBeInTheDocument();
 });
 
-test("a failed list sync shows the error with Retry instead of endless dots", async () => {
+test("a failed list sync shows the error with Retry", async () => {
   vi.resetModules();
   const { default: FreshListsPage } = await import("./ListsPage");
   let syncStatus = 500;
@@ -173,6 +174,6 @@ test("a failed list sync shows the error with Retry instead of endless dots", as
   syncStatus = 200;
   await user.click(screen.getByRole("button", { name: "Retry" }));
 
-  expect(await screen.findByRole("button", { name: /^to do\s*2$/i })).toBeInTheDocument();
+  await screen.findByText(/synced/i);
   expect(screen.queryByText(/Couldn’t load your lists/)).not.toBeInTheDocument();
 });

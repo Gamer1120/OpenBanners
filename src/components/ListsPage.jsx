@@ -9,7 +9,6 @@ import {
   BANNERGRESS_REQUEST_TIMEOUT_MS,
   fetchBannergress,
   formatBannergressSyncTime,
-  getBannergressSyncCounts,
   isBannergressAuthSupportedOrigin,
   requestBannergressSyncData,
   saveBannergressSyncData,
@@ -53,9 +52,9 @@ const PAGE_SIZE = 24;
 const COUNT_SYNC_INTERVAL_MS = 60 * 1000;
 let lastCountSync = { at: 0, promise: null };
 
-// The To do / Done / Hidden counts come from the list sync. That used to run
-// only once, silently, when the app loaded, so one failed sync left them at 0
-// for good. Opening Lists syncs again (at most once a minute; Retry forces it).
+// The list sync feeds the To do / Done / Hidden tile colours and hides Hidden
+// banners elsewhere. Opening Lists syncs again (at most once a minute; Retry
+// forces it). Bannergress has no count endpoint, so the tabs show no numbers.
 // Resolves to null on success or the error; never rejects.
 function syncCountsNow({ force = false } = {}) {
   if (lastCountSync.promise) {
@@ -101,7 +100,6 @@ export function describeSyncError(error) {
 export default function ListsPage() {
   const authData = useBannergressAuth();
   const syncState = useBannergressSync();
-  const counts = getBannergressSyncCounts(syncState);
   const location = useLocation();
   const navigate = useNavigate();
   const togetherOpen = location.pathname.startsWith("/lists/together");
@@ -149,7 +147,6 @@ export default function ListsPage() {
       ignore = true;
     };
   }, [signedIn, countsAttempt]);
-  const countsUnknown = !syncState?.syncedAt && (countsSyncing || Boolean(countsError));
   const countsAuthError = countsError?.code === "AUTH_REQUIRED";
 
   const loadPage = useCallback(
@@ -284,13 +281,6 @@ export default function ListsPage() {
               onClick={() => setListType(list.key)}
             >
               {list.label}
-              {signedIn && list.key in counts ? (
-                countsUnknown && !countsSyncing ? null : (
-                  <span className="small muted">
-                    {countsUnknown ? "…" : (counts[list.key] ?? 0)}
-                  </span>
-                )
-              ) : null}
             </button>
           ))}
           <button

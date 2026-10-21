@@ -1,9 +1,6 @@
 import L from "leaflet";
 import { MapContainer, Marker, TileLayer, useMapEvents } from "react-leaflet";
 import { Link } from "react-router-dom";
-import { useMemo } from "react";
-import { formatLength, getBannerAspect, getBannerPictureUrl } from "../../bannerDisplay";
-import { escapeHtml, formatMinutes, walkingMinutes } from "./mapMath";
 import { getStatusStyle } from "./mapStatus";
 
 const iconCache = new globalThis.Map();
@@ -16,29 +13,16 @@ function cachedIcon(key, create) {
   return iconCache.get(key);
 }
 
-export function statusDotIcon(status, { selected = false, dim = false, glow = false, label = "" } = {}) {
+export function statusDotIcon(status, { selected = false, dim = false } = {}) {
   const style = getStatusStyle(status);
-  const size = selected ? 26 : glow ? 20 : 16;
+  const size = selected ? 26 : 16;
 
-  return cachedIcon(`dot:${status}:${selected}:${dim}:${glow}:${label}`, () =>
+  return cachedIcon(`dot:${status}:${selected}:${dim}`, () =>
     L.divIcon({
-      className: `mv-dot${selected ? " sel" : ""}${dim ? " dim" : ""}${glow ? " glow" : ""}`,
-      html: `<span style="--ring:${style.dot ?? style.ring};--glow:${style.ring}">${escapeHtml(label)}</span>`,
+      className: `mv-dot${selected ? " sel" : ""}${dim ? " dim" : ""}`,
+      html: `<span style="--ring:${style.dot ?? style.ring}"></span>`,
       iconSize: [size, size],
       iconAnchor: [size / 2, size / 2],
-    })
-  );
-}
-
-export function numberedIcon(number, status, { selected = false } = {}) {
-  const style = getStatusStyle(status);
-
-  return cachedIcon(`num:${number}:${status}:${selected}`, () =>
-    L.divIcon({
-      className: `mv-num${selected ? " sel" : ""}`,
-      html: `<span style="--ring:${style.ring}">${number}</span>`,
-      iconSize: [30, 30],
-      iconAnchor: [15, 15],
     })
   );
 }
@@ -50,18 +34,17 @@ const locationIcon = L.divIcon({
   iconAnchor: [9, 9],
 });
 
-function VariantMapEvents({ onViewportChange, onMove, onMapClick }) {
+function DiscoveryMapEvents({ onViewportChange, onMapClick }) {
   useMapEvents({
     moveend: (event) => onViewportChange(event.target),
-    move: (event) => onMove?.(event.target),
     click: (event) => onMapClick?.(event),
   });
 
   return null;
 }
 
-// MapContainer + OSM tiles + user location, wired to useVariantMap.
-export function VariantBaseMap({ vm, onMapClick, children }) {
+// MapContainer + OSM tiles + user location, wired to useDiscoveryMap.
+export function DiscoveryBaseMap({ vm, onMapClick, children }) {
   return (
     <MapContainer
       center={vm.initialCenter}
@@ -84,7 +67,7 @@ export function VariantBaseMap({ vm, onMapClick, children }) {
           zIndexOffset={-100}
         />
       ) : null}
-      <VariantMapEvents onViewportChange={vm.handleViewportChange} onMove={vm.handleMove} onMapClick={onMapClick} />
+      <DiscoveryMapEvents onViewportChange={vm.handleViewportChange} onMapClick={onMapClick} />
       {children}
     </MapContainer>
   );
@@ -155,75 +138,10 @@ export function StatusChip({ status }) {
   );
 }
 
-export function bannerFacts(banner) {
-  const missions = Number(banner?.numberOfMissions);
-  const minutes = walkingMinutes(banner?.lengthMeters);
-
-  return [
-    formatLength(banner?.lengthMeters),
-    Number.isFinite(missions) ? `${missions} mission${missions === 1 ? "" : "s"}` : null,
-    minutes !== null ? `~${formatMinutes(minutes)} walk` : null,
-  ]
-    .filter(Boolean)
-    .join(" · ");
-}
-
-export function BannerPicture({ banner, maxHeight = 140, className = "" }) {
-  const url = getBannerPictureUrl(banner);
-  const aspect = getBannerAspect(banner);
-
-  return url ? (
-    <div className={`mv-pic ${className}`} style={{ maxHeight, aspectRatio: aspect }}>
-      <img src={url} alt="" loading="lazy" draggable={false} />
-    </div>
-  ) : (
-    <div className={`mv-pic none ${className}`} style={{ maxHeight, aspectRatio: aspect }} />
-  );
-}
-
-// Compact one-banner card (image left, facts right) used by B, C and D.
-export function BannerMiniCard({ banner, selected, onClick, action, children, as = "div", cardRef }) {
-  const style = getStatusStyle(banner._status);
-  const Element = as;
-  const url = getBannerPictureUrl(banner);
-
-  return (
-    <Element
-      ref={cardRef}
-      className={`mv-mini${selected ? " sel" : ""}`}
-      style={{ "--surface": style.surface, "--ring": style.ring }}
-      onClick={onClick}
-      data-banner-id={banner.id}
-    >
-      <div className="mv-mini-thumb" style={url ? { backgroundImage: `url("${url}")` } : undefined} />
-      <div className="mv-mini-body">
-        <div className="mv-mini-title">{banner.title}</div>
-        <div className="mv-mini-facts">{bannerFacts(banner)}</div>
-        <div className="mv-mini-row">
-          <StatusChip status={banner._status} />
-          {children}
-        </div>
-      </div>
-      {action}
-    </Element>
-  );
-}
-
 export function OpenBannerLink({ banner, children = "Open", className = "mv-btn primary" }) {
   return (
     <Link className={className} to={`/banner/${banner.id}`} onClick={(event) => event.stopPropagation()}>
       {children}
     </Link>
-  );
-}
-
-export function useStatusCounts(banners) {
-  return useMemo(
-    () =>
-      banners.reduce(
-        (counts, banner) => ({ ...counts, [banner._status]: (counts[banner._status] ?? 0) + 1 }),
-        {}
-      ),
-    [banners]
   );
 }

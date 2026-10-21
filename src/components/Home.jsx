@@ -10,13 +10,9 @@ import ListsPage from "./ListsPage";
 import BrowsingPage from "./BrowsingPage";
 import SearchResults from "./SearchResults";
 import BannerDetailsPage from "./BannerDetailsPage";
-import MapVariantsHost from "./mapVariants/MapVariantsHost";
+import DiscoveryMap from "./discoveryMap/DiscoveryMap";
 import BannerRerouterPage from "./BannerRerouterPage";
 import BannerTogetherPage from "./BannerTogetherPage";
-import {
-  readDiscoveryMapFilters,
-  saveDiscoveryMapFilters,
-} from "../discoveryMapState";
 import {
   getBrowseStateScope,
   readBrowseFilters,
@@ -188,9 +184,6 @@ export default function Home() {
   const [bannerFilters, setBannerFilters] = useState(() =>
     readBrowseFilters(browseStateScope)
   );
-  const [mapBannerFilters, setMapBannerFiltersState] = useState(
-    readDiscoveryMapFilters
-  );
 
   const handleTitleClick = () => {
     navigate("/");
@@ -199,18 +192,6 @@ export default function Home() {
   const handleRerouterClick = () => {
     setCurrentView("rerouter");
     navigate("/rerouter");
-  };
-
-  const setMapBannerFilters = (nextFilters) => {
-    setMapBannerFiltersState((currentFilters) => {
-      const resolvedFilters =
-        typeof nextFilters === "function"
-          ? nextFilters(currentFilters)
-          : nextFilters;
-
-      saveDiscoveryMapFilters(resolvedFilters);
-      return resolvedFilters;
-    });
   };
 
   const setBrowseBannerFilters = (nextFilters) => {
@@ -335,10 +316,7 @@ export default function Home() {
           )}
           {currentView === "map" && (
             <LegacyDark fill>
-              <MapVariantsHost
-                bannerFilters={mapBannerFilters}
-                onBannerFiltersChange={setMapBannerFilters}
-              />
+              <DiscoveryMap />
             </LegacyDark>
           )}
           {currentView === "rerouter" && (

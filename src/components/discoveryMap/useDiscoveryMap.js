@@ -19,10 +19,10 @@ function containsArea(outer, inner) {
   );
 }
 
-// Map state shared by the prototypes: viewport (shared with the classic map), user
+// Discovery-map state: viewport (remembered across visits), user
 // location, and the Bannergress banners for the searched area with their list status.
 // manualSearch: banners load for the first view and then only on searchThisArea().
-export default function useVariantMap({ manualSearch = false, trackMove = false } = {}) {
+export default function useDiscoveryMap({ manualSearch = false } = {}) {
   const [initialState] = useState(readDiscoveryMapState);
   const restoredViewport = initialState.viewport;
   const [map, setMap] = useState(null);
@@ -34,8 +34,7 @@ export default function useVariantMap({ manualSearch = false, trackMove = false 
   const syncState = useBannergressSync();
   const centeredRef = useRef(Boolean(restoredViewport));
   const searchNextMoveRef = useRef(false);
-  const moveFrameRef = useRef(0);
-  const { banners: loadedBanners, loading, error, hasMore } = useDiscoveryMapBanners(
+  const { banners: loadedBanners, loading, error } = useDiscoveryMapBanners(
     searchArea,
     userLocation,
     LOAD_FILTERS
@@ -68,22 +67,6 @@ export default function useVariantMap({ manualSearch = false, trackMove = false 
     },
     [manualSearch]
   );
-
-  const handleMove = useCallback(
-    (mapInstance) => {
-      if (!trackMove || moveFrameRef.current) {
-        return;
-      }
-
-      moveFrameRef.current = window.requestAnimationFrame(() => {
-        moveFrameRef.current = 0;
-        setLiveArea(getVisibleAreaFromBounds(mapInstance.getBounds()));
-      });
-    },
-    [trackMove]
-  );
-
-  useEffect(() => () => window.cancelAnimationFrame(moveFrameRef.current), []);
 
   const searchThisArea = useCallback(() => {
     if (map) {
@@ -166,7 +149,6 @@ export default function useVariantMap({ manualSearch = false, trackMove = false 
     banners,
     loading,
     error,
-    hasMore,
     syncState,
     userLocation,
     locating,
@@ -175,6 +157,5 @@ export default function useVariantMap({ manualSearch = false, trackMove = false 
     // True once the view shows ground the last search didn't cover.
     canSearchArea: manualSearch && Boolean(searchArea && liveArea) && !containsArea(searchArea, liveArea),
     handleViewportChange,
-    handleMove,
   };
 }

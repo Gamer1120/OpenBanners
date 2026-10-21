@@ -1,6 +1,6 @@
 import { getBannerListType, shouldKeepHiddenBannerVisible } from "../../bannergressSync";
 
-// Bannergress list status as the map prototypes show it.
+// Bannergress list status as the discovery map shows it.
 export const STATUS_STYLES = Object.freeze({
   todo: { label: "To do", ring: "#f2b63d", surface: "#4b3410", text: "#ffd67a" },
   done: { label: "Done", ring: "#35a853", surface: "#173f26", text: "#9aecae" },
@@ -26,7 +26,7 @@ export function getStatusStyle(status) {
   return STATUS_STYLES[status] ?? STATUS_STYLES.none;
 }
 
-// Adds _status and drops Hidden banners (none of the prototypes show them).
+// Adds _status and drops Hidden banners (the map never shows them).
 export function withStatus(banners, syncState) {
   return (Array.isArray(banners) ? banners : [])
     .map((banner) => ({ ...banner, _status: getBannerStatus(banner, syncState) }))

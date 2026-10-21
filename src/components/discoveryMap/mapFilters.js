@@ -22,29 +22,30 @@ export const STATUS_OPTIONS = Object.freeze([
   { id: "hideDone", label: "Hide Done" },
 ]);
 
-export const DEFAULT_VARIANT_FILTERS = Object.freeze({ walk: "any", missions: "any", status: "hideDone" });
-export const VARIANT_FILTERS_STORAGE_KEY = "openbanners.mapVariant.filters";
+export const DEFAULT_MAP_FILTERS = Object.freeze({ walk: "any", missions: "any", status: "hideDone" });
+// Key from the filters prototype, kept so saved filters survive.
+export const MAP_FILTERS_STORAGE_KEY = "openbanners.mapVariant.filters";
 
 function findOption(options, id) {
   return options.find((option) => option.id === id) ?? options[0];
 }
 
-export function normalizeVariantFilters(value) {
+export function normalizeMapFilters(value) {
   return {
     walk: findOption(WALK_OPTIONS, value?.walk).id,
     missions: findOption(MISSION_OPTIONS, value?.missions).id,
-    status: findOption(STATUS_OPTIONS, value?.status ?? DEFAULT_VARIANT_FILTERS.status).id,
+    status: findOption(STATUS_OPTIONS, value?.status ?? DEFAULT_MAP_FILTERS.status).id,
   };
 }
 
-export function countActiveVariantFilters(filters) {
-  const normalized = normalizeVariantFilters(filters);
+export function countActiveMapFilters(filters) {
+  const normalized = normalizeMapFilters(filters);
   return [normalized.walk !== "any", normalized.missions !== "any", normalized.status !== "all"].filter(Boolean)
     .length;
 }
 
 // banners carry _status (see mapStatus.withStatus).
-export function applyVariantFilters(banners, filters) {
+export function applyMapFilters(banners, filters) {
   const walk = findOption(WALK_OPTIONS, filters?.walk);
   const missions = findOption(MISSION_OPTIONS, filters?.missions);
   const status = findOption(STATUS_OPTIONS, filters?.status).id;
@@ -95,7 +96,7 @@ export function applyVariantFilters(banners, filters) {
 }
 
 export function filterSummary(filters) {
-  const normalized = normalizeVariantFilters(filters);
+  const normalized = normalizeMapFilters(filters);
   return {
     walk: findOption(WALK_OPTIONS, normalized.walk).label,
     missions: findOption(MISSION_OPTIONS, normalized.missions).label,

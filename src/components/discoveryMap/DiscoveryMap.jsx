@@ -1,0 +1,379 @@
+import L from "leaflet";
+import { Marker, Polyline, Tooltip } from "react-leaflet";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import useDiscoveryMap from "./useDiscoveryMap";
+import {
+  DiscoveryBaseMap,
+  LocateButton,
+  MapStatusPill,
+  OpenBannerLink,
+  SearchAreaButton,
+  StatusChip,
+  statusDotIcon,
+} from "./shared";
+import {
+  DEFAULT_MAP_FILTERS,
+  MAP_FILTERS_STORAGE_KEY,
+  MISSION_OPTIONS,
+  STATUS_OPTIONS,
+  WALK_OPTIONS,
+  applyMapFilters,
+  countActiveMapFilters,
+  filterSummary,
+  normalizeMapFilters,
+} from "./mapFilters";
+import { useBannerRoute } from "./bannerRoute";
+import { formatMinutes, isInsideArea, walkingMinutes } from "./mapMath";
+import { FINISH_FLAG_SVG, missionColors } from "../BannerDetailsPage";
+import { formatLength, getBannerPictureUrl } from "../../bannerDisplay";
+import "./discoveryMap.css";
+
+const GROUPS = [
+  { key: "status", title: "Status", options: STATUS_OPTIONS },
+  { key: "walk", title: "Walking time", options: WALK_OPTIONS, note: "At about 4.5 km/h including portal stops" },
+  { key: "missions", title: "Number of missions", options: MISSION_OPTIONS },
+];
+// Room the filter chips take at the top when fitting a route.
+const FILTERBAR_SPACE = 56;
+// Left over from the map prototypes switcher.
+const OLD_VARIANT_STORAGE_KEY = "openbanners.mapVariant";
+
+function readStoredFilters() {
+  try {
+    return normalizeMapFilters(JSON.parse(window.localStorage.getItem(MAP_FILTERS_STORAGE_KEY) ?? "null"));
+  } catch {
+    return normalizeMapFilters(DEFAULT_MAP_FILTERS);
+  }
+}
+
+// Same numbered start / checkered finish markers as the banner page (m3.css .mk-*).
+function missionStartIcon(index, color) {
+  return L.divIcon({
+    className: `mk mk-num${index === 0 ? " mk-first" : ""}`,
+    html: `<span style="--c:${color}">${index + 1}</span>`,
+    iconSize: [22, 22],
+    iconAnchor: [11, 11],
+  });
+}
+
+function finishIcon(shifted) {
+  return L.divIcon({
+    className: "mk mk-num mk-finish",
+    html: `<span>${FINISH_FLAG_SVG}</span>`,
+    iconSize: [22, 22],
+    iconAnchor: shifted ? [-3, 25] : [11, 11],
+  });
+}
+
+function RouteLayer({ route }) {
+  const colors = useMemo(() => missionColors(route.missionPositions.length), [route.missionPositions.length]);
+  const startIcons = useMemo(
+    () => route.missionPositions.map((_, index) => missionStartIcon(index, colors[index])),
+    [colors, route.missionPositions]
+  );
+  const finishMarker = useMemo(() => finishIcon(route.finishShifted), [route.finishShifted]);
+
+  return (
+    <>
+      {route.allPositions.length > 1 ? (
+        <Polyline
+          positions={route.allPositions}
+          pathOptions={{ color: "#0b0f12", weight: 8, opacity: 0.55, lineCap: "round", lineJoin: "round" }}
+        />
+      ) : null}
+      {route.missionPositions.map((positions, index) =>
+        positions.length > 1 ? (
+          <Polyline
+            key={`m${index}`}
+            positions={positions}
+            pathOptions={{ color: colors[index], weight: 4, opacity: 0.95, lineCap: "round", lineJoin: "round" }}
+          />
+        ) : null
+      )}
+      {route.missionPositions.map((positions, index) => {
+        const next = route.missionPositions[index + 1]?.[0];
+        const last = positions[positions.length - 1];
+
+        return next && last ? (
+          <Polyline
+            key={`gap${index}`}
+            positions={[last, next]}
+            pathOptions={{ color: "#ffffff", weight: 2, opacity: 0.6, dashArray: "3 6" }}
+          />
+        ) : null;
+      })}
+      {route.missionPositions.map((positions, index) =>
+        positions[0] ? (
+          <Marker
+            key={`s${index}`}
+            position={positions[0]}
+            icon={startIcons[index]}
+            zIndexOffset={index === 0 ? 1400 : 1200 - index}
+            interactive={false}
+          />
+        ) : null
+      )}
+      {route.finish ? (
+        <Marker position={route.finish.position} icon={finishMarker} zIndexOffset={1500} title="Finish">
+          <Tooltip direction="top" offset={[0, -10]}>
+            Finish · {route.finish.title}
+          </Tooltip>
+        </Marker>
+      ) : null}
+    </>
+  );
+}
+
+function FilterSheet({ filters, onChange, onClose, focusKey, matchCount }) {
+  return (
+    <div className="mv-sheet mv-filter-sheet" role="dialog" aria-label="Map filters">
+      <div className="mv-grip" aria-hidden="true" />
+      <div className="mv-card-head">
+        <div className="mv-card-title">Filters</div>
+        <button type="button" className="mv-btn icon ghost" aria-label="Close filters" onClick={onClose}>
+          ×
+        </button>
+      </div>
+      {GROUPS.map((group) => (
+        <section key={group.key} className={`mv-filter-group${focusKey === group.key ? " focus" : ""}`}>
+          <h3>{group.title}</h3>
+          <div className="mv-seg wrap" role="radiogroup" aria-label={group.title}>
+            {group.options.map((option) => (
+              <button
+                type="button"
+                key={option.id}
+                role="radio"
+                aria-checked={filters[group.key] === option.id}
+                className={filters[group.key] === option.id ? "on" : ""}
+                onClick={() => onChange({ ...filters, [group.key]: option.id })}
+              >
+                {option.label}
+              </button>
+            ))}
+          </div>
+          {group.note ? <p className="mv-muted">{group.note}</p> : null}
+        </section>
+      ))}
+      <div className="mv-card-actions">
+        <button type="button" className="mv-btn" onClick={() => onChange(normalizeMapFilters({ status: "all" }))}>
+          Reset
+        </button>
+        <span className="mv-spacer" />
+        <button type="button" className="mv-btn primary" onClick={onClose}>
+          Show {matchCount} banner{matchCount === 1 ? "" : "s"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function RouteCard({ banner, routeStatus, onClose, cardRef }) {
+  const missions = Number(banner.numberOfMissions);
+  const minutes = walkingMinutes(banner.lengthMeters);
+  const picture = getBannerPictureUrl(banner);
+
+  return (
+    <div className="mv-sheet mv-route-card" ref={cardRef} aria-label="Selected banner">
+      {picture ? <div className="mv-route-thumb" style={{ backgroundImage: `url("${picture}")` }} /> : null}
+      <div className="mv-route-body">
+        <div className="mv-card-head">
+          <div className="mv-card-title">{banner.title}</div>
+          <button type="button" className="mv-btn icon ghost" aria-label="Close route" onClick={onClose}>
+            ×
+          </button>
+        </div>
+        <div className="mv-route-stats">
+          <span>
+            <b>{formatLength(banner.lengthMeters)}</b>
+          </span>
+          <span>
+            <b>{Number.isFinite(missions) ? missions : "?"}</b> missions
+          </span>
+          {minutes !== null ? (
+            <span>
+              <b>~{formatMinutes(minutes)}</b> walk
+            </span>
+          ) : null}
+        </div>
+        <div className="mv-mini-row">
+          <StatusChip status={banner._status} />
+          {routeStatus === "loading" ? <span className="mv-muted">Loading route…</span> : null}
+          {routeStatus === "error" ? <span className="mv-muted">Couldn't load the route</span> : null}
+          <span className="mv-spacer" />
+          <OpenBannerLink banner={banner}>Open</OpenBannerLink>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// /map: status-coloured dots with filter chips and a manual "Search this area".
+// Tapping a dot draws that banner's walking route and shows a compact card.
+export default function DiscoveryMap() {
+  const vm = useDiscoveryMap({ manualSearch: true });
+  const { map, banners, liveArea } = vm;
+  const [filters, setFilters] = useState(readStoredFilters);
+  const [sheet, setSheet] = useState(null); // group key that opened the sheet
+  const [selected, setSelected] = useState(null);
+  const [cardHeight, setCardHeight] = useState(0);
+  const cardRef = useRef(null);
+  const routeState = useBannerRoute(selected?.id);
+  const route = routeState.data?.route ?? null;
+  const summary = filterSummary(filters);
+  const activeCount = countActiveMapFilters(filters);
+  const showCard = Boolean(selected) && !sheet;
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(MAP_FILTERS_STORAGE_KEY, JSON.stringify(filters));
+    } catch {
+      // Private mode: filters last for this visit.
+    }
+  }, [filters]);
+
+  useEffect(() => {
+    try {
+      window.localStorage.removeItem(OLD_VARIANT_STORAGE_KEY);
+    } catch {
+      // Nothing to clean up.
+    }
+  }, []);
+
+  // Floating controls and the route fit stay clear of the card.
+  useLayoutEffect(() => {
+    const card = cardRef.current;
+
+    if (!showCard || !card) {
+      setCardHeight(0);
+      return undefined;
+    }
+
+    const measure = () => setCardHeight(card.offsetHeight);
+    measure();
+
+    if (typeof ResizeObserver === "undefined") {
+      return undefined;
+    }
+
+    const observer = new ResizeObserver(measure);
+    observer.observe(card);
+    return () => observer.disconnect();
+  }, [showCard, selected?.id]);
+
+  useEffect(() => {
+    if (!map?.flyToBounds || !route?.allPositions.length) {
+      return;
+    }
+
+    const bottom = window.innerWidth >= 900 ? 24 : (cardRef.current?.offsetHeight ?? 150) + 34;
+    map.flyToBounds(L.latLngBounds(route.allPositions), {
+      paddingTopLeft: [28, FILTERBAR_SPACE + 16],
+      paddingBottomRight: [28, bottom],
+      maxZoom: 18,
+      duration: 0.7,
+    });
+  }, [map, route]);
+
+  const matching = useMemo(() => applyMapFilters(banners, filters), [banners, filters]);
+  const matchingInView = useMemo(
+    () => (liveArea ? matching.filter((banner) => isInsideArea(banner, liveArea)) : matching),
+    [liveArea, matching]
+  );
+  const inViewCount = useMemo(
+    () => (liveArea ? banners.filter((banner) => isInsideArea(banner, liveArea)).length : banners.length),
+    [banners, liveArea]
+  );
+  // The selected banner stays on the map when a new search or filter drops it.
+  const shownBanners = useMemo(
+    () => (selected && !matching.some((banner) => banner.id === selected.id) ? [...matching, selected] : matching),
+    [matching, selected]
+  );
+  const controlsBottom = showCard ? cardHeight + 26 : 0;
+
+  return (
+    <div className="mv-root">
+      <DiscoveryBaseMap vm={vm} onMapClick={() => setSelected(null)}>
+        {shownBanners.map((banner) => {
+          const isSelected = banner.id === selected?.id;
+
+          if (isSelected && route) {
+            return null;
+          }
+
+          return (
+            <Marker
+              key={banner.id}
+              position={[banner._latitude, banner._longitude]}
+              icon={statusDotIcon(banner._status, { selected: isSelected, dim: Boolean(selected) && !isSelected })}
+              zIndexOffset={isSelected ? 1000 : 0}
+              eventHandlers={{ click: () => setSelected(banner) }}
+            >
+              {!selected ? (
+                <Tooltip direction="top" offset={[0, -10]}>
+                  {banner.title}
+                </Tooltip>
+              ) : null}
+            </Marker>
+          );
+        })}
+        {route ? <RouteLayer route={route} /> : null}
+      </DiscoveryBaseMap>
+
+      <div className="mv-filterbar" role="toolbar" aria-label="Filters">
+        <button
+          type="button"
+          className={`mv-fchip${activeCount ? " on" : ""}`}
+          aria-label={activeCount ? `Filters (${activeCount} on)` : "Filters"}
+          onClick={() => setSheet("status")}
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M3 17v2h6v-2H3zM3 5v2h10V5H3zm10 16v-2h8v-2h-8v-2h-2v6h2zM7 9v2H3v2h4v2h2V9H7zm14 4v-2H11v2h10zm-6-4h2V7h4V5h-4V3h-2v6z" />
+          </svg>
+          {activeCount ? activeCount : "Filters"}
+        </button>
+        {GROUPS.map((group) => {
+          const active = group.key === "status" ? filters.status !== "all" : filters[group.key] !== "any";
+
+          return (
+            <button
+              type="button"
+              key={group.key}
+              className={`mv-fchip${active ? " on" : ""}`}
+              onClick={() => setSheet(group.key)}
+            >
+              {summary[group.key]}
+              <span aria-hidden="true">▾</span>
+            </button>
+          );
+        })}
+      </div>
+      <div className="mv-count" style={{ top: FILTERBAR_SPACE }} role="status">
+        {vm.loading ? "Loading…" : `${matchingInView.length} of ${inViewCount} in view`}
+        {!vm.loading && !selected && !vm.canSearchArea && matchingInView.length ? (
+          <span className="mv-count-hint"> · tap one for its route</span>
+        ) : null}
+      </div>
+      <SearchAreaButton vm={vm} top={FILTERBAR_SPACE} />
+      <LocateButton vm={vm} style={{ bottom: controlsBottom + 24 }} />
+      <MapStatusPill vm={vm} count={matching.length} noun="matching banners" bottom={controlsBottom + 16} />
+
+      {showCard ? (
+        <RouteCard
+          banner={selected}
+          routeStatus={routeState.status}
+          onClose={() => setSelected(null)}
+          cardRef={cardRef}
+        />
+      ) : null}
+      {sheet ? (
+        <FilterSheet
+          filters={filters}
+          onChange={setFilters}
+          onClose={() => setSheet(null)}
+          focusKey={sheet}
+          matchCount={matchingInView.length}
+        />
+      ) : null}
+    </div>
+  );
+}

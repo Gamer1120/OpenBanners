@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { fetchBannergress } from "./bannergressSync";
 
-// Discovery-map data loading shared by the classic map (components/Map.jsx) and the
-// map prototypes (components/mapVariants). Bannergress /bnrs in a bounding box, paged,
+// Discovery-map data loading for the map on /map (components/discoveryMap).
+// Bannergress /bnrs in a bounding box, paged,
 // with an in-memory cache per area + origin + filter combination.
 const DISCOVERY_MAP_QUERY_PRECISION = 3;
 const DISCOVERY_MAP_PAGE_SIZE = 50;

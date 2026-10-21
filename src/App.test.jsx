@@ -22,7 +22,7 @@ import BannerDetailsPage from "./components/BannerDetailsPage";
 import BannerGuider from "./components/BannerGuider";
 import BannerGuiderWithoutLocation from "./components/BannerGuiderWithoutLocation";
 import Home from "./components/Home";
-import Map, { __resetDiscoveryMapCacheForTests } from "./components/Map";
+import { resetDiscoveryMapData } from "./discoveryMapData";
 import PlacesList from "./components/PlacesList";
 import TopMenu from "./components/TopMenu";
 import AppNav from "./components/AppNav";
@@ -159,6 +159,9 @@ vi.mock("react-leaflet", async () => {
       fitBounds: vi.fn((bounds) => {
         currentCenter = getBoundsCenter(bounds) ?? currentCenter;
       }),
+      flyToBounds: vi.fn((bounds) => {
+        currentCenter = getBoundsCenter(bounds) ?? currentCenter;
+      }),
       getBounds: () => ({
         _southWest: { lat: 52.1, lng: 6.8 },
         _northEast: { lat: 52.3, lng: 6.9 },
@@ -274,6 +277,7 @@ vi.mock("react-leaflet", async () => {
       </div>
     ),
     Popup: ({ children }) => <div>{children}</div>,
+    Tooltip: ({ children }) => <div>{children}</div>,
     useMap: () => mapInstance ?? createMapInstance(),
     useMapEvents: (handlers) => {
       React.useEffect(() => {
@@ -365,7 +369,7 @@ function LocationDisplay() {
 
 beforeEach(() => {
   delete globalThis.__leafletMapContainerRect;
-  __resetDiscoveryMapCacheForTests();
+  resetDiscoveryMapData();
   document.title = "OpenBanners";
   global.fetch = vi.fn();
   useMediaQuery.mockReturnValue(false);
@@ -3688,22 +3692,43 @@ test("shows a retryable error when banner details fail to load", async () => {
   consoleErrorSpy.mockRestore();
 });
 
-test("home map view keeps discovery filters in the map panel instead of duplicating them in the top bar", async () => {
+test("discovery map filters banners and shows the route card for a tapped banner", async () => {
+  const mapBanner = (id, title, extra) => ({
+    id,
+    title,
+    picture: `/images/${id}.jpg`,
+    formattedAddress: "Enschede, NL",
+    numberOfDisabledMissions: 0,
+    startLatitude: "52.22",
+    startLongitude: "6.89",
+    ...extra,
+  });
+
   global.fetch.mockImplementation((url) => {
     if (url.includes("/bnrs?orderBy=proximityStartPoint")) {
       return jsonResponse([
-        {
-          id: "map-home-banner",
-          title: "Map Home Banner",
-          picture: "/images/map-home.jpg",
-          numberOfMissions: 6,
-          lengthMeters: 1800,
-          formattedAddress: "Enschede, NL",
-          numberOfDisabledMissions: 0,
-          startLatitude: "52.22",
-          startLongitude: "6.89",
-        },
+        mapBanner("map-short", "Short Map Banner", { numberOfMissions: 6, lengthMeters: 1800 }),
+        mapBanner("map-long", "Long Map Banner", {
+          numberOfMissions: 36,
+          lengthMeters: 14000,
+          startLatitude: "52.25",
+        }),
       ]);
+    }
+
+    if (url.includes("/bnrs/map-short")) {
+      return jsonResponse({
+        id: "map-short",
+        title: "Short Map Banner",
+        missions: {
+          0: {
+            steps: {
+              0: { poi: { type: "portal", title: "Start", latitude: 52.22, longitude: 6.89 } },
+              1: { poi: { type: "portal", title: "End", latitude: 52.221, longitude: 6.891 } },
+            },
+          },
+        },
+      });
     }
 
     throw new Error(`Unhandled fetch: ${url}`);
@@ -3716,305 +3741,36 @@ test("home map view keeps discovery filters in the map panel instead of duplicat
     { route: "/map" }
   );
 
-  await screen.findByRole("link", { name: /open banner/i });
+  expect(await screen.findByText("Short Map Banner")).toBeInTheDocument();
+  expect(screen.getByText("Long Map Banner")).toBeInTheDocument();
+  expect(screen.getByText(/^2 of 2 in view/)).toBeInTheDocument();
+  expect(screen.getAllByRole("button", { name: /^filters \(1 on\)$/i })).toHaveLength(1);
+  expect(screen.queryByRole("radiogroup", { name: /map prototype/i })).not.toBeInTheDocument();
 
-  expect(screen.getAllByRole("button", { name: /^filters$/i })).toHaveLength(1);
-});
+  fireEvent.click(screen.getByRole("button", { name: /any length/i }));
+  const sheet = screen.getByRole("dialog", { name: /map filters/i });
+  fireEvent.click(within(sheet).getByRole("radio", { name: "< 30 min" }));
+  fireEvent.click(within(sheet).getByRole("button", { name: /show 1 banner$/i }));
 
+  expect(screen.getByText(/^1 of 2 in view/)).toBeInTheDocument();
+  expect(screen.queryByText("Long Map Banner")).not.toBeInTheDocument();
 
-test("renders a discovery map with proximity-sorted poster markers and preview links", async () => {
-  global.fetch.mockImplementation((url) => {
-    if (url.includes("/bnrs?orderBy=proximityStartPoint")) {
-      return jsonResponse([
-        {
-          id: "map-banner",
-          title: "Map Banner",
-          picture: "/images/map.jpg",
-          numberOfMissions: 6,
-          lengthMeters: 1800,
-          formattedAddress: "Enschede, NL",
-          numberOfDisabledMissions: 0,
-          startLatitude: "52.22",
-          startLongitude: "6.89",
-        },
-      ]);
-    }
+  fireEvent.click(screen.getByTestId("marker-52.22-6.89"));
 
-    throw new Error(`Unhandled fetch: ${url}`);
-  });
-
-  renderWithProviders(<Map />);
-
-  const bannerLink = await screen.findByRole("link", { name: /open banner/i });
-  await waitFor(() =>
-    expect(global.fetch).toHaveBeenCalledWith(
-      expect.stringContaining("orderBy=proximityStartPoint"),
-      expect.objectContaining({
-        headers: expect.any(Headers),
-      })
-    )
-  );
-  expect(bannerLink).toHaveAttribute("href", "/banner/map-banner");
-  expect(L.icon).not.toHaveBeenCalled();
-  expect(L.divIcon).toHaveBeenCalledWith(
-    expect.objectContaining({
-      className: "banner-map-icon",
-      iconSize: expect.any(Array),
-      iconAnchor: expect.any(Array),
-      html: expect.stringContaining("box-shadow"),
-    })
-  );
-  expect(L.divIcon).toHaveBeenCalledWith(
-    expect.objectContaining({
-      html: expect.stringContaining("https://api.bannergress.com/images/map.jpg"),
-    })
-  );
-  expect(screen.getByText("Map Banner")).toBeInTheDocument();
-  expect(screen.queryByText(/away/i)).not.toBeInTheDocument();
-});
-
-test("lets you change discovery map poster size with presets and a custom slider", async () => {
-  const user = userEvent.setup();
-
-  global.fetch.mockImplementation((url) => {
-    if (url.includes("/bnrs?orderBy=proximityStartPoint")) {
-      return jsonResponse([
-        {
-          id: "map-banner",
-          title: "Map Banner",
-          picture: "/images/map.jpg",
-          numberOfMissions: 6,
-          lengthMeters: 1800,
-          formattedAddress: "Enschede, NL",
-          numberOfDisabledMissions: 0,
-          startLatitude: "52.22",
-          startLongitude: "6.89",
-        },
-      ]);
-    }
-
-    throw new Error(`Unhandled fetch: ${url}`);
-  });
-
-  renderWithProviders(<Map />);
-
-  await screen.findByRole("link", { name: /open banner/i });
-
-  const imageSizeButton = screen.getByRole("button", {
-    name: /image size: medium/i,
-  });
-
-  await user.click(imageSizeButton);
-  await user.click(screen.getByRole("menuitem", { name: /large/i }));
-
-  await waitFor(() =>
-    expect(
-      screen.getByRole("button", { name: /image size: large/i })
-    ).toBeInTheDocument()
-  );
-
-  await user.click(screen.getByRole("button", { name: /image size: large/i }));
-  await user.click(screen.getByRole("menuitem", { name: /custom/i }));
-
-  const customSlider = screen.getByRole("slider", {
-    name: /custom image size/i,
-  });
-  fireEvent.change(customSlider, { target: { value: "1.6" } });
-
-  await waitFor(() =>
-    expect(
-      screen.getByRole("button", {
-        name: /image size: custom \(160%\)/i,
-        hidden: true,
-      })
-    ).toBeInTheDocument()
-  );
-
-  const bannerIconCalls = L.divIcon.mock.calls
-    .map(([options]) => options)
-    .filter((options) => options.className === "banner-map-icon");
-
-  expect(
-    bannerIconCalls.some((options) => options.html?.includes("width:102px"))
-  ).toBe(true);
-});
-
-test("reuses cached discovery map results for the same view", async () => {
-  global.fetch.mockImplementation((url) => {
-    if (url.includes("/bnrs?orderBy=proximityStartPoint")) {
-      return jsonResponse([
-        {
-          id: "cached-map-banner",
-          title: "Cached Map Banner",
-          picture: "/images/cached-map.jpg",
-          numberOfMissions: 6,
-          lengthMeters: 1800,
-          formattedAddress: "Enschede, NL",
-          numberOfDisabledMissions: 0,
-          startLatitude: "52.22",
-          startLongitude: "6.89",
-        },
-      ]);
-    }
-
-    throw new Error(`Unhandled fetch: ${url}`);
-  });
-
-  const firstRender = renderWithProviders(<Map />);
-  expect(
-    await screen.findByRole("link", { name: /open banner/i })
-  ).toHaveAttribute("href", "/banner/cached-map-banner");
-  expect(global.fetch).toHaveBeenCalledTimes(1);
-
-  firstRender.unmount();
-  global.fetch.mockClear();
-
-  renderWithProviders(<Map />);
-
-  expect(
-    await screen.findByRole("link", { name: /open banner/i })
-  ).toHaveAttribute("href", "/banner/cached-map-banner");
-  expect(global.fetch).not.toHaveBeenCalled();
-});
-
-test("renders every fetched discovery map banner in the current view", async () => {
-  global.fetch.mockImplementation((url) => {
-    if (url.includes("/bnrs?orderBy=proximityStartPoint")) {
-      return jsonResponse([
-        {
-          id: "map-banner-1",
-          title: "Map Banner One",
-          picture: "/images/map-1.jpg",
-          numberOfMissions: 6,
-          lengthMeters: 1800,
-          formattedAddress: "Enschede, NL",
-          numberOfDisabledMissions: 0,
-          startLatitude: "52.22",
-          startLongitude: "6.89",
-        },
-        {
-          id: "map-banner-2",
-          title: "Map Banner Two",
-          picture: "/images/map-2.jpg",
-          numberOfMissions: 12,
-          lengthMeters: 2200,
-          formattedAddress: "Enschede, NL",
-          numberOfDisabledMissions: 0,
-          startLatitude: "52.225",
-          startLongitude: "6.895",
-        },
-      ]);
-    }
-
-    throw new Error(`Unhandled fetch: ${url}`);
-  });
-
-  renderWithProviders(<Map />);
-
-  expect(await screen.findByText("2 banners in view")).toBeInTheDocument();
-  expect(screen.queryByText(/showing the nearest/i)).not.toBeInTheDocument();
-});
-
-test("displaces overlapping image markers with a connector line", async () => {
-  global.fetch.mockImplementation((url) => {
-    if (url.includes("/bnrs?orderBy=proximityStartPoint")) {
-      return jsonResponse([
-        {
-          id: "map-banner-1",
-          title: "Map Banner One",
-          picture: "/images/map-1.jpg",
-          numberOfMissions: 6,
-          lengthMeters: 1800,
-          formattedAddress: "Enschede, NL",
-          numberOfDisabledMissions: 0,
-          startLatitude: "52.22",
-          startLongitude: "6.89",
-        },
-        {
-          id: "map-banner-2",
-          title: "Map Banner Two",
-          picture: "/images/map-2.jpg",
-          numberOfMissions: 12,
-          lengthMeters: 2200,
-          formattedAddress: "Enschede, NL",
-          numberOfDisabledMissions: 0,
-          startLatitude: "52.225",
-          startLongitude: "6.895",
-        },
-      ]);
-    }
-
-    throw new Error(`Unhandled fetch: ${url}`);
-  });
-
-  renderWithProviders(<Map />);
-
-  expect(await screen.findByText("2 banners in view")).toBeInTheDocument();
-  expect(screen.getAllByTestId(/^marker-/)).toHaveLength(2);
-  expect(screen.getByTestId("polyline")).toBeInTheDocument();
-  expect(
-    screen.queryByRole("button", { name: /select map banner/i })
-  ).not.toBeInTheDocument();
-});
-
-test("renders discovery map markers even before banner image ratios load", async () => {
-  global.Image = class PendingImage {
-    constructor() {
-      this.onload = null;
-      this.onerror = null;
-    }
-
-    set src(_value) {
-      this._src = _value;
-    }
-
-    get src() {
-      return this._src;
-    }
-  };
-
-  global.fetch.mockImplementation((url) => {
-    if (url.includes("/bnrs?orderBy=proximityStartPoint")) {
-      return jsonResponse([
-        {
-          id: "pending-map-banner-1",
-          title: "Pending Map Banner One",
-          picture: "/images/pending-map-1.jpg",
-          numberOfMissions: 6,
-          lengthMeters: 1800,
-          formattedAddress: "Enschede, NL",
-          numberOfDisabledMissions: 0,
-          startLatitude: "52.22",
-          startLongitude: "6.89",
-        },
-        {
-          id: "pending-map-banner-2",
-          title: "Pending Map Banner Two",
-          picture: "/images/pending-map-2.jpg",
-          numberOfMissions: 12,
-          lengthMeters: 2200,
-          formattedAddress: "Enschede, NL",
-          numberOfDisabledMissions: 0,
-          startLatitude: "52.225",
-          startLongitude: "6.895",
-        },
-      ]);
-    }
-
-    throw new Error(`Unhandled fetch: ${url}`);
-  });
-
-  renderWithProviders(<Map />);
-
-  expect(await screen.findByText("2 banners in view")).toBeInTheDocument();
-
+  const card = await screen.findByLabelText("Selected banner");
+  expect(within(card).getByText("Short Map Banner")).toBeInTheDocument();
+  expect(within(card).getByText(/missions/)).toBeInTheDocument();
+  expect(within(card).getByRole("link", { name: "Open" })).toHaveAttribute("href", "/banner/map-short");
   await waitFor(() => {
-    const bannerIconCalls = L.divIcon.mock.calls
-      .map(([options]) => options)
-      .filter((options) => options.className === "banner-map-icon");
-
-    expect(bannerIconCalls.length).toBeGreaterThanOrEqual(2);
+    expect(screen.getByText("Finish · End")).toBeInTheDocument();
   });
+  expect(global.fetch).toHaveBeenCalledWith(
+    expect.stringContaining("/bnrs/map-short"),
+    expect.anything()
+  );
+
+  fireEvent.click(within(card).getByRole("button", { name: /close route/i }));
+  expect(screen.queryByLabelText("Selected banner")).not.toBeInTheDocument();
 });
 
 test("updates banner metadata tags when banner details load", async () => {

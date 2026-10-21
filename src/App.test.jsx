@@ -1166,7 +1166,7 @@ test("sets useful browser titles for app routes", async () => {
       return jsonResponse([]);
     }
 
-    if (url.includes("/bnrs?orderBy=relevance") && url.includes("query=enschede")) {
+    if (url.includes("/bnrs?") && url.includes("orderBy=relevance") && url.includes("query=enschede")) {
       return jsonResponse([]);
     }
 
@@ -1623,7 +1623,7 @@ test("renders place and banner search results", async () => {
       ]);
     }
 
-    if (url.includes("/bnrs?orderBy=relevance") && url.includes("query=enschede")) {
+    if (url.includes("/bnrs?") && url.includes("orderBy=relevance") && url.includes("query=enschede")) {
       return jsonResponse([
         {
           id: "search-banner",
@@ -1682,7 +1682,7 @@ test("persists compact banner view preference across result screens", async () =
       return jsonResponse([]);
     }
 
-    if (url.includes("/bnrs?orderBy=relevance") && url.includes("query=enschede")) {
+    if (url.includes("/bnrs?") && url.includes("orderBy=relevance") && url.includes("query=enschede")) {
       return jsonResponse([
         {
           id: "search-banner",
@@ -1744,7 +1744,7 @@ test("shows place results before banner results finish loading", async () => {
       ]);
     }
 
-    if (url.includes("/bnrs?orderBy=relevance") && url.includes("query=enschede")) {
+    if (url.includes("/bnrs?") && url.includes("orderBy=relevance") && url.includes("query=enschede")) {
       return bannerResponse.promise;
     }
 

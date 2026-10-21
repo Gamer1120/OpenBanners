@@ -1,10 +1,16 @@
 import { DEFAULT_BANNER_FILTERS } from "./bannerFilters";
 
 const BROWSE_STATE_STORAGE_KEY = "openbanners.browse.state";
+// Search results keep their own slot, so a search doesn't wipe the place you
+// were browsing.
+const SEARCH_STATE_STORAGE_KEY = "openbanners.search.state";
+const SEARCH_SCOPE_PREFIX = "search:";
 const BROWSE_STATE_VERSION = 1;
 const DEFAULT_SORT_OPTION = "Created";
 const DEFAULT_SORT_ORDER = "DESC";
+const SEARCH_SORT_OPTION = "Relevance";
 const SORT_OPTIONS = new Set([
+  "Relevance",
   "Created",
   "A-Z",
   "Distance",
@@ -13,14 +19,22 @@ const SORT_OPTIONS = new Set([
 ]);
 const SORT_ORDERS = new Set(["ASC", "DESC"]);
 
-function readStoredState() {
+function isSearchScope(scope) {
+  return typeof scope === "string" && scope.startsWith(SEARCH_SCOPE_PREFIX);
+}
+
+function getStorageKey(scope) {
+  return isSearchScope(scope) ? SEARCH_STATE_STORAGE_KEY : BROWSE_STATE_STORAGE_KEY;
+}
+
+function readStoredState(scope) {
   if (typeof window === "undefined") {
     return null;
   }
 
   try {
     return JSON.parse(
-      window.localStorage.getItem(BROWSE_STATE_STORAGE_KEY) ?? "null"
+      window.localStorage.getItem(getStorageKey(scope)) ?? "null"
     );
   } catch {
     return null;
@@ -34,7 +48,7 @@ function writeStoredState(nextState) {
 
   try {
     window.localStorage.setItem(
-      BROWSE_STATE_STORAGE_KEY,
+      getStorageKey(nextState.scope),
       JSON.stringify({
         ...nextState,
         // Offline banners are hidden by default; showing them is never remembered.
@@ -76,15 +90,26 @@ function normalizeBanners(banners) {
   return Array.isArray(banners) ? banners.filter(Boolean) : [];
 }
 
-function normalizeSortOption(sortOption) {
-  return SORT_OPTIONS.has(sortOption) ? sortOption : DEFAULT_SORT_OPTION;
+// Best match is the default (and only makes sense) for search results.
+function normalizeSortOption(sortOption, scope) {
+  const searching = isSearchScope(scope);
+
+  if (SORT_OPTIONS.has(sortOption) && (searching || sortOption !== SEARCH_SORT_OPTION)) {
+    return sortOption;
+  }
+
+  return searching ? SEARCH_SORT_OPTION : DEFAULT_SORT_OPTION;
 }
 
 function normalizeSortOrder(sortOrder) {
   return SORT_ORDERS.has(sortOrder) ? sortOrder : DEFAULT_SORT_ORDER;
 }
 
-export function getBrowseStateScope({ placeId, authorName } = {}) {
+export function getBrowseStateScope({ placeId, authorName, query } = {}) {
+  if (typeof query === "string" && query) {
+    return `${SEARCH_SCOPE_PREFIX}${query}`;
+  }
+
   if (typeof authorName === "string" && authorName) {
     return `agent:${authorName}`;
   }
@@ -92,10 +117,10 @@ export function getBrowseStateScope({ placeId, authorName } = {}) {
   return `browse:${typeof placeId === "string" ? placeId : ""}`;
 }
 
-export function getDefaultBrowseState() {
+export function getDefaultBrowseState(scope) {
   return {
     filters: DEFAULT_BANNER_FILTERS,
-    sortOption: DEFAULT_SORT_OPTION,
+    sortOption: normalizeSortOption(null, scope),
     sortOrder: DEFAULT_SORT_ORDER,
     banners: [],
     hasMore: true,
@@ -108,8 +133,8 @@ export function getDefaultBrowseState() {
   };
 }
 
-function normalizeBrowseState(state) {
-  const defaultState = getDefaultBrowseState();
+function normalizeBrowseState(state, scope) {
+  const defaultState = getDefaultBrowseState(scope);
   const requestedOffset = Math.max(
     0,
     Math.floor(toFiniteNumber(state?.requestedOffset, 0))
@@ -118,7 +143,7 @@ function normalizeBrowseState(state) {
 
   return {
     filters: normalizeFilters(state?.filters) ?? defaultState.filters,
-    sortOption: normalizeSortOption(state?.sortOption),
+    sortOption: normalizeSortOption(state?.sortOption, scope),
     sortOrder: normalizeSortOrder(state?.sortOrder),
     banners: normalizeBanners(state?.banners),
     hasMore:
@@ -144,17 +169,17 @@ function normalizeBrowseState(state) {
 }
 
 export function readBrowseState(scope) {
-  const storedState = readStoredState();
+  const storedState = readStoredState(scope);
 
   if (
     !storedState ||
     storedState.version !== BROWSE_STATE_VERSION ||
     storedState.scope !== scope
   ) {
-    return getDefaultBrowseState();
+    return getDefaultBrowseState(scope);
   }
 
-  return normalizeBrowseState(storedState);
+  return normalizeBrowseState(storedState, scope);
 }
 
 export function readBrowseFilters(scope) {
@@ -173,7 +198,10 @@ export function saveBrowseState(scope, patch) {
     ...patch,
     scope,
     filters: normalizeFilters(patch?.filters ?? currentState.filters),
-    sortOption: normalizeSortOption(patch?.sortOption ?? currentState.sortOption),
+    sortOption: normalizeSortOption(
+      patch?.sortOption ?? currentState.sortOption,
+      scope
+    ),
     sortOrder: normalizeSortOrder(patch?.sortOrder ?? currentState.sortOrder),
     banners: normalizeBanners(patch?.banners ?? currentState.banners),
     requestedOffset: Math.max(
@@ -194,7 +222,7 @@ export function resetBrowseState(scope) {
   }
 
   writeStoredState({
-    ...getDefaultBrowseState(),
+    ...getDefaultBrowseState(scope),
     scope,
   });
 }

@@ -118,7 +118,10 @@ beforeEach(() => {
     }
 
     if (url.includes("/bnrs?") && url.includes("query=")) {
-      return json(makeBanners(200, 40));
+      const params = new URL(url).searchParams;
+      const offset = Number(params.get("offset"));
+      const from = params.get("orderBy") === "created" ? 300 : 200;
+      return json(offset === 0 ? makeBanners(from, 24) : offset === 24 ? makeBanners(from + 24, 10) : []);
     }
 
     if (url.includes("/places/test-place")) {
@@ -223,15 +226,72 @@ test("Back to Lists keeps the tab, the loaded pages and the scroll position", as
 test("Back to search results shows them again without a new search", async () => {
   renderApp("/search/enschede");
 
-  expect(await screen.findByText("Banner 235")).toBeInTheDocument();
+  expect(await screen.findByText("Banner 230")).toBeInTheDocument();
   scrollWindowTo(3500);
-  openBanner("Banner 235");
+  openBanner("Banner 230");
   expect(await screen.findByText("Banner page")).toBeInTheDocument();
 
   global.fetch.mockClear();
   fireEvent.click(screen.getByRole("button", { name: "test-back" }));
 
-  expect(screen.getByText("Banner 235")).toBeInTheDocument();
+  expect(screen.getByText("Banner 230")).toBeInTheDocument();
   await waitFor(() => expect(window.scrollY).toBe(3500));
   expect(global.fetch).not.toHaveBeenCalled();
+});
+
+test("search results sort and filter on the server and page with infinite scroll", async () => {
+  renderApp("/search/enschede");
+
+  // Best match first, both pages through infinite scroll.
+  expect(await screen.findByText("Banner 233")).toBeInTheDocument();
+  expect(bannerFetches().map((url) => new URL(url).searchParams.toString())).toEqual([
+    "limit=24&offset=0&query=enschede&orderBy=relevance&orderDirection=DESC&online=true",
+    "limit=24&offset=24&query=enschede&orderBy=relevance&orderDirection=DESC&online=true",
+  ]);
+
+  global.fetch.mockClear();
+  fireEvent.click(screen.getByRole("button", { name: "Sort: Best match" }));
+  fireEvent.click(await screen.findByRole("menuitem", { name: /created/i }));
+
+  expect(await screen.findByText("Banner 333")).toBeInTheDocument();
+  expect(screen.queryByText("Banner 200")).not.toBeInTheDocument();
+  expect(screen.getByRole("button", { name: "Sort: Newest first" })).toBeInTheDocument();
+  expect(new URL(bannerFetches()[0]).searchParams.get("orderBy")).toBe("created");
+  expect(new URL(bannerFetches()[0]).searchParams.get("query")).toBe("enschede");
+
+  global.fetch.mockClear();
+  fireEvent.click(screen.getByRole("button", { name: "Filters" }));
+  fireEvent.click(await screen.findByRole("checkbox", { name: "Show offline banners" }));
+
+  await waitFor(() => expect(bannerFetches().length).toBeGreaterThan(0));
+  expect(new URL(bannerFetches()[0]).searchParams.has("online")).toBe(false);
+  expect(screen.getByRole("button", { name: "Filters (1)", hidden: true })).toBeInTheDocument();
+});
+
+test("Back to search results keeps the chosen sort, filters and loaded pages", async () => {
+  renderApp("/search/enschede");
+
+  expect(await screen.findByText("Banner 233")).toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: "Sort: Best match" }));
+  fireEvent.click(await screen.findByRole("menuitem", { name: /created/i }));
+  expect(await screen.findByText("Banner 333")).toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: "Filters" }));
+  fireEvent.click(await screen.findByRole("checkbox", { name: "Show offline banners" }));
+  fireEvent.keyDown(screen.getByRole("menu"), { key: "Escape" });
+  expect(await screen.findByText("Banner 330")).toBeInTheDocument();
+
+  scrollWindowTo(3000);
+  openBanner("Banner 330");
+  expect(await screen.findByText("Banner page")).toBeInTheDocument();
+
+  window.localStorage.clear();
+  global.fetch.mockClear();
+  fireEvent.click(screen.getByRole("button", { name: "test-back" }));
+
+  expect(screen.getByRole("button", { name: "Sort: Newest first" })).toBeInTheDocument();
+  expect(screen.getByRole("button", { name: "Filters (1)" })).toBeInTheDocument();
+  expect(screen.getByText("Banner 300")).toBeInTheDocument();
+  expect(screen.getByText("Banner 333")).toBeInTheDocument();
+  await waitFor(() => expect(window.scrollY).toBe(3000));
+  expect(bannerFetches()).toEqual([]);
 });

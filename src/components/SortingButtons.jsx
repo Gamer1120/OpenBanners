@@ -4,6 +4,7 @@ import { ArrowDownward, ArrowUpward, Sort } from "@mui/icons-material";
 import BannerFilterButton from "./BannerFilterButton";
 
 const SORT_LABELS = {
+  Relevance: { DESC: "Best match", ASC: "Best match" },
   Created: { DESC: "Newest first", ASC: "Oldest first" },
   "A-Z": { DESC: "Z–A", ASC: "A–Z" },
   Distance: { DESC: "Longest first", ASC: "Shortest first" },
@@ -22,6 +23,7 @@ export default function SortingButtons({
   sortOption,
   sortOrder,
   placeId,
+  searchQuery,
   bannerFilters,
   onBannerFiltersChange,
   leadingControls = null,
@@ -29,7 +31,11 @@ export default function SortingButtons({
   const [menuAnchor, setMenuAnchor] = useState(null);
   const options = ["Created", "A-Z", "Distance", "Nr. of Missions"];
 
-  if (placeId && !EFFICIENCY_EXCLUDED_PLACES.has(placeId)) {
+  if (searchQuery) {
+    options.unshift("Relevance");
+  }
+
+  if (searchQuery || (placeId && !EFFICIENCY_EXCLUDED_PLACES.has(placeId))) {
     options.push("Efficiency");
   }
 
@@ -63,7 +69,7 @@ export default function SortingButtons({
               }}
             >
               <ListItemIcon>
-                {active ? (
+                {active && option !== "Relevance" ? (
                   sortOrder === "ASC" ? (
                     <ArrowUpward fontSize="small" />
                   ) : (
@@ -71,7 +77,7 @@ export default function SortingButtons({
                   )
                 ) : null}
               </ListItemIcon>
-              <ListItemText>{option}</ListItemText>
+              <ListItemText>{option === "Relevance" ? "Best match" : option}</ListItemText>
             </MenuItem>
           );
         })}

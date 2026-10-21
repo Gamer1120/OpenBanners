@@ -169,7 +169,7 @@ test("top browse navigation resets saved root browse filters", async () => {
       return jsonResponse([]);
     }
 
-    if (url.includes("/bnrs?orderBy=relevance")) {
+    if (url.includes("/bnrs?") && url.includes("orderBy=relevance")) {
       return jsonResponse([]);
     }
 
@@ -236,7 +236,7 @@ test("search place links reset the target browse filters", async () => {
       ]);
     }
 
-    if (url.includes("/bnrs?orderBy=relevance")) {
+    if (url.includes("/bnrs?") && url.includes("orderBy=relevance")) {
       return jsonResponse([]);
     }
 

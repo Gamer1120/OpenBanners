@@ -235,3 +235,23 @@
   font: 400 26px/40px var(--font);
   cursor: pointer;
 }
+
+/* Map sheet: one row on phones too (title truncates, list is an icon). */
+.bp-map .bp-sheet-row {
+  flex-wrap: nowrap;
+}
+
+.bp-map .bp-sheet-row .grow {
+  min-width: 0;
+}
+
+.bp-sheet-title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.bp-map .bp-sheet-row .btn {
+  flex: none;
+  white-space: nowrap;
+}

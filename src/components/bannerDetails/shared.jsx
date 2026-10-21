@@ -7,6 +7,7 @@ import {
   CloudOff,
   ExpandMore,
   FitScreen,
+  FormatListNumbered,
   MyLocation,
   OpenInNew,
   Place,
@@ -1239,8 +1240,8 @@ export function MapSection({ d, className = "", sheet = true, onShowInList, chil
         <div className="bp-sheet" ref={sheetRef} aria-live="polite">
           {d.selected ? (
             <div className="bp-sheet-row">
-              <b className="grow">
-                Mission {d.selectedMission + 1}: {d.selected.title}
+              <b className="grow bp-sheet-title" title={d.selected.title}>
+                {d.selectedMission + 1}. {d.selected.title}
               </b>
               {d.selected.id ? (
                 <a
@@ -1254,10 +1255,12 @@ export function MapSection({ d, className = "", sheet = true, onShowInList, chil
               ) : null}
               <button
                 type="button"
-                className="btn text sl"
+                className="icon-btn sl"
+                aria-label="Show in list"
+                title="Show in list"
                 onClick={() => showInList(d.selectedMission)}
               >
-                Show in list
+                <FormatListNumbered />
               </button>
             </div>
           ) : (

@@ -887,7 +887,14 @@ body {
   animation: art-pan 14s ease-in-out infinite alternate;
 }
 
-.art.capped .art-a:hover .art-pic img,
+/* Pause on hover only where hovering exists: on touch screens :hover sticks to
+   the last tile you touched, which froze exactly the banner you were looking at. */
+@media (hover: hover) and (pointer: fine) {
+  .art.capped .art-a:hover .art-pic img {
+    animation-play-state: paused;
+  }
+}
+
 .art.capped .art-a:focus-visible .art-pic img {
   animation-play-state: paused;
 }
@@ -904,9 +911,13 @@ body {
   }
 }
 
+/* "Remove animations" on Android (and many phones' battery savers) turns on
+   reduced motion; then a long banner showed only its top. Keep the pan, but
+   slow and linear, so the whole banner is still visible. */
 @media (prefers-reduced-motion: reduce) {
   .art.capped .art-pic img {
-    animation: none;
+    animation-duration: 40s;
+    animation-timing-function: linear;
   }
 }
 

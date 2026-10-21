@@ -27,6 +27,21 @@ export function statusDotIcon(status, { selected = false, dim = false } = {}) {
   );
 }
 
+// A group of nearby banners: a bubble with the count, tinted by the most common status.
+export function clusterIcon(count, status, { dim = false } = {}) {
+  const style = getStatusStyle(status);
+  const size = count < 10 ? 30 : count < 100 ? 36 : 42;
+
+  return cachedIcon(`cluster:${count}:${status}:${dim}`, () =>
+    L.divIcon({
+      className: `mv-cluster${dim ? " dim" : ""}`,
+      html: `<span style="--ring:${style.dot ?? style.ring}">${count}</span>`,
+      iconSize: [size, size],
+      iconAnchor: [size / 2, size / 2],
+    })
+  );
+}
+
 const locationIcon = L.divIcon({
   className: "mv-me",
   html: "<span></span>",

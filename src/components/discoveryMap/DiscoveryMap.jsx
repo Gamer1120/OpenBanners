@@ -8,6 +8,7 @@ import {
   MapStatusPill,
   OpenBannerLink,
   StatusChip,
+  clusterIcon,
   statusDotIcon,
 } from "./shared";
 import {
@@ -22,7 +23,7 @@ import {
   normalizeMapFilters,
 } from "./mapFilters";
 import { useBannerRoute } from "./bannerRoute";
-import { formatMinutes, isInsideArea, walkingMinutes } from "./mapMath";
+import { clusterByPixels, formatMinutes, isInsideArea, walkingMinutes } from "./mapMath";
 import { FINISH_FLAG_SVG, missionColors } from "../BannerDetailsPage";
 import { formatLength, getBannerPictureUrl } from "../../bannerDisplay";
 import "./discoveryMap.css";
@@ -34,6 +35,17 @@ const GROUPS = [
 ];
 // Room the filter chips take at the top when fitting a route.
 const FILTERBAR_SPACE = 56;
+const CLUSTER_RADIUS_PX = 34;
+
+function mostCommonStatus(banners) {
+  const counts = {};
+
+  for (const banner of banners) {
+    counts[banner._status] = (counts[banner._status] ?? 0) + 1;
+  }
+
+  return Object.keys(counts).sort((a, b) => counts[b] - counts[a])[0];
+}
 // Left over from the map prototypes switcher.
 const OLD_VARIANT_STORAGE_KEY = "openbanners.mapVariant";
 
@@ -288,23 +300,79 @@ export default function DiscoveryMap() {
     [matching, selected]
   );
   const controlsBottom = showCard ? cardHeight + 26 : 0;
+  // Nearby dots merge into a count bubble so a zoomed-out map stays readable.
+  const clusters = useMemo(() => {
+    const others = shownBanners.filter((banner) => banner.id !== selected?.id);
+
+    if (!map?.project) {
+      return others.map((banner) => ({ key: banner.id, banners: [banner] }));
+    }
+
+    const items = others.map((banner) => {
+      const pixel = map.project([banner._latitude, banner._longitude], vm.zoom);
+      return { x: pixel.x, y: pixel.y, banner };
+    });
+
+    return clusterByPixels(items, CLUSTER_RADIUS_PX).map((cluster) => ({
+      key: cluster.items[0].banner.id,
+      banners: cluster.items.map((item) => item.banner),
+    }));
+  }, [map, selected?.id, shownBanners, vm.zoom]);
+  const openCluster = (members) => {
+    if (!map?.flyToBounds) {
+      return;
+    }
+
+    const bounds = L.latLngBounds(members.map((banner) => [banner._latitude, banner._longitude]));
+
+    if (map.getZoom() >= 18 || bounds.getNorthEast().equals(bounds.getSouthWest())) {
+      setSelected(members[0]);
+      return;
+    }
+
+    map.flyToBounds(bounds, {
+      paddingTopLeft: [40, FILTERBAR_SPACE + 30],
+      paddingBottomRight: [40, controlsBottom + 40],
+      maxZoom: 18,
+      duration: 0.5,
+    });
+  };
 
   return (
     <div className="mv-root">
       <DiscoveryBaseMap vm={vm} onMapClick={() => setSelected(null)}>
-        {shownBanners.map((banner) => {
-          const isSelected = banner.id === selected?.id;
-
-          if (isSelected && route) {
-            return null;
+        {selected && !route ? (
+          <Marker
+            key={selected.id}
+            position={[selected._latitude, selected._longitude]}
+            icon={statusDotIcon(selected._status, { selected: true })}
+            zIndexOffset={1000}
+          />
+        ) : null}
+        {clusters.map(({ key, banners: members }) => {
+          if (members.length > 1) {
+            return (
+              <Marker
+                key={`c:${key}`}
+                position={[
+                  members.reduce((sum, banner) => sum + banner._latitude, 0) / members.length,
+                  members.reduce((sum, banner) => sum + banner._longitude, 0) / members.length,
+                ]}
+                icon={clusterIcon(members.length, mostCommonStatus(members), { dim: Boolean(selected) })}
+                zIndexOffset={members.length}
+                title={`${members.length} banners`}
+                eventHandlers={{ click: () => openCluster(members) }}
+              />
+            );
           }
+
+          const banner = members[0];
 
           return (
             <Marker
               key={banner.id}
               position={[banner._latitude, banner._longitude]}
-              icon={statusDotIcon(banner._status, { selected: isSelected, dim: Boolean(selected) && !isSelected })}
-              zIndexOffset={isSelected ? 1000 : 0}
+              icon={statusDotIcon(banner._status, { dim: Boolean(selected) })}
               eventHandlers={{ click: () => setSelected(banner) }}
             >
               {!selected ? (

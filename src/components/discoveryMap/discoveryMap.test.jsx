@@ -82,3 +82,17 @@ describe("status", () => {
     ]);
   });
 });
+
+test("clusterByPixels groups dots within the radius and keeps far ones apart", async () => {
+  const { clusterByPixels } = await import("./mapMath");
+  const clusters = clusterByPixels(
+    [
+      { x: 0, y: 0, id: "a" },
+      { x: 20, y: 10, id: "b" },
+      { x: 200, y: 0, id: "c" },
+    ],
+    34
+  );
+
+  expect(clusters.map((cluster) => cluster.items.map((item) => item.id))).toEqual([["a", "b"], ["c"]]);
+});

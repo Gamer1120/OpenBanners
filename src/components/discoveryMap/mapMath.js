@@ -40,3 +40,24 @@ export function isInsideArea(banner, area) {
       point.longitude <= area.maxLongitude
   );
 }
+
+// Greedy screen-space grouping. items: [{ x, y, ... }] in pixels, in priority order;
+// an item joins the first group whose anchor is within radiusPx.
+export function clusterByPixels(items, radiusPx) {
+  const clusters = [];
+  const radiusSquared = radiusPx * radiusPx;
+
+  for (const item of items) {
+    const cluster = clusters.find(
+      (candidate) => (candidate.x - item.x) ** 2 + (candidate.y - item.y) ** 2 <= radiusSquared
+    );
+
+    if (cluster) {
+      cluster.items.push(item);
+    } else {
+      clusters.push({ x: item.x, y: item.y, items: [item] });
+    }
+  }
+
+  return clusters;
+}

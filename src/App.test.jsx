@@ -3876,7 +3876,7 @@ function SearchDisplay() {
   return <div data-testid="search-display">{location.search}</div>;
 }
 
-test("banner page defaults to design A with a design switcher", async () => {
+test("banner page shows the compact layout without a design switcher", async () => {
   mockDesignBanner("design-default");
 
   renderWithProviders(
@@ -3888,11 +3888,7 @@ test("banner page defaults to design A with a design switcher", async () => {
 
   expect(await screen.findByText("Design Banner")).toBeInTheDocument();
   expect(document.querySelector(".bpa")).not.toBeNull();
-  const switcher = screen.getByRole("group", { name: "Page design" });
-  expect(within(switcher).getByRole("button", { name: "Design A" })).toHaveAttribute(
-    "aria-pressed",
-    "true"
-  );
+  expect(screen.queryByRole("group", { name: "Page design" })).not.toBeInTheDocument();
   // Order is a key number now, not a chip.
   const numbers = screen.getByRole("list", { name: "Key numbers" });
   expect(numbers).toHaveTextContent("Order");
@@ -3904,68 +3900,8 @@ test("banner page defaults to design A with a design switcher", async () => {
   expect(about.compareDocumentPosition(start) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
 });
 
-test("the design switcher remembers the choice and ?design overrides it", async () => {
-  const user = userEvent.setup();
-  mockDesignBanner("design-switch");
-
-  const { unmount } = renderWithProviders(
-    <>
-      <SearchDisplay />
-      <Routes>
-        <Route path="/banner/:bannerId" element={<BannerDetailsPage />} />
-      </Routes>
-    </>,
-    { route: "/banner/design-switch?design=b" }
-  );
-
-  expect(await screen.findByText("Design Banner")).toBeInTheDocument();
-  expect(document.querySelector(".bpb")).not.toBeNull();
-  // Story design: no tabs, missions inline.
-  expect(screen.queryByRole("tab")).not.toBeInTheDocument();
-  expect(screen.getByRole("list", { name: "Missions in order" })).toBeInTheDocument();
-  expect(window.localStorage.getItem("openbanners.bannerDesign")).toBeNull();
-
-  await user.click(screen.getByRole("button", { name: "Design C" }));
-
-  expect(document.querySelector(".bpc")).not.toBeNull();
-  expect(window.localStorage.getItem("openbanners.bannerDesign")).toBe("c");
-  expect(screen.getByTestId("search-display")).toHaveTextContent(/^$/);
-  unmount();
-
-  renderWithProviders(
-    <Routes>
-      <Route path="/banner/:bannerId" element={<BannerDetailsPage />} />
-    </Routes>,
-    { route: "/banner/design-switch" }
-  );
-
-  expect(await screen.findByText("Design Banner")).toBeInTheDocument();
-  expect(document.querySelector(".bpc")).not.toBeNull();
-  expect(screen.getByRole("tab", { name: "Missions (2)" })).toBeInTheDocument();
-  expect(screen.getByRole("list", { name: "Key numbers" })).toHaveTextContent("In sequence");
-  expect(screen.getByRole("link", { name: "Indicatrix" })).toHaveAttribute(
-    "href",
-    "/agent/Indicatrix"
-  );
-});
-
-test("an unknown ?design falls back to the stored design", async () => {
-  window.localStorage.setItem("openbanners.bannerDesign", "b");
-  mockDesignBanner("design-unknown");
-
-  renderWithProviders(
-    <Routes>
-      <Route path="/banner/:bannerId" element={<BannerDetailsPage />} />
-    </Routes>,
-    { route: "/banner/design-unknown?design=zz" }
-  );
-
-  expect(await screen.findByText("Design Banner")).toBeInTheDocument();
-  expect(document.querySelector(".bpb")).not.toBeNull();
-});
-
-test.each(["a", "b", "c"])(
-  "design %s opens BannerGuider without location and has no tutorial",
+test.each(["a"])(
+  "banner page (%s) opens BannerGuider without location and has no tutorial",
   async (design) => {
     const user = userEvent.setup();
     mockDesignBanner(`guider-${design}`);
@@ -3978,7 +3914,7 @@ test.each(["a", "b", "c"])(
           <Route path="/bannerguiderwithoutlocation/:bannerId" element={<div>Guider target</div>} />
         </Routes>
       </>,
-      { route: `/banner/guider-${design}?design=${design}` }
+      { route: `/banner/guider-${design}` }
     );
 
     expect(await screen.findByText("Design Banner")).toBeInTheDocument();

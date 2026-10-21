@@ -216,7 +216,7 @@ function MissionMosaic({ banner, missions, colors, onSelect }) {
   );
 }
 
-function MissionItem({ mission, index, color, selected, expanded, onToggle, onShowOnMap, itemRef }) {
+function MissionItem({ mission, index, color, selected, expanded, onToggle, itemRef }) {
   const steps = getSteps(mission);
   const offline = isMissionOffline(mission);
   const duration = formatDuration(mission.averageDurationMilliseconds);
@@ -279,15 +279,18 @@ function MissionItem({ mission, index, color, selected, expanded, onToggle, onSh
           </a>
         ) : null}
         {firstPosition ? (
-          <button
-            type="button"
+          <a
             className="icon-btn sl"
-            aria-label={`Show mission ${index + 1} on the map`}
-            title="Show on the map"
-            onClick={onShowOnMap}
+            href={buildGeoUrl(
+              firstPosition[0],
+              firstPosition[1],
+              steps[0]?.poi?.title || mission.title || `Mission ${index + 1}`
+            )}
+            aria-label={`Open the start of mission ${index + 1} in your maps app`}
+            title="Open start in maps app"
           >
             <Place />
-          </button>
+          </a>
         ) : null}
       </div>
       {expanded ? (
@@ -702,26 +705,6 @@ export default function BannerDetailsPage() {
     }
   }, [isMobile, tab]);
 
-  const zoomToMission = useCallback(
-    (index) => {
-      const positions = missionPositions[index];
-      const map = mapRef.current;
-
-      if (!isLiveMap(map) || !positions?.length) {
-        return;
-      }
-
-      map.invalidateSize?.(false);
-
-      if (positions.length === 1) {
-        map.setView?.(positions[0], 17);
-      } else {
-        map.fitBounds?.(L.latLngBounds(positions), { padding: [48, 48], maxZoom: 18 });
-      }
-    },
-    [missionPositions]
-  );
-
   const showInList = useCallback((index) => {
     setSelectedMission(index);
     setExpandedMissions((current) => new Set(current).add(index));
@@ -742,18 +725,6 @@ export default function BannerDetailsPage() {
     },
     [isMobile, showInList]
   );
-
-  const showOnMap = (index) => {
-    setSelectedMission(index);
-
-    if (isMobile) {
-      setTab("map");
-      window.setTimeout(() => zoomToMission(index), 250);
-      return;
-    }
-
-    zoomToMission(index);
-  };
 
   const toggleMission = (index) => {
     setExpandedMissions((current) => {
@@ -1045,7 +1016,6 @@ export default function BannerDetailsPage() {
                     selected={selectedMission === index}
                     expanded={expandedMissions.has(index)}
                     onToggle={() => toggleMission(index)}
-                    onShowOnMap={() => showOnMap(index)}
                     itemRef={(element) => {
                       missionItemRefs.current[index] = element;
                     }}

@@ -3439,9 +3439,11 @@ test("renders mission waypoint dots on the banner details overview map", async (
   expect(screen.getByTestId("dot-52.381-4.901")).toBeInTheDocument();
 
   await userEvent.click(screen.getByRole("tab", { name: /missions/i }));
-  await userEvent.click(
-    screen.getByRole("button", { name: /show mission 1 on the map/i })
-  );
+  // The mission's place icon opens its start in the phone's maps app.
+  expect(
+    screen.getByRole("link", { name: /open the start of mission 1 in your maps app/i })
+  ).toHaveAttribute("href", expect.stringMatching(/^geo:52\.37,4\.89\?q=/));
+  await userEvent.click(screen.getAllByRole("button", { name: /mission 1:/i })[0]);
 
   expect(screen.getByTestId("marker-52.371-4.891")).toBeInTheDocument();
   // The last portal of the last mission keeps its finish flag marker.

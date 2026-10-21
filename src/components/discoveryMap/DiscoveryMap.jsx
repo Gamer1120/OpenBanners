@@ -17,6 +17,8 @@ import {
   MISSION_OPTIONS,
   STATUS_OPTIONS,
   applyMapFilters,
+  distanceOptions,
+  preferredDistanceUnit,
   countActiveMapFilters,
   filterSummary,
   normalizeMapFilters,
@@ -28,10 +30,51 @@ import { formatLength } from "../../bannerDisplay";
 import BannerImage from "../BannerImage";
 import "./discoveryMap.css";
 
+// Miles or km, from the browser's locale.
+const DISTANCE_UNIT = preferredDistanceUnit();
 const GROUPS = [
   { key: "status", title: "Status", options: STATUS_OPTIONS },
+  { key: "distance", title: "Distance", options: distanceOptions(DISTANCE_UNIT) },
   { key: "missions", title: "Number of missions", options: MISSION_OPTIONS },
 ];
+
+function CustomDistance({ filters, onChange }) {
+  const set = (key) => (event) => {
+    const value = event.target.value;
+    onChange({ ...filters, distance: "custom", [key]: value === "" ? null : Number(value) });
+  };
+
+  return (
+    <div className="mv-range">
+      <label>
+        <span>Min</span>
+        <input
+          type="number"
+          inputMode="decimal"
+          min="0"
+          step="any"
+          placeholder="0"
+          value={filters.distMin ?? ""}
+          onChange={set("distMin")}
+        />
+      </label>
+      <span aria-hidden="true">–</span>
+      <label>
+        <span>Max</span>
+        <input
+          type="number"
+          inputMode="decimal"
+          min="0"
+          step="any"
+          placeholder="any"
+          value={filters.distMax ?? ""}
+          onChange={set("distMax")}
+        />
+      </label>
+      <span className="mv-muted">{DISTANCE_UNIT}</span>
+    </div>
+  );
+}
 // Room the filter chips take at the top when fitting a route.
 const FILTERBAR_SPACE = 56;
 const CLUSTER_RADIUS_PX = 34;
@@ -151,6 +194,9 @@ function FilterSheet({ filters, onChange, onClose, focusKey, matchCount }) {
               </button>
             ))}
           </div>
+          {group.key === "distance" && filters.distance === "custom" ? (
+            <CustomDistance filters={filters} onChange={onChange} />
+          ) : null}
           {group.note ? <p className="mv-muted">{group.note}</p> : null}
         </section>
       ))}
@@ -257,7 +303,7 @@ export default function DiscoveryMap() {
   const cardRef = useRef(null);
   const routeState = useBannerRoute(selected?.id);
   const route = routeState.data?.route ?? null;
-  const summary = filterSummary(filters);
+  const summary = filterSummary(filters, DISTANCE_UNIT);
   const activeCount = countActiveMapFilters(filters);
   const showCard = Boolean(selected) && !sheet && !clusterList;
 
@@ -312,7 +358,7 @@ export default function DiscoveryMap() {
     });
   }, [map, route]);
 
-  const matching = useMemo(() => applyMapFilters(banners, filters), [banners, filters]);
+  const matching = useMemo(() => applyMapFilters(banners, filters, DISTANCE_UNIT), [banners, filters]);
   const matchingInView = useMemo(
     () => (liveArea ? matching.filter((banner) => isInsideArea(banner, liveArea)) : matching),
     [liveArea, matching]
@@ -449,7 +495,12 @@ export default function DiscoveryMap() {
           {activeCount ? activeCount : "Filters"}
         </button>
         {GROUPS.map((group) => {
-          const active = group.key === "status" ? filters.status !== "all" : filters[group.key] !== "any";
+          const active =
+            group.key === "status"
+              ? filters.status !== "all"
+              : group.key === "distance"
+                ? summary.distance !== "Any distance"
+                : filters[group.key] !== "any";
 
           return (
             <button

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { MyLocation, NearMe } from "@mui/icons-material";
 import BannerWall from "./BannerWall";
@@ -135,7 +135,7 @@ export function BannersStart() {
   );
 }
 
-// Segmented chips pinned above the bottom nav: Near · City · Province · Country · All.
+// Segmented chips pinned above the bottom nav: Near · All · Country · Province · City.
 export default function BannersScopeBar() {
   const { pathname } = useLocation();
   const navigate = useNavigate();
@@ -143,12 +143,27 @@ export default function BannersScopeBar() {
   const [locating, setLocating] = useState(false);
   const decodedPath = decodeURIComponent(pathname);
   const chips = [
-    places?.city && { key: "city", label: getPlaceLongName(places.city), place: places.city },
-    places?.region && { key: "region", label: getPlaceLongName(places.region), place: places.region },
     places?.country && { key: "country", label: getPlaceLongName(places.country), place: places.country },
+    places?.region && { key: "region", label: getPlaceLongName(places.region), place: places.region },
+    places?.city && { key: "city", label: getPlaceLongName(places.city), place: places.city },
   ].filter(Boolean);
+  const chipsRef = useRef(null);
   const canNear = permission === "granted";
   const canAsk = !canNear && permission !== "denied" && permission !== "unsupported";
+
+  // City is last now; on a phone it can sit past the edge, so bring the current chip into view.
+  useEffect(() => {
+    const row = chipsRef.current;
+    const current = row?.querySelector('[aria-current="page"]');
+
+    if (row && current) {
+      const left = current.offsetLeft - row.offsetLeft;
+
+      if (left < row.scrollLeft || left + current.offsetWidth > row.scrollLeft + row.clientWidth) {
+        row.scrollLeft = left + current.offsetWidth - row.clientWidth + 12;
+      }
+    }
+  }, [pathname, places]);
 
   const useMyLocation = async () => {
     setLocating(true);
@@ -162,7 +177,7 @@ export default function BannersScopeBar() {
 
   return (
     <nav className="scope-bar" aria-label="Banner scope">
-      <div className="scope-chips">
+      <div className="scope-chips" ref={chipsRef}>
         {canNear ? (
           <Link
             className="chip sl"
@@ -185,6 +200,14 @@ export default function BannersScopeBar() {
             {locating ? "…" : "Near"}
           </button>
         ) : null}
+        <Link
+          className="chip sl"
+          to="/browse/"
+          aria-current={pathname === "/browse/" || pathname === "/browse" ? "page" : undefined}
+          onClick={() => resetBrowseState(getBrowseStateScope())}
+        >
+          All
+        </Link>
         {chips.map((chip) => {
           const to = `/browse/${encodeURIComponent(chip.place.id)}`;
 
@@ -200,14 +223,6 @@ export default function BannersScopeBar() {
             </Link>
           );
         })}
-        <Link
-          className="chip sl"
-          to="/browse/"
-          aria-current={pathname === "/browse/" || pathname === "/browse" ? "page" : undefined}
-          onClick={() => resetBrowseState(getBrowseStateScope())}
-        >
-          All
-        </Link>
       </div>
     </nav>
   );

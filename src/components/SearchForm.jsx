@@ -40,6 +40,9 @@ export default function SearchForm({
   onSearch,
   autoFocus = false,
   onValueChange,
+  // The Search tab is all about the suggestions: a tap elsewhere (or closing the
+  // phone keyboard) keeps them; only Esc or picking one closes them.
+  keepOpen = false,
 }) {
   const { query } = useParams();
   const navigate = useNavigate();
@@ -96,7 +99,7 @@ export default function SearchForm({
   }, [trimmed]);
 
   useEffect(() => {
-    if (!open) {
+    if (!open || keepOpen) {
       return undefined;
     }
 
@@ -108,7 +111,7 @@ export default function SearchForm({
 
     document.addEventListener("pointerdown", handlePointerDown);
     return () => document.removeEventListener("pointerdown", handlePointerDown);
-  }, [open]);
+  }, [open, keepOpen]);
 
   const syncState = useBannergressSync();
   const items = [

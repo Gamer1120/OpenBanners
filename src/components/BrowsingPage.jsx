@@ -680,6 +680,7 @@ export default function BrowsingPage({
           error={placesState.error}
           isCountryList={!placeId}
           heading={cloudHeading}
+          rows={placeId && currentPlace && currentPlace.type !== "country" ? 3 : 5}
         />
       )}
 

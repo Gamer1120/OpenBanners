@@ -721,10 +721,6 @@ body {
   display: block;
 }
 
-.art.off .art-pic img {
-  filter: grayscale(0.9) brightness(0.7);
-}
-
 /* tall banners scroll inside their tile instead of being cropped */
 .art.capped .art-pic {
   display: block;
@@ -738,7 +734,7 @@ body {
   height: auto;
   min-height: 100%;
   object-fit: initial;
-  animation: art-pan 14s ease-in-out infinite alternate;
+  animation: art-pan 3.4s infinite;
 }
 
 /* Overflow too small to be worth a pan: keep the picture still. */
@@ -758,25 +754,24 @@ body {
   animation-play-state: paused;
 }
 
+/* 3.4 s loop: short rest at the top, 2 s down, short rest, 1 s back up.
+   Also under reduced motion (Android "Remove animations"): a still long
+   banner would only ever show its top. */
 @keyframes art-pan {
   0%,
-  8% {
+  6% {
     transform: translateY(0);
+    animation-timing-function: ease-in-out;
   }
 
-  92%,
-  100% {
+  65%,
+  71% {
     transform: translateY(var(--pan, 0%));
+    animation-timing-function: ease-in-out;
   }
-}
 
-/* "Remove animations" on Android (and many phones' battery savers) turns on
-   reduced motion; then a long banner showed only its top. Keep the pan, but
-   slow and linear, so the whole banner is still visible. */
-@media (prefers-reduced-motion: reduce) {
-  .art.capped .art-pic img {
-    animation-duration: 40s;
-    animation-timing-function: linear;
+  100% {
+    transform: translateY(0);
   }
 }
 
@@ -977,7 +972,7 @@ body {
   width: 100%;
   height: auto;
   min-height: 100%;
-  animation: art-pan 14s ease-in-out infinite alternate;
+  animation: art-pan 3.4s infinite;
 }
 
 .brow-pic.capped.nopan img {
@@ -988,17 +983,6 @@ body {
   .brow-a:hover .brow-pic.capped img {
     animation-play-state: paused;
   }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .brow-pic.capped img {
-    animation-duration: 40s;
-    animation-timing-function: linear;
-  }
-}
-
-.brow.off .brow-pic img {
-  filter: grayscale(0.9) brightness(0.7);
 }
 
 .brow-txt {
@@ -1126,8 +1110,11 @@ body {
 }
 
 .cloud.folded {
-  max-height: calc(5 * 32px + 4 * 8px);
+  max-height: calc(var(--cloud-rows, 5) * 32px + (var(--cloud-rows, 5) - 1) * 8px);
   overflow: hidden;
+}
+
+.cloud.folded.fade {
   -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 40px), transparent);
   mask-image: linear-gradient(to bottom, #000 calc(100% - 40px), transparent);
 }

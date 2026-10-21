@@ -776,6 +776,9 @@ export async function requestBannergressSyncData() {
 
   for (const listType of ["todo", "done", "blacklist"]) {
     let offset = 0;
+    // Ask only for id + listType; if Bannergress refuses that, ask again for
+    // whole banners, so one bad answer can't leave every count at 0.
+    let idsOnly = true;
 
     for (;;) {
       const url = new URL("https://api.bannergress.com/bnrs");
@@ -784,10 +787,19 @@ export async function requestBannergressSyncData() {
       url.searchParams.set("offset", String(offset));
       url.searchParams.set("orderBy", "listAdded");
       url.searchParams.set("orderDirection", "DESC");
-      url.searchParams.append("attributes", "id");
-      url.searchParams.append("attributes", "listType");
+
+      if (idsOnly) {
+        url.searchParams.append("attributes", "id");
+        url.searchParams.append("attributes", "listType");
+      }
 
       const response = await fetchBannergress(url.toString());
+
+      if (!response.ok && idsOnly && response.status !== 401 && response.status !== 403) {
+        idsOnly = false;
+        continue;
+      }
+
       await assertAuthenticatedResponse(response);
       const result = await response.json();
 

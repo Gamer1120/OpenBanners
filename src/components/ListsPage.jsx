@@ -10,6 +10,8 @@ import {
   formatBannergressSyncTime,
   getBannergressSyncCounts,
   isBannergressAuthSupportedOrigin,
+  requestBannergressSyncData,
+  saveBannergressSyncData,
   useBannergressAuth,
   useBannergressSync,
 } from "../bannergressSync";
@@ -46,6 +48,30 @@ export async function fetchOwnAgentName() {
   return name;
 }
 const PAGE_SIZE = 24;
+const COUNT_SYNC_INTERVAL_MS = 60 * 1000;
+let lastCountSync = { at: 0, promise: null };
+
+// The To do / Done / Hidden counts come from the list sync. That used to run
+// only once, silently, when the app loaded, so one failed sync left them at 0
+// for good. Opening Lists syncs again (at most once a minute).
+function syncCountsNow() {
+  if (lastCountSync.promise || Date.now() - lastCountSync.at < COUNT_SYNC_INTERVAL_MS) {
+    return lastCountSync.promise;
+  }
+
+  lastCountSync.promise = requestBannergressSyncData()
+    .then((payload) => {
+      saveBannergressSyncData(payload);
+      lastCountSync.at = Date.now();
+    })
+    .catch((error) => {
+      console.error("Couldn't sync Bannergress list counts.", error);
+    })
+    .finally(() => {
+      lastCountSync.promise = null;
+    });
+  return lastCountSync.promise;
+}
 
 export default function ListsPage() {
   const authData = useBannergressAuth();
@@ -72,6 +98,30 @@ export default function ListsPage() {
   const inFlightRef = useRef(false);
   const agentNameRef = useRef(null);
   const signedIn = Boolean(authData?.accessToken || authData?.refreshToken);
+  const [countsSyncing, setCountsSyncing] = useState(false);
+
+  useEffect(() => {
+    if (!signedIn || !isBannergressAuthSupportedOrigin()) {
+      return undefined;
+    }
+
+    let ignore = false;
+    const pending = syncCountsNow();
+
+    if (pending) {
+      setCountsSyncing(true);
+      pending.finally(() => {
+        if (!ignore) {
+          setCountsSyncing(false);
+        }
+      });
+    }
+
+    return () => {
+      ignore = true;
+    };
+  }, [signedIn]);
+  const countsUnknown = countsSyncing && !syncState?.syncedAt;
 
   const loadPage = useCallback(
     async (offset) => {
@@ -203,8 +253,10 @@ export default function ListsPage() {
               onClick={() => setListType(list.key)}
             >
               {list.label}
-              {list.key in counts ? (
-                <span className="small muted">{counts[list.key] ?? 0}</span>
+              {signedIn && list.key in counts ? (
+                <span className="small muted">
+                  {countsUnknown ? "…" : (counts[list.key] ?? 0)}
+                </span>
               ) : null}
             </button>
           ))}

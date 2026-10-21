@@ -16,6 +16,7 @@ export default function SearchPage() {
       <SearchForm
         big
         autoFocus
+        keepOpen
         placeholder="Banners, cities or regions"
         onValueChange={setValue}
       />

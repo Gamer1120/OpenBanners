@@ -1,8 +1,9 @@
 import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { ChevronRight, Groups, LocationCity, Place } from "@mui/icons-material";
-import { getPlaceName, readCachedCity, searchPlaces } from "../cityPlace";
+import { getPlaceLongName, readCachedCity, searchPlaces } from "../cityPlace";
 import { getFlagForPlace } from "./CountryFlags";
+import { useScopePlaces } from "./BannersScope";
 
 function togetherPath(place) {
   return `/lists/together/${encodeURIComponent(place.id)}`;
@@ -24,7 +25,7 @@ function PlaceRow({ place }) {
           )}
         </span>
         <span className="txt">
-          <span className="t">{getPlaceName(place)}</span>
+          <span className="t">{getPlaceLongName(place)}</span>
           <span className="s">
             {place.formattedAddress}
             {Number.isFinite(place.numberOfBanners) ? ` · ${place.numberOfBanners} banners` : ""}
@@ -39,6 +40,13 @@ function PlaceRow({ place }) {
 // Lists → Banner Together: pick the place to compare To do / Done / Hidden in.
 export default function BannerTogetherLauncher() {
   const [cachedCity] = useState(() => readCachedCity()?.place ?? null);
+  const { places: scopePlaces } = useScopePlaces();
+  // Same places as the Banners scope bar: country, province, city.
+  const yourPlaces = (
+    scopePlaces?.city || scopePlaces?.country
+      ? [scopePlaces.country, scopePlaces.region, scopePlaces.city]
+      : [cachedCity]
+  ).filter((place, index, all) => place?.id && all.findIndex((other) => other?.id === place.id) === index);
   const [query, setQuery] = useState("");
   const [places, setPlaces] = useState([]);
   const [status, setStatus] = useState("idle");
@@ -92,9 +100,11 @@ export default function BannerTogetherLauncher() {
         </div>
       </div>
 
-      {cachedCity?.id ? (
-        <ul className="ob-list bt-places" aria-label="Your city">
-          <PlaceRow place={cachedCity} />
+      {yourPlaces.length > 0 ? (
+        <ul className="ob-list bt-places" aria-label="Your places">
+          {yourPlaces.map((place) => (
+            <PlaceRow key={place.id} place={place} />
+          ))}
         </ul>
       ) : null}
 

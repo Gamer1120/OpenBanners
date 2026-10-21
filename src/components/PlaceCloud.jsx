@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { LocationCity, Place } from "@mui/icons-material";
 import { getFlagForPlace } from "./CountryFlags";
@@ -118,9 +118,19 @@ export function usePlaces(parentPlaceId, enabled = true) {
 }
 
 // All places of one level as a compact chip cloud (flag · name · count),
-// folded to five rows with a filter field and "Show all N".
-export default function PlaceCloud({ places, loading, error, isCountryList, heading }) {
+// folded to a few rows (five for countries/provinces, three further down)
+// with a filter field and "Show all N".
+export default function PlaceCloud({
+  places,
+  loading,
+  error,
+  isCountryList,
+  heading,
+  rows = 5,
+}) {
   const [expanded, setExpanded] = useState(false);
+  const [overflows, setOverflows] = useState(false);
+  const cloudRef = useRef(null);
   const [filterText, setFilterText] = useState("");
   const sortedPlaces = useMemo(
     () =>
@@ -137,7 +147,28 @@ export default function PlaceCloud({ places, loading, error, isCountryList, head
           .includes(normalizedFilter)
       )
     : sortedPlaces;
-  const foldable = !normalizedFilter && sortedPlaces.length > 16;
+  const folded = !normalizedFilter && !expanded;
+  // Fold only when the chips really need more rows than shown.
+  const foldable = !normalizedFilter && (expanded || overflows);
+
+  useLayoutEffect(() => {
+    const cloud = cloudRef.current;
+
+    if (!cloud || !folded) {
+      return undefined;
+    }
+
+    const check = () => setOverflows(cloud.scrollHeight > cloud.clientHeight + 1);
+    check();
+
+    if (typeof ResizeObserver === "undefined") {
+      return undefined;
+    }
+
+    const observer = new ResizeObserver(check);
+    observer.observe(cloud);
+    return () => observer.disconnect();
+  }, [folded, visiblePlaces.length, rows]);
   const noun = isCountryList ? "countries" : "places";
 
   useEffect(() => {
@@ -172,7 +203,11 @@ export default function PlaceCloud({ places, loading, error, isCountryList, head
           {error}
         </div>
       ) : null}
-      <ul className={`cloud${foldable && !expanded ? " folded" : ""}`}>
+      <ul
+        ref={cloudRef}
+        className={`cloud${folded ? " folded" : ""}${folded && overflows ? " fade" : ""}`}
+        style={{ "--cloud-rows": rows }}
+      >
         {visiblePlaces.map((place) => {
           const name = getChipName(place, isCountryList);
           const flag = getFlagForPlace(place.formattedAddress);

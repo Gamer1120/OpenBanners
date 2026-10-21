@@ -111,3 +111,31 @@ test("Yours shows an empty state with a link to create a banner", async () => {
     "https://bannergress.com/new-banner"
   );
 });
+
+test("To do / Done / Hidden counts come from a fresh sync when Lists opens", async () => {
+  const lists = { todo: ["t-1", "t-2", "t-3"], done: ["d-1", "d-2"], blacklist: ["h-1"] };
+  global.fetch = vi.fn((input) => {
+    const url = new URL(String(input));
+    const listType = url.searchParams.get("listTypes");
+
+    // Bannergress refusing the id-only request must not leave the counts at 0.
+    if (url.searchParams.getAll("attributes").length) {
+      return json({ error: "Bad Request" }, 400);
+    }
+
+    return json((lists[listType] ?? []).map((id) => ({ id, title: id, listType })));
+  });
+  vi.resetModules();
+  const { default: FreshListsPage } = await import("./ListsPage");
+  render(
+    <ThemeProvider theme={theme}>
+      <MemoryRouter initialEntries={["/lists"]}>
+        <FreshListsPage />
+      </MemoryRouter>
+    </ThemeProvider>
+  );
+
+  expect(await screen.findByRole("button", { name: /to do\s*3/i })).toBeInTheDocument();
+  expect(screen.getByRole("button", { name: /done\s*2/i })).toBeInTheDocument();
+  expect(screen.getByRole("button", { name: /hidden\s*1/i })).toBeInTheDocument();
+});

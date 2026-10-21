@@ -21,11 +21,11 @@ import {
 import {
   formatLength,
   getBannerAspect,
-  getBannerPictureUrl,
   getDisabledMissionCount,
   getDistanceMeters,
   getMissionsPerKm,
 } from "../bannerDisplay";
+import BannerImage, { getBoxAspect } from "./BannerImage";
 
 const LIST_META = {
   todo: { label: "To do", icon: BookmarkBorder },
@@ -33,50 +33,6 @@ const LIST_META = {
   blacklist: { label: "Hidden", icon: VisibilityOff },
 };
 const MIN_TILE_ASPECT = 0.8;
-// Below this much overflow a tall banner just gets its own (slightly taller)
-// tile instead of panning a few pixels.
-const MIN_PAN_FRACTION = 0.03;
-const MIN_PAN_PX = 12;
-
-// Upward pan as a share of the image's own height, so it never depends on the
-// tile size (or on container query units, which some browsers resolved against
-// the viewport and slid the picture right out of its tile).
-function getPanFraction(imageAspect, tileAspect) {
-  return Math.max(0, 1 - imageAspect / tileAspect);
-}
-
-function getTileAspect(aspect) {
-  return aspect < MIN_TILE_ASPECT * (1 - MIN_PAN_FRACTION) ? MIN_TILE_ASPECT : aspect;
-}
-
-// Shared by wall tiles and list-row thumbnails: the pan box carries data-pan-ar
-// (its own aspect) and gets "nopan" when the real picture barely overflows.
-function handlePanImageLoad(event) {
-  const image = event.currentTarget;
-  const box = image.closest("[data-pan-ar]");
-
-  if (!box || !image.naturalWidth || !image.naturalHeight) {
-    return;
-  }
-
-  const boxAspect = Number(box.dataset.panAr) || MIN_TILE_ASPECT;
-  const fraction = getPanFraction(image.naturalWidth / image.naturalHeight, boxAspect);
-  const overflowPx = image.parentElement
-    ? image.getBoundingClientRect().height - image.parentElement.getBoundingClientRect().height
-    : Infinity;
-
-  image.style.setProperty("--pan", `${(-fraction * 100).toFixed(3)}%`);
-  box.classList.toggle("nopan", fraction < MIN_PAN_FRACTION || overflowPx < MIN_PAN_PX);
-}
-
-// Props for a picture that pans inside a box of aspect boxAspect.
-function getPanImageProps(aspect, boxAspect) {
-  return {
-    style: { "--pan": `${(-getPanFraction(aspect, boxAspect) * 100).toFixed(3)}%` },
-    onLoad: handlePanImageLoad,
-  };
-}
-
 // List-row thumbnails are 112 × 72.
 const ROW_THUMB_ASPECT = 112 / 72;
 
@@ -184,10 +140,6 @@ function describeBanner(banner, distance, listType) {
 }
 
 export function BannerTile({ banner, here, showAddress = true, listType }) {
-  const aspect = getBannerAspect(banner);
-  const tileAspect = getTileAspect(aspect);
-  const capped = tileAspect !== aspect;
-  const pictureUrl = getBannerPictureUrl(banner);
   const distance = here
     ? getDistanceMeters(here, {
         latitude: Number(banner.startLatitude),
@@ -201,41 +153,22 @@ export function BannerTile({ banner, here, showAddress = true, listType }) {
     classes.push("off");
   }
 
-  if (capped) {
-    classes.push("capped");
-  }
-
   if (LIST_META[listType]) {
     classes.push(`ls-${listType}`);
   }
 
   return (
-    <div
-      className={classes.join(" ")}
-      style={{ "--ar": tileAspect.toFixed(4) }}
-      data-pan-ar={capped ? tileAspect.toFixed(4) : undefined}
-    >
+    <div className={classes.join(" ")}>
       <Link
         className="art-a"
         to={`/banner/${encodeURIComponent(banner.id)}`}
         aria-label={describeBanner(banner, distance, listType)}
       >
-        <span className="art-pic">
-          {pictureUrl ? (
-            <img
-              src={pictureUrl}
-              alt=""
-              loading="lazy"
-              decoding="async"
-              width="604"
-              height={Math.round(604 / aspect)}
-              {...(capped ? getPanImageProps(aspect, tileAspect) : {})}
-            />
-          ) : null}
+        <BannerImage banner={banner} className="art-pic" minAspect={MIN_TILE_ASPECT}>
           <span className="art-flags">
             <OfflineFlag banner={banner} />
           </span>
-        </span>
+        </BannerImage>
         <span className="art-cap" aria-hidden="true">
           <span className="art-t">{(banner.title || "Untitled").trim()}</span>
           <span className="art-m">
@@ -352,7 +285,7 @@ export default function BannerWall({
 
       buckets[shortest].push(item);
       heights[shortest] +=
-        (columnWidth - 12) / getTileAspect(aspect) +
+        (columnWidth - 12) / getBoxAspect(aspect, MIN_TILE_ASPECT) +
         (showAddress ? 86 : 70) +
         gap;
     };
@@ -412,7 +345,6 @@ export function BannerRows({ banners, here = null, label = "Banners", loadingMor
   return (
     <ul className="brows" aria-label={label}>
       {banners.map((banner) => {
-        const pictureUrl = getBannerPictureUrl(banner);
         const listType = getBannerListType(syncState, banner.id, banner.listType);
         const distance = here
           ? getDistanceMeters(here, {
@@ -421,8 +353,6 @@ export function BannerRows({ banners, here = null, label = "Banners", loadingMor
             })
           : null;
         const perKm = getMissionsPerKm(banner);
-        const aspect = getBannerAspect(banner);
-        const thumbCapped = aspect < ROW_THUMB_ASPECT * (1 - MIN_PAN_FRACTION);
 
         return (
           <li
@@ -432,22 +362,7 @@ export function BannerRows({ banners, here = null, label = "Banners", loadingMor
             }`}
           >
             <Link className="brow-a sl" to={`/banner/${encodeURIComponent(banner.id)}`}>
-              <span
-                className={`brow-pic${thumbCapped ? " capped" : ""}`}
-                data-pan-ar={thumbCapped ? ROW_THUMB_ASPECT.toFixed(4) : undefined}
-              >
-                {pictureUrl ? (
-                  <img
-                    src={pictureUrl}
-                    alt=""
-                    loading="lazy"
-                    decoding="async"
-                    width="604"
-                    height={Math.round(604 / aspect)}
-                    {...(thumbCapped ? getPanImageProps(aspect, ROW_THUMB_ASPECT) : {})}
-                  />
-                ) : null}
-              </span>
+              <BannerImage banner={banner} className="brow-pic" minAspect={ROW_THUMB_ASPECT} />
               <span className="brow-txt">
                 <span className="brow-t">{(banner.title || "Untitled").trim()}</span>
                 <span className="brow-s">

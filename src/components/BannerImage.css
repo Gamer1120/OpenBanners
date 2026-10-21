@@ -1,0 +1,66 @@
+/* <BannerImage>: see BannerImage.jsx. The box is sized by minAspect or the caller. */
+.bimg {
+  position: relative;
+  display: block;
+  overflow: hidden;
+}
+
+/* Fits (or overflows a few px): full width, centred vertically. */
+.bimg > .bimg-i {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  display: block;
+  width: 100%;
+  height: auto;
+  max-width: none;
+  transform: translateY(-50%);
+}
+
+/* Taller than the box: start at the top and pan by --pan (% of the image height). */
+.bimg.pan > .bimg-i {
+  top: 0;
+  transform: translateY(0);
+  animation: bimg-pan 3.4s infinite;
+}
+
+/* Too small to pan: the whole picture, centred. */
+.bimg.contain > .bimg-i {
+  top: 0;
+  height: 100%;
+  object-fit: contain;
+  transform: none;
+}
+
+/* Pause on hover only where hovering exists: on touch screens :hover sticks to
+   the last thing you touched, which froze exactly the banner you were looking at. */
+@media (hover: hover) and (pointer: fine) {
+  :is(a, button):hover .bimg.pan > .bimg-i {
+    animation-play-state: paused;
+  }
+}
+
+:is(a, button):focus-visible .bimg.pan > .bimg-i {
+  animation-play-state: paused;
+}
+
+/* 3.4 s loop: short rest at the top, 2 s down, short rest, 1 s back up.
+   Deliberately NOT disabled under prefers-reduced-motion (Android "Remove
+   animations", Vivaldi): a still long banner would only ever show its top. */
+@keyframes bimg-pan {
+  0%,
+  6% {
+    transform: translateY(0);
+    animation-timing-function: ease-in-out;
+  }
+
+  65%,
+  71% {
+    transform: translateY(var(--pan, 0%));
+    animation-timing-function: ease-in-out;
+  }
+
+  100% {
+    transform: translateY(0);
+  }
+}

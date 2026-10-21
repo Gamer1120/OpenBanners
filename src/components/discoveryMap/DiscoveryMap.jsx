@@ -25,7 +25,8 @@ import {
 import { useBannerRoute } from "./bannerRoute";
 import { clusterByPixels, formatMinutes, isInsideArea, walkingMinutes } from "./mapMath";
 import { FINISH_FLAG_SVG, missionColors } from "../BannerDetailsPage";
-import { formatLength, getBannerPictureUrl } from "../../bannerDisplay";
+import { formatLength } from "../../bannerDisplay";
+import BannerImage from "../BannerImage";
 import "./discoveryMap.css";
 
 const GROUPS = [
@@ -168,14 +169,16 @@ function FilterSheet({ filters, onChange, onClose, focusKey, matchCount }) {
   );
 }
 
+// Route card thumbnail: 74 wide, at most 74 × 100; taller banners pan.
+const ROUTE_THUMB_ASPECT = 0.74;
+
 function RouteCard({ banner, routeStatus, onClose, cardRef }) {
   const missions = Number(banner.numberOfMissions);
   const minutes = walkingMinutes(banner.lengthMeters);
-  const picture = getBannerPictureUrl(banner);
 
   return (
     <div className="mv-sheet mv-route-card" ref={cardRef} aria-label="Selected banner">
-      {picture ? <div className="mv-route-thumb" style={{ backgroundImage: `url("${picture}")` }} /> : null}
+      <BannerImage banner={banner} className="mv-route-thumb" minAspect={ROUTE_THUMB_ASPECT} />
       <div className="mv-route-body">
         <div className="mv-card-head">
           <div className="mv-card-title">{banner.title}</div>
@@ -221,16 +224,12 @@ function ClusterSheet({ banners, onPick, onClose }) {
       </div>
       <ul className="mv-cluster-list">
         {banners.map((banner) => {
-          const picture = getBannerPictureUrl(banner);
           const missions = Number(banner.numberOfMissions);
 
           return (
             <li key={banner.id}>
               <button type="button" className="mv-cluster-row" onClick={() => onPick(banner)}>
-                <span
-                  className="mv-cluster-thumb"
-                  style={picture ? { backgroundImage: `url("${picture}")` } : undefined}
-                />
+                <BannerImage banner={banner} mode="contain" className="mv-cluster-thumb" />
                 <span className="mv-cluster-text">
                   <b>{banner.title}</b>
                   <span className="mv-muted">

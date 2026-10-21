@@ -14,10 +14,6 @@ import {
   parseBannerTogetherInviteHash,
 } from "../bannerTogether";
 
-vi.mock("./BannerCard", () => ({
-  default: ({ banner }) => <div>{banner.title}</div>,
-}));
-
 const theme = createTheme({
   palette: {
     mode: "dark",

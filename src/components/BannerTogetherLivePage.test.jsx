@@ -59,10 +59,6 @@ vi.mock("../bannerTogetherPeerMesh", () => ({
   createBannerTogetherPeerMeshSession: mocks.createSession,
 }));
 
-vi.mock("./BannerCard", () => ({
-  default: ({ banner }) => <div>{banner.title}</div>,
-}));
-
 const theme = createTheme({ palette: { mode: "dark" } });
 const PLACE_ID = "enschede-place";
 const ROOM_ID = "Q".repeat(22);

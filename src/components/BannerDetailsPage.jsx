@@ -28,10 +28,10 @@ import {
   buildIngressMissionUrl,
   buildIntelMissionUrl,
   formatLength,
-  getBannerPictureUrl,
   getMissionsPerKm,
 } from "../bannerDisplay";
 import userLocationIcon from "../constants";
+import BannerImage from "./BannerImage";
 
 const OBJECTIVES = {
   hack: "Hack",
@@ -168,9 +168,8 @@ function MissionMosaic({ banner, missions, colors, onSelect }) {
   const hasPictures = missions.some((mission) => mission?.picture);
 
   if (!count || !hasPictures) {
-    const pictureUrl = getBannerPictureUrl(banner);
-
-    return pictureUrl ? <img className="bp-hero-pic" src={pictureUrl} alt="" /> : null;
+    // Shown whole (max-height in CSS), so no pan needed.
+    return <BannerImage banner={banner} mode="natural" className="bp-hero-pic" eager />;
   }
 
   const cells = [];
@@ -786,7 +785,6 @@ export default function BannerDetailsPage() {
   const warning = typeof items.warning === "string" ? items.warning.trim() : "";
   const startPlaceId = typeof items.startPlaceId === "string" ? items.startPlaceId.trim() : "";
   const address = typeof items.formattedAddress === "string" ? items.formattedAddress.trim() : "";
-  const pictureUrl = getBannerPictureUrl(items);
   const typeLabel =
     items.type === "sequential" ? "Sequential" : items.type === "anyOrder" ? "Any order" : items.type;
   const selected = selectedMission >= 0 ? missions[selectedMission] : null;
@@ -859,13 +857,7 @@ export default function BannerDetailsPage() {
         aria-label="Banner details"
       >
         <header className="bp-hero">
-          {pictureUrl ? (
-            <div
-              className="bp-hero-bg"
-              style={{ backgroundImage: `url("${pictureUrl}")` }}
-              aria-hidden="true"
-            />
-          ) : null}
+          <BannerImage banner={items} mode="backdrop" className="bp-hero-bg" />
           <div className="bp-hero-inner">
             {isLoading ? (
               <Skeleton variant="rounded" height={120} sx={{ bgcolor: "rgba(255,255,255,0.15)" }} />

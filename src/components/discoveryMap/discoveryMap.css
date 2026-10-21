@@ -325,10 +325,12 @@
   align-items: stretch;
 }
 
+/* <BannerImage minAspect>: at most 74 × 100, tall banners pan */
 .mv-route-thumb {
   flex: 0 0 74px;
+  align-self: center;
   border-radius: 12px;
-  background: #2a3138 center / cover no-repeat;
+  background: #2a3138;
 }
 
 .mv-route-body {
@@ -516,11 +518,12 @@
   cursor: pointer;
 }
 
+/* tiny <BannerImage mode="contain">: the whole banner */
 .mv-cluster-thumb {
   flex: 0 0 48px;
   height: 48px;
   border-radius: 10px;
-  background: #2a3138 center / cover no-repeat;
+  background: #2a3138;
 }
 
 .mv-cluster-text {

@@ -2,7 +2,7 @@ import React, { useEffect, useId, useRef, useState } from "react";
 import { LocationCity, Place, Search } from "@mui/icons-material";
 import { useNavigate, useParams } from "react-router-dom";
 import { getPlaceName, savePickedCity, searchPlaces } from "../cityPlace";
-import { getBannerPictureUrl } from "../bannerDisplay";
+import BannerImage from "./BannerImage";
 import { fetchBannergress, useBannergressSync } from "../bannergressSync";
 import { isBannerHidden } from "../bannerFilters";
 import { getBrowseStateScope, resetBrowseState } from "../browseState";
@@ -242,13 +242,9 @@ export default function SearchForm({
     }
 
     const { banner } = item;
-    const pictureUrl = getBannerPictureUrl(banner);
-
     return (
       <li key={item.key} {...common}>
-        <span className="sg-pic">
-          {pictureUrl ? <img src={pictureUrl} alt="" loading="lazy" decoding="async" /> : null}
-        </span>
+        <BannerImage banner={banner} mode="contain" className="sg-pic" />
         <span className="txt">
           <span className="t">{(banner.title || "Untitled").trim()}</span>
           <span className="s">

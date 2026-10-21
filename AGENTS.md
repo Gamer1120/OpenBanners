@@ -57,6 +57,8 @@ Banner Together offline sharing is a separate, default-off opt-in that is availa
 
 On `/together/` routes, do not run the TopMenu full-account list auto-sync; the route owns its place-scoped membership and catalog caches. Bannergress `/bnrs` pages are capped at 100. Banner Together should probe the first page and then use bounded four-request windows, and it must classify singular private-list requests by the requested list because `BannerDto.listType` is optional.
 
+Banner pictures (`banner.picture`) are rendered only through `src/components/BannerImage.jsx`, which owns the tall-banner pan (2 s down / 1 s up, also under reduced motion, no pan below 3 % or 12 px overflow). `src/bannerImageGuard.test.js` fails if a component renders the picture itself. Mission pictures are not affected.
+
 ## Commit & Pull Request Guidelines
 
 Recent history uses short imperative commits, with occasional conventional scope prefixes such as `fix(bannerguider): don't open new missions on blank`. Prefer concise subject lines that describe the behavior change, for example `Fix browse pagination after filters`.

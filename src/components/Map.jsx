@@ -29,11 +29,12 @@ import TuneRoundedIcon from "@mui/icons-material/TuneRounded";
 import L from "leaflet";
 import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
+import { getBannerListType, useBannergressSync } from "../bannergressSync";
 import {
-  fetchBannergress,
-  getBannerListType,
-  useBannergressSync,
-} from "../bannergressSync";
+  getVisibleAreaFromBounds,
+  resetDiscoveryMapData,
+  useDiscoveryMapBanners,
+} from "../discoveryMapData";
 import BannerFilterButton from "./BannerFilterButton";
 import {
   applyBannerFilters,
@@ -50,8 +51,6 @@ import {
 
 const DEFAULT_CENTER = [52.221058, 6.893297];
 const DEFAULT_ZOOM = 15;
-const DISCOVERY_MAP_QUERY_PRECISION = 3;
-const DISCOVERY_MAP_PAGE_SIZE = 50;
 const IMAGE_SIZE_STORAGE_KEY = "openbanners.discoveryMap.imageSize";
 const MARKER_MODE_STORAGE_KEY = "openbanners.discoveryMap.markerMode";
 const MARKER_IMAGE_GAP_PX = 4;
@@ -103,180 +102,10 @@ const CUSTOM_IMAGE_SCALE_MAX = 5;
 const CUSTOM_IMAGE_SCALE_STEP = 0.05;
 const DISAMBIGUATION_TOUCH_PADDING = 12;
 const DISAMBIGUATION_PICKER_MARGIN = 12;
-const discoveryMapCache = new globalThis.Map();
-const discoveryMapInflightRequests = new globalThis.Map();
 const bannerMarkerIconCache = new globalThis.Map();
 
-function writeDiscoveryMapCacheEntry({
-  requestKey,
-  banners,
-  hasMore,
-  complete,
-}) {
-  discoveryMapCache.set(requestKey, {
-    banners,
-    hasMore,
-    complete,
-  });
-}
-
-function roundCoordinate(value, precision = DISCOVERY_MAP_QUERY_PRECISION) {
-  return Number.parseFloat(value.toFixed(precision));
-}
-
-function normalizeVisibleArea(visibleArea) {
-  if (!visibleArea) {
-    return null;
-  }
-
-  return {
-    minLatitude: roundCoordinate(visibleArea.minLatitude),
-    maxLatitude: roundCoordinate(visibleArea.maxLatitude),
-    minLongitude: roundCoordinate(visibleArea.minLongitude),
-    maxLongitude: roundCoordinate(visibleArea.maxLongitude),
-    centerLatitude: roundCoordinate(visibleArea.centerLatitude),
-    centerLongitude: roundCoordinate(visibleArea.centerLongitude),
-  };
-}
-
-function normalizeOriginLocation(location, fallbackArea) {
-  const latitude = location?.latitude ?? fallbackArea?.centerLatitude;
-  const longitude = location?.longitude ?? fallbackArea?.centerLongitude;
-
-  if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
-    return null;
-  }
-
-  return {
-    latitude: roundCoordinate(latitude),
-    longitude: roundCoordinate(longitude),
-  };
-}
-
-function createDiscoveryMapQueryKey(visibleArea, originLocation) {
-  if (!visibleArea || !originLocation) {
-    return "";
-  }
-
-  return [
-    visibleArea.minLatitude,
-    visibleArea.maxLatitude,
-    visibleArea.minLongitude,
-    visibleArea.maxLongitude,
-    originLocation.latitude,
-    originLocation.longitude,
-  ].join(":");
-}
-
-function buildDiscoveryMapUrl({
-  visibleArea,
-  originLatitude,
-  originLongitude,
-  showOfflineBanners,
-  limit,
-  offset,
-}) {
-  const url = new URL("https://api.bannergress.com/bnrs");
-  url.searchParams.set("orderBy", "proximityStartPoint");
-  url.searchParams.set("orderDirection", "ASC");
-  url.searchParams.set("minLatitude", String(visibleArea.minLatitude));
-  url.searchParams.set("maxLatitude", String(visibleArea.maxLatitude));
-  url.searchParams.set("minLongitude", String(visibleArea.minLongitude));
-  url.searchParams.set("maxLongitude", String(visibleArea.maxLongitude));
-  url.searchParams.set("proximityLatitude", String(originLatitude));
-  url.searchParams.set("proximityLongitude", String(originLongitude));
-  url.searchParams.set("limit", String(limit));
-  url.searchParams.set("offset", String(offset));
-
-  if (!showOfflineBanners) {
-    url.searchParams.set("online", "true");
-  }
-
-  return url.toString();
-}
-
-async function fetchDiscoveryMapBanners({
-  visibleArea,
-  originLatitude,
-  originLongitude,
-  showOfflineBanners,
-  showHiddenBanners,
-  onPage,
-}) {
-  let offset = 0;
-  let allBanners = [];
-
-  while (true) {
-    const pageLimit = DISCOVERY_MAP_PAGE_SIZE;
-    const response = await fetchBannergress(
-      buildDiscoveryMapUrl({
-        visibleArea,
-        originLatitude,
-        originLongitude,
-        showOfflineBanners,
-        limit: pageLimit,
-        offset,
-      }),
-      {
-        authenticate: !showHiddenBanners,
-      }
-    );
-    const pageData = await response.json();
-
-    if (!Array.isArray(pageData)) {
-      return null;
-    }
-
-    allBanners = [...allBanners, ...pageData];
-    onPage?.({
-      banners: allBanners,
-      hasMore: pageData.length === pageLimit,
-    });
-
-    if (pageData.length < pageLimit) {
-      return {
-        banners: allBanners,
-        hasMore: false,
-      };
-    }
-
-    offset += pageData.length;
-  }
-}
-
-function normalizeFetchedBanners(data, originLatitude, originLongitude) {
-  if (!Array.isArray(data)) {
-    return null;
-  }
-
-  return data
-    .map((banner) => {
-      const latitude = Number.parseFloat(banner.startLatitude);
-      const longitude = Number.parseFloat(banner.startLongitude);
-
-      if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
-        return null;
-      }
-
-      return {
-        ...banner,
-        _latitude: latitude,
-        _longitude: longitude,
-        _distanceMeters: calculateDistanceMeters(
-          originLatitude,
-          originLongitude,
-          latitude,
-          longitude
-        ),
-      };
-    })
-    .filter(Boolean)
-    .sort((bannerA, bannerB) => bannerA._distanceMeters - bannerB._distanceMeters);
-}
-
 export function __resetDiscoveryMapCacheForTests() {
-  discoveryMapCache.clear();
-  discoveryMapInflightRequests.clear();
+  resetDiscoveryMapData();
   bannerMarkerIconCache.clear();
 }
 
@@ -319,39 +148,6 @@ function readInitialMarkerModePreference() {
   return storedValue === "dots" ? "dots" : "images";
 }
 
-function getVisibleAreaFromBounds(bounds) {
-  const { _southWest, _northEast } = bounds;
-  const { lat: minLatitude, lng: minLongitude } = _southWest;
-  const { lat: maxLatitude, lng: maxLongitude } = _northEast;
-
-  return {
-    minLatitude,
-    maxLatitude,
-    minLongitude,
-    maxLongitude,
-    centerLatitude: (minLatitude + maxLatitude) / 2,
-    centerLongitude: (minLongitude + maxLongitude) / 2,
-  };
-}
-
-function calculateDistanceMeters(latitudeA, longitudeA, latitudeB, longitudeB) {
-  const toRadians = (value) => (value * Math.PI) / 180;
-  const earthRadiusMeters = 6371000;
-  const dLatitude = toRadians(latitudeB - latitudeA);
-  const dLongitude = toRadians(longitudeB - longitudeA);
-  const lat1 = toRadians(latitudeA);
-  const lat2 = toRadians(latitudeB);
-
-  const a =
-    Math.sin(dLatitude / 2) * Math.sin(dLatitude / 2) +
-    Math.cos(lat1) *
-      Math.cos(lat2) *
-      Math.sin(dLongitude / 2) *
-      Math.sin(dLongitude / 2);
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-
-  return earthRadiusMeters * c;
-}
 
 function getMarkerDisplay(zoom, imageScale) {
   let baseDisplay;
@@ -1210,13 +1006,9 @@ export default function Map({
   const effectiveBannerFilters =
     bannerFilters ?? internalBannerFilters ?? DEFAULT_MAP_BANNER_FILTERS;
   const [visibleArea, setVisibleArea] = useState(null);
-  const [banners, setBanners] = useState([]);
-  const [hasMoreBannersInView, setHasMoreBannersInView] = useState(false);
   const [selectedBannerId, setSelectedBannerId] = useState(
     initialDiscoveryMapState.selectedBannerId
   );
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
   const [locationStatus, setLocationStatus] = useState("checking");
   const [locationError, setLocationError] = useState("");
   const [userLocation, setUserLocation] = useState(null);
@@ -1401,19 +1193,12 @@ export default function Map({
     };
   }, [isDisambiguating]);
 
-  const normalizedVisibleArea = useMemo(
-    () => normalizeVisibleArea(visibleArea),
-    [visibleArea]
-  );
-  const normalizedOriginLocation = useMemo(
-    () => normalizeOriginLocation(userLocation, normalizedVisibleArea),
-    [normalizedVisibleArea, userLocation]
-  );
-  const discoveryMapQueryKey = useMemo(
-    () =>
-      createDiscoveryMapQueryKey(normalizedVisibleArea, normalizedOriginLocation),
-    [normalizedOriginLocation, normalizedVisibleArea]
-  );
+  const {
+    banners,
+    hasMore: hasMoreBannersInView,
+    loading,
+    error,
+  } = useDiscoveryMapBanners(visibleArea, userLocation, effectiveBannerFilters);
   const markerDisplay = useMemo(
     () =>
       markerMode === "dots"
@@ -1421,141 +1206,6 @@ export default function Map({
         : getMarkerDisplay(currentZoom, activeImageScale),
     [activeImageScale, currentZoom, markerMode]
   );
-  const discoveryMapRequestKey = useMemo(
-    () =>
-      discoveryMapQueryKey
-        ? [
-            discoveryMapQueryKey,
-            effectiveBannerFilters.showOfflineBanners ? "offline" : "online-only",
-            effectiveBannerFilters.showHiddenBanners ? "show-hidden" : "hide-hidden",
-          ].join(":")
-        : "",
-    [
-      discoveryMapQueryKey,
-      effectiveBannerFilters.showHiddenBanners,
-      effectiveBannerFilters.showOfflineBanners,
-    ]
-  );
-
-  useEffect(() => {
-    if (!normalizedVisibleArea || !normalizedOriginLocation || !discoveryMapRequestKey) {
-      return undefined;
-    }
-
-    let ignore = false;
-    const timeoutId = window.setTimeout(async () => {
-      setError("");
-      const cachedEntry = discoveryMapCache.get(discoveryMapRequestKey);
-
-      if (cachedEntry) {
-        setBanners(cachedEntry.banners);
-        setHasMoreBannersInView(Boolean(cachedEntry.hasMore));
-
-        if (cachedEntry.complete) {
-          setLoading(false);
-          return;
-        }
-      }
-
-      setLoading(true);
-
-      const originLatitude = normalizedOriginLocation.latitude;
-      const originLongitude = normalizedOriginLocation.longitude;
-
-      try {
-        let responsePromise = discoveryMapInflightRequests.get(
-          discoveryMapRequestKey
-        );
-
-        if (!responsePromise) {
-          responsePromise = fetchDiscoveryMapBanners({
-            visibleArea: normalizedVisibleArea,
-            originLatitude,
-            originLongitude,
-            showOfflineBanners: effectiveBannerFilters.showOfflineBanners,
-            showHiddenBanners: effectiveBannerFilters.showHiddenBanners,
-            onPage: (pageData) => {
-              const normalizedBanners = normalizeFetchedBanners(
-                pageData.banners,
-                originLatitude,
-                originLongitude
-              );
-
-              if (normalizedBanners) {
-                writeDiscoveryMapCacheEntry({
-                  requestKey: discoveryMapRequestKey,
-                  banners: normalizedBanners,
-                  hasMore: pageData.hasMore,
-                  complete: !pageData.hasMore,
-                });
-
-                if (!ignore) {
-                  setBanners(normalizedBanners);
-                  setHasMoreBannersInView(pageData.hasMore);
-                }
-              }
-            },
-          });
-          discoveryMapInflightRequests.set(
-            discoveryMapRequestKey,
-            responsePromise
-          );
-        }
-
-        const data = await responsePromise;
-
-        if (ignore) {
-          return;
-        }
-
-        const normalizedBanners = normalizeFetchedBanners(
-          data?.banners,
-          originLatitude,
-          originLongitude
-        );
-
-        if (!normalizedBanners) {
-          setBanners([]);
-          setHasMoreBannersInView(false);
-          setError("Map results returned an unexpected response.");
-          return;
-        }
-
-        writeDiscoveryMapCacheEntry({
-          requestKey: discoveryMapRequestKey,
-          banners: normalizedBanners,
-          hasMore: data.hasMore,
-          complete: true,
-        });
-        setBanners(normalizedBanners);
-        setHasMoreBannersInView(data.hasMore);
-      } catch (fetchError) {
-        if (!ignore) {
-          console.error("Error fetching banners:", fetchError);
-          setBanners([]);
-          setHasMoreBannersInView(false);
-          setError("Couldn't load banners in this area. Please try again.");
-        }
-      } finally {
-        discoveryMapInflightRequests.delete(discoveryMapRequestKey);
-
-        if (!ignore) {
-          setLoading(false);
-        }
-      }
-    }, 220);
-
-    return () => {
-      ignore = true;
-      window.clearTimeout(timeoutId);
-    };
-  }, [
-    discoveryMapRequestKey,
-    effectiveBannerFilters.showHiddenBanners,
-    effectiveBannerFilters.showOfflineBanners,
-    normalizedOriginLocation,
-    normalizedVisibleArea,
-  ]);
 
   const updateVisibleArea = (mapInstance) => {
     if (!mapInstance) {

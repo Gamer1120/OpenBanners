@@ -10,7 +10,7 @@ import ListsPage from "./ListsPage";
 import BrowsingPage from "./BrowsingPage";
 import SearchResults from "./SearchResults";
 import BannerDetailsPage from "./BannerDetailsPage";
-import Map from "./Map";
+import MapVariantsHost from "./mapVariants/MapVariantsHost";
 import BannerRerouterPage from "./BannerRerouterPage";
 import BannerTogetherPage from "./BannerTogetherPage";
 import {
@@ -335,7 +335,7 @@ export default function Home() {
           )}
           {currentView === "map" && (
             <LegacyDark fill>
-              <Map
+              <MapVariantsHost
                 bannerFilters={mapBannerFilters}
                 onBannerFiltersChange={setMapBannerFilters}
               />

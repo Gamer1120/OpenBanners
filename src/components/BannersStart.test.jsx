@@ -133,11 +133,15 @@ test("without location the start page uses the saved city's places", async () =>
   expect(screen.getByRole("button", { name: /use my location/i })).toBeInTheDocument();
 });
 
-test("start page falls back to all countries", async () => {
-  mockPermission("denied");
-  renderStart();
-  await waitFor(() => expect(screen.getByTestId("where")).toHaveTextContent(/^\/browse\/$/));
-});
+test.each(["prompt", "denied"])(
+  "without any location (%s) the start page stays and offers All countries",
+  async (state) => {
+    mockPermission(state);
+    renderStart();
+    expect(await screen.findByRole("link", { name: /all countries/i })).toHaveAttribute("href", "/browse/");
+    expect(screen.queryByTestId("where")).not.toBeInTheDocument();
+  }
+);
 
 test("search page lists and clears recent searches", async () => {
   addRecentSearch("Enschede");

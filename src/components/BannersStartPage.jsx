@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import {
   ChevronRight,
   Language,
@@ -76,7 +76,6 @@ function PlaceButton({ place, icon: Icon, kind }) {
 // Banners tab start ("/"): the 3 nearest banners, then big buttons at thumb
 // height: more near you, all countries, and your country / province / city.
 export default function BannersStartPage() {
-  const navigate = useNavigate();
   const syncState = useBannergressSync();
   const [permission, setPermission] = useState("checking");
   const [location, setLocation] = useState(() => loadCachedNearbyLocation());
@@ -108,11 +107,10 @@ export default function BannersStartPage() {
 
       setPermission(state);
 
+      // Without location the start page stays: it offers "Use my location"
+      // and All countries instead of redirecting to /browse/.
       if (state === "granted" && !location) {
         locate();
-      } else if (state !== "granted" && !location && !savedCity?.id) {
-        // Nothing to go on: show all countries, as before.
-        navigate("/browse/", { replace: true });
       }
     });
 

@@ -1,6 +1,6 @@
 import { CircleMarker, MapContainer, Marker, Polyline, Popup, TileLayer } from "react-leaflet";
 import { Link, useParams } from "react-router-dom";
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Skeleton, useMediaQuery } from "@mui/material";
 import {
@@ -1152,6 +1152,35 @@ export function MissionList({ d }) {
 // Route map with its controls and the bottom sheet. `children` = extra overlay controls.
 export function MapSection({ d, className = "", sheet = true, onShowInList, children = null }) {
   const showInList = onShowInList ?? d.showInList;
+  const sheetRef = useRef(null);
+  const sheetShown = sheet && !d.isLoading && !d.error;
+
+  // Leaflet's credits sit just above the sheet, whose height changes with the
+  // selected mission's title (it wraps on phones).
+  useLayoutEffect(() => {
+    const section = d.mapContainerRef.current;
+    const sheetElement = sheetRef.current;
+
+    if (!section) {
+      return undefined;
+    }
+
+    if (!sheetElement) {
+      section.style.setProperty("--sheet-h", "0px");
+      return undefined;
+    }
+
+    const measure = () => section.style.setProperty("--sheet-h", `${sheetElement.offsetHeight}px`);
+    measure();
+
+    if (typeof ResizeObserver === "undefined") {
+      return undefined;
+    }
+
+    const observer = new ResizeObserver(measure);
+    observer.observe(sheetElement);
+    return () => observer.disconnect();
+  }, [d.mapContainerRef, sheetShown, d.selectedMission]);
 
   return (
     <section
@@ -1206,8 +1235,8 @@ export function MapSection({ d, className = "", sheet = true, onShowInList, chil
           {d.locationError || "Loading map details..."}
         </div>
       ) : null}
-      {sheet && !d.isLoading && !d.error ? (
-        <div className="bp-sheet" aria-live="polite">
+      {sheetShown ? (
+        <div className="bp-sheet" ref={sheetRef} aria-live="polite">
           {d.selected ? (
             <div className="bp-sheet-row">
               <b className="grow">

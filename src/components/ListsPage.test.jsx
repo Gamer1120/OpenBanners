@@ -139,3 +139,40 @@ test("To do / Done / Hidden counts come from a fresh sync when Lists opens", asy
   expect(screen.getByRole("button", { name: /done\s*2/i })).toBeInTheDocument();
   expect(screen.getByRole("button", { name: /hidden\s*1/i })).toBeInTheDocument();
 });
+
+test("a failed list sync shows the error with Retry instead of endless dots", async () => {
+  vi.resetModules();
+  const { default: FreshListsPage } = await import("./ListsPage");
+  let syncStatus = 500;
+  global.fetch = vi.fn((input) => {
+    const url = new URL(String(input));
+
+    if (url.searchParams.has("attributes") || url.searchParams.get("limit") === "100") {
+      return syncStatus === 200
+        ? json(url.searchParams.get("listTypes") === "todo" ? [{ id: "a" }, { id: "b" }] : [])
+        : json(null, syncStatus);
+    }
+
+    return json([]);
+  });
+  vi.spyOn(console, "error").mockImplementation(() => {});
+  const user = userEvent.setup();
+  render(
+    <ThemeProvider theme={theme}>
+      <MemoryRouter initialEntries={["/lists"]}>
+        <FreshListsPage />
+      </MemoryRouter>
+    </ThemeProvider>
+  );
+
+  expect(
+    await screen.findByText(/Couldn’t load your lists from Bannergress \(HTTP 500\)/)
+  ).toBeInTheDocument();
+  expect(screen.queryByText("…")).not.toBeInTheDocument();
+
+  syncStatus = 200;
+  await user.click(screen.getByRole("button", { name: "Retry" }));
+
+  expect(await screen.findByRole("button", { name: /^to do\s*2$/i })).toBeInTheDocument();
+  expect(screen.queryByText(/Couldn’t load your lists/)).not.toBeInTheDocument();
+});

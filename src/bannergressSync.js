@@ -33,6 +33,48 @@ const BANNERGRESS_OIDC_CONFIGURATION = Object.freeze({
 const TOKEN_CACHE_SAFETY_MS = 60 * 1000;
 const TOKEN_CACHE_FALLBACK_MS = 5 * 60 * 1000;
 const SYNC_PAGE_SIZE = 100;
+// Every Bannergress request in the list sync gives up after this long, so the
+// Lists counters can't wait forever on one stuck request.
+export const BANNERGRESS_REQUEST_TIMEOUT_MS = 15 * 1000;
+// 100 pages of 100 = 10,000 banners per list; past that the API is looping.
+const SYNC_MAX_PAGES = 100;
+const SYNC_DEBUG =
+  typeof window !== "undefined" &&
+  /(?:^|[?&])openbanners-debug=1(?:&|$)/.test(window.location?.search ?? "");
+
+function syncDebug(...args) {
+  if (SYNC_DEBUG) {
+    // Strings, so a copied console shows the details instead of "Object".
+    console.log(
+      "[OpenBanners sync]",
+      ...args.map((arg) => (arg && typeof arg === "object" ? JSON.stringify(arg) : arg))
+    );
+  }
+}
+
+// Runs task(signal); rejects with code TIMEOUT (and aborts the request) when it
+// takes longer than timeoutMs, including the time to read the body.
+export function withTimeout(task, timeoutMs, label = "request") {
+  const controller =
+    typeof AbortController === "function" ? new AbortController() : null;
+  let timer = null;
+  const timeout = new Promise((_, reject) => {
+    timer = setTimeout(() => {
+      controller?.abort();
+      reject(
+        Object.assign(
+          new Error(`Bannergress ${label} timed out after ${Math.round(timeoutMs / 1000)} s.`),
+          { code: "TIMEOUT" }
+        )
+      );
+    }, timeoutMs);
+  });
+
+  return Promise.race([
+    Promise.resolve().then(() => task(controller?.signal)),
+    timeout,
+  ]).finally(() => clearTimeout(timer));
+}
 const EMPTY_SYNC_STATE = Object.freeze({
   syncedAt: null,
   bannerLists: {},
@@ -649,15 +691,25 @@ async function refreshBannergressAuthData(currentAuthData) {
     refresh_token: payload.refreshToken,
   });
 
-  const response = await fetch(BANNERGRESS_OIDC_CONFIGURATION.tokenUrl, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/x-www-form-urlencoded",
-    },
-    body,
-  });
+  syncDebug("Refreshing Bannergress access token.");
+  // A refresh that never answers used to hold the shared refresh lock forever,
+  // so every later sync waited on it too.
+  const { response, result } = await withTimeout(async (signal) => {
+    const tokenResponse = await fetch(BANNERGRESS_OIDC_CONFIGURATION.tokenUrl, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded",
+      },
+      body,
+      signal,
+    });
 
-  const result = await response.json().catch(() => null);
+    return {
+      response: tokenResponse,
+      result: await tokenResponse.json().catch(() => null),
+    };
+  }, BANNERGRESS_REQUEST_TIMEOUT_MS, "token refresh");
+  syncDebug("Token refresh answered.", { status: response.status });
 
   if (!response.ok) {
     if (loadBannergressAuthData().refreshToken === payload.refreshToken) {
@@ -763,24 +815,163 @@ async function assertAuthenticatedResponse(response) {
   });
 }
 
-export async function requestBannergressSyncData() {
-  const accessToken = await requestBannergressAccessToken();
+// Like requestBannergressAccessToken, but a refresh that times out or can't
+// reach Bannergress is reported as such instead of as "sign in again".
+async function requestSyncAccessToken() {
+  const authData = loadBannergressAuthData();
+
+  if (hasFreshAccessToken(authData)) {
+    return authData.accessToken;
+  }
+
+  if (!hasUsableRefreshToken(authData)) {
+    return null;
+  }
+
+  try {
+    const refreshedAuthData = await requestBannergressAuthRefresh(authData);
+    return hasFreshAccessToken(refreshedAuthData)
+      ? refreshedAuthData.accessToken
+      : null;
+  } catch (error) {
+    syncDebug("Token refresh failed.", {
+      code: error?.code ?? null,
+      status: error?.status ?? null,
+      message: error?.message,
+    });
+    const latestAuthData = loadBannergressAuthData();
+
+    if (hasFreshAccessToken(latestAuthData)) {
+      return latestAuthData.accessToken;
+    }
+
+    if (error?.code === "TIMEOUT") {
+      throw error;
+    }
+
+    if (!Number.isFinite(error?.status)) {
+      throw Object.assign(new Error("Couldn't reach Bannergress."), {
+        code: "NETWORK",
+        cause: error,
+      });
+    }
+
+    return null;
+  }
+}
+
+function syncRequestError(response) {
+  if (response.status === 401 || response.status === 403) {
+    clearBannergressAuthData();
+    return Object.assign(new Error("Authenticate with Bannergress again."), {
+      code: "AUTH_REQUIRED",
+      status: response.status,
+    });
+  }
+
+  return Object.assign(new Error(`Bannergress answered ${response.status}.`), {
+    code: "REQUEST_FAILED",
+    status: response.status,
+  });
+}
+
+// One page of a list: { ok, status, result } with the body already read, all
+// inside the timeout. Network errors become code NETWORK.
+async function requestSyncPage(url, accessToken, timeoutMs) {
+  return withTimeout(async (signal) => {
+    let response;
+
+    try {
+      response = await fetch(url, {
+        headers: { Authorization: `Bearer ${accessToken}` },
+        signal,
+      });
+    } catch (error) {
+      if (signal?.aborted) {
+        throw error;
+      }
+
+      throw Object.assign(new Error("Couldn't reach Bannergress."), {
+        code: "NETWORK",
+        cause: error,
+      });
+    }
+
+    if (!response.ok) {
+      return { ok: false, status: response.status, response };
+    }
+
+    let result;
+
+    try {
+      result = await response.json();
+    } catch (error) {
+      if (signal?.aborted) {
+        throw error;
+      }
+
+      throw Object.assign(new Error("Unexpected Bannergress sync response."), {
+        code: "SYNC_FAILED",
+        status: response.status,
+      });
+    }
+
+    return { ok: true, status: response.status, result };
+  }, timeoutMs, "list request");
+}
+
+// Retrying without `attributes` only makes sense when Bannergress rejected
+// the request itself; overload (429) and server errors fail the sync.
+function shouldRetryWithoutAttributes(status) {
+  return status >= 400 && status < 500 && ![401, 403, 408, 429].includes(status);
+}
+
+let syncInFlightPromise = null;
+
+// The app-start sync and the Lists page share one run instead of asking twice.
+export function requestBannergressSyncData(options) {
+  if (options) {
+    return runBannergressSync(options);
+  }
+
+  if (!syncInFlightPromise) {
+    syncInFlightPromise = runBannergressSync().finally(() => {
+      syncInFlightPromise = null;
+    });
+  }
+
+  return syncInFlightPromise;
+}
+
+async function runBannergressSync({
+  timeoutMs = BANNERGRESS_REQUEST_TIMEOUT_MS,
+  maxPages = SYNC_MAX_PAGES,
+} = {}) {
+  syncDebug("List sync started.");
+  const accessToken = await requestSyncAccessToken();
 
   if (!accessToken) {
+    syncDebug("No usable Bannergress token.");
     throw Object.assign(new Error("Authenticate with Bannergress first."), {
       code: "AUTH_REQUIRED",
     });
   }
 
   const bannerLists = {};
+  // Ask only for id + listType; if Bannergress refuses that, ask again once for
+  // whole banners, so one bad answer can't leave every count at 0.
+  let idsOnly = true;
 
   for (const listType of ["todo", "done", "blacklist"]) {
     let offset = 0;
-    // Ask only for id + listType; if Bannergress refuses that, ask again for
-    // whole banners, so one bad answer can't leave every count at 0.
-    let idsOnly = true;
+    const seenIds = new Set();
 
-    for (;;) {
+    for (let page = 0; ; page += 1) {
+      if (page >= maxPages) {
+        syncDebug("Stopped paging: too many pages.", { listType, page });
+        break;
+      }
+
       const url = new URL("https://api.bannergress.com/bnrs");
       url.searchParams.set("listTypes", listType);
       url.searchParams.set("limit", String(SYNC_PAGE_SIZE));
@@ -793,24 +984,45 @@ export async function requestBannergressSyncData() {
         url.searchParams.append("attributes", "listType");
       }
 
-      const response = await fetchBannergress(url.toString());
+      syncDebug("Requesting page.", { listType, offset, idsOnly });
+      let answer = await requestSyncPage(url.toString(), accessToken, timeoutMs);
+      syncDebug("Page answered.", {
+        listType,
+        offset,
+        status: answer.status,
+        count: Array.isArray(answer.result) ? answer.result.length : null,
+      });
 
-      if (!response.ok && idsOnly && response.status !== 401 && response.status !== 403) {
+      if (!answer.ok && idsOnly && shouldRetryWithoutAttributes(answer.status)) {
         idsOnly = false;
-        continue;
+        url.searchParams.delete("attributes");
+        syncDebug("Retrying page without attributes.", { listType, offset });
+        answer = await requestSyncPage(url.toString(), accessToken, timeoutMs);
+        syncDebug("Retry answered.", { listType, offset, status: answer.status });
       }
 
-      await assertAuthenticatedResponse(response);
-      const result = await response.json();
+      if (!answer.ok) {
+        throw syncRequestError(answer);
+      }
+
+      const result = answer.result;
 
       if (!Array.isArray(result)) {
         throw Object.assign(new Error("Unexpected Bannergress sync response."), {
           code: "SYNC_FAILED",
+          status: answer.status,
         });
       }
 
+      let newIds = 0;
+
       result.forEach((entry) => {
         if (typeof entry?.id === "string") {
+          if (!seenIds.has(entry.id)) {
+            seenIds.add(entry.id);
+            newIds += 1;
+          }
+
           bannerLists[entry.id] = normalizeListType(entry.listType) ?? listType;
         }
       });
@@ -819,9 +1031,17 @@ export async function requestBannergressSyncData() {
         break;
       }
 
+      if (newIds === 0) {
+        // Same page again: Bannergress ignored the offset.
+        syncDebug("Stopped paging: page repeated.", { listType, offset });
+        break;
+      }
+
       offset += SYNC_PAGE_SIZE;
     }
   }
+
+  syncDebug("List sync done.", { banners: Object.keys(bannerLists).length });
 
   return {
     syncedAt: new Date().toISOString(),

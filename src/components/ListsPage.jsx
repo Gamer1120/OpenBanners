@@ -6,6 +6,7 @@ import BannerWall, { BannerRows, useInfiniteScroll } from "./BannerWall";
 import ViewModeToggle, { useBannerViewMode } from "./ViewModeToggle";
 import {
   BANNERGRESS_AUTH_REQUEST_EVENT,
+  BANNERGRESS_REQUEST_TIMEOUT_MS,
   fetchBannergress,
   formatBannergressSyncTime,
   getBannergressSyncCounts,
@@ -14,6 +15,7 @@ import {
   saveBannergressSyncData,
   useBannergressAuth,
   useBannergressSync,
+  withTimeout,
 } from "../bannergressSync";
 
 const LISTS = [
@@ -53,24 +55,47 @@ let lastCountSync = { at: 0, promise: null };
 
 // The To do / Done / Hidden counts come from the list sync. That used to run
 // only once, silently, when the app loaded, so one failed sync left them at 0
-// for good. Opening Lists syncs again (at most once a minute).
-function syncCountsNow() {
-  if (lastCountSync.promise || Date.now() - lastCountSync.at < COUNT_SYNC_INTERVAL_MS) {
+// for good. Opening Lists syncs again (at most once a minute; Retry forces it).
+// Resolves to null on success or the error; never rejects.
+function syncCountsNow({ force = false } = {}) {
+  if (lastCountSync.promise) {
     return lastCountSync.promise;
+  }
+
+  if (!force && Date.now() - lastCountSync.at < COUNT_SYNC_INTERVAL_MS) {
+    return null;
   }
 
   lastCountSync.promise = requestBannergressSyncData()
     .then((payload) => {
       saveBannergressSyncData(payload);
       lastCountSync.at = Date.now();
+      return null;
     })
     .catch((error) => {
       console.error("Couldn't sync Bannergress list counts.", error);
+      return error ?? new Error("Sync failed.");
     })
     .finally(() => {
       lastCountSync.promise = null;
     });
   return lastCountSync.promise;
+}
+
+export function describeSyncError(error) {
+  if (error?.code === "TIMEOUT") {
+    return "timed out";
+  }
+
+  if (error?.code === "NETWORK") {
+    return "no connection";
+  }
+
+  if (Number.isFinite(error?.status)) {
+    return `HTTP ${error.status}`;
+  }
+
+  return error?.code ? String(error.code).toLowerCase().replace(/_/g, " ") : "error";
 }
 
 export default function ListsPage() {
@@ -99,6 +124,8 @@ export default function ListsPage() {
   const agentNameRef = useRef(null);
   const signedIn = Boolean(authData?.accessToken || authData?.refreshToken);
   const [countsSyncing, setCountsSyncing] = useState(false);
+  const [countsError, setCountsError] = useState(null);
+  const [countsAttempt, setCountsAttempt] = useState(0);
 
   useEffect(() => {
     if (!signedIn || !isBannergressAuthSupportedOrigin()) {
@@ -106,13 +133,14 @@ export default function ListsPage() {
     }
 
     let ignore = false;
-    const pending = syncCountsNow();
+    const pending = syncCountsNow({ force: countsAttempt > 0 });
 
     if (pending) {
       setCountsSyncing(true);
-      pending.finally(() => {
+      pending.then((syncError) => {
         if (!ignore) {
           setCountsSyncing(false);
+          setCountsError(syncError);
         }
       });
     }
@@ -120,8 +148,9 @@ export default function ListsPage() {
     return () => {
       ignore = true;
     };
-  }, [signedIn]);
-  const countsUnknown = countsSyncing && !syncState?.syncedAt;
+  }, [signedIn, countsAttempt]);
+  const countsUnknown = !syncState?.syncedAt && (countsSyncing || Boolean(countsError));
+  const countsAuthError = countsError?.code === "AUTH_REQUIRED";
 
   const loadPage = useCallback(
     async (offset) => {
@@ -139,13 +168,15 @@ export default function ListsPage() {
       url.searchParams.set("orderDirection", "DESC");
       url.searchParams.set("limit", String(PAGE_SIZE));
       url.searchParams.set("offset", String(offset));
-      const response = await fetchBannergress(url.toString());
+      const data = await withTimeout(async (signal) => {
+        const response = await fetchBannergress(url.toString(), { signal });
 
-      if (response.status === 401 || response.status === 403) {
-        throw Object.assign(new Error("Sign in again."), { code: "AUTH" });
-      }
+        if (response.status === 401 || response.status === 403) {
+          throw Object.assign(new Error("Sign in again."), { code: "AUTH" });
+        }
 
-      const data = await response.json();
+        return response.json();
+      }, BANNERGRESS_REQUEST_TIMEOUT_MS, "list page");
 
       if (!Array.isArray(data)) {
         throw new Error("Unexpected response.");
@@ -254,9 +285,11 @@ export default function ListsPage() {
             >
               {list.label}
               {signedIn && list.key in counts ? (
-                <span className="small muted">
-                  {countsUnknown ? "…" : (counts[list.key] ?? 0)}
-                </span>
+                countsUnknown && !countsSyncing ? null : (
+                  <span className="small muted">
+                    {countsUnknown ? "…" : (counts[list.key] ?? 0)}
+                  </span>
+                )
               ) : null}
             </button>
           ))}
@@ -274,6 +307,26 @@ export default function ListsPage() {
           <ViewModeToggle viewMode={viewMode} onChange={setViewMode} />
         )}
       </div>
+      {signedIn && countsError && !countsSyncing ? (
+        <div className="ob-alert bad lists-sync-error" role="alert">
+          <div className="grow">
+            {countsAuthError
+              ? "Your Bannergress sign-in expired."
+              : `Couldn’t load your lists from Bannergress (${describeSyncError(countsError)}).`}
+          </div>
+          <button
+            type="button"
+            className="btn sl"
+            onClick={() =>
+              countsAuthError
+                ? window.dispatchEvent(new Event(BANNERGRESS_AUTH_REQUEST_EVENT))
+                : setCountsAttempt((attempt) => attempt + 1)
+            }
+          >
+            {countsAuthError ? "Sign in again" : "Retry"}
+          </button>
+        </div>
+      ) : null}
       {togetherOpen ? (
         <BannerTogetherLauncher />
       ) : !signedIn ? (

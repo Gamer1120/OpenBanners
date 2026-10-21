@@ -8,21 +8,10 @@ export const DEFAULT_CENTER = [52.221058, 6.893297];
 export const DEFAULT_ZOOM = 15;
 const LOAD_FILTERS = Object.freeze({ showOfflineBanners: false, showHiddenBanners: false });
 
-function containsArea(outer, inner) {
-  return Boolean(
-    outer &&
-      inner &&
-      inner.minLatitude >= outer.minLatitude - 1e-6 &&
-      inner.maxLatitude <= outer.maxLatitude + 1e-6 &&
-      inner.minLongitude >= outer.minLongitude - 1e-6 &&
-      inner.maxLongitude <= outer.maxLongitude + 1e-6
-  );
-}
-
 // Discovery-map state: viewport (remembered across visits), user
 // location, and the Bannergress banners for the searched area with their list status.
-// manualSearch: banners load for the first view and then only on searchThisArea().
-export default function useDiscoveryMap({ manualSearch = false } = {}) {
+// Banners reload (debounced) for every new view.
+export default function useDiscoveryMap() {
   const [initialState] = useState(readDiscoveryMapState);
   const restoredViewport = initialState.viewport;
   const [map, setMap] = useState(null);
@@ -33,7 +22,6 @@ export default function useDiscoveryMap({ manualSearch = false } = {}) {
   const [locating, setLocating] = useState(false);
   const syncState = useBannergressSync();
   const centeredRef = useRef(Boolean(restoredViewport));
-  const searchNextMoveRef = useRef(false);
   const { banners: loadedBanners, loading, error } = useDiscoveryMapBanners(
     searchArea,
     userLocation,
@@ -56,23 +44,10 @@ export default function useDiscoveryMap({ manualSearch = false } = {}) {
         center: { latitude: center.lat, longitude: center.lng },
         zoom: mapInstance.getZoom(),
       });
-      setSearchArea((current) => {
-        if (!manualSearch || !current || searchNextMoveRef.current) {
-          searchNextMoveRef.current = false;
-          return nextArea;
-        }
-
-        return current;
-      });
+      setSearchArea(nextArea);
     },
-    [manualSearch]
+    []
   );
-
-  const searchThisArea = useCallback(() => {
-    if (map) {
-      setSearchArea(getVisibleAreaFromBounds(map.getBounds()));
-    }
-  }, [map]);
 
   const flyToUser = useCallback(
     (location, mapInstance = map) => {
@@ -80,7 +55,6 @@ export default function useDiscoveryMap({ manualSearch = false } = {}) {
         return;
       }
 
-      searchNextMoveRef.current = true;
       mapInstance.setView([location.latitude, location.longitude], Math.max(mapInstance.getZoom(), 14));
     },
     [map]
@@ -153,9 +127,6 @@ export default function useDiscoveryMap({ manualSearch = false } = {}) {
     userLocation,
     locating,
     requestLocation,
-    searchThisArea,
-    // True once the view shows ground the last search didn't cover.
-    canSearchArea: manualSearch && Boolean(searchArea && liveArea) && !containsArea(searchArea, liveArea),
     handleViewportChange,
   };
 }

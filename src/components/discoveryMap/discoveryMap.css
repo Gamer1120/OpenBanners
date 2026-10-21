@@ -121,33 +121,6 @@
   }
 }
 
-.mv-search-area {
-  position: absolute;
-  left: 50%;
-  z-index: 1000;
-  transform: translateX(-50%);
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  height: 36px;
-  padding: 0 16px 0 12px;
-  border: 0;
-  border-radius: 18px;
-  background: #e8f1f8;
-  color: #0b2538;
-  font: 600 13px/36px var(--mv-font);
-  box-shadow: 0 3px 12px rgba(0, 0, 0, 0.5);
-  cursor: pointer;
-  animation: mv-drop 180ms ease-out;
-  white-space: nowrap;
-}
-
-.mv-search-area svg {
-  width: 18px;
-  height: 18px;
-  fill: currentColor;
-}
-
 @keyframes mv-drop {
   from {
     opacity: 0;

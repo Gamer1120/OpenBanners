@@ -90,21 +90,6 @@ export function LocateButton({ vm, style }) {
   );
 }
 
-export function SearchAreaButton({ vm, top = 58 }) {
-  if (!vm.canSearchArea) {
-    return null;
-  }
-
-  return (
-    <button type="button" className="mv-search-area" style={{ top }} onClick={vm.searchThisArea}>
-      <svg viewBox="0 0 24 24" aria-hidden="true">
-        <path d="M17.65 6.35A7.96 7.96 0 0 0 12 4a8 8 0 1 0 7.73 10h-2.08A6 6 0 1 1 12 6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z" />
-      </svg>
-      Search this area
-    </button>
-  );
-}
-
 // "Loading…", errors and the empty state, as a small pill.
 export function MapStatusPill({ vm, count, noun = "banners", bottom = 16 }) {
   let text = "";

@@ -7,7 +7,6 @@ import {
   LocateButton,
   MapStatusPill,
   OpenBannerLink,
-  SearchAreaButton,
   StatusChip,
   statusDotIcon,
 } from "./shared";
@@ -207,10 +206,10 @@ function RouteCard({ banner, routeStatus, onClose, cardRef }) {
   );
 }
 
-// /map: status-coloured dots with filter chips and a manual "Search this area".
+// /map: status-coloured dots with filter chips; banners reload for whatever is in view.
 // Tapping a dot draws that banner's walking route and shows a compact card.
 export default function DiscoveryMap() {
-  const vm = useDiscoveryMap({ manualSearch: true });
+  const vm = useDiscoveryMap();
   const { map, banners, liveArea } = vm;
   const [filters, setFilters] = useState(readStoredFilters);
   const [sheet, setSheet] = useState(null); // group key that opened the sheet
@@ -348,12 +347,11 @@ export default function DiscoveryMap() {
         })}
       </div>
       <div className="mv-count" style={{ top: FILTERBAR_SPACE }} role="status">
-        {vm.loading ? "Loading…" : `${matchingInView.length} of ${inViewCount} in view`}
-        {!vm.loading && !selected && !vm.canSearchArea && matchingInView.length ? (
+        {vm.loading && !vm.banners.length ? "Loading…" : `${matchingInView.length} of ${inViewCount} in view`}
+        {!vm.loading && !selected && matchingInView.length ? (
           <span className="mv-count-hint"> · tap one for its route</span>
         ) : null}
       </div>
-      <SearchAreaButton vm={vm} top={FILTERBAR_SPACE} />
       <LocateButton vm={vm} style={{ bottom: controlsBottom + 24 }} />
       <MapStatusPill vm={vm} count={matching.length} noun="matching banners" bottom={controlsBottom + 16} />
 

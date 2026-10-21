@@ -837,7 +837,6 @@ body {
 
 /* tall banners scroll inside their tile instead of being cropped */
 .art.capped .art-pic {
-  container-type: size;
   display: block;
 }
 
@@ -847,8 +846,14 @@ body {
   left: 0;
   width: 100%;
   height: auto;
+  min-height: 100%;
   object-fit: initial;
   animation: art-pan 14s ease-in-out infinite alternate;
+}
+
+/* Overflow too small to be worth a pan: keep the picture still. */
+.art.capped.nopan .art-pic img {
+  animation: none;
 }
 
 /* Pause on hover only where hovering exists: on touch screens :hover sticks to
@@ -871,7 +876,7 @@ body {
 
   92%,
   100% {
-    transform: translateY(calc(100cqh - 100%));
+    transform: translateY(var(--pan, 0%));
   }
 }
 

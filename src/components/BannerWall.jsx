@@ -33,6 +33,39 @@ const LIST_META = {
   blacklist: { label: "Hidden", icon: VisibilityOff },
 };
 const MIN_TILE_ASPECT = 0.8;
+// Below this much overflow a tall banner just gets its own (slightly taller)
+// tile instead of panning a few pixels.
+const MIN_PAN_FRACTION = 0.03;
+const MIN_PAN_PX = 12;
+
+// Upward pan as a share of the image's own height, so it never depends on the
+// tile size (or on container query units, which some browsers resolved against
+// the viewport and slid the picture right out of its tile).
+function getPanFraction(imageAspect, tileAspect) {
+  return Math.max(0, 1 - imageAspect / tileAspect);
+}
+
+function getTileAspect(aspect) {
+  return aspect < MIN_TILE_ASPECT * (1 - MIN_PAN_FRACTION) ? MIN_TILE_ASPECT : aspect;
+}
+
+function handlePanImageLoad(event) {
+  const image = event.currentTarget;
+  const tile = image.closest(".art");
+
+  if (!tile || !image.naturalWidth || !image.naturalHeight) {
+    return;
+  }
+
+  const tileAspect = Number(tile.style.getPropertyValue("--ar")) || MIN_TILE_ASPECT;
+  const fraction = getPanFraction(image.naturalWidth / image.naturalHeight, tileAspect);
+  const overflowPx = image.parentElement
+    ? image.getBoundingClientRect().height - image.parentElement.getBoundingClientRect().height
+    : Infinity;
+
+  image.style.setProperty("--pan", `${(-fraction * 100).toFixed(3)}%`);
+  tile.classList.toggle("nopan", fraction < MIN_PAN_FRACTION || overflowPx < MIN_PAN_PX);
+}
 const ROW_ACTIONS = [
   { listType: "todo", label: "To do", icon: BookmarkBorder, activeIcon: Bookmark },
   { listType: "done", label: "Done", icon: CheckCircleOutline, activeIcon: CheckCircle },
@@ -138,7 +171,8 @@ function describeBanner(banner, distance, listType) {
 
 export function BannerTile({ banner, here, showAddress = true, listType }) {
   const aspect = getBannerAspect(banner);
-  const tileAspect = Math.max(aspect, MIN_TILE_ASPECT);
+  const tileAspect = getTileAspect(aspect);
+  const capped = tileAspect !== aspect;
   const pictureUrl = getBannerPictureUrl(banner);
   const distance = here
     ? getDistanceMeters(here, {
@@ -153,7 +187,7 @@ export function BannerTile({ banner, here, showAddress = true, listType }) {
     classes.push("off");
   }
 
-  if (aspect < MIN_TILE_ASPECT) {
+  if (capped) {
     classes.push("capped");
   }
 
@@ -177,6 +211,12 @@ export function BannerTile({ banner, here, showAddress = true, listType }) {
               decoding="async"
               width="604"
               height={Math.round(604 / aspect)}
+              style={
+                capped
+                  ? { "--pan": `${(-getPanFraction(aspect, tileAspect) * 100).toFixed(3)}%` }
+                  : undefined
+              }
+              onLoad={capped ? handlePanImageLoad : undefined}
             />
           ) : null}
           <span className="art-flags">
@@ -299,7 +339,7 @@ export default function BannerWall({
 
       buckets[shortest].push(item);
       heights[shortest] +=
-        (columnWidth - 12) / Math.max(aspect, MIN_TILE_ASPECT) +
+        (columnWidth - 12) / getTileAspect(aspect) +
         (showAddress ? 86 : 70) +
         gap;
     };

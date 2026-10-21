@@ -3582,7 +3582,9 @@ test("shows unique mission authors on the banner details page when the api retur
   );
 
   expect(await screen.findByText("Authored Banner")).toBeInTheDocument();
-  expect(screen.getByText("Authors")).toBeInTheDocument();
+  // A plain "by X and Y" byline, not chips.
+  expect(screen.getByText(/^by\s*$/)).toBeInTheDocument();
+  expect(document.querySelector(".chip.faction-resistance")).toBeNull();
   expect(screen.getByRole("link", { name: "Indicatrix" })).toHaveAttribute(
     "href",
     "/agent/Indicatrix"
@@ -3830,3 +3832,164 @@ test("updates banner metadata tags when banner details load", async () => {
     );
   });
 });
+
+function designTestBanner(id) {
+  return {
+    id,
+    title: "Design Banner",
+    type: "sequential",
+    picture: "/images/detail.jpg",
+    numberOfMissions: 2,
+    lengthMeters: 2100,
+    formattedAddress: "Amsterdam, NL",
+    description: "A banner used for design switcher testing.",
+    startLatitude: 52.37,
+    startLongitude: 4.89,
+    missions: {
+      "mission-1": {
+        id: "mission-1",
+        author: { name: "Indicatrix", faction: "resistance" },
+        steps: { 0: { poi: { title: "Portal One", type: "portal", latitude: 52.37, longitude: 4.89 } } },
+      },
+      "mission-2": {
+        id: "mission-2",
+        author: { name: "Indicatrix", faction: "resistance" },
+        steps: { 0: { poi: { title: "Portal Two", type: "portal", latitude: 52.38, longitude: 4.9 } } },
+      },
+    },
+  };
+}
+
+function mockDesignBanner(id) {
+  global.fetch.mockImplementation((url) => {
+    if (url.endsWith(`/bnrs/${id}`)) {
+      return jsonResponse(designTestBanner(id));
+    }
+
+    throw new Error(`Unhandled fetch: ${url}`);
+  });
+}
+
+function SearchDisplay() {
+  const location = useLocation();
+
+  return <div data-testid="search-display">{location.search}</div>;
+}
+
+test("banner page defaults to design A with a design switcher", async () => {
+  mockDesignBanner("design-default");
+
+  renderWithProviders(
+    <Routes>
+      <Route path="/banner/:bannerId" element={<BannerDetailsPage />} />
+    </Routes>,
+    { route: "/banner/design-default" }
+  );
+
+  expect(await screen.findByText("Design Banner")).toBeInTheDocument();
+  expect(document.querySelector(".bpa")).not.toBeNull();
+  const switcher = screen.getByRole("group", { name: "Page design" });
+  expect(within(switcher).getByRole("button", { name: "Design A" })).toHaveAttribute(
+    "aria-pressed",
+    "true"
+  );
+  // Order is a key number now, not a chip.
+  const numbers = screen.getByRole("list", { name: "Key numbers" });
+  expect(numbers).toHaveTextContent("Order");
+  expect(numbers).toHaveTextContent("In sequence");
+  expect(document.querySelector(".chip")).toBeNull();
+  // About comes before the start actions.
+  const about = screen.getByText("A banner used for design switcher testing.");
+  const start = screen.getByRole("button", { name: "Open BannerGuider" });
+  expect(about.compareDocumentPosition(start) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+});
+
+test("the design switcher remembers the choice and ?design overrides it", async () => {
+  const user = userEvent.setup();
+  mockDesignBanner("design-switch");
+
+  const { unmount } = renderWithProviders(
+    <>
+      <SearchDisplay />
+      <Routes>
+        <Route path="/banner/:bannerId" element={<BannerDetailsPage />} />
+      </Routes>
+    </>,
+    { route: "/banner/design-switch?design=b" }
+  );
+
+  expect(await screen.findByText("Design Banner")).toBeInTheDocument();
+  expect(document.querySelector(".bpb")).not.toBeNull();
+  // Story design: no tabs, missions inline.
+  expect(screen.queryByRole("tab")).not.toBeInTheDocument();
+  expect(screen.getByRole("list", { name: "Missions in order" })).toBeInTheDocument();
+  expect(window.localStorage.getItem("openbanners.bannerDesign")).toBeNull();
+
+  await user.click(screen.getByRole("button", { name: "Design C" }));
+
+  expect(document.querySelector(".bpc")).not.toBeNull();
+  expect(window.localStorage.getItem("openbanners.bannerDesign")).toBe("c");
+  expect(screen.getByTestId("search-display")).toHaveTextContent(/^$/);
+  unmount();
+
+  renderWithProviders(
+    <Routes>
+      <Route path="/banner/:bannerId" element={<BannerDetailsPage />} />
+    </Routes>,
+    { route: "/banner/design-switch" }
+  );
+
+  expect(await screen.findByText("Design Banner")).toBeInTheDocument();
+  expect(document.querySelector(".bpc")).not.toBeNull();
+  expect(screen.getByRole("tab", { name: "Missions (2)" })).toBeInTheDocument();
+  expect(screen.getByRole("list", { name: "Key numbers" })).toHaveTextContent("In sequence");
+  expect(screen.getByRole("link", { name: "Indicatrix" })).toHaveAttribute(
+    "href",
+    "/agent/Indicatrix"
+  );
+});
+
+test("an unknown ?design falls back to the stored design", async () => {
+  window.localStorage.setItem("openbanners.bannerDesign", "b");
+  mockDesignBanner("design-unknown");
+
+  renderWithProviders(
+    <Routes>
+      <Route path="/banner/:bannerId" element={<BannerDetailsPage />} />
+    </Routes>,
+    { route: "/banner/design-unknown?design=zz" }
+  );
+
+  expect(await screen.findByText("Design Banner")).toBeInTheDocument();
+  expect(document.querySelector(".bpb")).not.toBeNull();
+});
+
+test.each(["a", "b", "c"])(
+  "design %s opens BannerGuider without location and has no tutorial",
+  async (design) => {
+    const user = userEvent.setup();
+    mockDesignBanner(`guider-${design}`);
+
+    renderWithProviders(
+      <>
+        <LocationDisplay />
+        <Routes>
+          <Route path="/banner/:bannerId" element={<BannerDetailsPage />} />
+          <Route path="/bannerguiderwithoutlocation/:bannerId" element={<div>Guider target</div>} />
+        </Routes>
+      </>,
+      { route: `/banner/guider-${design}?design=${design}` }
+    );
+
+    expect(await screen.findByText("Design Banner")).toBeInTheDocument();
+    expect(screen.queryByText(/tutorial/i)).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /without location/i })).not.toBeInTheDocument();
+    expect(screen.getAllByRole("button", { name: /bannerguider/i })).toHaveLength(1);
+
+    await user.click(screen.getByRole("button", { name: /^open bannerguider/i }));
+
+    expect(screen.getByTestId("location-display")).toHaveTextContent(
+      `/bannerguiderwithoutlocation/guider-${design}`
+    );
+  }
+);

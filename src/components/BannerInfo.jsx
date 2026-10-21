@@ -1,14 +1,25 @@
 import React, { useState } from "react";
 import { Alert, Snackbar } from "@mui/material";
-import {
-  Directions,
-  Explore,
-  Layers,
-  OpenInNew,
-  Share,
-  TouchApp,
-} from "@mui/icons-material";
+import { Directions, Explore, Layers, OpenInNew, Share } from "@mui/icons-material";
 import { useNavigate } from "react-router-dom";
+
+function RowAction({ icon: Icon, label, title, onClick, disabled, primary = false }) {
+  return (
+    <li>
+      <button
+        type="button"
+        className={`bi-row-btn sl${primary ? " primary" : ""}`}
+        onClick={onClick}
+        disabled={disabled}
+        title={title}
+        aria-label={title}
+      >
+        <Icon fontSize="small" />
+        <span aria-hidden="true">{label}</span>
+      </button>
+    </li>
+  );
+}
 
 function ActionItem({ icon: Icon, title, subtitle, onClick, disabled, trailing = null }) {
   return (
@@ -28,16 +39,16 @@ function ActionItem({ icon: Icon, title, subtitle, onClick, disabled, trailing =
 }
 
 // "Start this banner": share, OpenBanners Overlay, navigation and BannerGuider.
-const BannerInfo = ({ banner, loading = false }) => {
+// variant "list" = card with one row per action; "row" = one row of compact
+// buttons (heading optional, e.g. inside a sticky action bar).
+const BannerInfo = ({ banner, loading = false, variant = "list", heading = "Start this banner", className = "" }) => {
   const navigate = useNavigate();
   const [shareFeedback, setShareFeedback] = useState(null);
   const hasStartPoint = Boolean(banner.startLatitude && banner.startLongitude);
 
+  // BannerGuider without location is the default (the location variant's route
+  // still works when typed in, but isn't linked any more).
   const handleOpenBannerGuider = () => {
-    navigate(`/bannerguider/${banner.id}`);
-  };
-
-  const handleOpenBannerGuiderWithoutLocation = () => {
     navigate(`/bannerguiderwithoutlocation/${banner.id}`);
   };
 
@@ -144,57 +155,71 @@ const BannerInfo = ({ banner, loading = false }) => {
     });
   };
 
+  const actions = [
+    {
+      key: "navigate",
+      icon: Directions,
+      label: "Navigate",
+      title: "Navigate to Start Point",
+      subtitle: "Google Maps directions to the first waypoint",
+      onClick: handleNavigateToStartPoint,
+      disabled: loading || !hasStartPoint,
+      trailing: <OpenInNew fontSize="small" className="muted" />,
+    },
+    {
+      key: "overlay",
+      icon: Layers,
+      label: "Overlay",
+      title: "Open with OpenBanners Overlay",
+      subtitle: "Shows the next waypoint on top of Ingress (Android app)",
+      onClick: handleShareBannergressOverlay,
+      disabled: loading,
+    },
+    {
+      key: "guider",
+      icon: Explore,
+      label: "BannerGuider",
+      title: "Open BannerGuider",
+      subtitle: "Step through the missions one by one",
+      onClick: handleOpenBannerGuider,
+      disabled: loading,
+      primary: true,
+    },
+    {
+      key: "share",
+      icon: Share,
+      label: "Share",
+      title: "Share banner",
+      subtitle: "Send this banner to a friend",
+      onClick: handleShareBanner,
+      disabled: loading,
+    },
+  ];
+
   return (
     <>
-      <div className="card">
-        <h2>Start this banner</h2>
-        <ul className="ob-list">
-          <ActionItem
-            icon={Directions}
-            title="Navigate to Start Point"
-            subtitle="Google Maps directions to the first waypoint"
-            onClick={handleNavigateToStartPoint}
-            disabled={loading || !hasStartPoint}
-            trailing={<OpenInNew fontSize="small" className="muted" />}
-          />
-          <ActionItem
-            icon={Layers}
-            title="Open with OpenBanners Overlay"
-            subtitle="Shows the next waypoint on top of Ingress (Android app)"
-            onClick={handleShareBannergressOverlay}
-            disabled={loading}
-          />
-          <ActionItem
-            icon={Explore}
-            title="Open BannerGuider"
-            subtitle="Guides you to each next portal using your location"
-            onClick={handleOpenBannerGuider}
-            disabled={loading}
-          />
-          <ActionItem
-            icon={TouchApp}
-            title="Open BannerGuider without location"
-            subtitle='Step through manually; may prevent "Inaccurate location" in Ingress on iOS'
-            onClick={handleOpenBannerGuiderWithoutLocation}
-            disabled={loading}
-          />
-          <ActionItem
-            icon={Share}
-            title="Share banner"
-            subtitle="Send this banner to a friend"
-            onClick={handleShareBanner}
-            disabled={loading}
-          />
-        </ul>
-        {!loading && !hasStartPoint ? (
-          <p className="small muted">No start-point coordinates are available for navigation.</p>
-        ) : null}
-        <p className="small muted" style={{ marginTop: 8 }}>
-          BannerGuider tutorial: Open BannerGuider, tap NEXT to open the next
-          mission in your scanner. Do the mission, then press NEXT again until
-          you are done with the banner.
-        </p>
-      </div>
+      {variant === "row" ? (
+        <div className={`bi-row ${className}`.trim()}>
+          {heading ? <h2 className="bi-row-h">{heading}</h2> : null}
+          <ul className="bi-row-list" aria-label={heading || "Start this banner"}>
+            {actions.map(({ key, trailing, subtitle, ...action }) => (
+              <RowAction key={key} {...action} />
+            ))}
+          </ul>
+        </div>
+      ) : (
+        <div className={`card ${className}`.trim()}>
+          {heading ? <h2>{heading}</h2> : null}
+          <ul className="ob-list">
+            {actions.map(({ key, label, primary, ...action }) => (
+              <ActionItem key={key} {...action} />
+            ))}
+          </ul>
+          {!loading && !hasStartPoint ? (
+            <p className="small muted">No start-point coordinates are available for navigation.</p>
+          ) : null}
+        </div>
+      )}
       <Snackbar
         open={Boolean(shareFeedback)}
         autoHideDuration={2500}

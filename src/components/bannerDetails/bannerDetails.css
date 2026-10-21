@@ -1,0 +1,470 @@
+/* ---------- banner page: shared bits of the A / B / C designs ---------- */
+
+/* design switcher pill (banner page only) */
+.bd-switch {
+  position: fixed;
+  z-index: 1100;
+  top: calc(var(--bar-h) / 2 - 13px);
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 1px;
+  padding: 2px 6px;
+  border-radius: 999px;
+  background: rgba(20, 20, 26, 0.62);
+  backdrop-filter: blur(6px);
+  color: rgba(255, 255, 255, 0.55);
+  font: 500 11px/16px var(--font);
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.08);
+  opacity: 0.8;
+}
+
+.bd-switch:hover,
+.bd-switch:focus-within {
+  opacity: 1;
+}
+
+.bd-switch button {
+  min-width: 22px;
+  height: 22px;
+  padding: 0 4px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.bd-switch button[aria-pressed="true"] {
+  background: var(--primary);
+  color: var(--on-primary);
+}
+
+
+/* "by A, B and C": plain links, faction as a small dot */
+.bp-byline {
+  font-size: 14px;
+  line-height: 20px;
+  color: rgba(255, 255, 255, 0.85);
+  overflow-wrap: anywhere;
+}
+
+.bp-byline .by-a {
+  color: inherit;
+  font-weight: 500;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.bp-byline .by-a:hover,
+.bp-byline .by-a:focus-visible {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.bp-byline .by-a::before {
+  content: "";
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  margin: 0 5px 1px 0;
+  border-radius: 50%;
+  background: var(--outline);
+  vertical-align: middle;
+}
+
+.bp-byline .fx-enlightened::before {
+  background: #4caf50;
+}
+
+.bp-byline .fx-resistance::before {
+  background: #42a5f5;
+}
+
+/* "Start this banner" as one row of compact buttons */
+.bi-row-h {
+  margin: 0 0 8px;
+  font: 500 16px/24px var(--font);
+}
+
+.bi-row-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.bi-row-btn {
+  width: 100%;
+  min-height: 60px;
+  padding: 8px 4px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  border: 0;
+  border-radius: var(--r-m);
+  background: var(--sc-high);
+  color: var(--on-surface);
+  font: 500 12px/16px var(--font);
+  cursor: pointer;
+}
+
+.bi-row-btn span {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.bi-row-btn.primary {
+  background: var(--primary-container);
+  color: var(--on-primary-container);
+}
+
+.bi-row-btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+/* ---------- A · compact ---------- */
+.a-hero .bp-hero-inner {
+  gap: 4px;
+  padding: 12px 16px 14px;
+}
+
+.a-hero .mosaic {
+  --t: min(56px, calc(170px / var(--rows, 1)));
+  gap: 4px;
+  margin-bottom: 6px;
+}
+
+.a-hero .bp-hero-pic {
+  max-height: 170px;
+  margin-bottom: 6px;
+}
+
+.a-hero .bp-title {
+  font-size: 22px;
+  line-height: 28px;
+}
+
+.a-hero .bp-sub {
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.75);
+}
+
+.a-about {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  font-size: 15px;
+  line-height: 22px;
+}
+
+.a-clamp {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 4;
+}
+
+.a-more {
+  margin-left: -12px;
+}
+
+.a-stats {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+@media (min-width: 420px) {
+  .a-stats {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+.a-stats .stat {
+  padding: 10px 12px;
+}
+
+.a-stats .stat .v {
+  font-size: 18px;
+  line-height: 24px;
+}
+
+/* ---------- B · story ---------- */
+.b-hero .bp-hero-inner {
+  padding: 24px 20px 28px;
+  gap: 10px;
+}
+
+.b-hero .mosaic {
+  --t: min(88px, calc(360px / var(--rows, 1)));
+  margin-bottom: 12px;
+}
+
+.b-hero .bp-hero-pic {
+  max-height: 380px;
+  margin-bottom: 12px;
+}
+
+.b-kicker {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  font: 500 12px/16px var(--font);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.b-kicker a {
+  color: inherit;
+  text-underline-offset: 3px;
+}
+
+.b-title {
+  font-size: 32px;
+  line-height: 38px;
+  font-weight: 500;
+}
+
+.b-body {
+  padding: 20px 20px 32px;
+  gap: 18px;
+}
+
+.b-lede {
+  font-size: 17px;
+  line-height: 27px;
+  color: var(--on-surface);
+}
+
+.b-facts {
+  padding: 10px 0;
+  border-top: 1px solid var(--outline-variant);
+  border-bottom: 1px solid var(--outline-variant);
+  font-size: 14px;
+  line-height: 20px;
+  color: var(--on-surface-variant);
+}
+
+.b-facts span:not([aria-hidden]) {
+  white-space: nowrap;
+}
+
+.b-h {
+  margin: 8px 0 -6px;
+  font: 500 20px/28px var(--font);
+}
+
+.bp-map.b-map {
+  flex: none;
+  height: 300px;
+  margin: 0 -20px;
+  overflow: hidden;
+}
+
+.bp-map.b-map.b-full {
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+  height: auto;
+  margin: 0;
+}
+
+.bp-map.b-map:not(.b-full) .bp-sheet {
+  padding: 6px 12px;
+}
+
+.bp-map.b-map:not(.b-full) .bp-sheet .small {
+  display: none;
+}
+
+@media (min-width: 769px) {
+  .bpb .b-pane {
+    width: min(640px, 52%);
+  }
+}
+
+/* ---------- C · dashboard ---------- */
+.c-head {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 12px 16px 14px;
+  background: var(--sc-low);
+}
+
+/* full-width strip, at most 3:1 tall; taller banners pan */
+.c-thumb {
+  width: 100%;
+  max-width: 420px;
+  align-self: center;
+  border-radius: 12px;
+  background: var(--sc-highest);
+}
+
+.c-headtxt {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.c-title {
+  font-size: 20px;
+  line-height: 26px;
+  font-weight: 500;
+  text-shadow: none;
+}
+
+.c-sub {
+  font-size: 13px;
+  line-height: 18px;
+  color: var(--on-surface-variant);
+}
+
+.c-sub a {
+  color: inherit;
+  text-underline-offset: 3px;
+}
+
+.c-bar {
+  position: sticky;
+  top: 0;
+  z-index: 6;
+  background: var(--surface);
+  flex: none;
+}
+
+.bp-pane[class*="ls-"] .c-bar {
+  background: var(--ls-bg);
+}
+
+.c-bar .bp-tabs {
+  position: static;
+}
+
+.c-actions {
+  padding: 8px 12px;
+}
+
+.c-actions .bi-row-list {
+  gap: 6px;
+}
+
+.c-actions .bi-row-btn {
+  min-height: 48px;
+  flex-direction: row;
+  gap: 6px;
+  font-size: 13px;
+}
+
+@media (max-width: 480px) {
+  .c-actions .bi-row-btn {
+    flex-direction: column;
+    gap: 2px;
+    min-height: 52px;
+    font-size: 11px;
+  }
+}
+
+.c-about {
+  border-radius: var(--r-l);
+  background: var(--sc-low);
+  padding: 4px 16px 14px;
+}
+
+.c-about-h {
+  display: flex;
+  align-items: center;
+  width: calc(100% + 16px);
+  min-height: 44px;
+  margin: 0 -8px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: var(--r-m);
+  background: transparent;
+  color: inherit;
+  font: 500 16px/24px var(--font);
+  text-align: left;
+  cursor: pointer;
+}
+
+.c-about-h .grow {
+  flex: 1;
+}
+
+.c-about.open .chev {
+  transform: rotate(180deg);
+}
+
+.c-peek .desc {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  color: var(--on-surface-variant);
+}
+
+.c-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+@media (min-width: 420px) {
+  .c-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+.c-grid .stat .v {
+  font-size: 18px;
+  line-height: 24px;
+}
+
+.c-facts {
+  display: flex;
+  flex-direction: column;
+  border-radius: var(--r-l);
+  background: var(--sc-low);
+  padding: 4px 16px;
+}
+
+.c-facts > div {
+  display: flex;
+  gap: 12px;
+  padding: 10px 0;
+  font-size: 14px;
+  line-height: 20px;
+}
+
+.c-facts > div + div {
+  border-top: 1px solid var(--outline-variant);
+}
+
+.c-facts dt {
+  flex: 0 0 76px;
+  color: var(--on-surface-variant);
+}
+
+.c-facts dd {
+  margin: 0;
+  min-width: 0;
+  flex: 1;
+}
+
+.c-facts .bp-byline {
+  color: var(--on-surface);
+}
+
+.c-grid .stat {
+  padding: 10px 12px;
+}

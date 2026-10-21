@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { Link } from "react-router-dom";
 import { MyLocation, NearMe } from "@mui/icons-material";
 import BannerWall, { BannerRows, useInfiniteScroll } from "./BannerWall";
+import { useRememberEntry, useRestoredEntry } from "../scrollRestoration";
 import AboutNotice from "./AboutNotice";
 import BannerFilterButton from "./BannerFilterButton";
 import ViewModeToggle, { useBannerViewMode } from "./ViewModeToggle";
@@ -89,12 +90,25 @@ export function saveCachedNearbyLocation(location) {
   } catch {}
 }
 
+// Small GPS jitter keeps the loaded list.
+function isSameSpot(a, b) {
+  return Boolean(
+    a &&
+      b &&
+      Math.abs(a.latitude - b.latitude) < 0.0005 &&
+      Math.abs(a.longitude - b.longitude) < 0.0005
+  );
+}
+
 export default function BannersNearMe({
   bannerFilters = DEFAULT_BANNER_FILTERS,
   onBannerFiltersChange,
 }) {
-  const [location, setLocation] = useState(null);
-  const [bannerData, setBannerData] = useState([]);
+  // Back to this page brings the loaded pages for the same spot (no refetch).
+  const { entryKey, restored } = useRestoredEntry("near");
+  const restoredRef = useRef(restored);
+  const [location, setLocation] = useState(restored?.location ?? null);
+  const [bannerData, setBannerData] = useState(restored?.bannerData ?? []);
   // Coming back here drops banners that were only kept visible right after "Hide".
   useState(forgetTemporarilyVisibleHiddenBanners);
   const syncState = useBannergressSync();
@@ -118,7 +132,7 @@ export default function BannersNearMe({
   const showOffline = Boolean(bannerFilters?.showOfflineBanners);
   const [loading, setLoading] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
-  const [hasMore, setHasMore] = useState(true);
+  const [hasMore, setHasMore] = useState(restored?.hasMore ?? true);
   const [showPermissionPrompt, setShowPermissionPrompt] = useState(false);
   const [error, setError] = useState("");
   const [permissionState, setPermissionState] = useState("checking");
@@ -142,9 +156,7 @@ export default function BannersNearMe({
         const nextLocation = { latitude, longitude };
         saveCachedNearbyLocation(nextLocation);
         setLocation((currentLocation) =>
-          currentLocation &&
-          Math.abs(currentLocation.latitude - latitude) < 0.0005 &&
-          Math.abs(currentLocation.longitude - longitude) < 0.0005
+          isSameSpot(currentLocation, nextLocation)
             ? currentLocation
             : nextLocation
         );
@@ -177,7 +189,11 @@ export default function BannersNearMe({
       if (status === "granted") {
         setShowPermissionPrompt(false);
         if (cachedLocation) {
-          setLocation(cachedLocation);
+          setLocation((currentLocation) =>
+            isSameSpot(currentLocation, cachedLocation)
+              ? currentLocation
+              : cachedLocation
+          );
         }
         if (!cachedLocation) {
           setError("");
@@ -240,6 +256,17 @@ export default function BannersNearMe({
 
   useEffect(() => {
     if (!location) {
+      return undefined;
+    }
+
+    const restoredList = restoredRef.current;
+    restoredRef.current = null;
+
+    if (
+      restoredList &&
+      restoredList.location === location &&
+      restoredList.showOffline === showOffline
+    ) {
       return undefined;
     }
 
@@ -325,6 +352,14 @@ export default function BannersNearMe({
         setLoadingMore(false);
       });
   }, [bannerData.length, hasMore, loadPage, loading, location]);
+
+  useRememberEntry(
+    entryKey,
+    "near",
+    location && !loading && !error
+      ? { location, bannerData, hasMore, showOffline }
+      : null
+  );
 
   useInfiniteScroll(sentinelRef, {
     enabled: Boolean(location) && hasMore && !loading && !loadingMore,

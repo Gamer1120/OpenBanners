@@ -8,18 +8,8 @@ import {
   Navigate,
   useLocation,
 } from "react-router-dom";
-import { useLayoutEffect } from "react";
+import { ScrollManager } from "./scrollRestoration";
 import Home from "./components/Home";
-
-function ScrollToTopOnNavigation() {
-  const location = useLocation();
-
-  useLayoutEffect(() => {
-    window.scrollTo(0, 0);
-  }, [location.pathname, location.search]);
-
-  return null;
-}
 
 // Banner Together lives under Lists now; old (and shared invite) links keep
 // working, including the invite secret in the hash.
@@ -42,7 +32,7 @@ function App() {
   return (
     <div className="App">
       <Router>
-        <ScrollToTopOnNavigation />
+        <ScrollManager />
         <Routes>
           <Route path="/" element={<Home />} />
           <Route exact path="/browse/" element={<Home />} />

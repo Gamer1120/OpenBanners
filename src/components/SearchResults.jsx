@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { LocationCity, Place } from "@mui/icons-material";
 import BannerWall, { BannerRows } from "./BannerWall";
@@ -8,18 +8,29 @@ import { getFlagForPlace } from "./CountryFlags";
 import { fetchBannergress } from "../bannergressSync";
 import { rankPlacesForQuery } from "../cityPlace";
 import { getBrowseStateScope, resetBrowseState } from "../browseState";
+import { useRememberEntry, useRestoredEntry } from "../scrollRestoration";
 
 export default function SearchResults() {
-  const [results, setResults] = useState([]);
-  const [bannerData, setBannerData] = useState([]);
+  const { query } = useParams();
+  // Back to the results shows them again without a new search.
+  const { entryKey, restored } = useRestoredEntry("search");
+  const restoredRef = useRef(restored?.query === query ? restored : null);
+  const [results, setResults] = useState(restoredRef.current?.results ?? []);
+  const [bannerData, setBannerData] = useState(
+    restoredRef.current?.bannerData ?? []
+  );
   const [placesLoading, setPlacesLoading] = useState(false);
   const [bannersLoading, setBannersLoading] = useState(false);
   const [placesError, setPlacesError] = useState("");
   const [bannersError, setBannersError] = useState("");
   const [reloadToken, setReloadToken] = useState(0);
   const [viewMode, setViewMode] = useBannerViewMode();
-  const { query } = useParams();
   useEffect(() => {
+    if (restoredRef.current) {
+      restoredRef.current = null;
+      return undefined;
+    }
+
     let ignore = false;
 
     const fetchPlaces = async () => {
@@ -101,6 +112,14 @@ export default function SearchResults() {
   };
 
   const finishedLoading = !placesLoading && !bannersLoading;
+
+  useRememberEntry(
+    entryKey,
+    "search",
+    finishedLoading && !placesError && !bannersError
+      ? { query, results, bannerData }
+      : null
+  );
   const noResults =
     finishedLoading &&
     !placesError &&

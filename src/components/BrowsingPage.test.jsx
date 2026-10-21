@@ -65,7 +65,7 @@ beforeEach(() => {
   };
 });
 
-test("restores browse sort, loaded banners, and scroll after remount", async () => {
+test("restores browse sort and loaded banners after remount", async () => {
   global.fetch.mockImplementation((url) => {
     if (url.includes("/places/restored-place")) {
       return jsonResponse({
@@ -143,9 +143,6 @@ test("restores browse sort, loaded banners, and scroll after remount", async () 
 
   expect(await screen.findByText("Sorted Browse Banner")).toBeInTheDocument();
   expect(getBannerFetchCalls()).toHaveLength(0);
-  await waitFor(() => {
-    expect(window.scrollTo).toHaveBeenCalledWith(0, 420);
-  });
 });
 
 test("top browse navigation resets saved root browse filters", async () => {

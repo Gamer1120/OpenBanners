@@ -27,6 +27,7 @@ import { clusterByPixels, formatMinutes, isInsideArea, walkingMinutes } from "./
 import { FINISH_FLAG_SVG, missionColors } from "../BannerDetailsPage";
 import { formatLength } from "../../bannerDisplay";
 import BannerImage from "../BannerImage";
+import { useRememberEntry, useRestoredEntry } from "../../scrollRestoration";
 import "./discoveryMap.css";
 
 const GROUPS = [
@@ -295,7 +296,10 @@ export default function DiscoveryMap() {
   const [filters, setFilters] = useState(readStoredFilters);
   const [sheet, setSheet] = useState(null); // group key that opened the sheet
   const [clusterList, setClusterList] = useState(null);
-  const [selected, setSelected] = useState(null);
+  // Back from a banner reopens its card (the viewport itself is remembered
+  // in useDiscoveryMap).
+  const { entryKey, restored } = useRestoredEntry("map");
+  const [selected, setSelected] = useState(restored?.selected ?? null);
   const [cardHeight, setCardHeight] = useState(0);
   const cardRef = useRef(null);
   const routeState = useBannerRoute(selected?.id);
@@ -303,6 +307,8 @@ export default function DiscoveryMap() {
   const summary = filterSummary(filters);
   const activeCount = countActiveMapFilters(filters);
   const showCard = Boolean(selected) && !sheet && !clusterList;
+
+  useRememberEntry(entryKey, "map", { selected });
 
   useEffect(() => {
     try {

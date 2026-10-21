@@ -178,9 +178,9 @@ export default function Home() {
     () => getBrowseStateScope({ placeId, authorName: agentName }),
     [agentName, placeId]
   );
-  const [currentView, setCurrentView] = useState(() =>
-    getCurrentView(location.pathname)
-  );
+  // Derived in render so the old view unmounts in the same commit as the
+  // route change; Back then restores scroll against the right list.
+  const currentView = getCurrentView(location.pathname);
   const [bannerFilters, setBannerFilters] = useState(() =>
     readBrowseFilters(browseStateScope)
   );
@@ -190,7 +190,6 @@ export default function Home() {
   };
 
   const handleRerouterClick = () => {
-    setCurrentView("rerouter");
     navigate("/rerouter");
   };
 
@@ -205,10 +204,6 @@ export default function Home() {
       return resolvedFilters;
     });
   };
-
-  useEffect(() => {
-    setCurrentView(getCurrentView(location.pathname));
-  }, [location.pathname]);
 
   // "/" opens search (laptop keyboards), unless you are already typing.
   useEffect(() => {

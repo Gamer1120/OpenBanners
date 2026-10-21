@@ -5,9 +5,14 @@ import React, {
   useRef,
   useState,
 } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate, useNavigationType } from "react-router-dom";
 import { NearMe } from "@mui/icons-material";
 import { savePickedCity } from "../cityPlace";
+import {
+  getHistoryEntryKey,
+  readHistoryEntryCache,
+  useRememberEntry,
+} from "../scrollRestoration";
 import BannerWall, { BannerRows, useInfiniteScroll } from "./BannerWall";
 import ViewModeToggle, { useBannerViewMode } from "./ViewModeToggle";
 import SortingButtons from "./SortingButtons";
@@ -143,9 +148,18 @@ export default function BrowsingPage({
     () => getBrowseStateScope({ placeId, authorName }),
     [authorName, placeId]
   );
-  const [initialBrowseState] = useState(() =>
-    readBrowseState(browseStateScope)
-  );
+  const location = useLocation();
+  const navigationType = useNavigationType();
+  const entryKey = getHistoryEntryKey(location);
+  // Back (POP) gets this history entry's own list from memory; otherwise the
+  // last Browse state of this place (localStorage).
+  const readInitialState = () =>
+    (navigationType === "POP" &&
+      readHistoryEntryCache(entryKey, browseStateScope)) ||
+    readBrowseState(browseStateScope);
+  const [initialBrowseState] = useState(readInitialState);
+  // The place whose list is in state (it lags one render behind a change).
+  const [stateScope, setStateScope] = useState(browseStateScope);
   const [banners, setBanners] = useState(initialBrowseState.banners);
   const [sortOption, setSortOption] = useState(
     initialBrowseState.sortOption
@@ -182,10 +196,6 @@ export default function BrowsingPage({
     initialBrowseState.queryKey
   );
   const shouldSkipRestoredLoadRef = useRef(initialBrowseState.hasLoaded);
-  const restoredScrollYRef = useRef(initialBrowseState.scrollY);
-  const shouldRestoreScrollRef = useRef(
-    initialBrowseState.hasLoaded && initialBrowseState.scrollY > 0
-  );
   const [viewMode, handleViewModeChange] = useBannerViewMode();
   const navigate = useNavigate();
   const currentPlace = useCurrentPlace(placeId);
@@ -214,12 +224,14 @@ export default function BrowsingPage({
   };
 
   useEffect(() => {
-    const nextState = readBrowseState(browseStateScope);
+    if (stateScope === browseStateScope) {
+      return;
+    }
 
+    const nextState = readInitialState();
+
+    setStateScope(browseStateScope);
     shouldSkipRestoredLoadRef.current = nextState.hasLoaded;
-    restoredScrollYRef.current = nextState.scrollY;
-    shouldRestoreScrollRef.current =
-      nextState.hasLoaded && nextState.scrollY > 0;
 
     setSortOption(nextState.sortOption);
     setSortOrder(nextState.sortOrder);
@@ -234,6 +246,7 @@ export default function BrowsingPage({
     setLoadingMore(false);
     setError("");
     setReloadToken(0);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [browseStateScope]);
 
   const browseQueryKey = [
@@ -248,12 +261,12 @@ export default function BrowsingPage({
   ].join("|");
 
   useEffect(() => {
-    if (browseQueryKey === activeBrowseQueryKey) {
+    // A place change first swaps in that place's state (effect above).
+    if (browseQueryKey === activeBrowseQueryKey || stateScope !== browseStateScope) {
       return;
     }
 
     shouldSkipRestoredLoadRef.current = false;
-    shouldRestoreScrollRef.current = false;
     setActiveBrowseQueryKey(browseQueryKey);
     setBanners([]);
     setBannersFetchedForEfficiency(false);
@@ -263,10 +276,10 @@ export default function BrowsingPage({
     setHasMore(true);
     setRequestedOffset(0);
     setError("");
-  }, [activeBrowseQueryKey, browseQueryKey]);
+  }, [activeBrowseQueryKey, browseQueryKey, browseStateScope, stateScope]);
 
   useEffect(() => {
-    if (browseQueryKey !== activeBrowseQueryKey) {
+    if (browseQueryKey !== activeBrowseQueryKey || stateScope !== browseStateScope) {
       return undefined;
     }
 
@@ -423,6 +436,8 @@ export default function BrowsingPage({
     bannerFilters.showHiddenBanners,
     bannerFilters.hideDoneBanners,
     bannersFetchedForEfficiency,
+    browseStateScope,
+    stateScope,
   ]);
 
   const { minimumMissions, maximumMissions, hasMissionCountFilter } =
@@ -449,30 +464,32 @@ export default function BrowsingPage({
       }),
     [banners, bannerFilters, maximumMissions, minimumMissions, syncState]
   );
-  const saveCurrentScrollPosition = useCallback(() => {
-    saveBrowseState(browseStateScope, {
-      scrollY: window.scrollY || window.pageYOffset || 0,
-    });
-  }, [browseStateScope]);
-  const handleResultsClickCapture = useCallback(
-    (event) => {
-      const target = event.target;
+  const browseSnapshot = {
+    filters: bannerFilters,
+    sortOption,
+    sortOrder,
+    banners,
+    hasMore,
+    requestedOffset,
+    bannersFetchedForEfficiency,
+    isPlacesListExpanded,
+    scrollY: 0,
+    queryKey: browseQueryKey,
+    hasLoaded,
+  };
 
-      if (!(target instanceof Element)) {
-        return;
-      }
-
-      if (target.closest('a[href^="/banner/"]')) {
-        saveCurrentScrollPosition();
-      }
-    },
-    [saveCurrentScrollPosition]
+  // Right after a place change the old list is still in state; it must not
+  // be remembered for the new entry.
+  useRememberEntry(
+    entryKey,
+    browseStateScope,
+    stateScope === browseStateScope && !loading ? browseSnapshot : null
   );
 
   useEffect(() => {
-    const scrollY = shouldRestoreScrollRef.current
-      ? restoredScrollYRef.current
-      : window.scrollY || window.pageYOffset || 0;
+    if (stateScope !== browseStateScope) {
+      return;
+    }
 
     saveBrowseState(browseStateScope, {
       filters: bannerFilters,
@@ -483,7 +500,6 @@ export default function BrowsingPage({
       requestedOffset,
       bannersFetchedForEfficiency,
       isPlacesListExpanded,
-      scrollY,
       queryKey: browseQueryKey,
       hasLoaded,
     });
@@ -499,54 +515,8 @@ export default function BrowsingPage({
     requestedOffset,
     sortOption,
     sortOrder,
+    stateScope,
   ]);
-
-  useEffect(() => {
-    let animationFrameId = null;
-
-    const handleScroll = () => {
-      if (animationFrameId !== null) {
-        return;
-      }
-
-      animationFrameId = window.requestAnimationFrame(() => {
-        animationFrameId = null;
-        saveCurrentScrollPosition();
-      });
-    };
-
-    window.addEventListener("scroll", handleScroll, { passive: true });
-    window.addEventListener("pagehide", saveCurrentScrollPosition);
-
-    return () => {
-      if (animationFrameId !== null) {
-        window.cancelAnimationFrame(animationFrameId);
-      }
-
-      window.removeEventListener("scroll", handleScroll);
-      window.removeEventListener("pagehide", saveCurrentScrollPosition);
-    };
-  }, [saveCurrentScrollPosition]);
-
-  useEffect(() => {
-    if (!shouldRestoreScrollRef.current || !hasLoaded || loading) {
-      return undefined;
-    }
-
-    const scrollY = restoredScrollYRef.current;
-    shouldRestoreScrollRef.current = false;
-
-    const restoreScroll = () => {
-      window.scrollTo(0, scrollY);
-    };
-    const animationFrameId = window.requestAnimationFrame(restoreScroll);
-    const timeoutId = window.setTimeout(restoreScroll, 120);
-
-    return () => {
-      window.cancelAnimationFrame(animationFrameId);
-      window.clearTimeout(timeoutId);
-    };
-  }, [displayedBanners.length, hasLoaded, loading]);
 
   const filteredPrefetchTarget =
     hasMissionCountFilter ||
@@ -697,7 +667,6 @@ export default function BrowsingPage({
 
       <section
         ref={resultsContentRef}
-        onClickCapture={handleResultsClickCapture}
         aria-label="Banners"
         style={{ display: "flex", flexDirection: "column", gap: 16 }}
       >

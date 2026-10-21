@@ -3,6 +3,7 @@ import { Login } from "@mui/icons-material";
 import { useLocation, useNavigate } from "react-router-dom";
 import BannerTogetherLauncher from "./BannerTogetherLauncher";
 import BannerWall, { BannerRows, useInfiniteScroll } from "./BannerWall";
+import { useRememberEntry, useRestoredEntry } from "../scrollRestoration";
 import ViewModeToggle, { useBannerViewMode } from "./ViewModeToggle";
 import {
   BANNERGRESS_AUTH_REQUEST_EVENT,
@@ -103,7 +104,10 @@ export default function ListsPage() {
   const location = useLocation();
   const navigate = useNavigate();
   const togetherOpen = location.pathname.startsWith("/lists/together");
-  const [listType, setListTypeState] = useState("todo");
+  // Back to this page brings the same tab and loaded pages (no refetch).
+  const { entryKey, restored } = useRestoredEntry("lists");
+  const skipInitialLoadRef = useRef(Boolean(restored));
+  const [listType, setListTypeState] = useState(restored?.listType ?? "todo");
   const setListType = (nextListType) => {
     setListTypeState(nextListType);
 
@@ -111,10 +115,10 @@ export default function ListsPage() {
       navigate("/lists");
     }
   };
-  const [banners, setBanners] = useState([]);
+  const [banners, setBanners] = useState(restored?.banners ?? []);
   const [loading, setLoading] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
-  const [hasMore, setHasMore] = useState(false);
+  const [hasMore, setHasMore] = useState(restored?.hasMore ?? false);
   const [error, setError] = useState("");
   const [viewMode, setViewMode] = useBannerViewMode();
   const sentinelRef = useRef(null);
@@ -186,7 +190,13 @@ export default function ListsPage() {
 
   useEffect(() => {
     if (!signedIn || togetherOpen) {
+      skipInitialLoadRef.current = false;
       setBanners([]);
+      return undefined;
+    }
+
+    if (skipInitialLoadRef.current) {
+      skipInitialLoadRef.current = false;
       return undefined;
     }
 
@@ -249,6 +259,14 @@ export default function ListsPage() {
         setLoadingMore(false);
       });
   }, [banners.length, hasMore, loadPage, loading]);
+
+  useRememberEntry(
+    entryKey,
+    "lists",
+    signedIn && !togetherOpen && !loading && !error
+      ? { listType, banners, hasMore }
+      : null
+  );
 
   useInfiniteScroll(sentinelRef, {
     enabled: signedIn && !togetherOpen && hasMore && !loading && !loadingMore,

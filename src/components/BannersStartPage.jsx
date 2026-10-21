@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import {
   ChevronRight,
@@ -13,6 +13,7 @@ import BannerWall from "./BannerWall";
 import AboutNotice from "./AboutNotice";
 import { loadCachedNearbyLocation, saveCachedNearbyLocation } from "./BannersNearMe";
 import { fetchBannergress, useBannergressSync } from "../bannergressSync";
+import { useRememberEntry, useRestoredEntry } from "../scrollRestoration";
 import { withoutHiddenBanners } from "../bannerFilters";
 import { getBrowseStateScope, resetBrowseState } from "../browseState";
 import {
@@ -78,11 +79,16 @@ function PlaceButton({ place, icon: Icon, kind }) {
 export default function BannersStartPage() {
   const syncState = useBannergressSync();
   const [permission, setPermission] = useState("checking");
-  const [location, setLocation] = useState(() => loadCachedNearbyLocation());
+  // Back to this page shows the same banners right away (no refetch).
+  const { entryKey, restored } = useRestoredEntry("start");
+  const restoredRef = useRef(restored);
+  const [location, setLocation] = useState(
+    () => restored?.location ?? loadCachedNearbyLocation()
+  );
   const [locating, setLocating] = useState(false);
-  const [banners, setBanners] = useState(null);
+  const [banners, setBanners] = useState(restored?.banners ?? null);
   const [bannerError, setBannerError] = useState("");
-  const [hierarchy, setHierarchy] = useState(null);
+  const [hierarchy, setHierarchy] = useState(restored?.hierarchy ?? null);
   const savedCity = useMemo(() => readCachedCity()?.place ?? null, []);
 
   const locate = () => {
@@ -123,6 +129,13 @@ export default function BannersStartPage() {
   // Nearest banners + the place hierarchy of where you are.
   useEffect(() => {
     if (!location) {
+      return undefined;
+    }
+
+    const restoredStart = restoredRef.current;
+    restoredRef.current = null;
+
+    if (restoredStart?.location === location && restoredStart.banners) {
       return undefined;
     }
 
@@ -187,6 +200,14 @@ export default function BannersStartPage() {
     [banners, syncState]
   );
   const hasLocation = Boolean(location);
+
+  useRememberEntry(
+    entryKey,
+    "start",
+    location && banners && hierarchy && !bannerError
+      ? { location, banners, hierarchy }
+      : null
+  );
   const canAskLocation = permission !== "denied" && permission !== "unsupported";
   const placeButtons = hierarchy
     ? [

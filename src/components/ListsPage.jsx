@@ -18,7 +18,33 @@ const LISTS = [
   { key: "todo", label: "To do" },
   { key: "done", label: "Done" },
   { key: "blacklist", label: "Hidden" },
+  { key: "yours", label: "Yours" },
 ];
+const BANNERGRESS_ACCOUNT_URL = "https://bannergress.com/account";
+const BANNERGRESS_CREATE_URL = "https://bannergress.com/new-banner";
+
+// "Yours" = banners whose missions were made by the Ingress agent linked to the
+// Bannergress account (same as Bannergress's agent page: /bnrs?author=<agent>).
+export async function fetchOwnAgentName() {
+  const response = await fetchBannergress("https://api.bannergress.com/user");
+
+  if (response.status === 401 || response.status === 403) {
+    throw Object.assign(new Error("Sign in again."), { code: "AUTH" });
+  }
+
+  if (!response.ok) {
+    throw new Error(`Request failed: ${response.status}`);
+  }
+
+  const user = await response.json();
+  const name = typeof user?.agent?.name === "string" ? user.agent.name.trim() : "";
+
+  if (!name) {
+    throw Object.assign(new Error("No agent linked."), { code: "NO_AGENT" });
+  }
+
+  return name;
+}
 const PAGE_SIZE = 24;
 
 export default function ListsPage() {
@@ -44,13 +70,22 @@ export default function ListsPage() {
   const [viewMode, setViewMode] = useBannerViewMode();
   const sentinelRef = useRef(null);
   const inFlightRef = useRef(false);
+  const agentNameRef = useRef(null);
   const signedIn = Boolean(authData?.accessToken || authData?.refreshToken);
 
   const loadPage = useCallback(
     async (offset) => {
       const url = new URL("https://api.bannergress.com/bnrs");
-      url.searchParams.set("listTypes", listType);
-      url.searchParams.set("orderBy", "listAdded");
+
+      if (listType === "yours") {
+        agentNameRef.current = agentNameRef.current ?? (await fetchOwnAgentName());
+        url.searchParams.set("author", agentNameRef.current);
+        url.searchParams.set("orderBy", "created");
+      } else {
+        url.searchParams.set("listTypes", listType);
+        url.searchParams.set("orderBy", "listAdded");
+      }
+
       url.searchParams.set("orderDirection", "DESC");
       url.searchParams.set("limit", String(PAGE_SIZE));
       url.searchParams.set("offset", String(offset));
@@ -96,7 +131,9 @@ export default function ListsPage() {
           setError(
             loadError?.code === "AUTH"
               ? "Your Bannergress sign-in expired. Sign in again."
-              : "Couldn't load this list. Please try again."
+              : loadError?.code === "NO_AGENT"
+                ? "NO_AGENT"
+                : "Couldn't load this list. Please try again."
           );
         }
       })
@@ -156,7 +193,7 @@ export default function ListsPage() {
       </div>
 
       <div className="toolbar">
-        <div className="seg" role="group" aria-label="List">
+        <div className="seg lists-seg" role="group" aria-label="List">
           {LISTS.map((list) => (
             <button
               type="button"
@@ -166,7 +203,9 @@ export default function ListsPage() {
               onClick={() => setListType(list.key)}
             >
               {list.label}
-              <span className="small muted">{counts[list.key] ?? 0}</span>
+              {list.key in counts ? (
+                <span className="small muted">{counts[list.key] ?? 0}</span>
+              ) : null}
             </button>
           ))}
           <button
@@ -211,7 +250,21 @@ export default function ListsPage() {
         </div>
       ) : (
         <>
-          {error ? (
+          {error === "NO_AGENT" ? (
+            <div className="ob-alert" role="note">
+              <div className="grow">
+                <b>Link your Ingress agent first</b>
+                <span className="small">
+                  Your banners are the ones made from your agent’s missions. Link your
+                  agent on your{" "}
+                  <a href={BANNERGRESS_ACCOUNT_URL} target="_blank" rel="noreferrer">
+                    Bannergress account page
+                  </a>
+                  , then come back here.
+                </span>
+              </div>
+            </div>
+          ) : error ? (
             <div className="ob-alert bad" role="alert">
               <div className="grow">{error}</div>
             </div>
@@ -219,7 +272,22 @@ export default function ListsPage() {
           {loading ? (
             <BannerWall banners={[]} skeletonCount={8} label="Loading list" />
           ) : banners.length === 0 && !error ? (
-            <div className="ob-alert">Nothing on this list yet.</div>
+            listType === "yours" ? (
+              <div className="ob-alert">
+                <div className="grow">
+                  <b>You haven’t created any banners yet</b>
+                  <span className="small">
+                    Made missions in Ingress?{" "}
+                    <a href={BANNERGRESS_CREATE_URL} target="_blank" rel="noreferrer">
+                      Create the banner on Bannergress
+                    </a>{" "}
+                    and it shows up here.
+                  </span>
+                </div>
+              </div>
+            ) : (
+              <div className="ob-alert">Nothing on this list yet.</div>
+            )
           ) : viewMode === "compact" ? (
             <BannerRows banners={banners} loadingMore={loadingMore} label="List banners" />
           ) : (

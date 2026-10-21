@@ -2346,3 +2346,25 @@ body {
   min-width: 0;
   overflow-wrap: anywhere;
 }
+
+/* Lists tabs: five of them, so let them scroll sideways on narrow phones */
+.lists-seg {
+  max-width: 100%;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.lists-seg::-webkit-scrollbar {
+  display: none;
+}
+
+@media (max-width: 480px) {
+  .lists-seg button {
+    padding: 0 12px;
+    gap: 6px;
+  }
+}
+
+.ob-alert a {
+  color: var(--primary);
+}

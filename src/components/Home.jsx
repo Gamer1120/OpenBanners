@@ -4,7 +4,7 @@ import { useParams, useNavigate, useLocation } from "react-router-dom";
 import TopMenu from "./TopMenu";
 import AppNav from "./AppNav";
 import BannersNearMe from "./BannersNearMe";
-import BannersScopeBar, { BannersStart } from "./BannersScope";
+import BannersStartPage from "./BannersStartPage";
 import SearchPage from "./SearchPage";
 import ListsPage from "./ListsPage";
 import BrowsingPage from "./BrowsingPage";
@@ -305,7 +305,7 @@ export default function Home() {
           title={VIEW_TITLES[currentView] ?? ""}
         />
         <main className="ob-main" id="main-content" tabIndex={-1}>
-          {currentView === "start" && <BannersStart />}
+          {currentView === "start" && <BannersStartPage />}
           {currentView === "near" && (
             <BannersNearMe
               bannerFilters={bannerFilters}
@@ -320,7 +320,6 @@ export default function Home() {
               onBannerFiltersChange={setBrowseBannerFilters}
             />
           )}
-          {currentView === "near" || currentView === "browsing" ? <BannersScopeBar /> : null}
           {currentView === "agentBrowsing" && (
             <BrowsingPage
               authorName={agentName}

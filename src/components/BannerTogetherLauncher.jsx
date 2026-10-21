@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import { ChevronRight, Groups, LocationCity, Place } from "@mui/icons-material";
 import { getPlaceLongName, readCachedCity, searchPlaces } from "../cityPlace";
 import { getFlagForPlace } from "./CountryFlags";
-import { useScopePlaces } from "./BannersScope";
+import { useScopePlaces } from "./useScopePlaces";
 
 function togetherPath(place) {
   return `/lists/together/${encodeURIComponent(place.id)}`;
@@ -41,7 +41,7 @@ function PlaceRow({ place }) {
 export default function BannerTogetherLauncher() {
   const [cachedCity] = useState(() => readCachedCity()?.place ?? null);
   const { places: scopePlaces } = useScopePlaces();
-  // Same places as the Banners scope bar: country, province, city.
+  // Same places as the Banners start page: country, province, city.
   const yourPlaces = (
     scopePlaces?.city || scopePlaces?.country
       ? [scopePlaces.country, scopePlaces.region, scopePlaces.city]

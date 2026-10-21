@@ -6,6 +6,7 @@ import React, {
   useState,
 } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { NearMe } from "@mui/icons-material";
 import { savePickedCity } from "../cityPlace";
 import BannerWall, { BannerRows, useInfiniteScroll } from "./BannerWall";
 import ViewModeToggle, { useBannerViewMode } from "./ViewModeToggle";
@@ -560,6 +561,7 @@ export default function BrowsingPage({
     displayedBanners.length === 0 ||
     displayedBanners.length < Math.min(filteredPrefetchTarget, banners.length);
   const isAgentView = Boolean(authorName);
+  const canUseLocation = typeof navigator !== "undefined" && "geolocation" in navigator;
   const placeName = currentPlace
     ? getChipName(currentPlace, currentPlace.type === "country")
     : "";
@@ -634,6 +636,15 @@ export default function BrowsingPage({
         <div style={{ minWidth: 0 }}>
           {!isAgentView ? (
             <nav className="crumbs scope" aria-label="Scope">
+              {canUseLocation ? (
+                <>
+                  <Link className="scope-near" to="/near">
+                    <NearMe fontSize="inherit" />
+                    Near you
+                  </Link>
+                  <span aria-hidden="true">·</span>
+                </>
+              ) : null}
               {placeId ? (
                 <Link to="/browse/">All countries</Link>
               ) : (

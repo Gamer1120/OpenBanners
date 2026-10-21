@@ -15,7 +15,8 @@ import {
   applyBannerFilters,
   getMissionCountBounds,
 } from "../bannerFilters";
-import { readCachedCity, resolveCityAt } from "../cityPlace";
+import { getBrowseStateScope, resetBrowseState } from "../browseState";
+import { getPlaceName, readCachedCity, resolveCityAt } from "../cityPlace";
 
 const NEARBY_PAGE_SIZE = 24;
 
@@ -350,10 +351,33 @@ export default function BannersNearMe({
     handleGrantLocationAccess();
   };
 
+  const cityName = getPlaceName(city);
+
   return (
     <div className="ob-page">
       <header className="ob-sec-head" style={{ alignItems: "flex-start" }}>
         <div style={{ minWidth: 0 }}>
+          <nav className="crumbs scope" aria-label="Scope">
+            <span className="scope-near on" aria-current="page">
+              <NearMe fontSize="inherit" />
+              Near you
+            </span>
+            <span aria-hidden="true">·</span>
+            <Link to="/browse/" onClick={() => resetBrowseState(getBrowseStateScope())}>
+              All countries
+            </Link>
+            {city?.id ? (
+              <>
+                <span aria-hidden="true">·</span>
+                <Link
+                  to={`/browse/${encodeURIComponent(city.id)}`}
+                  onClick={() => resetBrowseState(getBrowseStateScope({ placeId: city.id }))}
+                >
+                  {cityName}
+                </Link>
+              </>
+            ) : null}
+          </nav>
           <h1 className="ob-h1">Near you</h1>
           <p className="small muted">Closest start point first.</p>
         </div>

@@ -468,3 +468,74 @@
 .c-grid .stat {
   padding: 10px 12px;
 }
+
+/* Banner artwork: tap to enlarge (tiles are not links). */
+.bp-enlarge {
+  display: block;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  cursor: zoom-in;
+}
+
+.bp-enlarge .tile {
+  display: block;
+  cursor: inherit;
+}
+
+.bp-enlarge .tile:hover,
+.bp-enlarge .tile:focus-visible {
+  transform: none;
+  box-shadow: none;
+}
+
+.bp-lightbox {
+  position: fixed;
+  inset: 0;
+  z-index: 2000;
+  display: flex;
+  flex-direction: column;
+  background: rgba(5, 8, 11, 0.94);
+  cursor: zoom-out;
+}
+
+.bp-lightbox-body {
+  flex: 1;
+  overflow: auto;
+  padding: 56px 12px 24px;
+  -webkit-overflow-scrolling: touch;
+}
+
+.bp-lightbox .mosaic.large {
+  --t: min(140px, calc((100vw - 24px - (var(--w, 6) - 1) * 6px) / var(--w, 6)));
+  margin: 0 auto;
+}
+
+.bp-lightbox .mosaic.large .tile {
+  display: block;
+}
+
+.bp-lightbox-pic {
+  display: block;
+  width: 100%;
+  max-width: 900px;
+  height: auto;
+  margin: 0 auto;
+}
+
+.bp-lightbox-close {
+  position: fixed;
+  top: 10px;
+  right: 12px;
+  z-index: 1;
+  width: 40px;
+  height: 40px;
+  border: 0;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.14);
+  color: #fff;
+  font: 400 26px/40px var(--font);
+  cursor: pointer;
+}

@@ -158,7 +158,8 @@ function createWaypointIcon(color) {
   });
 }
 
-export function MissionMosaic({ banner, missions, colors, onSelect }) {
+// The banner artwork. Tiles aren't links: tapping the artwork opens it enlarged.
+export function MissionMosaic({ banner, missions, colors, large = false }) {
   const width = Number(banner.width) || 6;
   const count = missions.length;
   const rows = Math.max(1, Math.ceil(count / width));
@@ -167,7 +168,14 @@ export function MissionMosaic({ banner, missions, colors, onSelect }) {
 
   if (!count || !hasPictures) {
     // Shown whole (max-height in CSS), so no pan needed.
-    return <BannerImage banner={banner} mode="natural" className="bp-hero-pic" eager />;
+    return (
+      <BannerImage
+        banner={banner}
+        mode="natural"
+        className={large ? "bp-lightbox-pic" : "bp-hero-pic"}
+        eager
+      />
+    );
   }
 
   const cells = [];
@@ -183,33 +191,82 @@ export function MissionMosaic({ banner, missions, colors, onSelect }) {
     const mission = missions[index];
 
     cells.push(
-      <button
-        type="button"
+      <span
         key={mission.id ?? index}
         className={`tile${isMissionOffline(mission) ? " off" : ""}`}
         style={{ "--c": colors[index] }}
-        aria-label={`Mission ${index + 1} of ${count}: ${mission.title ?? ""}`}
-        onClick={() => onSelect(index)}
       >
         {mission.picture ? (
-          <img src={`${mission.picture}=s160`} alt="" loading="lazy" referrerPolicy="no-referrer" />
+          <img
+            src={`${mission.picture}=s${large ? 320 : 160}`}
+            alt=""
+            loading={large ? undefined : "lazy"}
+            referrerPolicy="no-referrer"
+          />
         ) : null}
-        <span className="n" aria-hidden="true">
-          {index + 1}
-        </span>
-      </button>
+      </span>
     );
   }
 
   return (
     <div
-      className="mosaic"
-      role="group"
-      aria-label={`Banner artwork: ${count} mission tiles, ${width} per row. Mission 1 is bottom-right.`}
+      className={`mosaic${large ? " large" : ""}`}
+      role="img"
+      aria-label={`Banner artwork: ${count} mission tiles, ${width} per row.`}
       style={{ "--w": width, "--rows": rows }}
     >
       {cells}
     </div>
+  );
+}
+
+// Full-screen view of the artwork; tap anywhere, × or Escape closes it.
+export function BannerLightbox({ banner, missions, colors, onClose }) {
+  useEffect(() => {
+    const onKey = (event) => {
+      if (event.key === "Escape") {
+        onClose();
+      }
+    };
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    window.addEventListener("keydown", onKey);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener("keydown", onKey);
+    };
+  }, [onClose]);
+
+  return (
+    <div className="bp-lightbox" role="dialog" aria-modal="true" aria-label="Banner artwork" onClick={onClose}>
+      <button type="button" className="bp-lightbox-close" aria-label="Close" onClick={onClose}>
+        ×
+      </button>
+      <div className="bp-lightbox-body">
+        <MissionMosaic banner={banner} missions={missions} colors={colors} large />
+      </div>
+    </div>
+  );
+}
+
+// Tappable artwork that opens the lightbox.
+export function EnlargeableArt({ banner, missions, colors, children }) {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <>
+      <button
+        type="button"
+        className="bp-enlarge"
+        aria-label="Enlarge banner artwork"
+        onClick={() => setOpen(true)}
+      >
+        {children}
+      </button>
+      {open ? (
+        <BannerLightbox banner={banner} missions={missions} colors={colors} onClose={() => setOpen(false)} />
+      ) : null}
+    </>
   );
 }
 
@@ -890,7 +947,11 @@ export function HeroArt({ d }) {
     return <Skeleton variant="rounded" height={120} sx={{ bgcolor: "rgba(255,255,255,0.15)" }} />;
   }
 
-  return <MissionMosaic banner={d.items} missions={d.missions} colors={d.colors} onSelect={d.showInList} />;
+  return (
+    <EnlargeableArt banner={d.items} missions={d.missions} colors={d.colors}>
+      <MissionMosaic banner={d.items} missions={d.missions} colors={d.colors} />
+    </EnlargeableArt>
+  );
 }
 
 export function BannerTitle({ d, className = "bp-title" }) {

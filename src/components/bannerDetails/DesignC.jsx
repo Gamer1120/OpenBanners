@@ -6,6 +6,7 @@ import BannerImage from "../BannerImage";
 import {
   AddressLink,
   BannerTitle,
+  EnlargeableArt,
   BannergressLink,
   Byline,
   Description,
@@ -53,7 +54,9 @@ export default function DesignC() {
         aria-label="Banner details"
       >
         <header className="c-head">
-          <BannerImage banner={d.items} className="c-thumb" minAspect={3} eager />
+          <EnlargeableArt banner={d.items} missions={d.missions} colors={d.colors}>
+            <BannerImage banner={d.items} className="c-thumb" minAspect={3} eager />
+          </EnlargeableArt>
           <div className="c-headtxt">
             <BannerTitle d={d} className="bp-title c-title" />
             {!d.isLoading && !d.error ? (

@@ -205,7 +205,9 @@ export default function BannersStartPage() {
             ? "The closest start points."
             : savedCity
               ? `Around ${getPlaceLongName(savedCity)}, your last city.`
-              : "Finding your location…"}
+              : locating || permission === "checking" || permission === "granted"
+                ? "Finding your location…"
+                : "Share your location to see the banners closest to you."}
         </p>
       </header>
 
@@ -258,7 +260,9 @@ export default function BannersStartPage() {
           <ChevronRight className="start-go" />
         </Link>
 
-        {placeButtons === null
+        {placeButtons === null && !hasLocation && !savedCity && !locating && permission !== "granted"
+          ? null
+          : placeButtons === null
           ? Array.from({ length: 3 }).map((_, index) => (
               <span key={index} className="start-btn sk" aria-hidden="true" />
             ))

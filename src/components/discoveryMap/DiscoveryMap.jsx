@@ -18,7 +18,6 @@ import {
   STATUS_OPTIONS,
   applyMapFilters,
   distanceOptions,
-  preferredDistanceUnit,
   countActiveMapFilters,
   filterSummary,
   normalizeMapFilters,
@@ -30,11 +29,9 @@ import { formatLength } from "../../bannerDisplay";
 import BannerImage from "../BannerImage";
 import "./discoveryMap.css";
 
-// Miles or km, from the browser's locale.
-const DISTANCE_UNIT = preferredDistanceUnit();
 const GROUPS = [
   { key: "status", title: "Status", options: STATUS_OPTIONS },
-  { key: "distance", title: "Distance", options: distanceOptions(DISTANCE_UNIT) },
+  { key: "distance", title: "Distance", options: distanceOptions() },
   { key: "missions", title: "Number of missions", options: MISSION_OPTIONS },
 ];
 
@@ -71,7 +68,7 @@ function CustomDistance({ filters, onChange }) {
           onChange={set("distMax")}
         />
       </label>
-      <span className="mv-muted">{DISTANCE_UNIT}</span>
+      <span className="mv-muted">km</span>
     </div>
   );
 }
@@ -303,7 +300,7 @@ export default function DiscoveryMap() {
   const cardRef = useRef(null);
   const routeState = useBannerRoute(selected?.id);
   const route = routeState.data?.route ?? null;
-  const summary = filterSummary(filters, DISTANCE_UNIT);
+  const summary = filterSummary(filters);
   const activeCount = countActiveMapFilters(filters);
   const showCard = Boolean(selected) && !sheet && !clusterList;
 
@@ -358,7 +355,7 @@ export default function DiscoveryMap() {
     });
   }, [map, route]);
 
-  const matching = useMemo(() => applyMapFilters(banners, filters, DISTANCE_UNIT), [banners, filters]);
+  const matching = useMemo(() => applyMapFilters(banners, filters), [banners, filters]);
   const matchingInView = useMemo(
     () => (liveArea ? matching.filter((banner) => isInsideArea(banner, liveArea)) : matching),
     [liveArea, matching]

@@ -4,7 +4,6 @@ import {
   countActiveMapFilters,
   filterSummary,
   normalizeMapFilters,
-  preferredDistanceUnit,
 } from "./mapFilters";
 import { getBannerStatus, withStatus } from "./mapStatus";
 import { formatMinutes, isInsideArea, walkingMinutes } from "./mapMath";
@@ -43,7 +42,7 @@ describe("filters", () => {
     banner("none-hour", 0, 0, { _status: "none", lengthMeters: 3500, numberOfMissions: 12 }),
     banner("none-unknown", 0, 0, { _status: "none" }),
   ];
-  const ids = (filters, unit) => applyMapFilters(banners, filters, unit).map((item) => item.id);
+  const ids = (filters) => applyMapFilters(banners, filters).map((item) => item.id);
 
   test("status: all, To do only, hide Done", () => {
     expect(ids({ status: "all" })).toEqual(["todo-short", "done-long", "none-hour", "none-unknown"]);
@@ -58,21 +57,12 @@ describe("filters", () => {
     expect(ids({ status: "all", missions: "30+" })).toEqual(["done-long"]);
   });
 
-  test("distance: under N km or mi, and a custom min–max range", () => {
+  test("distance: under N km, and a custom min–max range", () => {
     expect(ids({ status: "all", distance: "lt5" })).toEqual(["todo-short", "none-hour"]);
-    expect(ids({ status: "all", distance: "lt5" }, "mi")).toEqual(["todo-short", "none-hour"]);
     expect(ids({ status: "all", distance: "lt20" })).toEqual(["todo-short", "done-long", "none-hour"]);
     expect(ids({ status: "all", distance: "custom", distMin: 2, distMax: 5 })).toEqual(["none-hour"]);
-    expect(ids({ status: "all", distance: "custom", distMin: 7 }, "mi")).toEqual(["done-long"]);
+    expect(ids({ status: "all", distance: "custom", distMin: 7 })).toEqual(["done-long"]);
     expect(ids({ status: "all", distance: "custom" })).toHaveLength(4);
-  });
-
-  test("miles only for miles countries", () => {
-    expect(preferredDistanceUnit(["en-US"])).toBe("mi");
-    expect(preferredDistanceUnit(["en-GB", "nl-NL"])).toBe("mi");
-    expect(preferredDistanceUnit(["nl-NL", "en-US"])).toBe("km");
-    expect(preferredDistanceUnit(["en"])).toBe("mi");
-    expect(preferredDistanceUnit([])).toBe("km");
   });
 
   test("normalizes and counts filters", () => {
@@ -86,7 +76,7 @@ describe("filters", () => {
     expect(countActiveMapFilters({ missions: "12+", status: "all" })).toBe(1);
     expect(countActiveMapFilters({ status: "all" })).toBe(0);
     expect(filterSummary({})).toEqual({ missions: "Any missions", status: "Hide Done", distance: "Any distance" });
-    expect(filterSummary({ distance: "lt10" }, "mi").distance).toBe("< 10 mi");
+    expect(filterSummary({ distance: "lt10" }).distance).toBe("< 10 km");
     expect(filterSummary({ distance: "custom", distMin: 3, distMax: 8 }).distance).toBe("3–8 km");
   });
 });

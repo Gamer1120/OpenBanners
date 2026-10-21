@@ -9,31 +9,11 @@ export const STATUS_OPTIONS = Object.freeze([
   { id: "hideDone", label: "Hide Done" },
 ]);
 
-export const METERS_PER_UNIT = Object.freeze({ km: 1000, mi: 1609.344 });
-const MILE_REGIONS = new Set(["US", "GB", "LR", "MM"]);
-
-// Miles for people whose locale is in a miles country (US, UK, Liberia, Myanmar).
-export function preferredDistanceUnit(languages = globalThis.navigator?.languages ?? []) {
-  for (const language of languages) {
-    try {
-      const region = new Intl.Locale(language).maximize().region;
-
-      if (region) {
-        return MILE_REGIONS.has(region) ? "mi" : "km";
-      }
-    } catch {
-      // Malformed tag: try the next one.
-    }
-  }
-
-  return "km";
-}
-
-// "< 5 km" … "< 20 km" (or mi), plus a custom min–max range.
-export function distanceOptions(unit = "km") {
+// "< 5 km" … "< 20 km", plus a custom min–max range. Always km.
+export function distanceOptions() {
   return [
     { id: "any", label: "Any distance" },
-    ...[5, 10, 15, 20].map((max) => ({ id: `lt${max}`, label: `< ${max} ${unit}`, max })),
+    ...[5, 10, 15, 20].map((max) => ({ id: `lt${max}`, label: `< ${max} km`, max })),
     { id: "custom", label: "Custom" },
   ];
 }
@@ -61,7 +41,7 @@ function toNumberOrNull(value) {
   return Number.isFinite(number) && number >= 0 ? number : null;
 }
 
-// distMin / distMax are in the user's unit (whatever the inputs showed).
+// distMin / distMax are in km.
 export function normalizeMapFilters(value) {
   return {
     missions: findOption(MISSION_OPTIONS, value?.missions).id,
@@ -87,19 +67,18 @@ export function countActiveMapFilters(filters) {
 }
 
 // banners carry _status (see mapStatus.withStatus).
-export function applyMapFilters(banners, filters, unit = "km") {
+export function applyMapFilters(banners, filters) {
   const normalized = normalizeMapFilters(filters);
   const missions = findOption(MISSION_OPTIONS, normalized.missions);
   const status = normalized.status;
-  const perUnit = METERS_PER_UNIT[unit] ?? METERS_PER_UNIT.km;
   let minMeters = null;
   let maxMeters = null;
 
   if (normalized.distance === "custom") {
-    minMeters = normalized.distMin === null ? null : normalized.distMin * perUnit;
-    maxMeters = normalized.distMax === null ? null : normalized.distMax * perUnit;
+    minMeters = normalized.distMin === null ? null : normalized.distMin * 1000;
+    maxMeters = normalized.distMax === null ? null : normalized.distMax * 1000;
   } else if (normalized.distance !== "any") {
-    maxMeters = findOption(distanceOptions(unit), normalized.distance).max * perUnit;
+    maxMeters = findOption(distanceOptions(), normalized.distance).max * 1000;
   }
 
   return banners.filter((banner) => {
@@ -139,30 +118,30 @@ export function applyMapFilters(banners, filters, unit = "km") {
   });
 }
 
-function customDistanceLabel({ distMin, distMax }, unit) {
+function customDistanceLabel({ distMin, distMax }) {
   if (distMin !== null && distMax !== null) {
-    return `${distMin}–${distMax} ${unit}`;
+    return `${distMin}–${distMax} km`;
   }
 
   if (distMin !== null) {
-    return `≥ ${distMin} ${unit}`;
+    return `≥ ${distMin} km`;
   }
 
   if (distMax !== null) {
-    return `< ${distMax} ${unit}`;
+    return `< ${distMax} km`;
   }
 
   return "Any distance";
 }
 
-export function filterSummary(filters, unit = "km") {
+export function filterSummary(filters) {
   const normalized = normalizeMapFilters(filters);
   return {
     missions: findOption(MISSION_OPTIONS, normalized.missions).label,
     status: findOption(STATUS_OPTIONS, normalized.status).label,
     distance:
       normalized.distance === "custom"
-        ? customDistanceLabel(normalized, unit)
-        : findOption(distanceOptions(unit), normalized.distance).label,
+        ? customDistanceLabel(normalized)
+        : findOption(distanceOptions(), normalized.distance).label,
   };
 }

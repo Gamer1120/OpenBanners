@@ -208,6 +208,45 @@ function RouteCard({ banner, routeStatus, onClose, cardRef }) {
   );
 }
 
+// A group that can't be split by zooming (same spot, or already zoomed in): pick one.
+function ClusterSheet({ banners, onPick, onClose }) {
+  return (
+    <div className="mv-sheet mv-filter-sheet" role="dialog" aria-label={`${banners.length} banners here`}>
+      <div className="mv-grip" aria-hidden="true" />
+      <div className="mv-card-head">
+        <div className="mv-card-title">{banners.length} banners here</div>
+        <button type="button" className="mv-btn icon ghost" aria-label="Close list" onClick={onClose}>
+          ×
+        </button>
+      </div>
+      <ul className="mv-cluster-list">
+        {banners.map((banner) => {
+          const picture = getBannerPictureUrl(banner);
+          const missions = Number(banner.numberOfMissions);
+
+          return (
+            <li key={banner.id}>
+              <button type="button" className="mv-cluster-row" onClick={() => onPick(banner)}>
+                <span
+                  className="mv-cluster-thumb"
+                  style={picture ? { backgroundImage: `url("${picture}")` } : undefined}
+                />
+                <span className="mv-cluster-text">
+                  <b>{banner.title}</b>
+                  <span className="mv-muted">
+                    {formatLength(banner.lengthMeters)} · {Number.isFinite(missions) ? missions : "?"} missions
+                  </span>
+                </span>
+                <StatusChip status={banner._status} />
+              </button>
+            </li>
+          );
+        })}
+      </ul>
+    </div>
+  );
+}
+
 // /map: status-coloured dots with filter chips; banners reload for whatever is in view.
 // Tapping a dot draws that banner's walking route and shows a compact card.
 export default function DiscoveryMap() {
@@ -215,6 +254,7 @@ export default function DiscoveryMap() {
   const { map, banners, liveArea } = vm;
   const [filters, setFilters] = useState(readStoredFilters);
   const [sheet, setSheet] = useState(null); // group key that opened the sheet
+  const [clusterList, setClusterList] = useState(null);
   const [selected, setSelected] = useState(null);
   const [cardHeight, setCardHeight] = useState(0);
   const cardRef = useRef(null);
@@ -222,7 +262,7 @@ export default function DiscoveryMap() {
   const route = routeState.data?.route ?? null;
   const summary = filterSummary(filters);
   const activeCount = countActiveMapFilters(filters);
-  const showCard = Boolean(selected) && !sheet;
+  const showCard = Boolean(selected) && !sheet && !clusterList;
 
   useEffect(() => {
     try {
@@ -308,29 +348,52 @@ export default function DiscoveryMap() {
       banners: cluster.items.map((item) => item.banner),
     }));
   }, [map, selected?.id, shownBanners, vm.zoom]);
+  // Zoom in until the group splits; if zooming can't split it, list its banners.
   const openCluster = (members) => {
     if (!map?.flyToBounds) {
       return;
     }
 
     const bounds = L.latLngBounds(members.map((banner) => [banner._latitude, banner._longitude]));
+    const padTopLeft = L.point(40, FILTERBAR_SPACE + 30);
+    const padBottomRight = L.point(40, controlsBottom + 40);
+    const maxZoom = map.getMaxZoom?.() ?? 18;
+    const fitZoom = Math.min(map.getBoundsZoom(bounds, false, padTopLeft.add(padBottomRight)), maxZoom);
+    const splitsAt = (zoomLevel) =>
+      clusterByPixels(
+        members.map((banner) => {
+          const pixel = map.project([banner._latitude, banner._longitude], zoomLevel);
+          return { x: pixel.x, y: pixel.y };
+        }),
+        CLUSTER_RADIUS_PX
+      ).length > 1;
 
-    if (map.getZoom() >= 18 || bounds.getNorthEast().equals(bounds.getSouthWest())) {
-      setSelected(members[0]);
+    if (fitZoom > map.getZoom() && splitsAt(fitZoom)) {
+      map.flyToBounds(bounds, { paddingTopLeft: padTopLeft, paddingBottomRight: padBottomRight, maxZoom, duration: 0.5 });
       return;
     }
 
-    map.flyToBounds(bounds, {
-      paddingTopLeft: [40, FILTERBAR_SPACE + 30],
-      paddingBottomRight: [40, controlsBottom + 40],
-      maxZoom: 18,
-      duration: 0.5,
-    });
+    // Find the first zoom level where the group splits; otherwise show the list.
+    for (let zoomLevel = map.getZoom() + 1; zoomLevel <= maxZoom; zoomLevel += 1) {
+      if (splitsAt(zoomLevel)) {
+        map.flyTo(bounds.getCenter(), zoomLevel, { duration: 0.5 });
+        return;
+      }
+    }
+
+    setSelected(null);
+    setClusterList(members);
   };
 
   return (
     <div className="mv-root">
-      <DiscoveryBaseMap vm={vm} onMapClick={() => setSelected(null)}>
+      <DiscoveryBaseMap
+        vm={vm}
+        onMapClick={() => {
+          setSelected(null);
+          setClusterList(null);
+        }}
+      >
         {selected && !route ? (
           <Marker
             key={selected.id}
@@ -419,6 +482,16 @@ export default function DiscoveryMap() {
           routeStatus={routeState.status}
           onClose={() => setSelected(null)}
           cardRef={cardRef}
+        />
+      ) : null}
+      {clusterList && !sheet ? (
+        <ClusterSheet
+          banners={clusterList}
+          onClose={() => setClusterList(null)}
+          onPick={(banner) => {
+            setClusterList(null);
+            setSelected(banner);
+          }}
         />
       ) : null}
       {sheet ? (

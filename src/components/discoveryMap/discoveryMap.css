@@ -494,3 +494,45 @@
   color: #06233a;
   font-weight: 600;
 }
+
+.mv-cluster-list {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+}
+
+.mv-cluster-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 8px 0;
+  border: 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.mv-cluster-thumb {
+  flex: 0 0 48px;
+  height: 48px;
+  border-radius: 10px;
+  background: #2a3138 center / cover no-repeat;
+}
+
+.mv-cluster-text {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.mv-cluster-text b {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

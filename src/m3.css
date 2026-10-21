@@ -2298,101 +2298,65 @@ body {
   font-weight: 500;
 }
 
-/* Banners start page: big one-hand buttons under the 3 nearest banners */
-.start-acts {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
+
+
+
+
+/* Banners scope bar: Near · City · Province · Country · All, pinned just above
+   the bottom nav on phones and at the bottom of the content on laptops. */
+.scope-bar {
+  position: sticky;
+  bottom: 0;
+  z-index: 20;
+  padding: 8px 12px;
+  background: color-mix(in oklab, var(--surface) 92%, transparent);
+  backdrop-filter: blur(8px);
+  box-shadow: inset 0 1px 0 var(--outline-variant);
 }
 
-.start-btn {
+.scope-chips {
   display: flex;
-  align-items: center;
-  gap: 14px;
-  width: 100%;
-  min-height: 64px;
-  padding: 10px 16px;
-  border: 0;
-  border-radius: var(--r-l);
+  gap: 6px;
+  max-width: 1440px;
+  margin: 0 auto;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.scope-chips::-webkit-scrollbar {
+  display: none;
+}
+
+.scope-bar .chip {
+  flex: none;
+  min-height: 36px;
+  padding: 0 11px;
+  border-radius: 18px;
   background: var(--sc-high);
   color: var(--on-surface);
-  font: inherit;
-  text-align: left;
-  text-decoration: none;
-  cursor: pointer;
+  box-shadow: none;
+  white-space: nowrap;
 }
 
-.start-btn:hover {
-  background: var(--sc-highest);
+.scope-bar .chip[aria-current="page"] {
+  background: var(--secondary-container);
+  color: var(--on-secondary-container);
+  box-shadow: inset 0 0 0 1px var(--primary);
 }
 
-.start-btn.primary {
-  background: var(--primary-container);
-  color: var(--on-primary-container);
-}
-
-.start-btn b {
-  display: block;
-  font-weight: 500;
-  font-size: 16px;
-}
-
-.start-btn .small {
-  display: block;
-  color: inherit;
-  opacity: 0.75;
-}
-
-.start-btn.sk {
-  animation: ob-pulse 1.4s ease-in-out infinite;
-}
-
-.start-ic {
-  width: 40px;
-  height: 40px;
-  flex: none;
-  display: grid;
-  place-items: center;
-  border-radius: 50%;
-  background: color-mix(in oklab, currentColor 12%, transparent);
-  font-size: 22px;
-}
-
-.start-go {
-  opacity: 0.6;
-}
-
-.start-all {
-  align-self: center;
-  padding: 10px 16px;
-  color: var(--primary);
-  text-decoration: none;
-  font-weight: 500;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .start-btn.sk {
-    animation: none;
-  }
-}
-
-.start-acts {
-  max-width: 640px;
-  width: 100%;
-}
-
-/* Phones: keep the buttons at thumb height even when there are no banners above them */
 @media (max-width: 839.98px) {
-  .start-page {
-    min-height: calc(100dvh - 64px - var(--nav-h) - var(--safe-b));
-  }
-
-  .start-page .start-acts {
-    margin-top: auto;
+  .scope-bar {
+    bottom: calc(var(--nav-h) + var(--safe-b));
   }
 }
 
-.start-btn .grow {
-  flex: 1;
-  min-width: 0;
+@media (max-width: 480px) {
+  .scope-bar .chip {
+    padding: 0 10px;
+    font-size: 13px;
+  }
+
+  .scope-bar .chip svg {
+    font-size: 18px;
+  }
 }

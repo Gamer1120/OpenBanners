@@ -11,11 +11,8 @@ import {
 import {
   AccountCircleOutlined,
   AltRoute,
-  BrightnessAuto,
-  DarkMode,
   Download,
   GitHub,
-  LightMode,
   Login,
   MoreVert,
 } from "@mui/icons-material";
@@ -33,7 +30,6 @@ import {
   saveBannergressSyncData,
   serializeBannergressPendingAuth,
 } from "../bannergressSync";
-import { saveThemeMode, useThemeMode } from "../themeMode";
 import AppLogo from "./AppLogo";
 import SearchForm from "./SearchForm";
 
@@ -86,7 +82,6 @@ export default function TopMenu({
   const [feedback, setFeedback] = useState(null);
   const [authStatus, setAuthStatus] = useState(null);
   const [moreMenuAnchor, setMoreMenuAnchor] = useState(null);
-  const { mode: themeMode } = useThemeMode();
   const [isCheckingAuth, setIsCheckingAuth] = useState(authSupportedOrigin);
   const [isAuthenticating, setIsAuthenticating] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
@@ -497,26 +492,6 @@ export default function TopMenu({
                 <ListItemText>Download App</ListItemText>
               </MenuItem>
             ) : null}
-            <Divider />
-            {[
-              ["system", "System theme", BrightnessAuto],
-              ["light", "Light theme", LightMode],
-              ["dark", "Dark theme", DarkMode],
-            ].map(([mode, label, Icon]) => (
-              <MenuItem
-                key={mode}
-                selected={themeMode === mode}
-                onClick={() => {
-                  saveThemeMode(mode);
-                  closeMoreMenu();
-                }}
-              >
-                <ListItemIcon>
-                  <Icon fontSize="small" />
-                </ListItemIcon>
-                <ListItemText>{label}</ListItemText>
-              </MenuItem>
-            ))}
             <Divider />
             <MenuItem
               component="a"

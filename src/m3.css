@@ -1,5 +1,5 @@
 /* Design X — Material 3 shell, banner-art wall and banner page.
-   Colour tokens follow data-theme on <html> (light / dark), set by themeMode.js. */
+   Dark only: the colour tokens live on :root. */
 
 /* Windows has no flag emoji (shows "NL"): Twemoji flags font, only for regional
    indicators. Graphics CC-BY 4.0 Twitter/Twemoji. */
@@ -28,43 +28,7 @@
   --r-xl: 28px;
 }
 
-[data-theme="light"] {
-  --primary: oklch(0.45 calc(0.15 * var(--cs)) var(--h));
-  --on-primary: #fff;
-  --primary-container: oklch(0.91 calc(0.06 * var(--cs)) var(--h));
-  --on-primary-container: oklch(0.27 calc(0.09 * var(--cs)) var(--h));
-  --secondary-container: oklch(0.91 calc(0.035 * var(--cs)) var(--h));
-  --on-secondary-container: oklch(0.27 calc(0.04 * var(--cs)) var(--h));
-  --surface: oklch(0.985 0.006 var(--h));
-  --sc-low: oklch(0.968 0.009 var(--h));
-  --sc: oklch(0.952 0.011 var(--h));
-  --sc-high: oklch(0.937 0.012 var(--h));
-  --sc-highest: oklch(0.92 0.013 var(--h));
-  --on-surface: oklch(0.22 0.012 var(--h));
-  --on-surface-variant: oklch(0.41 0.02 var(--h));
-  --outline: oklch(0.55 0.02 var(--h));
-  --outline-variant: oklch(0.84 0.015 var(--h));
-  --error-container: #ffdad6;
-  --on-error-container: #410002;
-  --ok-container: #c9efd2;
-  --on-ok-container: #00391a;
-  --warn-container: #ffe08a;
-  --on-warn-container: #2a1f00;
-  /* To do / Done / Hidden surfaces: same amber / green / red as the classic cards */
-  --ls-todo: #fcefd0;
-  --ls-todo-hover: #f9e6b8;
-  --ls-todo-line: #e6c06a;
-  --ls-done: #dcf1e1;
-  --ls-done-hover: #cbead3;
-  --ls-done-line: #94cfa3;
-  --ls-blacklist: #fbe3e1;
-  --ls-blacklist-hover: #f7d3d0;
-  --ls-blacklist-line: #e8a5a0;
-  --shadow-3: 0 1px 3px rgba(0, 0, 0, 0.3), 0 4px 8px 3px rgba(0, 0, 0, 0.15);
-  color-scheme: light;
-}
-
-[data-theme="dark"] {
+:root {
   --primary: oklch(0.81 calc(0.11 * var(--cs)) var(--h));
   --on-primary: oklch(0.27 calc(0.09 * var(--cs)) var(--h));
   --primary-container: oklch(0.36 calc(0.1 * var(--cs)) var(--h));
@@ -1942,7 +1906,7 @@ body {
   font-weight: 500;
 }
 
-[data-theme="dark"] .ob-app .leaflet-tile-pane {
+.ob-app .leaflet-tile-pane {
   filter: invert(1) hue-rotate(180deg) brightness(0.95) contrast(0.9) saturate(0.5);
 }
 

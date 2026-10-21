@@ -826,7 +826,6 @@ export default function BannerDetailsPage() {
   const tabs = [
     ["overview", "Overview"],
     ["missions", "Missions"],
-    ["details", "Details"],
     ["map", "Map"],
   ];
 
@@ -939,6 +938,22 @@ export default function BannerDetailsPage() {
                   </div>
                 </div>
               ) : null}
+              {!isLoading && items.plannedOfflineDate ? (
+                <div className="ob-alert warn" role="note">
+                  <Warning />
+                  <div className="grow">
+                    <b>
+                      Goes offline on{" "}
+                      {new Date(items.plannedOfflineDate).toLocaleDateString(undefined, {
+                        day: "numeric",
+                        month: "long",
+                        year: "numeric",
+                      })}
+                    </b>
+                    <span className="small">The author has planned to take this banner down.</span>
+                  </div>
+                </div>
+              ) : null}
               {!isLoading ? (
                 <BannergressListActions
                   bannerId={items.id}
@@ -978,9 +993,20 @@ export default function BannerDetailsPage() {
                     <Skeleton width="70%" />
                   </>
                 ) : (
-                  <p className="desc">
-                    {items.description || "No banner description is available."}
-                  </p>
+                  <>
+                    <p className="desc">
+                      {items.description || "No banner description is available."}
+                    </p>
+                    <p className="small">
+                      <a
+                        href={`https://bannergress.com/banner/${encodeURIComponent(items.id ?? bannerId)}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        View on Bannergress
+                      </a>
+                    </p>
+                  </>
                 )}
               </div>
               {authorsNode}
@@ -1014,41 +1040,6 @@ export default function BannerDetailsPage() {
                   />
                 ))}
               </ol>
-            </div>
-
-            <div className="bp-view" role="tabpanel" hidden={paneTab !== "details"}>
-              <dl className="dl">
-                <dt>Place</dt>
-                <dd>{addressNode}</dd>
-                <dt>Missions</dt>
-                <dd>{missionCount}</dd>
-                <dt>Distance</dt>
-                <dd>{formatLength(items.lengthMeters)}</dd>
-                {typeLabel ? (
-                  <>
-                    <dt>Order</dt>
-                    <dd>{typeLabel}</dd>
-                  </>
-                ) : null}
-                <dt>Efficiency</dt>
-                <dd>{perKm !== null ? `${perKm.toFixed(3)} missions/km` : "Unavailable"}</dd>
-                {items.plannedOfflineDate ? (
-                  <>
-                    <dt>Planned offline</dt>
-                    <dd>{new Date(items.plannedOfflineDate).toLocaleDateString()}</dd>
-                  </>
-                ) : null}
-                <dt>Bannergress</dt>
-                <dd>
-                  <a
-                    href={`https://bannergress.com/banner/${encodeURIComponent(items.id ?? bannerId)}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    View on Bannergress
-                  </a>
-                </dd>
-              </dl>
             </div>
           </>
         )}

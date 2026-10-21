@@ -2,7 +2,7 @@
 
 ## Project Structure & Module Organization
 
-OpenBanners is a Vite React single-page app. Main application code lives in `src/`, with route-level and UI components in `src/components/`. Banner rerouting logic is grouped under `src/bannerRerouter/`, while shared helpers such as filters, SEO, constants, and sync state live directly in `src/`. Static assets and browser-facing files are in `public/`. Build and prerender tooling lives in `scripts/`; the PHP metadata fallback is in `server/banner-meta.php`. Project notes and manual regression material are in `docs/`.
+OpenBanners is a Vite React single-page app. Main application code lives in `src/`, with route-level and UI components in `src/components/`. Banner rerouting logic is grouped under `src/bannerRerouter/`, while shared helpers such as filters, SEO, constants, and sync state live directly in `src/`. Static assets and browser-facing files are in `public/`. Build and prerender tooling lives in `scripts/`; the TypeScript metadata fallback is in `server/banner-meta.mts` (tests in `server/banner-meta-tests.mts`). Project notes and manual regression material are in `docs/`.
 
 Tests are colocated with the code they cover using `*.test.js` or `*.test.jsx`, for example `src/App.test.jsx` and `src/bannerRerouter/routeGenerator.test.js`.
 
@@ -19,7 +19,7 @@ Use Yarn 1, as pinned in `package.json`.
 - `docker compose -f docker-compose.public.yml up -d`: run the published GHCR image on local backend port `18080`; nginx exposes it publicly on the existing HTTPS port `443` using `docker/openbanners-nginx-container-location.conf` from the `openbanners.org` vhost. The included Watchtower service checks for new images and updates the container automatically.
 - Do not deploy production by running `yarn build` locally or by restarting nginx for app code changes. After a completed change, commit and push to GitHub, wait for the Docker image workflow to publish `ghcr.io/gamer1120/openbanners:latest`, let Watchtower update the `openbanners-public` container, and then verify production at `https://openbanners.org/`.
 - Always commit and push completed changes after verification; use the GitHub Docker image plus Watchtower path for production testing.
-- The Docker image includes PHP-FPM solely for `/banner/:id` metadata fallback. Keep nginx routing for `/banner/` as prerendered static file first, then `server/banner-meta.php`, then normal SPA behavior for unavailable banner metadata.
+- The Docker image runs no PHP: it is based on `node:24-alpine`, and the build fails if a `php*` binary is present; nginx also returns 404 for `.php` URLs. `/banner/:id` metadata fallback is `server/banner-meta.mts`, run directly by Node (erasable TypeScript syntax only: no enums, namespaces or parameter properties; import local files with their `.mts` extension). Keep nginx routing for `/banner/` as prerendered static file first, then the metadata service on `127.0.0.1:8788`, then normal SPA behavior when it is unavailable. Run `node --test server/banner-meta-tests.mts` after changing it; the Docker build runs it too.
 
 ## Coding Style & Naming Conventions
 
@@ -67,7 +67,7 @@ Pull requests should include a summary, testing performed (`yarn test`, `yarn bu
 
 ## Security & Configuration Tips
 
-Do not commit secrets, local tokens, or production certificate material. Treat `server/banner-meta.php`, prerendered metadata, Docker deployment files, nginx proxy snippets, and third-party API contracts as deployment-sensitive paths; verify them through the GitHub Docker image workflow and live production smoke checks when touched.
+Do not commit secrets, local tokens, or production certificate material. Treat `server/banner-meta.mts`, prerendered metadata, Docker deployment files, nginx proxy snippets, and third-party API contracts as deployment-sensitive paths; verify them through the GitHub Docker image workflow and live production smoke checks when touched.
 
 ## Design X (Material 3) UI
 

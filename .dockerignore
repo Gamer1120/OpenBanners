@@ -7,6 +7,7 @@
 !docker/nginx.conf
 !docker/entrypoint.sh
 !server
-!server/banner-meta.php
+!server/banner-meta.mts
+!server/banner-meta-tests.mts
 !server/banner-together-signal.mjs
 !server/banner-together-signal-tests.mjs

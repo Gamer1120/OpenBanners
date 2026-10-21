@@ -3,7 +3,8 @@ import { ThemeProvider } from "@mui/material/styles";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import TopMenu from "./TopMenu";
 import AppNav from "./AppNav";
-import BannersNearMe from "./BannersNearMe";
+import BannersNearMe, { BannersStart } from "./BannersNearMe";
+import SearchPage from "./SearchPage";
 import ListsPage from "./ListsPage";
 import BrowsingPage from "./BrowsingPage";
 import SearchResults from "./SearchResults";
@@ -34,8 +35,11 @@ function LegacyDark({ children, fill = false }) {
 }
 
 const VIEW_TITLES = {
-  browsing: "Browse",
-  agentBrowsing: "Browse",
+  start: "Banners",
+  near: "Banners",
+  browsing: "Banners",
+  agentBrowsing: "Banners",
+  search: "Search",
   map: "Map",
   lists: "Lists",
   searching: "Search",
@@ -126,8 +130,16 @@ function getRouteMetadata({ pathname, placeId, agentName, query }) {
 }
 
 function getCurrentView(pathname) {
+  if (pathname === "/search" || pathname === "/search/") {
+    return "search";
+  }
+
   if (pathname.startsWith("/search/")) {
     return "searching";
+  }
+
+  if (pathname === "/near") {
+    return "near";
   }
 
   if (pathname.startsWith("/browse/")) {
@@ -158,7 +170,7 @@ function getCurrentView(pathname) {
     return "lists";
   }
 
-  return "bannersNearMe";
+  return "start";
 }
 
 export default function Home() {
@@ -179,13 +191,7 @@ export default function Home() {
     readDiscoveryMapFilters
   );
 
-  const handleSearch = (query) => {
-    setCurrentView("searching");
-    navigate(`/search/${encodeURIComponent(query)}`);
-  };
-
   const handleTitleClick = () => {
-    setCurrentView("bannersNearMe");
     navigate("/");
   };
 
@@ -222,10 +228,41 @@ export default function Home() {
     setCurrentView(getCurrentView(location.pathname));
   }, [location.pathname]);
 
+  // "/" opens search (laptop keyboards), unless you are already typing.
+  useEffect(() => {
+    const handleKeyDown = (event) => {
+      const target = event.target;
+
+      if (
+        event.key !== "/" ||
+        event.ctrlKey ||
+        event.metaKey ||
+        event.altKey ||
+        event.defaultPrevented ||
+        target?.isContentEditable ||
+        ["INPUT", "TEXTAREA", "SELECT"].includes(target?.tagName)
+      ) {
+        return;
+      }
+
+      event.preventDefault();
+
+      if (location.pathname === "/search") {
+        document.querySelector(".search-page [role=combobox]")?.focus();
+      } else {
+        navigate("/search");
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [location.pathname, navigate]);
+
   useEffect(() => {
     if (
       location.pathname.startsWith("/browse/") ||
-      location.pathname.startsWith("/agent/")
+      location.pathname.startsWith("/agent/") ||
+      location.pathname === "/near"
     ) {
       setBannerFilters(readBrowseFilters(browseStateScope));
     }
@@ -264,12 +301,17 @@ export default function Home() {
         <TopMenu
           onRerouterClick={handleRerouterClick}
           onTitleClick={handleTitleClick}
-          onSearch={handleSearch}
-          showSearch={currentView !== "bannersNearMe"}
           title={VIEW_TITLES[currentView] ?? ""}
         />
         <main className="ob-main" id="main-content" tabIndex={-1}>
-          {currentView === "bannersNearMe" && <BannersNearMe />}
+          {currentView === "start" && <BannersStart />}
+          {currentView === "near" && (
+            <BannersNearMe
+              bannerFilters={bannerFilters}
+              onBannerFiltersChange={setBrowseBannerFilters}
+            />
+          )}
+          {currentView === "search" && <SearchPage />}
           {currentView === "browsing" && (
             <BrowsingPage
               placeId={placeId}

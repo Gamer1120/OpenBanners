@@ -454,12 +454,6 @@ body {
   white-space: nowrap;
 }
 
-.ob-bar-search {
-  flex: 1;
-  min-width: 0;
-  max-width: 720px;
-}
-
 .ob-bar-actions {
   display: flex;
   align-items: center;
@@ -482,9 +476,6 @@ body {
     display: none;
   }
 
-  .ob-bar.searching .ob-brand {
-    display: none;
-  }
 }
 
 @media (min-width: 840px) {
@@ -629,107 +620,6 @@ body {
 .card h2 {
   margin: 0 0 8px;
   font: 500 16px/24px var(--font);
-}
-
-/* ---------- home ---------- */
-.hero-s {
-  display: grid;
-  gap: 14px;
-  max-width: 720px;
-  padding-top: 12px;
-}
-
-.quick {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 10px;
-}
-
-.q-act {
-  display: grid;
-  gap: 2px;
-  padding: 12px;
-  border-radius: 16px;
-  background: var(--sc-high);
-  color: inherit;
-  text-decoration: none;
-  border: 0;
-  text-align: left;
-  font: inherit;
-  cursor: pointer;
-}
-
-.q-act b {
-  font-size: 15px;
-}
-
-.q-act .q-ic {
-  display: inline-grid;
-  place-items: center;
-  width: 40px;
-  height: 40px;
-  border-radius: 12px;
-  background: var(--primary-container);
-  color: var(--on-primary-container);
-  margin-bottom: 4px;
-}
-
-.q-act .small {
-  font-size: 12px;
-  line-height: 1.3;
-  color: var(--on-surface-variant);
-}
-
-@media (max-width: 420px) {
-  .q-act .small {
-    display: none;
-  }
-
-  .q-act {
-    text-align: center;
-    justify-items: center;
-  }
-}
-
-.city-cta {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  padding: 14px 16px;
-  border-radius: 16px;
-  background: var(--primary-container);
-  color: var(--on-primary-container);
-  text-decoration: none;
-  border: 0;
-  font: inherit;
-  text-align: left;
-  cursor: pointer;
-  width: 100%;
-}
-
-.city-cta .cc-ic {
-  display: inline-grid;
-  place-items: center;
-  width: 40px;
-  height: 40px;
-  border-radius: 12px;
-  background: var(--primary);
-  color: var(--on-primary);
-  flex: none;
-}
-
-.city-cta .grow {
-  min-width: 0;
-  flex: 1;
-}
-
-.city-cta b {
-  display: block;
-  font-size: 16px;
-}
-
-.city-cta .small {
-  opacity: 0.8;
 }
 
 .loc-card {
@@ -2341,4 +2231,35 @@ body {
 
 .ob-alert a {
   color: var(--primary);
+}
+
+/* Scope path on the Banners page: Near you · All countries › … */
+.crumbs.scope {
+  align-items: center;
+}
+
+.scope-near {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.scope-near.on {
+  color: var(--primary);
+  font-weight: 600;
+}
+
+.search-page {
+  max-width: 760px;
+}
+
+.search-head {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.crumbs [aria-current="page"] {
+  color: var(--on-surface);
+  font-weight: 500;
 }

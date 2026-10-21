@@ -1,28 +1,22 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import {
-  ChevronRight,
-  Explore,
-  LocationCity,
-  Map as MapIcon,
-  MyLocation,
-  NearMe,
-} from "@mui/icons-material";
-import BannerWall, { useInfiniteScroll } from "./BannerWall";
-import SearchForm from "./SearchForm";
+import { MyLocation, NearMe } from "@mui/icons-material";
+import BannerWall, { BannerRows, useInfiniteScroll } from "./BannerWall";
 import AboutNotice from "./AboutNotice";
+import BannerFilterButton from "./BannerFilterButton";
+import ViewModeToggle, { useBannerViewMode } from "./ViewModeToggle";
 import {
   fetchBannergress,
   forgetTemporarilyVisibleHiddenBanners,
   useBannergressSync,
 } from "../bannergressSync";
-import { withoutHiddenBanners } from "../bannerFilters";
-import { getBrowseStateScope, resetBrowseState } from "../browseState";
 import {
-  getPlaceName,
-  readCachedCity,
-  resolveCityAt,
-} from "../cityPlace";
+  DEFAULT_BANNER_FILTERS,
+  applyBannerFilters,
+  getMissionCountBounds,
+} from "../bannerFilters";
+import { getBrowseStateScope, resetBrowseState } from "../browseState";
+import { getPlaceName, readCachedCity, resolveCityAt } from "../cityPlace";
 
 const NEARBY_PAGE_SIZE = 24;
 
@@ -39,7 +33,7 @@ const FRESH_LOCATION_OPTIONS = {
   timeout: 4000,
 };
 
-function loadCachedNearbyLocation() {
+export function loadCachedNearbyLocation() {
   if (typeof window === "undefined") {
     return null;
   }
@@ -95,17 +89,87 @@ function saveCachedNearbyLocation(location) {
   } catch {}
 }
 
-export default function BannersNearMe() {
+// "/" decides where the Banners tab opens: near you when location is usable,
+// else the remembered city, else all countries.
+export function BannersStart() {
   const navigate = useNavigate();
+
+  useEffect(() => {
+    let ignore = false;
+    const goToPlaces = () => {
+      if (ignore) {
+        return;
+      }
+
+      const city = readCachedCity()?.place;
+      navigate(city?.id ? `/browse/${encodeURIComponent(city.id)}` : "/browse/", {
+        replace: true,
+      });
+    };
+
+    if (loadCachedNearbyLocation()) {
+      navigate("/near", { replace: true });
+      return undefined;
+    }
+
+    if (typeof navigator !== "undefined" && "geolocation" in navigator && navigator.permissions?.query) {
+      navigator.permissions
+        .query({ name: "geolocation" })
+        .then((result) => {
+          if (ignore) {
+            return;
+          }
+
+          if (result.state === "granted") {
+            navigate("/near", { replace: true });
+          } else {
+            goToPlaces();
+          }
+        })
+        .catch(goToPlaces);
+    } else {
+      goToPlaces();
+    }
+
+    return () => {
+      ignore = true;
+    };
+  }, [navigate]);
+
+  return (
+    <div className="ob-page">
+      <BannerWall banners={[]} skeletonCount={8} label="Loading banners" />
+    </div>
+  );
+}
+
+export default function BannersNearMe({
+  bannerFilters = DEFAULT_BANNER_FILTERS,
+  onBannerFiltersChange,
+}) {
   const [location, setLocation] = useState(null);
   const [bannerData, setBannerData] = useState([]);
   // Coming back here drops banners that were only kept visible right after "Hide".
   useState(forgetTemporarilyVisibleHiddenBanners);
   const syncState = useBannergressSync();
-  const visibleBanners = useMemo(
-    () => withoutHiddenBanners(bannerData, syncState),
-    [bannerData, syncState]
-  );
+  const [viewMode, setViewMode] = useBannerViewMode();
+  const visibleBanners = useMemo(() => {
+    const { minimumMissions, maximumMissions } = getMissionCountBounds(bannerFilters);
+
+    return applyBannerFilters(bannerData, syncState, bannerFilters).filter((banner) => {
+      const missions = Number(banner?.numberOfMissions);
+
+      if (!Number.isFinite(missions)) {
+        return true;
+      }
+
+      return (
+        (minimumMissions === null || missions >= minimumMissions) &&
+        (maximumMissions === null || missions <= maximumMissions)
+      );
+    });
+  }, [bannerData, bannerFilters, syncState]);
+  const showOffline = Boolean(bannerFilters?.showOfflineBanners);
   const [loading, setLoading] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(true);
@@ -116,7 +180,6 @@ export default function BannersNearMe() {
     const cached = readCachedCity();
     return cached?.picked ? cached.place : null;
   });
-  const nearSectionRef = useRef(null);
   const sentinelRef = useRef(null);
   const requestInFlightRef = useRef(false);
 
@@ -220,11 +283,13 @@ export default function BannersNearMe() {
 
   const loadPage = useCallback(
     async (offset, { signal } = {}) => {
-      const apiUrl = `https://api.bannergress.com/bnrs?orderBy=proximityStartPoint&orderDirection=ASC&online=true&proximityLatitude=${location.latitude}&proximityLongitude=${location.longitude}&limit=${NEARBY_PAGE_SIZE}&offset=${offset}`;
+      const apiUrl = `https://api.bannergress.com/bnrs?orderBy=proximityStartPoint&orderDirection=ASC${
+        showOffline ? "" : "&online=true"
+      }&proximityLatitude=${location.latitude}&proximityLongitude=${location.longitude}&limit=${NEARBY_PAGE_SIZE}&offset=${offset}`;
       const response = await fetchBannergress(apiUrl, { signal });
       return response.json();
     },
-    [location]
+    [location, showOffline]
   );
 
   useEffect(() => {
@@ -340,160 +405,126 @@ export default function BannersNearMe() {
     handleGrantLocationAccess();
   };
 
-  const handleNearbyClick = () => {
-    nearSectionRef.current?.scrollIntoView?.({ behavior: "smooth", block: "start" });
-
-    if (!location && permissionState !== "denied" && permissionState !== "unsupported") {
-      handleGrantLocationAccess();
-    }
-  };
-
-  const openCity = (place) => {
-    resetBrowseState(getBrowseStateScope({ placeId: place.id }));
-    navigate(`/browse/${encodeURIComponent(place.id)}`);
-  };
-
   const cityName = getPlaceName(city);
 
   return (
     <div className="ob-page">
-      <section className="hero-s" aria-labelledby="home-title">
-        <h1 className="ob-h1" id="home-title">
-          Find a banner
-        </h1>
-        <SearchForm big placeholder="Search banners or places" />
-        <div className="quick">
-          <button type="button" className="q-act sl" onClick={handleNearbyClick}>
-            <span className="q-ic">
+      <header className="ob-sec-head" style={{ alignItems: "flex-start" }}>
+        <div style={{ minWidth: 0 }}>
+          <nav className="crumbs scope" aria-label="Scope">
+            <span className="scope-near on" aria-current="page">
+              <NearMe fontSize="inherit" />
+              Near you
+            </span>
+            <span aria-hidden="true">·</span>
+            <Link to="/browse/" onClick={() => resetBrowseState(getBrowseStateScope())}>
+              All countries
+            </Link>
+            {city?.id ? (
+              <>
+                <span aria-hidden="true">·</span>
+                <Link
+                  to={`/browse/${encodeURIComponent(city.id)}`}
+                  onClick={() => resetBrowseState(getBrowseStateScope({ placeId: city.id }))}
+                >
+                  {cityName}
+                </Link>
+              </>
+            ) : null}
+          </nav>
+          <h1 className="ob-h1">Near you</h1>
+          <p className="small muted">Closest start point first.</p>
+        </div>
+      </header>
+
+      <section aria-label="Banners near you" style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+        <div className="toolbar">
+          <BannerFilterButton
+            filters={bannerFilters}
+            onChange={onBannerFiltersChange}
+            showMinimumMissionsFilter
+          />
+          <span className="grow" />
+          <ViewModeToggle viewMode={viewMode} onChange={setViewMode} />
+        </div>
+
+        {!location && (showPermissionPrompt || permissionState === "checking" || permissionState === "unknown") ? (
+          <div className="loc-card">
+            <span className="loc-ic">
               <NearMe />
             </span>
-            <b>Nearby</b>
-            <span className="small">Closest start points</span>
-          </button>
-          <Link className="q-act sl" to="/map">
-            <span className="q-ic">
-              <MapIcon />
-            </span>
-            <b>Map</b>
-            <span className="small">All banners on a map</span>
-          </Link>
-          <Link
-            className="q-act sl"
-            to="/browse/"
-            onClick={() => resetBrowseState(getBrowseStateScope())}
-          >
-            <span className="q-ic">
-              <Explore />
-            </span>
-            <b>Browse</b>
-            <span className="small">By city or region</span>
-          </Link>
-        </div>
-        {city ? (
-          <Link
-            className="city-cta sl"
-            to={`/browse/${encodeURIComponent(city.id)}`}
-            onClick={() => resetBrowseState(getBrowseStateScope({ placeId: city.id }))}
-          >
-            <span className="cc-ic">
-              <LocationCity />
-            </span>
-            <span className="grow">
-              <b>Banners in {cityName}</b>
+            <div className="grow">
+              <b>See what’s around you</b>
               <span className="small">
-                {Number.isFinite(city.numberOfBanners)
-                  ? `${city.numberOfBanners} banners · `
-                  : ""}
-                {city.formattedAddress}
+                Enable location access to load nearby banners. Your location
+                stays in this browser, only the search itself is sent.
               </span>
-            </span>
-            <ChevronRight className="cc-go" />
-          </Link>
+              <div className="acts">
+                <button type="button" className="btn filled sl" onClick={handleGrantLocationAccess}>
+                  <MyLocation fontSize="small" />
+                  Grant location access
+                </button>
+              </div>
+            </div>
+          </div>
+        ) : null}
+
+        {!showPermissionPrompt && permissionState === "denied" ? (
+          <div className="ob-alert warn" role="alert">
+            <div className="grow">
+              Location access is blocked. Allow it in your browser to use nearby
+              banners, or pick a place under <Link to="/browse/">All countries</Link>.
+            </div>
+            <button type="button" className="btn text sl" onClick={handleRetry}>
+              Retry
+            </button>
+          </div>
+        ) : null}
+
+        {error ? (
+          <div className="ob-alert bad" role="alert">
+            <div className="grow">{error}</div>
+            <button type="button" className="btn text sl" onClick={handleRetry}>
+              Retry
+            </button>
+          </div>
+        ) : null}
+
+        {loading && !showPermissionPrompt ? (
+          viewMode === "compact" ? (
+            <BannerRows banners={[]} loadingMore label="Loading banners" />
+          ) : (
+            <BannerWall banners={[]} skeletonCount={8} label="Loading banners" />
+          )
+        ) : null}
+
+        {!loading && !error && location && visibleBanners.length === 0 && (!hasMore || bannerData.length === 0) ? (
+          <div className="ob-alert">No nearby banners match.</div>
+        ) : null}
+
+        {!loading && visibleBanners.length > 0 ? (
+          viewMode === "compact" ? (
+            <BannerRows
+              banners={visibleBanners}
+              here={location}
+              loadingMore={loadingMore}
+              label="Banners near you"
+            />
+          ) : (
+            <BannerWall
+              banners={visibleBanners}
+              here={location}
+              loadingMore={loadingMore}
+              label="Banners near you"
+            />
+          )
+        ) : null}
+        {!loading && bannerData.length > 0 && hasMore ? (
+          <div ref={sentinelRef} style={{ height: 1 }} />
         ) : null}
       </section>
 
-      <section ref={nearSectionRef} aria-labelledby="near-title" style={{ scrollMarginTop: 80 }}>
-        <div className="ob-sec-head" style={{ marginBottom: 12 }}>
-          <div>
-            <h2 className="ob-h2" id="near-title">
-              Banners near you
-            </h2>
-            <p className="small muted">Closest start point first.</p>
-          </div>
-        </div>
-
-        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-          {!location && (showPermissionPrompt || permissionState === "checking" || permissionState === "unknown") ? (
-            <div className="loc-card">
-              <span className="loc-ic">
-                <NearMe />
-              </span>
-              <div className="grow">
-                <b>See what’s around you</b>
-                <span className="small">
-                  Enable location access to load nearby banners. Your location
-                  stays in this browser, only the search itself is sent.
-                </span>
-                <div className="acts">
-                  <button type="button" className="btn filled sl" onClick={handleGrantLocationAccess}>
-                    <MyLocation fontSize="small" />
-                    Grant location access
-                  </button>
-                </div>
-              </div>
-            </div>
-          ) : null}
-
-          {!showPermissionPrompt && permissionState === "denied" ? (
-            <div className="ob-alert warn" role="alert">
-              <div className="grow">
-                Location access is blocked. Allow it in your browser to use nearby
-                banners.
-              </div>
-              <button type="button" className="btn text sl" onClick={handleRetry}>
-                Retry
-              </button>
-            </div>
-          ) : null}
-
-          {error ? (
-            <div className="ob-alert bad" role="alert">
-              <div className="grow">{error}</div>
-              <button type="button" className="btn text sl" onClick={handleRetry}>
-                Retry
-              </button>
-            </div>
-          ) : null}
-
-          {loading && !showPermissionPrompt ? (
-            <>
-              <p className="small muted">Loading banners near you...</p>
-              <BannerWall banners={[]} skeletonCount={8} label="Loading banners" />
-            </>
-          ) : null}
-
-          {!loading && !error && location && visibleBanners.length === 0 && (!hasMore || bannerData.length === 0) ? (
-            <div className="ob-alert">No nearby banners were found for your current location.</div>
-          ) : null}
-
-          {!loading && visibleBanners.length > 0 ? (
-            <>
-              <BannerWall
-                banners={visibleBanners}
-                here={location}
-                loadingMore={loadingMore}
-                label="Banners near you"
-              />
-            </>
-          ) : null}
-          {!loading && bannerData.length > 0 && hasMore ? (
-            <div ref={sentinelRef} style={{ height: 1 }} />
-          ) : null}
-        </div>
-      </section>
-
       <AboutNotice />
-
     </div>
   );
 }

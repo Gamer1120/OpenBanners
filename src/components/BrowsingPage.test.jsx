@@ -198,7 +198,7 @@ test("top browse navigation resets saved root browse filters", async () => {
   );
 
   expect(await screen.findByText("Search: reset")).toBeInTheDocument();
-  await user.click(screen.getByRole("link", { name: /^browse$/i }));
+  await user.click(screen.getByRole("link", { name: /^banners$/i }));
 
   await waitFor(() => {
     expect(readBrowseState(rootScope).filters).toEqual(DEFAULT_BANNER_FILTERS);

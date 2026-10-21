@@ -540,7 +540,7 @@ test("renders browsing results and places list", async () => {
     { route: "/browse/" }
   );
 
-  expect(await screen.findByText("All countries")).toBeInTheDocument();
+  expect((await screen.findAllByText("All countries")).length).toBeGreaterThan(0);
   expect(await screen.findByText("Browse Banner")).toBeInTheDocument();
   expect(await screen.findByText(/Netherlands/)).toBeInTheDocument();
   expect(
@@ -1115,11 +1115,9 @@ test("uses cached country places without refetching", async () => {
   expect(global.fetch).not.toHaveBeenCalled();
 });
 
-test("submits top menu searches, fires menu callbacks, and navigates map route", async () => {
+test("bottom bar has Banners and Search, fires menu callbacks, and navigates map route", async () => {
   const onRerouterClick = vi.fn();
   const onTitleClick = vi.fn();
-  const onSearch = vi.fn();
-
   renderWithProviders(
     <Routes>
       <Route
@@ -1130,7 +1128,6 @@ test("submits top menu searches, fires menu callbacks, and navigates map route",
             <TopMenu
               onRerouterClick={onRerouterClick}
               onTitleClick={onTitleClick}
-              onSearch={onSearch}
             />
             <LocationDisplay />
           </>
@@ -1141,26 +1138,15 @@ test("submits top menu searches, fires menu callbacks, and navigates map route",
     { route: "/" }
   );
 
-  expect(screen.getByRole("link", { name: /^browse$/i })).toHaveAttribute(
-    "href",
-    "/browse/"
-  );
+  // Bottom bar: Banners (start page) and Search replace Home / Browse.
+  expect(screen.getByRole("link", { name: /^banners$/i })).toHaveAttribute("href", "/");
+  expect(screen.getByRole("link", { name: /^search$/i })).toHaveAttribute("href", "/search");
+  expect(screen.queryByRole("link", { name: /^home$/i })).not.toBeInTheDocument();
+  // The search field moved to the Search tab.
+  expect(screen.queryByPlaceholderText("Search banners or places")).not.toBeInTheDocument();
 
   await userEvent.click(screen.getByRole("button", { name: /go to home page/i }));
   expect(onTitleClick).toHaveBeenCalledTimes(1);
-
-  await userEvent.type(
-    screen.getByPlaceholderText("Search banners or places"),
-    "enschede{enter}"
-  );
-  expect(onSearch).toHaveBeenCalledWith("enschede");
-
-  await userEvent.clear(screen.getByPlaceholderText("Search banners or places"));
-  await userEvent.type(
-    screen.getByPlaceholderText("Search banners or places"),
-    "{enter}"
-  );
-  expect(onSearch).toHaveBeenCalledTimes(1);
 
   await userEvent.click(screen.getByRole("button", { name: /more options/i }));
   await userEvent.click(screen.getByRole("menuitem", { name: /reroute banner/i }));

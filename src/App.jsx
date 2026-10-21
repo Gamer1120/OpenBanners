@@ -61,7 +61,9 @@ function App() {
             path="/bannerguiderwithoutlocation/:bannerId"
             element={<BannerGuiderWithoutLocation />}
           />
+          <Route path="/search" element={<Home />} />
           <Route path="/search/:query" element={<Home />} />
+          <Route path="/near" element={<Home />} />
           <Route path="/map" element={<Home />} />
           <Route path="/lists" element={<Home />} />
           <Route path="/lists/together" element={<Home />} />

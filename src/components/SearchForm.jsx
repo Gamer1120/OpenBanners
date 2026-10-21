@@ -7,6 +7,7 @@ import { fetchBannergress, useBannergressSync } from "../bannergressSync";
 import { isBannerHidden } from "../bannerFilters";
 import { getBrowseStateScope, resetBrowseState } from "../browseState";
 import { getFlagForPlace } from "./CountryFlags";
+import { addRecentSearch } from "../recentSearches";
 
 const MIN_QUERY_LENGTH = 2;
 const DEBOUNCE_MS = 300;
@@ -37,6 +38,8 @@ export default function SearchForm({
   className = "",
   placeholder = "Search banners or places",
   onSearch,
+  autoFocus = false,
+  onValueChange,
 }) {
   const { query } = useParams();
   const navigate = useNavigate();
@@ -124,6 +127,7 @@ export default function SearchForm({
 
   const pick = (item) => {
     close();
+    addRecentSearch(trimmed);
 
     if (item.kind === "place") {
       savePickedCity(item.place);
@@ -141,6 +145,7 @@ export default function SearchForm({
     }
 
     close();
+    addRecentSearch(trimmed);
 
     if (typeof onSearch === "function") {
       onSearch(trimmed);
@@ -272,9 +277,11 @@ export default function SearchForm({
           autoComplete="off"
           value={value}
           enterKeyHint="search"
+          autoFocus={autoFocus}
           onChange={(event) => {
             setValue(event.target.value);
             setOpen(true);
+            onValueChange?.(event.target.value);
           }}
           onFocus={() => setOpen(true)}
           onKeyDown={handleKeyDown}

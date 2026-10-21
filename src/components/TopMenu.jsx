@@ -31,7 +31,6 @@ import {
   serializeBannergressPendingAuth,
 } from "../bannergressSync";
 import AppLogo from "./AppLogo";
-import SearchForm from "./SearchForm";
 
 const AUTH_POLL_INTERVAL_MS = 1500;
 const AUTH_POLL_TIMEOUT_MS = 120000;
@@ -72,8 +71,6 @@ function isRunningInAndroidApp() {
 export default function TopMenu({
   onRerouterClick,
   onTitleClick,
-  onSearch,
-  showSearch = true,
   title = "",
 }) {
   const authSupportedOrigin = isBannergressAuthSupportedOrigin();
@@ -418,7 +415,7 @@ export default function TopMenu({
 
   return (
     <>
-      <header className={`ob-bar${showSearch ? " searching" : ""}`}>
+      <header className="ob-bar">
         <button
           type="button"
           className="ob-brand sl"
@@ -428,9 +425,6 @@ export default function TopMenu({
           <AppLogo />
           <span className="ob-brand-text">{title || "OpenBanners"}</span>
         </button>
-        {showSearch ? (
-          <SearchForm className="ob-bar-search" onSearch={onSearch} />
-        ) : null}
         <div className="ob-bar-actions">
           <button
             type="button"

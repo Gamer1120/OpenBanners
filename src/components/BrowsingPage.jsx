@@ -6,14 +6,14 @@ import React, {
   useState,
 } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Close, LocationCity } from "@mui/icons-material";
+import { NearMe } from "@mui/icons-material";
+import { savePickedCity } from "../cityPlace";
 import BannerWall, { BannerRows, useInfiniteScroll } from "./BannerWall";
 import ViewModeToggle, { useBannerViewMode } from "./ViewModeToggle";
 import SortingButtons from "./SortingButtons";
 import AboutNotice from "./AboutNotice";
 import PlaceCloud, { getChipName, usePlaces } from "./PlaceCloud";
 import { getFlagForPlace } from "./CountryFlags";
-import { getPlaceName } from "../cityPlace";
 import {
   fetchBannergress,
   forgetTemporarilyVisibleHiddenBanners,
@@ -191,6 +191,13 @@ export default function BrowsingPage({
   const currentPlace = useCurrentPlace(placeId);
   const placesState = usePlaces(placeId, !authorName);
   const placeTrail = useMemo(() => getPlaceTrail(currentPlace), [currentPlace]);
+
+  // A city you browse to becomes the Banners tab's start page when location is off.
+  useEffect(() => {
+    if (currentPlace?.id && currentPlace.type === "locality") {
+      savePickedCity(currentPlace);
+    }
+  }, [currentPlace]);
 
   const handleSort = (option) => {
     if (option === sortOption) {
@@ -554,7 +561,7 @@ export default function BrowsingPage({
     displayedBanners.length === 0 ||
     displayedBanners.length < Math.min(filteredPrefetchTarget, banners.length);
   const isAgentView = Boolean(authorName);
-  const isCity = currentPlace?.type === "locality";
+  const canUseLocation = typeof navigator !== "undefined" && "geolocation" in navigator;
   const placeName = currentPlace
     ? getChipName(currentPlace, currentPlace.type === "country")
     : "";
@@ -627,10 +634,29 @@ export default function BrowsingPage({
     <div className="ob-page" ref={resultsAreaRef}>
       <header className="ob-sec-head" style={{ alignItems: "flex-start" }}>
         <div style={{ minWidth: 0 }}>
-          {placeId && !isAgentView ? (
-            <nav className="crumbs" aria-label="Place">
-              <Link to="/browse/">All countries</Link>
-              {placeTrail.map((place) => (
+          {!isAgentView ? (
+            <nav className="crumbs scope" aria-label="Scope">
+              {canUseLocation ? (
+                <>
+                  <Link className="scope-near" to="/near">
+                    <NearMe fontSize="inherit" />
+                    Near you
+                  </Link>
+                  <span aria-hidden="true">·</span>
+                </>
+              ) : null}
+              {placeId ? (
+                <Link to="/browse/">All countries</Link>
+              ) : (
+                <span aria-current="page">All countries</span>
+              )}
+              {placeTrail
+                .filter(
+                  (place) =>
+                    !currentPlace ||
+                    getChipName(place, false) !== getChipName(currentPlace, false)
+                )
+                .map((place) => (
                 <React.Fragment key={place.id}>
                   <span aria-hidden="true">›</span>
                   <Link to={`/browse/${encodeURIComponent(place.id)}`}>
@@ -638,6 +664,14 @@ export default function BrowsingPage({
                   </Link>
                 </React.Fragment>
               ))}
+              {placeId && currentPlace ? (
+                <>
+                  <span aria-hidden="true">›</span>
+                  <span aria-current="page">
+                    {getChipName(currentPlace, currentPlace.type === "country")}
+                  </span>
+                </>
+              ) : null}
             </nav>
           ) : null}
           <h1 className="ob-h1">
@@ -678,29 +712,6 @@ export default function BrowsingPage({
           <span className="grow" />
           <ViewModeToggle viewMode={viewMode} onChange={handleViewModeChange} />
         </div>
-
-        {isAgentView ? null : (
-          <div className="toolbar">
-            {isCity ? (
-              <>
-                <span className="chip city-chip">
-                  <LocationCity fontSize="small" />
-                  {getPlaceName(currentPlace)}
-                  <button
-                    type="button"
-                    className="x sl"
-                    aria-label={`Clear city ${getPlaceName(currentPlace)}`}
-                    onClick={() => navigate("/browse/")}
-                  >
-                    <Close fontSize="small" />
-                  </button>
-                </span>
-              </>
-            ) : (
-null
-            )}
-          </div>
-        )}
 
         {error ? (
           <div className="ob-alert bad" role="alert">

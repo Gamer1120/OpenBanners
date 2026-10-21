@@ -5,8 +5,8 @@ import {
   Bookmarks,
   Explore,
   ExploreOutlined,
-  Home as HomeIcon,
-  HomeOutlined,
+  Search as SearchIcon,
+  SearchOutlined,
   Map as MapIcon,
   MapOutlined,
 } from "@mui/icons-material";
@@ -15,23 +15,25 @@ import AppLogo from "./AppLogo";
 
 const NAV_ITEMS = [
   {
-    key: "home",
-    label: "Home",
+    key: "banners",
+    label: "Banners",
     to: "/",
-    icon: HomeOutlined,
-    activeIcon: HomeIcon,
-    match: (pathname) => pathname === "/" || pathname.startsWith("/search/"),
-  },
-  {
-    key: "browse",
-    label: "Browse",
-    to: "/browse/",
     icon: ExploreOutlined,
     activeIcon: Explore,
     match: (pathname) =>
+      pathname === "/" ||
+      pathname === "/near" ||
       pathname.startsWith("/browse") ||
       pathname.startsWith("/agent/") ||
       pathname.startsWith("/banner/"),
+  },
+  {
+    key: "search",
+    label: "Search",
+    to: "/search",
+    icon: SearchOutlined,
+    activeIcon: SearchIcon,
+    match: (pathname) => pathname.startsWith("/search"),
   },
   {
     key: "map",
@@ -70,7 +72,7 @@ export default function AppNav() {
             className="ob-nav-item"
             aria-current={active ? "page" : undefined}
             onClick={() => {
-              if (item.key === "browse") {
+              if (item.key === "banners") {
                 resetBrowseState(getBrowseStateScope());
               }
             }}

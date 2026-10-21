@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { LocationCity, Place } from "@mui/icons-material";
 import BannerWall, { BannerRows } from "./BannerWall";
+import SearchForm from "./SearchForm";
 import ViewModeToggle, { useBannerViewMode } from "./ViewModeToggle";
 import { getFlagForPlace } from "./CountryFlags";
 import { fetchBannergress } from "../bannergressSync";
@@ -109,7 +110,8 @@ export default function SearchResults() {
 
   return (
     <div className="ob-page">
-      <header>
+      <header className="search-head">
+        <SearchForm placeholder="Banners, cities or regions" />
         <h1 className="ob-h1">Search: {query}</h1>
       </header>
 

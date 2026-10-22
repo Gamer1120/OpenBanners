@@ -46,8 +46,10 @@ export function renderReview(review, rows, siteUrl) {
     const state = stateOf(row);
     counts[state] += 1;
     const answer = state === "rejected" ? `<s>${escapeHtml(item.answer)}</s>` : `<code>${escapeHtml(item.answer)}</code>`;
+    const kind = row?.kind === "number" || item.kind === "number" ? " <i>(mission number)</i>" : "";
     const note =
-      state === "approved" ? ` · visible ${shortDate(row.visible_at)}` : state === "live" ? " · live" : state === "rejected" ? " · rejected" : "";
+      kind +
+      (state === "approved" ? ` · visible ${shortDate(row.visible_at)}` : state === "live" ? " · live" : state === "rejected" ? " · rejected" : "");
     const instead = item.alt ? `\n      instead of <code>${escapeHtml(item.alt)}</code>${item.altRemoved ? " (removed)" : ""}` : "";
     return `${ICON[state]} ${place(item)}  ${answer}${note}${instead}`;
   });
@@ -58,6 +60,7 @@ export function renderReview(review, rows, siteUrl) {
     `${review.items.length} answer${review.items.length > 1 ? "s" : ""} (mission.waypoint)` +
       (counts.review ? ` · ${counts.review} to review` : "") +
       (counts.approved ? ` · ${counts.approved} approved` : ""),
+    "<i>Approve: mission numbers show at once, typed answers after their 30 days.</i>",
     "",
   ];
   let text = head.join("\n");
@@ -99,7 +102,7 @@ export function keyboardFor(review, rows) {
     inline_keyboard: toReview
       ? [
           [
-            { text: "✅ Approve all (30 days)", callback_data: cb("a") },
+            { text: "✅ Approve all", callback_data: cb("a") },
             { text: "🚀 Publish all now", callback_data: cb("p") },
           ],
           [
@@ -197,6 +200,7 @@ export function createModerationBot({
       m: row.mission_index,
       w: row.step_index,
       answer: row.answer,
+      kind: row.kind,
       by: row.submitter_agent,
       ...(row.others ? { alt: row.others } : {}),
     }));

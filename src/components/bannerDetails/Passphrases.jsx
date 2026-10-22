@@ -209,7 +209,7 @@ function AddAnswer({ d, missionId, missionIndex, stepIndex, suggest = false, ope
         setOpen(false);
         setText("");
         setAskRest(isNumber && !suggest);
-        setSent(suggest ? (isNumber || pass.isAuthor ? "Thanks! Your answer is visible now." : "Thanks! Your answer is in review.") : "");
+        setSent(suggest ? (pass.isAuthor ? "Thanks! Your answer is visible now." : "Thanks! Your answer is in review.") : "");
       },
       (e) => {
         setError(e.message);
@@ -271,7 +271,9 @@ export function WaypointAnswer({ d, missionId, missionIndex, stepIndex }) {
           {answer.answer !== null ? <b>{answer.answer}</b> : "Answer suggested"}
           {pass.isAuthor
             ? " · waiting for you to publish it"
-            : answer.reviewed
+            : answer.kind === "number"
+              ? " · mission number, in review"
+              : answer.reviewed
               ? ` · visible from ${longDate(answer.visibleAt)}, unless the author objects`
               : ` · in review, visible from ${longDate(answer.visibleAt)} at the earliest`}
         </div>

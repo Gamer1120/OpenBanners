@@ -38,13 +38,15 @@ test("reading is public, writing needs a login", async () => {
   await assert.rejects(service.handle("POST", "/banners/b1/answers", {}, { answers: [] }), { status: 401 });
 });
 
-test("mission-number answers go live at once and can be confirmed", async () => {
+test("mission-number answers show as soon as a moderator approves, and can be confirmed", async () => {
   const { service, as } = setup();
   const result = await service.handle("POST", "/banners/b1/answers", as("alice"), {
     answers: [{ missionId: "m2", stepIndex: 0, kind: "number" }],
   });
   assert.equal(result.answers[0].answer, "2");
-  assert.equal(result.answers[0].status, "live");
+  assert.equal(result.answers[0].status, "pending");
+  assert.equal((await service.handle("GET", "/banners/b1", {}, null)).answers[0].answer, null);
+  assert.equal(service.moderation.decide(result.answers[0].id, "approve").status, "live");
   const voted = await service.handle("POST", `/answers/${result.answers[0].id}/vote`, as("bob"), { vote: "confirm" });
   assert.equal(voted.answers[0].confirms, 1);
   assert.equal(voted.answers[0].myVote, "confirm");
@@ -94,11 +96,12 @@ test("moderation: approve waits out the 30 days, publish shows now, reject delet
   assert.equal(notified, 0);
 });
 
-test("mission numbers and authors' answers need no moderation", async () => {
+test("authors' answers need no moderation, mission numbers do", async () => {
   const { service, as } = setup();
-  await service.handle("POST", "/banners/b1/answers", as("alice"), { answers: [{ missionId: "m2", stepIndex: 0, kind: "number" }] });
   await service.handle("POST", "/banners/b1/answers", as("maker"), { answers: [{ missionId: "m1", stepIndex: 1, kind: "text", text: "x" }] });
   assert.deepEqual(service.moderation.awaitingReview(), []);
+  await service.handle("POST", "/banners/b1/answers", as("alice"), { answers: [{ missionId: "m2", stepIndex: 0, kind: "number" }] });
+  assert.deepEqual(service.moderation.awaitingReview().map((row) => row.kind), ["number"]);
 });
 
 test("only steps that ask for a passphrase are accepted", async () => {

@@ -3,8 +3,9 @@
 // - Reading is public. Submitting, voting and author actions need a Bannergress
 //   login: the browser sends its Bannergress access token, which is checked by
 //   asking Bannergress `GET /user` and is never stored or logged.
-// - "Mission number" answers go live at once. Other answers stay pending and
-//   hidden for PENDING_DAYS, unless a banner author approves them sooner.
+// - "Mission number" answers go live once a moderator approves them. Other
+//   answers stay pending and hidden for PENDING_DAYS (and need a moderator's
+//   approval too), unless a banner author approves them sooner.
 // - Authors are verified agents (`/user` -> `agent`, set only after Bannergress
 //   verification) who authored a mission of the banner. They can add answers
 //   (live at once), approve or delete suggestions, and object for one banner or
@@ -336,11 +337,13 @@ export function createPassphraseService({ db, fetchImpl = fetch, now = () => Dat
     try {
       for (const { mission, step, kind, answer, stepIndex } of prepared) {
         const normalized = normalizeAnswer(answer);
-        const live = kind === "number" || author;
+        // Authors' answers are live at once. Everything else waits for a moderator;
+        // mission numbers show as soon as one approves, typed answers after the 30 days.
+        const live = author;
         const row = insert.get(
           bannerId, mission.id, mission.index, stepIndex, step.poiId, kind, answer, normalized,
           author ? "author" : "crowd", live ? "live" : "pending", identity.userId, at,
-          live ? at : at + PENDING_DAYS * DAY_MS,
+          live || kind === "number" ? at : at + PENDING_DAYS * DAY_MS,
           live ? at : null,
           identity.agent
         );

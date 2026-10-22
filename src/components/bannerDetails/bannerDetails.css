@@ -325,3 +325,41 @@
 .a-about .desc ol {
   padding-left: 20px;
 }
+
+/* Passphrases: the alert's button, a chip on the mission, the key on the waypoint and in the map sheet. */
+.ob-alert .ob-alert-action {
+  margin: 6px 0 0 -12px;
+  color: inherit;
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.chip.mini.warn {
+  background: var(--warn-container);
+  color: var(--on-warn-container);
+  box-shadow: none;
+}
+
+.wp.pass .wo,
+.mission.sel .wp.pass .wo {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--on-warn-container);
+}
+
+.wp.pass .wo svg,
+.bp-sheet-pass svg {
+  width: 14px;
+  height: 14px;
+  flex: none;
+}
+
+.bp-sheet-pass {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 6px;
+  color: var(--on-warn-container);
+}

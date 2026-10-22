@@ -10,6 +10,7 @@ import {
   FitScreen,
   FormatListNumbered,
   HourglassTop,
+  Key,
   MyLocation,
   OpenInNew,
   Place,
@@ -37,12 +38,15 @@ import BannerImage from "../BannerImage";
 import SimpleMarkdown from "./SimpleMarkdown";
 import {
   formatEvent,
+  formatMissionNumbers,
   getActionCounts,
   getLastChecked,
   getMissionTypes,
+  getPassphraseMissions,
   getStartToFinishMeters,
   getTotalDurationMs,
   getUniquePortals,
+  isPassphraseStep,
   MISSION_TYPE_LABELS,
   plannedOfflineTone,
 } from "../../bannerFacts";
@@ -301,6 +305,7 @@ export function MissionItem({ mission, index, color, selected, expanded, onToggl
   const duration = formatDuration(mission.averageDurationMilliseconds);
   const firstPosition = getStepPosition(steps[0]);
   const length = Number(mission.lengthMeters);
+  const passphrases = steps.filter(isPassphraseStep).length;
 
   return (
     <li
@@ -336,6 +341,12 @@ export function MissionItem({ mission, index, color, selected, expanded, onToggl
                 <span className="chip mini bad">
                   <CloudOff />
                   Offline
+                </span>
+              ) : null}
+              {passphrases ? (
+                <span className="chip mini warn">
+                  <Key />
+                  {passphrases > 1 ? `${passphrases} passphrases` : "Passphrase"}
                 </span>
               ) : null}
               {typeLabel ? <span>{typeLabel}</span> : null}
@@ -395,13 +406,19 @@ export function MissionItem({ mission, index, color, selected, expanded, onToggl
                       {title}
                       {unavailable ? <span className="sr"> (no longer in Ingress)</span> : null}
                     </span>
-                    <span className="wo">{objective}</span>
+                    <span className="wo">
+                      {isPassphraseStep(step) ? <Key aria-hidden="true" /> : null}
+                      {objective}
+                    </span>
                   </span>
                 </>
               );
 
               return (
-                <li key={`${poi.id ?? "wp"}-${stepIndex}`} className={`wp${unavailable ? " un" : ""}`}>
+                <li
+                  key={`${poi.id ?? "wp"}-${stepIndex}`}
+                  className={`wp${unavailable ? " un" : ""}${isPassphraseStep(step) ? " pass" : ""}`}
+                >
                   {position && !unavailable ? (
                     <a
                       className="sl"
@@ -876,6 +893,7 @@ export function useBannerDetails({ tabs = true } = {}) {
   const lastChecked = getLastChecked(missions, missionCount);
   const startToFinish = getStartToFinishMeters(missions);
   const perKm = getMissionsPerKm(items);
+  const passphraseMissions = getPassphraseMissions(missions);
 
   return {
     bannerId,
@@ -898,6 +916,14 @@ export function useBannerDetails({ tabs = true } = {}) {
     expandedMissions,
     toggleMission,
     showInList,
+    showPassphrases: () => {
+      const indexes = passphraseMissions.map((entry) => entry.index);
+      if (!indexes.length) {
+        return;
+      }
+      setExpandedMissions((current) => new Set([...current, ...indexes]));
+      showInList(indexes[0]);
+    },
     handleMapSelect,
     missionItemRefs,
     mapRef,
@@ -931,6 +957,7 @@ export function useBannerDetails({ tabs = true } = {}) {
       : null,
     startToFinishLabel: startToFinish !== null ? formatLength(startToFinish) : null,
     eventLabel: formatEvent(items.eventStartDate, items.eventEndDate),
+    passphraseMissions,
     submittedCount: Number(items.numberOfSubmittedMissions) || 0,
     distanceLabel: formatLength(items.lengthMeters),
     durationLabel: totalDuration === null ? (missions.length ? "Missing data" : null) : formatDuration(totalDuration),
@@ -1064,6 +1091,7 @@ export function StatusAlerts({ d }) {
           </div>
         </div>
       ) : null}
+      <PassphraseAlert d={d} />
       {d.submittedCount > 0 ? (
         <div className="ob-alert" role="note">
           <HourglassTop />
@@ -1094,6 +1122,36 @@ export function StatusAlerts({ d }) {
         </div>
       ) : null}
     </>
+  );
+}
+
+// Passphrase steps need an answer you usually only find on site, so say so up
+// front and name the missions; the button opens them in the mission list.
+export function PassphraseAlert({ d }) {
+  const entries = d.passphraseMissions ?? [];
+  if (d.isLoading || !entries.length) {
+    return null;
+  }
+  const all = entries.length === d.missions.length && entries.length > 1;
+  const indexes = entries.map((entry) => entry.index);
+  const title = all
+    ? "Every mission asks for a passphrase"
+    : `${formatMissionNumbers(indexes)} ${indexes.length > 1 ? "ask" : "asks"} for a passphrase`;
+
+  return (
+    <div className="ob-alert warn" role="note">
+      <Key />
+      <div className="grow">
+        <b>{title}</b>
+        <span className="small">
+          At those waypoints Ingress asks a question and you type in the answer. It’s usually
+          something to spot on site, like text on a sign, so look around when you get there.
+        </span>
+        <button type="button" className="btn text sl ob-alert-action" onClick={d.showPassphrases}>
+          {indexes.length > 1 ? "Show these missions" : `Show mission ${indexes[0] + 1}`}
+        </button>
+      </div>
+    </div>
   );
 }
 
@@ -1185,6 +1243,7 @@ export function MissionsHeader({ d }) {
         {d.waypointCount} waypoints
         {d.orderLabel ? ` · ${d.orderLabel.toLowerCase()}` : ""}
         {d.disabledCount > 0 ? ` · ${d.disabledCount} offline` : ""}
+        {d.passphraseMissions?.length ? ` · ${d.passphraseMissions.length} with a passphrase` : ""}
       </p>
     </div>
   );
@@ -1325,7 +1384,14 @@ export function MapSection({ d, className = "", sheet = true, onShowInList, chil
                 <FormatListNumbered />
               </button>
             </div>
-          ) : (
+          ) : null}
+          {d.selected && d.passphraseMissions?.some((entry) => entry.index === d.selectedMission) ? (
+            <div className="small bp-sheet-pass">
+              <Key />
+              Asks for a passphrase: look around on site for the answer
+            </div>
+          ) : null}
+          {d.selected ? null : (
             <>
               <b>
                 Whole route · {d.missionCount} missions · {d.distanceLabel}

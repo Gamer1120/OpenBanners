@@ -157,3 +157,29 @@ export function plannedOfflineTone(date, now = Date.now()) {
   }
   return days <= 0 ? "bad" : days <= 14 ? "warn" : "";
 }
+
+export function isPassphraseStep(step) {
+  return step?.objective === "enterPassphrase";
+}
+
+// Missions with a passphrase step, as [{ index, steps: [stepIndex, …] }] in
+// banner order. Hidden steps can't be known, so hidden missions never count.
+export function getPassphraseMissions(missions) {
+  return missions
+    .map((mission, index) => ({
+      index,
+      steps: stepsOf(mission)
+        .map((step, stepIndex) => (isPassphraseStep(step) ? stepIndex : -1))
+        .filter((stepIndex) => stepIndex >= 0),
+    }))
+    .filter((entry) => entry.steps.length);
+}
+
+// "Mission 4", "Missions 2 and 5", "Missions 1, 3 and 6" (1-based).
+export function formatMissionNumbers(indexes) {
+  const numbers = indexes.map((index) => index + 1);
+  if (numbers.length === 1) {
+    return `Mission ${numbers[0]}`;
+  }
+  return `Missions ${numbers.slice(0, -1).join(", ")} and ${numbers[numbers.length - 1]}`;
+}

@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { getBannerGuiderLocationDebugInfo } from "../bannerGuiderLocationGeometry";
+import { isPassphraseStep } from "../bannerFacts";
 
 function copyTextToClipboard(text) {
   if (navigator.clipboard?.writeText) {
@@ -35,6 +36,8 @@ export default function MapOverlay({
 }) {
   const missionCount = missions.length;
   const [debugCopyStatus, setDebugCopyStatus] = useState("");
+  // NEXT opens missions[currentMission]: warn before it's opened, not after.
+  const nextHasPassphrase = Object.values(missions[currentMission]?.steps ?? {}).some(isPassphraseStep);
 
   const stopPropagation = (event) => {
     event.stopPropagation();
@@ -136,6 +139,11 @@ export default function MapOverlay({
       >
         {currentMission === missionCount ? "OPEN BG" : "NEXT"}
       </button>
+      {nextHasPassphrase ? (
+        <p className="overlay-note" role="note">
+          Mission {currentMission + 1} asks for a passphrase. Look around on site for the answer.
+        </p>
+      ) : null}
       {showDebugControls ? (
         <button
           className="debug-button"

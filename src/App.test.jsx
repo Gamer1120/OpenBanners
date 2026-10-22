@@ -1983,6 +1983,53 @@ test("shows Bannergress warnings on the banner details page", async () => {
   );
 });
 
+test("warns about passphrases and opens those missions", async () => {
+  const step = (title, objective, latitude) => ({
+    objective,
+    poi: { id: title, title, type: "portal", latitude, longitude: 6.14 },
+  });
+  global.fetch.mockImplementation((url) => {
+    if (url.endsWith("/bnrs/passphrase-banner")) {
+      return jsonResponse({
+        id: "passphrase-banner",
+        title: "Passphrase Banner",
+        picture: "/images/detail.jpg",
+        numberOfMissions: 2,
+        lengthMeters: 900,
+        startLatitude: 46.2,
+        startLongitude: 6.14,
+        missions: {
+          0: { id: "m-1", title: "First", steps: { 0: step("Fountain", "hack", 46.2) } },
+          1: {
+            id: "m-2",
+            title: "Second",
+            steps: { 0: step("Statue", "hack", 46.201), 1: step("Plaque", "enterPassphrase", 46.202) },
+          },
+        },
+      });
+    }
+
+    throw new Error(`Unhandled fetch: ${url}`);
+  });
+
+  renderWithProviders(
+    <Routes>
+      <Route path="/banner/:bannerId" element={<BannerDetailsPage />} />
+    </Routes>,
+    { route: "/banner/passphrase-banner" }
+  );
+
+  const alert = (await screen.findByText("Mission 2 asks for a passphrase")).closest('[role="note"]');
+  expect(alert).toHaveTextContent("look around when you get there");
+
+  await userEvent.setup().click(screen.getByRole("button", { name: "Show mission 2" }));
+
+  const waypoints = await screen.findByRole("list", { name: "Waypoints of mission 2" });
+  expect(waypoints).toHaveTextContent("Enter passphrase");
+  expect(screen.getByText("Passphrase")).toHaveClass("chip");
+  expect(screen.getByText(/1 with a passphrase/)).toBeInTheDocument();
+});
+
 test("shows separate overview and map tabs for banner details on mobile", async () => {
   useMediaQuery.mockReturnValue(true);
 

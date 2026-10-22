@@ -1,9 +1,11 @@
 import { describe, expect, it } from "vitest";
 import {
   formatEvent,
+  formatMissionNumbers,
   getActionCounts,
   getLastChecked,
   getMissionTypes,
+  getPassphraseMissions,
   getStartToFinishMeters,
   getTotalDurationMs,
   getUniquePortals,
@@ -82,5 +84,23 @@ describe("bannerFacts", () => {
     expect(plannedOfflineTone("2026-10-20", now)).toBe("bad");
     expect(plannedOfflineTone("2026-10-30", now)).toBe("warn");
     expect(plannedOfflineTone("2027-01-01", now)).toBe("");
+  });
+});
+
+describe("passphrases", () => {
+  const mission = (...objectives) => ({
+    steps: objectives.map((objective) => ({ objective, poi: { type: "portal", id: objective } })),
+  });
+
+  it("lists missions with passphrase steps and where", () => {
+    const missions = [mission("hack"), mission("hack", "enterPassphrase"), { type: "hidden", steps: [{}] }];
+    expect(getPassphraseMissions(missions)).toEqual([{ index: 1, steps: [1] }]);
+    expect(getPassphraseMissions([mission("hack")])).toEqual([]);
+  });
+
+  it("names the missions", () => {
+    expect(formatMissionNumbers([3])).toBe("Mission 4");
+    expect(formatMissionNumbers([1, 4])).toBe("Missions 2 and 5");
+    expect(formatMissionNumbers([0, 2, 5])).toBe("Missions 1, 3 and 6");
   });
 });

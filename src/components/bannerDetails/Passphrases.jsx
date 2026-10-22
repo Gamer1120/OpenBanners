@@ -160,7 +160,7 @@ function AddAnswer({ d, missionId, missionIndex, stepIndex }) {
         onClick={() => (pass.loggedIn ? setOpen(true) : requestLogin())}
       >
         <Add fontSize="small" />
-        {pass.loggedIn ? "Add answer" : "Log in to add the answer"}
+        Add answer
       </button>
     );
   }
@@ -401,7 +401,7 @@ export function PassphrasePanel({ d }) {
             </span>
             <div className="pp-actions">
               <button type="button" className="btn tonal sl" disabled={busy} onClick={fill}>
-                {pass.loggedIn ? "Yes, fill them in" : "Log in to fill them in"}
+                Yes, fill them in
               </button>
               <button type="button" className="btn text sl" onClick={d.showPassphrases}>
                 Show the waypoints

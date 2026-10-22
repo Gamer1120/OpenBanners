@@ -121,7 +121,12 @@ describe("answer at the waypoint", () => {
   });
 
   it("asks to log in first", async () => {
+    const login = vi.fn();
+    const { BANNERGRESS_AUTH_REQUEST_EVENT } = await import("../../bannergressSync");
+    window.addEventListener(BANNERGRESS_AUTH_REQUEST_EVENT, login);
     render(<WaypointAnswer d={d({ loggedIn: false })} missionId="m2" missionIndex={1} stepIndex={0} />);
-    expect(screen.getByRole("button", { name: "Log in to add the answer" })).toBeInTheDocument();
+    await userEvent.setup().click(screen.getByRole("button", { name: "Add answer" }));
+    expect(login).toHaveBeenCalled();
+    expect(screen.queryByRole("textbox")).toBeNull();
   });
 });

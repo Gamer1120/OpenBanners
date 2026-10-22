@@ -544,6 +544,7 @@ export function createPassphraseService({ db, fetchImpl = fetch, now = () => Dat
 
   const moderation = {
     awaitingReview: () => db.prepare(`${REVIEW_SQL} WHERE a.approved_at IS NULL ORDER BY a.submitted_at`).all(),
+    approvedWaiting: () => db.prepare(`${REVIEW_SQL} WHERE a.approved_at IS NOT NULL AND a.status = 'pending' ORDER BY a.visible_at`).all(),
     unnotified: () => db.prepare(`${REVIEW_SQL} WHERE a.approved_at IS NULL AND a.notified_at IS NULL ORDER BY a.submitted_at`).all(),
     markNotified: (id) => db.prepare("UPDATE answers SET notified_at = ? WHERE id = ?").run(now(), id),
     get: (id) => db.prepare(`${REVIEW_SQL} WHERE a.id = ?`).get(id) ?? null,

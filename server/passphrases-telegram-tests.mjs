@@ -73,3 +73,21 @@ test("anyone else gets the how-to-object text, and the moderator gets their mess
   assert.equal(calls[1].body.chat_id, "42");
   assert.match(calls[1].body.text, /please remove b1/);
 });
+
+test("after Approve, the message keeps Publish now and Reject", async () => {
+  const { service, bot, calls, submit } = setup();
+  await submit("Blue door");
+  const [row] = service.moderation.awaitingReview();
+  await bot.handleUpdate({ callback_query: { id: "q1", from: { id: 42 }, data: `pp:approve:${row.id}`, message: { message_id: 1, chat: { id: 42 } } } });
+  const edit = calls.find((call) => call.method === "editMessageText").body;
+  assert.match(edit.text, /Approved: visible from/);
+  assert.deepEqual(edit.reply_markup.inline_keyboard.flat().map((b) => b.callback_data.split(":")[1]), ["publish", "reject"]);
+  assert.equal(service.moderation.approvedWaiting().length, 1);
+
+  await bot.handleUpdate({ message: { chat: { id: 42, type: "private" }, from: { id: 42 }, text: "/pending" } });
+  assert.deepEqual(calls.at(-1).body.reply_markup.inline_keyboard.flat().map((b) => b.callback_data.split(":")[1]), ["publish", "reject"]);
+
+  await bot.handleUpdate({ callback_query: { id: "q2", from: { id: 42 }, data: `pp:publish:${row.id}`, message: { message_id: 1, chat: { id: 42 } } } });
+  assert.equal(service.moderation.get(row.id).status, "live");
+  assert.equal(calls.filter((call) => call.method === "editMessageText").at(-1).body.reply_markup, undefined);
+});

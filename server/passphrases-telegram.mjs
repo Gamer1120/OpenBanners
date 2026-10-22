@@ -33,6 +33,19 @@ const OUTCOME = {
   reject: () => "🗑 Rejected and deleted",
 };
 
+// After Approve the answer still waits out its 30 days, so keep a way to
+// publish it now (or still reject it).
+export function approvedButtonsFor(id) {
+  return {
+    inline_keyboard: [
+      [
+        { text: "🚀 Publish now", callback_data: `pp:publish:${id}` },
+        { text: "🗑 Reject", callback_data: `pp:reject:${id}` },
+      ],
+    ],
+  };
+}
+
 export function buttonsFor(id) {
   return {
     inline_keyboard: [
@@ -47,7 +60,7 @@ export function buttonsFor(id) {
 
 const HELP = [
   "<b>OpenBanners passphrase moderation</b>",
-  "/pending: answers waiting for review",
+  "/pending: answers waiting for review, and approved ones still in their 30 days",
   "/blocks: banners and authors that objected",
   "/block banner &lt;banner-id&gt; or /block author &lt;agent&gt;: delete their answers and block new ones",
   "/unblock banner|author &lt;key&gt;",
@@ -119,6 +132,7 @@ export function createModerationBot({ token, moderatorIds, siteUrl, moderation, 
         text,
         parse_mode: "HTML",
         disable_web_page_preview: true,
+        ...(action === "approve" && row?.status === "pending" ? { reply_markup: approvedButtonsFor(row.id) } : {}),
       }).catch((error) => log(`edit: ${error.message}`));
     }
   }
@@ -128,13 +142,22 @@ export function createModerationBot({ token, moderatorIds, siteUrl, moderation, 
     const name = command.replace(/@.*$/, "").toLowerCase();
     if (name === "/pending") {
       const rows = moderation.awaitingReview();
-      if (!rows.length) {
-        return send(chatId, "Nothing waiting for review.");
+      const approved = moderation.approvedWaiting();
+      if (!rows.length && !approved.length) {
+        return send(chatId, "Nothing waiting for review, and nothing approved that's still waiting.");
       }
       for (const row of rows.slice(0, 20)) {
         await send(chatId, describeAnswer(row, siteUrl), { reply_markup: buttonsFor(row.id) });
       }
-      return rows.length > 20 ? send(chatId, `…and ${rows.length - 20} more. Handle these first, then /pending again.`) : null;
+      if (rows.length > 20) {
+        await send(chatId, `…and ${rows.length - 20} more to review. Handle these first, then /pending again.`);
+      }
+      for (const row of approved.slice(0, 20)) {
+        await send(chatId, `${describeAnswer(row, siteUrl)}\n\n<b>${escapeHtml(OUTCOME.approve(row))}</b>`, {
+          reply_markup: approvedButtonsFor(row.id),
+        });
+      }
+      return approved.length > 20 ? send(chatId, `…and ${approved.length - 20} more approved ones waiting.`) : null;
     }
     if (name === "/blocks") {
       const rows = moderation.blocks();

@@ -2,26 +2,14 @@ import { useEffect, useMemo, useState } from "react";
 import { fetchBannergress } from "./bannergressSync";
 
 // Discovery-map data loading for the map on /map (components/discoveryMap).
-// Bannergress /bnrs in a bounding box, paged,
-// with an in-memory cache per area + origin + filter combination.
+// Bannergress /bnrs in a bounding box, paged. The view is covered by fixed
+// square tiles on a power-of-two degree grid (2–9 tiles per view), each fetched
+// once per filter combination and kept in memory until the page is refreshed.
+// Zooming in reuses a loaded bigger tile, zooming out reuses four loaded
+// smaller ones, and panning back reuses what was already there (2026-10-22:
+// every zoom used to fetch everything again, the cache was per exact view).
 const DISCOVERY_MAP_QUERY_PRECISION = 3;
 const DISCOVERY_MAP_PAGE_SIZE = 50;
-
-const discoveryMapCache = new globalThis.Map();
-const discoveryMapInflightRequests = new globalThis.Map();
-
-function writeDiscoveryMapCacheEntry({
-  requestKey,
-  banners,
-  hasMore,
-  complete,
-}) {
-  discoveryMapCache.set(requestKey, {
-    banners,
-    hasMore,
-    complete,
-  });
-}
 
 export function roundCoordinate(value, precision = DISCOVERY_MAP_QUERY_PRECISION) {
   return Number.parseFloat(value.toFixed(precision));
@@ -212,8 +200,167 @@ export function calculateDistanceMeters(latitudeA, longitudeA, latitudeB, longit
 }
 
 export function resetDiscoveryMapData() {
-  discoveryMapCache.clear();
-  discoveryMapInflightRequests.clear();
+  tileCache.clear();
+  tileInflight.clear();
+}
+
+/* ---------- tiles ---------- */
+
+const TILE_MIN_LEVEL = 1;
+const TILE_MAX_LEVEL = 18;
+// How many levels of smaller loaded tiles may stand in for a bigger one.
+const TILE_CHILD_DEPTH = 3;
+// Tiles fetched at the same time (each one pages on its own).
+const TILE_CONCURRENCY = 3;
+
+const tileCache = new globalThis.Map();
+const tileInflight = new globalThis.Map();
+let tileActive = 0;
+const tileWaiters = [];
+
+function tileSize(level) {
+  return 360 / 2 ** level;
+}
+
+// The level whose tiles are at least half the view's larger side, so a view
+// spans 2–3 tiles per axis.
+export function tileLevelFor(area) {
+  const span = Math.max(
+    Math.abs(area.maxLatitude - area.minLatitude),
+    Math.abs(area.maxLongitude - area.minLongitude),
+    1e-6
+  );
+  const level = Math.floor(Math.log2(360 / (span / 2)));
+  return Math.min(TILE_MAX_LEVEL, Math.max(TILE_MIN_LEVEL, level));
+}
+
+export function tileBounds({ level, x, y }) {
+  const size = tileSize(level);
+  return {
+    minLongitude: -180 + x * size,
+    maxLongitude: -180 + (x + 1) * size,
+    minLatitude: Math.max(-90, -90 + y * size),
+    maxLatitude: Math.min(90, -90 + (y + 1) * size),
+  };
+}
+
+export function tilesForArea(area, level = tileLevelFor(area)) {
+  const size = tileSize(level);
+  const columns = 2 ** level;
+  const rows = Math.ceil(180 / size);
+  const clamp = (value, max) => Math.min(max - 1, Math.max(0, value));
+  const x0 = clamp(Math.floor((area.minLongitude + 180) / size), columns);
+  const x1 = clamp(Math.floor((area.maxLongitude + 180) / size), columns);
+  const y0 = clamp(Math.floor((area.minLatitude + 90) / size), rows);
+  const y1 = clamp(Math.floor((area.maxLatitude + 90) / size), rows);
+  const tiles = [];
+  for (let y = y0; y <= y1; y += 1) {
+    for (let x = x0; x <= x1; x += 1) {
+      tiles.push({ level, x, y });
+    }
+  }
+  return tiles;
+}
+
+function tileKey(tile, filterKey) {
+  return `${tile.level}/${tile.x}/${tile.y}:${filterKey}`;
+}
+
+function inTile(banner, bounds) {
+  const latitude = Number.parseFloat(banner.startLatitude);
+  const longitude = Number.parseFloat(banner.startLongitude);
+  return (
+    latitude >= bounds.minLatitude &&
+    latitude <= bounds.maxLatitude &&
+    longitude >= bounds.minLongitude &&
+    longitude <= bounds.maxLongitude
+  );
+}
+
+// A tile's complete banners from the cache: its own, a loaded bigger tile's
+// (cut to this one), or all four loaded smaller tiles'; null when not known.
+export function cachedTileBanners(tile, filterKey, depth = TILE_CHILD_DEPTH) {
+  const own = tileCache.get(tileKey(tile, filterKey));
+  if (own?.complete) {
+    return own.banners;
+  }
+
+  let parent = tile;
+  while (parent.level > TILE_MIN_LEVEL) {
+    parent = { level: parent.level - 1, x: Math.floor(parent.x / 2), y: Math.floor(parent.y / 2) };
+    const entry = tileCache.get(tileKey(parent, filterKey));
+    if (entry?.complete) {
+      const bounds = tileBounds(tile);
+      return entry.banners.filter((banner) => inTile(banner, bounds));
+    }
+  }
+
+  if (depth > 0 && tile.level < TILE_MAX_LEVEL) {
+    const parts = [];
+    for (const [dx, dy] of [[0, 0], [1, 0], [0, 1], [1, 1]]) {
+      const child = { level: tile.level + 1, x: tile.x * 2 + dx, y: tile.y * 2 + dy };
+      const banners = cachedTileBanners(child, filterKey, depth - 1);
+      if (!banners) {
+        return null;
+      }
+      parts.push(banners);
+    }
+    return parts.flat();
+  }
+
+  return null;
+}
+
+async function withTileSlot(run) {
+  if (tileActive >= TILE_CONCURRENCY) {
+    await new Promise((resolve) => tileWaiters.push(resolve));
+  }
+  tileActive += 1;
+  try {
+    return await run();
+  } finally {
+    tileActive -= 1;
+    tileWaiters.shift()?.();
+  }
+}
+
+// Fetches one tile (all pages) once; later callers share the same promise.
+// onPage gets the tile's banners so far after every page.
+function loadTile(tile, filters, filterKey, onPage) {
+  const key = tileKey(tile, filterKey);
+  const listeners = tileInflight.get(key);
+  if (listeners) {
+    listeners.onPage.add(onPage);
+    return listeners.promise;
+  }
+
+  const entry = { onPage: new Set([onPage]), promise: null };
+  const bounds = tileBounds(tile);
+  entry.promise = withTileSlot(() =>
+    fetchDiscoveryMapBanners({
+      visibleArea: bounds,
+      originLatitude: roundCoordinate((bounds.minLatitude + bounds.maxLatitude) / 2, 5),
+      originLongitude: roundCoordinate((bounds.minLongitude + bounds.maxLongitude) / 2, 5),
+      showOfflineBanners: filters.showOfflineBanners,
+      showHiddenBanners: filters.showHiddenBanners,
+      onPage: (pageData) => {
+        tileCache.set(key, { banners: pageData.banners, complete: !pageData.hasMore });
+        entry.onPage.forEach((listener) => listener());
+      },
+    })
+  )
+    .then((data) => {
+      if (!data) {
+        throw new Error("Map results returned an unexpected response.");
+      }
+      tileCache.set(key, { banners: data.banners, complete: true });
+      return data.banners;
+    })
+    .finally(() => {
+      tileInflight.delete(key);
+    });
+  tileInflight.set(key, entry);
+  return entry.promise;
 }
 
 // Loads the banners for a visible area (raw Leaflet-bounds shape, see
@@ -232,146 +379,80 @@ export function useDiscoveryMapBanners(visibleArea, userLocation, filters) {
     () => normalizeOriginLocation(userLocation, normalizedVisibleArea),
     [normalizedVisibleArea, userLocation]
   );
-  const discoveryMapQueryKey = useMemo(
-    () =>
-      createDiscoveryMapQueryKey(normalizedVisibleArea, normalizedOriginLocation),
-    [normalizedOriginLocation, normalizedVisibleArea]
-  );
-  const discoveryMapRequestKey = useMemo(
-    () =>
-      discoveryMapQueryKey
-        ? [
-            discoveryMapQueryKey,
-            filters.showOfflineBanners ? "offline" : "online-only",
-            filters.showHiddenBanners ? "show-hidden" : "hide-hidden",
-          ].join(":")
-        : "",
-    [
-      discoveryMapQueryKey,
-      filters.showHiddenBanners,
-      filters.showOfflineBanners,
-    ]
-  );
+  const filterKey = [
+    filters.showOfflineBanners ? "offline" : "online-only",
+    filters.showHiddenBanners ? "show-hidden" : "hide-hidden",
+  ].join(":");
+  const viewKey = normalizedVisibleArea
+    ? createDiscoveryMapQueryKey(normalizedVisibleArea, normalizedOriginLocation)
+    : "";
 
   useEffect(() => {
-    if (!normalizedVisibleArea || !normalizedOriginLocation || !discoveryMapRequestKey) {
+    if (!normalizedVisibleArea || !normalizedOriginLocation || !viewKey) {
       return undefined;
     }
 
     let ignore = false;
+    const tiles = tilesForArea(normalizedVisibleArea);
+    const originLatitude = normalizedOriginLocation.latitude;
+    const originLongitude = normalizedOriginLocation.longitude;
+
+    // Everything known for the view's tiles right now, deduplicated.
+    const publish = () => {
+      if (ignore) {
+        return;
+      }
+      const seen = new Map();
+      let pending = false;
+      for (const tile of tiles) {
+        const complete = cachedTileBanners(tile, filterKey);
+        const partial = complete ?? tileCache.get(tileKey(tile, filterKey))?.banners ?? [];
+        if (!complete) {
+          pending = true;
+        }
+        for (const banner of partial) {
+          if (banner?.id && !seen.has(banner.id)) {
+            seen.set(banner.id, banner);
+          }
+        }
+      }
+      setBanners(normalizeFetchedBanners([...seen.values()], originLatitude, originLongitude) ?? []);
+      setHasMoreBannersInView(pending);
+      return pending;
+    };
+
     const timeoutId = window.setTimeout(async () => {
       setError("");
-      const cachedEntry = discoveryMapCache.get(discoveryMapRequestKey);
-
-      if (cachedEntry) {
-        setBanners(cachedEntry.banners);
-        setHasMoreBannersInView(Boolean(cachedEntry.hasMore));
-
-        if (cachedEntry.complete) {
-          setLoading(false);
-          return;
-        }
+      const missing = tiles.filter((tile) => !cachedTileBanners(tile, filterKey));
+      publish();
+      if (!missing.length) {
+        setLoading(false);
+        return;
       }
 
       setLoading(true);
-
-      const originLatitude = normalizedOriginLocation.latitude;
-      const originLongitude = normalizedOriginLocation.longitude;
-
-      try {
-        let responsePromise = discoveryMapInflightRequests.get(
-          discoveryMapRequestKey
-        );
-
-        if (!responsePromise) {
-          responsePromise = fetchDiscoveryMapBanners({
-            visibleArea: normalizedVisibleArea,
-            originLatitude,
-            originLongitude,
-            showOfflineBanners: filters.showOfflineBanners,
-            showHiddenBanners: filters.showHiddenBanners,
-            onPage: (pageData) => {
-              const normalizedBanners = normalizeFetchedBanners(
-                pageData.banners,
-                originLatitude,
-                originLongitude
-              );
-
-              if (normalizedBanners) {
-                writeDiscoveryMapCacheEntry({
-                  requestKey: discoveryMapRequestKey,
-                  banners: normalizedBanners,
-                  hasMore: pageData.hasMore,
-                  complete: !pageData.hasMore,
-                });
-
-                if (!ignore) {
-                  setBanners(normalizedBanners);
-                  setHasMoreBannersInView(pageData.hasMore);
-                }
-              }
-            },
-          });
-          discoveryMapInflightRequests.set(
-            discoveryMapRequestKey,
-            responsePromise
-          );
-        }
-
-        const data = await responsePromise;
-
-        if (ignore) {
-          return;
-        }
-
-        const normalizedBanners = normalizeFetchedBanners(
-          data?.banners,
-          originLatitude,
-          originLongitude
-        );
-
-        if (!normalizedBanners) {
-          setBanners([]);
-          setHasMoreBannersInView(false);
-          setError("Map results returned an unexpected response.");
-          return;
-        }
-
-        writeDiscoveryMapCacheEntry({
-          requestKey: discoveryMapRequestKey,
-          banners: normalizedBanners,
-          hasMore: data.hasMore,
-          complete: true,
-        });
-        setBanners(normalizedBanners);
-        setHasMoreBannersInView(data.hasMore);
-      } catch (fetchError) {
-        if (!ignore) {
-          console.error("Error fetching banners:", fetchError);
-          setBanners([]);
-          setHasMoreBannersInView(false);
-          setError("Couldn't load banners in this area. Please try again.");
-        }
-      } finally {
-        discoveryMapInflightRequests.delete(discoveryMapRequestKey);
-
-        if (!ignore) {
-          setLoading(false);
-        }
+      const results = await Promise.allSettled(
+        missing.map((tile) => loadTile(tile, filters, filterKey, publish))
+      );
+      if (ignore) {
+        return;
       }
+      publish();
+      const failed = results.find((result) => result.status === "rejected");
+      if (failed) {
+        console.error("Error fetching banners:", failed.reason);
+        setError("Couldn't load banners in this area. Please try again.");
+      }
+      setLoading(false);
     }, 220);
 
     return () => {
       ignore = true;
       window.clearTimeout(timeoutId);
     };
-  }, [
-    discoveryMapRequestKey,
-    filters.showHiddenBanners,
-    filters.showOfflineBanners,
-    normalizedOriginLocation,
-    normalizedVisibleArea,
-  ]);
+    // filters is read through filterKey
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [viewKey, filterKey]);
 
   return { banners, hasMore: hasMoreBannersInView, loading, error };
 }

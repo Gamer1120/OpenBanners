@@ -2226,3 +2226,104 @@ body {
   color: inherit;
   font-weight: 600;
 }
+
+/* ObModal: bottom sheet on phones, centred card from 600px. */
+.ob-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 1400;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.5);
+}
+
+.ob-modal-card {
+  width: 100%;
+  max-width: 480px;
+  max-height: 85vh;
+  overflow-y: auto;
+  box-sizing: border-box;
+  padding: 8px 20px calc(20px + env(safe-area-inset-bottom, 0px));
+  border-radius: 28px 28px 0 0;
+  background: var(--sc-high);
+  color: var(--on-surface);
+}
+
+.ob-modal-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-right: -12px;
+}
+
+.ob-modal-head h2 {
+  flex: 1;
+  margin: 0;
+  font: 500 20px/28px var(--font);
+}
+
+.ob-modal-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.ob-modal-actions .btn {
+  width: 100%;
+}
+
+.ob-modal-foot {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+@media (min-width: 600px) {
+  .ob-modal {
+    align-items: center;
+  }
+
+  .ob-modal-card {
+    border-radius: 28px;
+    padding-bottom: 20px;
+  }
+}
+
+/* Settings rows: text left, switch right. */
+.ob-setting {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  padding: 12px 0;
+}
+
+.ob-setting + .ob-setting {
+  border-top: 1px solid var(--outline-variant);
+}
+
+.ob-setting .grow {
+  flex: 1;
+  min-width: 0;
+}
+
+.ob-setting b {
+  display: block;
+  font-weight: 500;
+}
+
+.ob-switch {
+  flex: none;
+  width: 52px;
+  height: 32px;
+  margin-top: 2px;
+  accent-color: var(--primary);
+}
+
+.ob-settings-h {
+  margin: 12px 0 0;
+  font: 500 14px/20px var(--font);
+  color: var(--primary);
+}

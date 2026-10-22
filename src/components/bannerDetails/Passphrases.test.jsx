@@ -4,15 +4,18 @@ import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const submit = vi.fn(async () => ({ answers: [] }));
+const saveSettings = vi.fn(async () => ({}));
+let askAfterDone = true;
 vi.mock("../../passphraseApi", async (importOriginal) => ({
   ...(await importOriginal()),
   submitPassphrases: (...args) => submit(...args),
+  useUserSettings: () => ({ status: "ready", settings: { askAfterDone }, loggedIn: true, save: saveSettings }),
   authorPassphraseAction: vi.fn(),
   voteOnPassphrase: vi.fn(),
 }));
 
 import { stepKey } from "../../passphraseApi";
-import { PassphrasePanel, WaypointAnswer } from "./Passphrases";
+import { PassphraseDonePrompt, PassphrasePanel, WaypointAnswer } from "./Passphrases";
 
 const step = (objective, title) => ({ objective, poi: { title } });
 const d = (passphrases = {}) => {
@@ -50,7 +53,11 @@ const d = (passphrases = {}) => {
 };
 const live = { id: 1, missionId: "m1", missionIndex: 0, stepIndex: 1, kind: "number", status: "live", answer: "1", confirms: 2, wrongs: 0 };
 
-beforeEach(() => submit.mockClear());
+beforeEach(() => {
+  submit.mockClear();
+  saveSettings.mockClear();
+  askAfterDone = true;
+});
 
 describe("passphrase card", () => {
   it("asks once whether every answer is the mission number", async () => {
@@ -128,5 +135,55 @@ describe("answer at the waypoint", () => {
     await userEvent.setup().click(screen.getByRole("button", { name: "Add answer" }));
     expect(login).toHaveBeenCalled();
     expect(screen.queryByRole("textbox")).toBeNull();
+  });
+});
+
+describe("after marking the banner done", () => {
+  const banner = (listType, extra) => ({ ...d(extra), effectiveListType: listType });
+
+  it("asks once it becomes done, and fills in the mission numbers", async () => {
+    const user = userEvent.setup();
+    const { rerender } = render(<PassphraseDonePrompt d={banner("todo")} />);
+    expect(screen.queryByRole("dialog")).toBeNull();
+    rerender(<PassphraseDonePrompt d={banner("done")} />);
+    expect(screen.getByRole("dialog", { name: "Nice, banner done!" })).toHaveTextContent("It asked for 2 passphrases.");
+    await user.click(screen.getByRole("button", { name: "Yes, the mission numbers" }));
+    expect(submit).toHaveBeenCalledWith("b", [
+      { missionId: "m1", stepIndex: 1, kind: "number" },
+      { missionId: "m2", stepIndex: 0, kind: "number" },
+    ]);
+    expect(screen.queryByRole("dialog")).toBeNull();
+  });
+
+  it("opens the waypoints, closes with Escape, and can stop asking", async () => {
+    const user = userEvent.setup();
+    const first = banner("todo");
+    const { rerender } = render(<PassphraseDonePrompt d={first} />);
+    const done = banner("done");
+    rerender(<PassphraseDonePrompt d={done} />);
+    await user.click(screen.getByRole("button", { name: "No, I’ll add the answers" }));
+    expect(done.showPassphrases).toHaveBeenCalled();
+
+    rerender(<PassphraseDonePrompt d={banner("todo")} />);
+    rerender(<PassphraseDonePrompt d={banner("done")} />);
+    await user.keyboard("{Escape}");
+    expect(screen.queryByRole("dialog")).toBeNull();
+
+    rerender(<PassphraseDonePrompt d={banner("todo")} />);
+    rerender(<PassphraseDonePrompt d={banner("done")} />);
+    await user.click(screen.getByRole("button", { name: "Don’t ask again" }));
+    expect(saveSettings).toHaveBeenCalledWith({ askAfterDone: false });
+  });
+
+  it("doesn't ask when already done on arrival, when all is known, or when switched off", () => {
+    const { rerender } = render(<PassphraseDonePrompt d={banner("done")} />);
+    expect(screen.queryByRole("dialog")).toBeNull();
+    rerender(<PassphraseDonePrompt d={banner("todo", { data: { answers: [live, { ...live, id: 2, missionId: "m2", stepIndex: 0 }] } })} />);
+    rerender(<PassphraseDonePrompt d={banner("done", { data: { answers: [live, { ...live, id: 2, missionId: "m2", stepIndex: 0 }] } })} />);
+    expect(screen.queryByRole("dialog")).toBeNull();
+    askAfterDone = false;
+    rerender(<PassphraseDonePrompt d={banner("todo")} />);
+    rerender(<PassphraseDonePrompt d={banner("done")} />);
+    expect(screen.queryByRole("dialog")).toBeNull();
   });
 });

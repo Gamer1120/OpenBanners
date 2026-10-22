@@ -15,7 +15,9 @@ import {
   GitHub,
   Login,
   MoreVert,
+  Settings as SettingsIcon,
 } from "@mui/icons-material";
+import SettingsDialog from "./SettingsDialog";
 import { useLocation, useNavigate } from "react-router-dom";
 import {
   BANNERGRESS_AUTH_COMPLETE_MESSAGE,
@@ -77,6 +79,7 @@ export default function TopMenu({
   const shouldShowAndroidDownloadButton =
     isAndroidUserAgent() && !isRunningInAndroidApp();
   const [feedback, setFeedback] = useState(null);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const [authStatus, setAuthStatus] = useState(null);
   const [moreMenuAnchor, setMoreMenuAnchor] = useState(null);
   const [isCheckingAuth, setIsCheckingAuth] = useState(authSupportedOrigin);
@@ -486,6 +489,17 @@ export default function TopMenu({
                 <ListItemText>Download App</ListItemText>
               </MenuItem>
             ) : null}
+            <MenuItem
+              onClick={() => {
+                closeMoreMenu();
+                setSettingsOpen(true);
+              }}
+            >
+              <ListItemIcon>
+                <SettingsIcon fontSize="small" />
+              </ListItemIcon>
+              <ListItemText>Settings</ListItemText>
+            </MenuItem>
             <Divider />
             <MenuItem
               component="a"
@@ -502,6 +516,7 @@ export default function TopMenu({
           </Menu>
         </div>
       </header>
+      {settingsOpen ? <SettingsDialog onClose={() => setSettingsOpen(false)} /> : null}
       <Snackbar
         open={Boolean(feedback)}
         autoHideDuration={4500}

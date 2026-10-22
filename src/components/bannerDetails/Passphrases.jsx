@@ -1,12 +1,14 @@
-import React, { useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { Add, Check, Close, Key, Visibility } from "@mui/icons-material";
 import { BANNERGRESS_AUTH_REQUEST_EVENT } from "../../bannergressSync";
 import {
   authorPassphraseAction,
   stepKey,
   submitPassphrases,
+  useUserSettings,
   voteOnPassphrase,
 } from "../../passphraseApi";
+import ObModal from "../ObModal";
 
 // Flow: answers live at their own waypoint (see, confirm, add one, save as you
 // go). The Missions tab card only says how many are known and asks the one
@@ -419,5 +421,114 @@ export function PassphrasePanel({ d }) {
         {pass.isAuthor ? <AuthorTools d={d} /> : null}
       </div>
     </section>
+  );
+}
+
+// Right after the banner becomes Done here (the Done button, or the Overlay's
+// mark-as-done link) while answers are missing: one question, easy to close.
+// "Don't ask again" is an account setting (Settings in the ⋮ menu).
+export function PassphraseDonePrompt({ d }) {
+  const pass = d.passphrases;
+  const hasPassphrases = Boolean(d.passphraseMissions?.length);
+  const settings = useUserSettings(hasPassphrases);
+  const [open, setOpen] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const previous = useRef(undefined);
+  const listType = d.isLoading ? undefined : d.effectiveListType ?? null;
+
+  useEffect(() => {
+    if (listType === undefined) {
+      return;
+    }
+    const before = previous.current;
+    previous.current = listType;
+    if (before === undefined || before === "done" || listType !== "done") {
+      return;
+    }
+    const missing = passphraseSlots(d).some((slot) => !slot.live && !slot.pending);
+    if (
+      hasPassphrases &&
+      missing &&
+      pass?.status === "ready" &&
+      !pass.blocked &&
+      !pass.isAuthor &&
+      settings.settings?.askAfterDone !== false
+    ) {
+      setOpen(true);
+    }
+    // Only the transition matters; the rest is read at that moment.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [listType]);
+
+  if (!open) {
+    return null;
+  }
+
+  const close = () => {
+    setOpen(false);
+    setError("");
+  };
+  const slots = passphraseSlots(d);
+  const missing = slots.filter((slot) => !slot.live && !slot.pending);
+
+  return (
+    <ObModal title="Nice, banner done!" onClose={close} labelId="pp-done-title">
+      <p>
+        {slots.length === 1
+          ? "It asked for a passphrase."
+          : `It asked for ${slots.length} passphrases${missing.length < slots.length ? `, and ${missing.length} answers aren’t known yet` : ""}.`}{" "}
+        Were the answers the mission numbers?
+      </p>
+      <div className="ob-modal-actions">
+        <button
+          type="button"
+          className="btn filled sl"
+          disabled={busy}
+          onClick={() => {
+            setBusy(true);
+            setError("");
+            fillMissionNumbers(d, missing).then(
+              () => {
+                setBusy(false);
+                close();
+              },
+              (e) => {
+                setBusy(false);
+                setError(e.message);
+              }
+            );
+          }}
+        >
+          Yes, the mission numbers
+        </button>
+        <button
+          type="button"
+          className="btn tonal sl"
+          onClick={() => {
+            close();
+            d.showPassphrases();
+          }}
+        >
+          No, I’ll add the answers
+        </button>
+      </div>
+      {error ? <p className="small pp-error" role="alert">{error}</p> : null}
+      <div className="ob-modal-foot">
+        <button
+          type="button"
+          className="btn text sl"
+          onClick={() => {
+            settings.save({ askAfterDone: false }).catch(() => {});
+            close();
+          }}
+        >
+          Don’t ask again
+        </button>
+        <button type="button" className="btn text sl" onClick={close}>
+          Not now
+        </button>
+      </div>
+    </ObModal>
   );
 }

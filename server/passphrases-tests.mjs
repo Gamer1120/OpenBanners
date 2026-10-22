@@ -131,3 +131,19 @@ test("objecting for all banners blocks by author", async () => {
   assert.equal((await service.handle("GET", "/banners/b1", {}, null)).blocked, "author");
   assert.equal((await service.handle("GET", "/me", as("maker"), null)).blockedAll, true);
 });
+
+test("settings: ask after done, and never allow for my banners", async () => {
+  const { service, as } = setup({ verified: { alice: null, maker: "Maker" } });
+  assert.equal((await service.handle("GET", "/settings", as("alice"), null)).askAfterDone, true);
+  assert.equal((await service.handle("POST", "/settings", as("alice"), { askAfterDone: false })).askAfterDone, false);
+  assert.equal((await service.handle("GET", "/settings", as("alice"), null)).canBlockMyBanners, false);
+  await assert.rejects(service.handle("POST", "/settings", as("alice"), { blockMyBanners: true }), { code: "not_verified" });
+
+  await service.handle("POST", "/banners/b1/answers", as("alice"), { answers: [{ missionId: "m2", stepIndex: 0, kind: "number" }] });
+  const blocked = await service.handle("POST", "/settings", as("maker"), { blockMyBanners: true });
+  assert.equal(blocked.blockMyBanners, true);
+  const banner = await service.handle("GET", "/banners/b1", {}, null);
+  assert.deepEqual(banner.answers, []);
+  assert.equal(banner.blocked, "author");
+  assert.equal((await service.handle("POST", "/settings", as("maker"), { blockMyBanners: false })).blockMyBanners, false);
+});

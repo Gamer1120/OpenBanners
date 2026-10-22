@@ -78,6 +78,11 @@ CREATE TABLE IF NOT EXISTS blocks (
   at INTEGER NOT NULL,
   PRIMARY KEY (scope, key)
 );
+CREATE TABLE IF NOT EXISTS user_settings (
+  user_id TEXT PRIMARY KEY,
+  ask_after_done INTEGER NOT NULL DEFAULT 1,
+  updated_at INTEGER NOT NULL
+);
 CREATE TABLE IF NOT EXISTS contact_attempts (
   id INTEGER PRIMARY KEY,
   agent TEXT NOT NULL,
@@ -423,7 +428,58 @@ export function createPassphraseService({ db, fetchImpl = fetch, now = () => Dat
     };
   }
 
+  // Per-account settings. "Never allow passphrases for my banners" is the
+  // author-wide block itself, so it needs a verified agent.
+  function settings(identity) {
+    const agent = agentKey(identity.agent);
+    const row = db.prepare("SELECT ask_after_done FROM user_settings WHERE user_id = ?").get(identity.userId);
+    return {
+      agent: identity.agent,
+      askAfterDone: row ? Boolean(row.ask_after_done) : true,
+      blockMyBanners: Boolean(agent && db.prepare("SELECT 1 FROM blocks WHERE scope = 'author' AND key = ?").get(agent)),
+      canBlockMyBanners: Boolean(agent),
+    };
+  }
+
+  function updateSettings(identity, body) {
+    if (!body || typeof body !== "object") {
+      throw new ApiError(400, "invalid_settings", "Send the settings to change.");
+    }
+    const at = now();
+    if (typeof body.askAfterDone === "boolean") {
+      db.prepare(`INSERT INTO user_settings (user_id, ask_after_done, updated_at) VALUES (?, ?, ?)
+        ON CONFLICT (user_id) DO UPDATE SET ask_after_done = excluded.ask_after_done, updated_at = excluded.updated_at`)
+        .run(identity.userId, body.askAfterDone ? 1 : 0, at);
+    }
+    if (typeof body.blockMyBanners === "boolean") {
+      const agent = agentKey(identity.agent);
+      if (!agent) {
+        throw new ApiError(403, "not_verified", "Verify your agent name on Bannergress first.");
+      }
+      if (body.blockMyBanners) {
+        db.exec("BEGIN");
+        try {
+          db.prepare("INSERT OR REPLACE INTO blocks (scope, key, via, at) VALUES ('author', ?, 'settings', ?)").run(agent, at);
+          for (const { banner_id: id } of db.prepare("SELECT banner_id FROM banner_authors WHERE agent = ?").all(agent)) {
+            deleteBanner(id);
+          }
+          db.exec("COMMIT");
+        } catch (error) {
+          db.exec("ROLLBACK");
+          throw error;
+        }
+      } else {
+        db.prepare("DELETE FROM blocks WHERE scope = 'author' AND key = ?").run(agent);
+      }
+    }
+    return settings(identity);
+  }
+
   async function handle(method, path, headers, body) {
+    if (path === "/settings" && (method === "GET" || method === "POST")) {
+      const identity = await identify(headers.authorization);
+      return method === "GET" ? settings(identity) : updateSettings(identity, body);
+    }
     if (path === "/health" && method === "GET") {
       return { ok: true };
     }

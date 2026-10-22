@@ -4,7 +4,7 @@ import AboutNotice from "../AboutNotice";
 import BannerInfo from "../BannerInfo";
 import BannerImage from "../BannerImage";
 import MarkDoneNotice from "../MarkDoneNotice";
-import { PassphrasePanel } from "./Passphrases";
+import { PassphraseDonePrompt, PassphrasePanel } from "./Passphrases";
 import {
   AddressLink,
   BannerDetailsList,
@@ -108,6 +108,7 @@ export default function DesignA() {
 
       <MapSection d={d} />
       <MarkDoneNotice bannerId={d.bannerId} />
+      <PassphraseDonePrompt d={d} />
     </div>
   );
 }

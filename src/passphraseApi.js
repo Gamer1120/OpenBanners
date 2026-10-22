@@ -84,3 +84,57 @@ export function useBannerPassphrases(bannerId, enabled) {
     apply,
   };
 }
+
+// Account settings kept by the passphrase service (per Bannergress account).
+const SETTINGS_EVENT = "openbanners:user-settings";
+let cachedSettings = null;
+
+export const getUserSettings = () => call("/settings");
+export async function saveUserSettings(changes) {
+  const result = await call("/settings", { method: "POST", body: changes });
+  cachedSettings = result;
+  window.dispatchEvent(new CustomEvent(SETTINGS_EVENT, { detail: result }));
+  return result;
+}
+
+// { status: "idle" | "loading" | "ready" | "error", settings, error, save }
+export function useUserSettings(enabled = true) {
+  const auth = useBannergressAuth();
+  const loggedIn = Boolean(auth?.accessToken || auth?.refreshToken);
+  const [state, setState] = useState(() =>
+    cachedSettings ? { status: "ready", settings: cachedSettings, error: "" } : { status: "idle", settings: null, error: "" }
+  );
+
+  useEffect(() => {
+    const onChange = (event) => setState({ status: "ready", settings: event.detail, error: "" });
+    window.addEventListener(SETTINGS_EVENT, onChange);
+    return () => window.removeEventListener(SETTINGS_EVENT, onChange);
+  }, []);
+
+  useEffect(() => {
+    if (!loggedIn) {
+      cachedSettings = null;
+      setState({ status: "idle", settings: null, error: "" });
+      return undefined;
+    }
+    if (!enabled) {
+      return undefined;
+    }
+    let cancelled = false;
+    setState((current) => (current.settings ? current : { ...current, status: "loading" }));
+    getUserSettings().then(
+      (settings) => {
+        cachedSettings = settings;
+        if (!cancelled) {
+          setState({ status: "ready", settings, error: "" });
+        }
+      },
+      (error) => !cancelled && setState((current) => ({ ...current, status: "error", error: error.message }))
+    );
+    return () => {
+      cancelled = true;
+    };
+  }, [enabled, loggedIn]);
+
+  return { ...state, loggedIn, save: saveUserSettings };
+}

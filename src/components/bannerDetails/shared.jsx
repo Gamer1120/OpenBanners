@@ -5,9 +5,11 @@ import { createPortal } from "react-dom";
 import { Skeleton, useMediaQuery } from "@mui/material";
 import {
   CloudOff,
+  Event as EventIcon,
   ExpandMore,
   FitScreen,
   FormatListNumbered,
+  HourglassTop,
   MyLocation,
   OpenInNew,
   Place,
@@ -32,6 +34,18 @@ import {
 } from "../../bannerDisplay";
 import userLocationIcon from "../../constants";
 import BannerImage from "../BannerImage";
+import SimpleMarkdown from "./SimpleMarkdown";
+import {
+  formatEvent,
+  getActionCounts,
+  getLastChecked,
+  getMissionTypes,
+  getStartToFinishMeters,
+  getTotalDurationMs,
+  getUniquePortals,
+  MISSION_TYPE_LABELS,
+  plannedOfflineTone,
+} from "../../bannerFacts";
 
 const OBJECTIVES = {
   hack: "Hack",
@@ -280,8 +294,9 @@ export function EnlargeableArt({ banner, missions, colors, children }) {
   );
 }
 
-export function MissionItem({ mission, index, color, selected, expanded, onToggle, itemRef }) {
+export function MissionItem({ mission, index, color, selected, expanded, onToggle, itemRef, showType = false }) {
   const steps = getSteps(mission);
+  const typeLabel = showType && mission?.type ? MISSION_TYPE_LABELS[mission.type] ?? mission.type : "";
   const offline = isMissionOffline(mission);
   const duration = formatDuration(mission.averageDurationMilliseconds);
   const firstPosition = getStepPosition(steps[0]);
@@ -323,6 +338,7 @@ export function MissionItem({ mission, index, color, selected, expanded, onToggl
                   Offline
                 </span>
               ) : null}
+              {typeLabel ? <span className="chip mini">{typeLabel}</span> : null}
               {Number.isFinite(length) && length > 0 ? <span>{formatLength(length)}</span> : null}
               {duration ? <span>{duration}</span> : null}
               <span>{steps.length} waypoints</span>
@@ -853,10 +869,12 @@ export function useBannerDetails({ tabs = true } = {}) {
   };
 
   const missionCount = Number(items.numberOfMissions) || missions.length;
-  const totalDuration = missions.reduce(
-    (total, mission) => total + (Number(mission.averageDurationMilliseconds) || 0),
-    0
-  );
+  // null = missing data (an offline mission or one without a time), as on Bannergress
+  const totalDuration = getTotalDurationMs(missions, missionCount);
+  const uniques = getUniquePortals(missions);
+  const missionTypes = getMissionTypes(missions);
+  const lastChecked = getLastChecked(missions, missionCount);
+  const startToFinish = getStartToFinishMeters(missions);
   const perKm = getMissionsPerKm(items);
 
   return {
@@ -900,9 +918,22 @@ export function useBannerDetails({ tabs = true } = {}) {
     warning: typeof items.warning === "string" ? items.warning.trim() : "",
     address: typeof items.formattedAddress === "string" ? items.formattedAddress.trim() : "",
     startPlaceId: typeof items.startPlaceId === "string" ? items.startPlaceId.trim() : "",
-    orderLabel: getOrderLabel(items.type),
+    orderLabel: missionTypes.length > 1 ? "Mixed" : getOrderLabel(missionTypes[0]?.key || items.type),
+    missionTypes,
+    actionCounts: getActionCounts(missions),
+    uniqueLabel: missions.length ? `${uniques.count}${uniques.hidden ? "+" : ""}` : null,
+    lastCheckedLabel: lastChecked
+      ? new Date(`${lastChecked}T12:00:00`).toLocaleDateString(undefined, {
+          day: "numeric",
+          month: "short",
+          year: "numeric",
+        })
+      : null,
+    startToFinishLabel: startToFinish !== null ? formatLength(startToFinish) : null,
+    eventLabel: formatEvent(items.eventStartDate, items.eventEndDate),
+    submittedCount: Number(items.numberOfSubmittedMissions) || 0,
     distanceLabel: formatLength(items.lengthMeters),
-    durationLabel: formatDuration(totalDuration),
+    durationLabel: totalDuration === null ? (missions.length ? "Missing data" : null) : formatDuration(totalDuration),
     perKmLabel: perKm !== null ? perKm.toFixed(1) : null,
   };
 }
@@ -994,9 +1025,19 @@ export function StatusAlerts({ d }) {
   }
 
   const { disabledCount, missionCount } = d;
+  const offlineTone = d.items.plannedOfflineDate ? plannedOfflineTone(d.items.plannedOfflineDate) : "";
 
   return (
     <>
+      {d.eventLabel ? (
+        <div className="ob-alert" role="note">
+          <EventIcon />
+          <div className="grow">
+            <b>{d.eventLabel}</b>
+            <span className="small">This banner was made for an event.</span>
+          </div>
+        </div>
+      ) : null}
       {disabledCount > 0 ? (
         <div className="ob-alert bad" role="note">
           <CloudOff />
@@ -1023,8 +1064,21 @@ export function StatusAlerts({ d }) {
           </div>
         </div>
       ) : null}
+      {d.submittedCount > 0 ? (
+        <div className="ob-alert" role="note">
+          <HourglassTop />
+          <div className="grow">
+            <b>
+              {d.submittedCount === 1
+                ? "1 mission is waiting for Niantic"
+                : `${d.submittedCount} missions are waiting for Niantic`}
+            </b>
+            <span className="small">Submitted, but not live in Ingress yet.</span>
+          </div>
+        </div>
+      ) : null}
       {d.items.plannedOfflineDate ? (
-        <div className="ob-alert warn" role="note">
+        <div className={`ob-alert ${offlineTone || "warn"}`} role="note">
           <Warning />
           <div className="grow">
             <b>
@@ -1069,11 +1123,14 @@ export function KeyNumbers({ d, keys = ["distance", "missions", "time", "perKm"]
     order: ["Order", wait(d.orderLabel || null)],
     waypoints: ["Waypoints", wait(d.waypointCount)],
     offline: ["Offline", wait(d.disabledCount)],
+    uniques: ["Unique portals", wait(d.uniqueLabel)],
+    straight: ["Start to finish", wait(d.startToFinishLabel)],
+    lastChecked: ["Last checked", wait(d.lastCheckedLabel)],
   };
 
   return (
     <div className={className} role="list" aria-label="Key numbers">
-      {keys.map((key) => (
+      {keys.filter((key) => !(key === "straight" && !d.isLoading && !d.startToFinishLabel)).map((key) => (
         <div className={`stat stat-${key}`} role="listitem" key={key}>
           <span className="k">{all[key][0]}</span>
           <span className="v">{all[key][1]}</span>
@@ -1093,7 +1150,11 @@ export function Description({ d, className = "desc" }) {
     );
   }
 
-  return <p className={className}>{d.items.description || "No banner description is available."}</p>;
+  if (!d.items.description) {
+    return <p className={className}>No banner description is available.</p>;
+  }
+
+  return <SimpleMarkdown text={d.items.description} className={className} />;
 }
 
 export function BannergressLink({ d, className = "small" }) {
@@ -1141,6 +1202,7 @@ export function MissionList({ d }) {
           selected={d.selectedMission === index}
           expanded={d.expandedMissions.has(index)}
           onToggle={() => d.toggleMission(index)}
+          showType={d.missionTypes.length > 1}
           itemRef={(element) => {
             d.missionItemRefs.current[index] = element;
           }}
@@ -1298,3 +1360,33 @@ export function DetailTabs({ d, labels = { overview: "Overview", missions: "Miss
   );
 }
 
+
+// Actions per type over the whole banner, and the mission types when mixed.
+export function BannerActions({ d }) {
+  if (d.isLoading || !d.actionCounts.length) {
+    return null;
+  }
+
+  return (
+    <section className="bp-actions small" aria-label="Actions and mission types">
+      <div className="bp-actions-row">
+        <b>Actions</b>
+        {d.actionCounts.map((action) => (
+          <span className="chip mini" key={action.key}>
+            {action.label} {action.count}
+          </span>
+        ))}
+      </div>
+      {d.missionTypes.length > 1 ? (
+        <div className="bp-actions-row">
+          <b>Mission types</b>
+          {d.missionTypes.map((type) => (
+            <span className="chip mini" key={type.key}>
+              {type.label} {type.count}
+            </span>
+          ))}
+        </div>
+      ) : null}
+    </section>
+  );
+}

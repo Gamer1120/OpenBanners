@@ -131,11 +131,12 @@
   line-height: 22px;
 }
 
+/* The description is paragraphs/lists now, so clamp by height, not line count. */
 .a-clamp {
-  display: -webkit-box;
+  max-height: 6em;
   overflow: hidden;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 4;
+  -webkit-mask-image: linear-gradient(to bottom, #000 60%, transparent);
+  mask-image: linear-gradient(to bottom, #000 60%, transparent);
 }
 
 .a-more {
@@ -260,4 +261,33 @@
 .bp-map .bp-sheet-row .btn {
   flex: none;
   white-space: nowrap;
+}
+
+/* Actions per type and mixed mission types (Bannergress info card parity). */
+.bp-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.bp-actions-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.bp-actions-row b {
+  margin-right: 4px;
+}
+
+.a-about .desc p,
+.a-about .desc ul,
+.a-about .desc ol {
+  margin: 0 0 8px;
+}
+
+.a-about .desc ul,
+.a-about .desc ol {
+  padding-left: 20px;
 }

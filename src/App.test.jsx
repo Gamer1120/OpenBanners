@@ -3898,7 +3898,10 @@ test("banner page shows the compact layout without a design switcher", async () 
   const numbers = screen.getByRole("list", { name: "Key numbers" });
   expect(numbers).toHaveTextContent("Order");
   expect(numbers).toHaveTextContent("In sequence");
-  expect(document.querySelector(".chip")).toBeNull();
+  // (chips now only list the actions per type, below the key numbers)
+  expect(document.querySelector(".bp-hero .chip, .stats .chip")).toBeNull();
+  expect(numbers).toHaveTextContent("Unique portals");
+  expect(screen.getByRole("region", { name: "Actions and mission types" })).toBeInTheDocument();
   // About comes before the start actions.
   const about = screen.getByText("A banner used for design switcher testing.");
   const start = screen.getByRole("button", { name: "Open BannerGuider" });

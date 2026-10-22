@@ -11,7 +11,7 @@ const missions = [
 describe("BannerGuider overlay", () => {
   it("warns before NEXT opens a passphrase mission", () => {
     render(<MapOverlay missions={missions} currentMission={1} setCurrentMission={() => {}} bannerId="x" />);
-    expect(screen.getByRole("note")).toHaveTextContent("Mission 2 asks for a passphrase");
+    expect(screen.getByRole("note")).toHaveTextContent("Mission 2 has a passphrase");
   });
 
   it("says nothing for other missions", () => {

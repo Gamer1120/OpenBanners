@@ -1134,6 +1134,8 @@ export function PassphraseAlert({ d }) {
   }
   const all = entries.length === d.missions.length && entries.length > 1;
   const indexes = entries.map((entry) => entry.index);
+  const stepCount = entries.reduce((total, entry) => total + entry.steps.length, 0);
+  const hidden = d.missions.some((mission) => mission?.type === "hidden");
   const title = all
     ? "Every mission asks for a passphrase"
     : `${formatMissionNumbers(indexes)} ${indexes.length > 1 ? "ask" : "asks"} for a passphrase`;
@@ -1144,8 +1146,10 @@ export function PassphraseAlert({ d }) {
       <div className="grow">
         <b>{title}</b>
         <span className="small">
-          At those waypoints Ingress asks a question and you type in the answer. It’s usually
-          something to spot on site, like text on a sign, so look around when you get there.
+          {stepCount > 1 ? "At those waypoints" : "At that waypoint"} Ingress asks a question and you
+          type in the answer. It’s usually something to spot on site, like text on a sign, so look
+          around when you get there.
+          {hidden ? " Hidden missions may have more." : ""}
         </span>
         <button type="button" className="btn text sl ob-alert-action" onClick={d.showPassphrases}>
           {indexes.length > 1 ? "Show these missions" : `Show mission ${indexes[0] + 1}`}

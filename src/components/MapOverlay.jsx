@@ -141,7 +141,7 @@ export default function MapOverlay({
       </button>
       {nextHasPassphrase ? (
         <p className="overlay-note" role="note">
-          Mission {currentMission + 1} asks for a passphrase. Look around on site for the answer.
+          Mission {currentMission + 1} has a passphrase
         </p>
       ) : null}
       {showDebugControls ? (

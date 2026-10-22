@@ -2020,6 +2020,7 @@ test("warns about passphrases and opens those missions", async () => {
   );
 
   const alert = (await screen.findByText("Mission 2 asks for a passphrase")).closest('[role="note"]');
+  expect(alert).toHaveTextContent("At that waypoint Ingress asks a question");
   expect(alert).toHaveTextContent("look around when you get there");
 
   await userEvent.setup().click(screen.getByRole("button", { name: "Show mission 2" }));

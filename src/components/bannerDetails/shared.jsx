@@ -916,14 +916,6 @@ export function useBannerDetails({ tabs = true } = {}) {
     expandedMissions,
     toggleMission,
     showInList,
-    showPassphrases: () => {
-      const indexes = passphraseMissions.map((entry) => entry.index);
-      if (!indexes.length) {
-        return;
-      }
-      setExpandedMissions((current) => new Set([...current, ...indexes]));
-      showInList(indexes[0]);
-    },
     handleMapSelect,
     missionItemRefs,
     mapRef,
@@ -1125,36 +1117,22 @@ export function StatusAlerts({ d }) {
   );
 }
 
-// Passphrase steps need an answer you usually only find on site, so say so up
-// front and name the missions; the button opens them in the mission list.
+// One line naming the missions with a passphrase step.
 export function PassphraseAlert({ d }) {
   const entries = d.passphraseMissions ?? [];
   if (d.isLoading || !entries.length) {
     return null;
   }
-  const all = entries.length === d.missions.length && entries.length > 1;
   const indexes = entries.map((entry) => entry.index);
-  const stepCount = entries.reduce((total, entry) => total + entry.steps.length, 0);
-  const hidden = d.missions.some((mission) => mission?.type === "hidden");
-  const title = all
-    ? "Every mission asks for a passphrase"
-    : `${formatMissionNumbers(indexes)} ${indexes.length > 1 ? "ask" : "asks"} for a passphrase`;
+  const title =
+    indexes.length === d.missions.length && indexes.length > 1
+      ? "Every mission asks for a passphrase"
+      : `${formatMissionNumbers(indexes)} ${indexes.length > 1 ? "ask" : "asks"} for a passphrase`;
 
   return (
     <div className="ob-alert warn" role="note">
       <Key />
-      <div className="grow">
-        <b>{title}</b>
-        <span className="small">
-          {stepCount > 1 ? "At those waypoints" : "At that waypoint"} Ingress asks a question and you
-          type in the answer. It’s usually something to spot on site, like text on a sign, so look
-          around when you get there.
-          {hidden ? " Hidden missions may have more." : ""}
-        </span>
-        <button type="button" className="btn text sl ob-alert-action" onClick={d.showPassphrases}>
-          {indexes.length > 1 ? "Show these missions" : `Show mission ${indexes[0] + 1}`}
-        </button>
-      </div>
+      <b className="grow">{title}</b>
     </div>
   );
 }

@@ -326,15 +326,7 @@
   padding-left: 20px;
 }
 
-/* Passphrases: the alert's button, a chip on the mission, the key on the waypoint and in the map sheet. */
-.ob-alert .ob-alert-action {
-  margin: 6px 0 0 -12px;
-  color: inherit;
-  font-weight: 600;
-  text-decoration: underline;
-  text-underline-offset: 3px;
-}
-
+/* Passphrases: a chip on the mission, the key on the waypoint and in the map sheet. */
 .chip.mini.warn {
   background: var(--warn-container);
   color: var(--on-warn-container);

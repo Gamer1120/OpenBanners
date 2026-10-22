@@ -175,11 +175,26 @@ export function getPassphraseMissions(missions) {
     .filter((entry) => entry.steps.length);
 }
 
-// "Mission 4", "Missions 2 and 5", "Missions 1, 3 and 6" (1-based).
+// "Mission 4", "Missions 2 and 5", "Missions 1, 3 and 6", "Missions 2–30"
+// (1-based; runs of three or more become a range).
 export function formatMissionNumbers(indexes) {
-  const numbers = indexes.map((index) => index + 1);
-  if (numbers.length === 1) {
-    return `Mission ${numbers[0]}`;
+  const numbers = [...indexes].sort((a, b) => a - b).map((index) => index + 1);
+  const parts = [];
+  for (let i = 0; i < numbers.length; ) {
+    let j = i;
+    while (j + 1 < numbers.length && numbers[j + 1] === numbers[j] + 1) {
+      j++;
+    }
+    if (j - i >= 2) {
+      parts.push(`${numbers[i]}–${numbers[j]}`);
+    } else {
+      parts.push(...numbers.slice(i, j + 1).map(String));
+    }
+    i = j + 1;
   }
-  return `Missions ${numbers.slice(0, -1).join(", ")} and ${numbers[numbers.length - 1]}`;
+  const plural = numbers.length > 1 ? "Missions" : "Mission";
+  if (parts.length === 1) {
+    return `${plural} ${parts[0]}`;
+  }
+  return `${plural} ${parts.slice(0, -1).join(", ")} and ${parts[parts.length - 1]}`;
 }

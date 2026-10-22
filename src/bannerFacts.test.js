@@ -102,5 +102,7 @@ describe("passphrases", () => {
     expect(formatMissionNumbers([3])).toBe("Mission 4");
     expect(formatMissionNumbers([1, 4])).toBe("Missions 2 and 5");
     expect(formatMissionNumbers([0, 2, 5])).toBe("Missions 1, 3 and 6");
+    expect(formatMissionNumbers([...Array(29).keys()].map((i) => i + 1))).toBe("Missions 2–30");
+    expect(formatMissionNumbers([0, 2, 3, 4, 8])).toBe("Missions 1, 3–5 and 9");
   });
 });

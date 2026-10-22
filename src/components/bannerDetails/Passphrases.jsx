@@ -244,7 +244,9 @@ export function WaypointAnswer({ d, missionId, missionIndex, stepIndex }) {
           {answer.answer !== null ? <b>{answer.answer}</b> : "Answer suggested"}
           {pass.isAuthor
             ? " · waiting for you to publish it"
-            : ` · visible from ${longDate(answer.visibleAt)}, unless the author objects`}
+            : answer.reviewed
+              ? ` · visible from ${longDate(answer.visibleAt)}, unless the author objects`
+              : ` · in review, visible from ${longDate(answer.visibleAt)} at the earliest`}
         </div>
       ))}
       {!live.length && !pending.length ? (

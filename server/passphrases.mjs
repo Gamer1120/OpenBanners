@@ -9,6 +9,9 @@
 //   verification) who authored a mission of the banner. They can add answers
 //   (live at once), approve or delete suggestions, and object for one banner or
 //   all their banners: that deletes the answers permanently and blocks new ones.
+// - Typed crowd answers also need a moderator's approval (Telegram bot,
+//   server/passphrases-telegram.mjs): approved ones still wait out the 30 days,
+//   "publish now" skips the wait, rejected ones are deleted.
 import { createHash } from "node:crypto";
 import { mkdirSync } from "node:fs";
 import { createServer } from "node:http";
@@ -112,6 +115,13 @@ export function openDatabase(path) {
   const db = new DatabaseSync(path);
   db.exec("PRAGMA journal_mode = WAL; PRAGMA foreign_keys = ON; PRAGMA secure_delete = ON;");
   db.exec(SCHEMA);
+  const columns = new Set(db.prepare("PRAGMA table_info(answers)").all().map((column) => column.name));
+  for (const [name, type] of [["approved_at", "INTEGER"], ["notified_at", "INTEGER"], ["submitter_agent", "TEXT"]]) {
+    if (!columns.has(name)) {
+      db.exec(`ALTER TABLE answers ADD COLUMN ${name} ${type}`);
+    }
+  }
+  db.exec("CREATE TABLE IF NOT EXISTS kv (key TEXT PRIMARY KEY, value TEXT)");
   return db;
 }
 
@@ -131,7 +141,7 @@ export function passphraseStepsOf(banner) {
   }));
 }
 
-export function createPassphraseService({ db, fetchImpl = fetch, now = () => Date.now() } = {}) {
+export function createPassphraseService({ db, fetchImpl = fetch, now = () => Date.now(), onSubmitted = () => {} } = {}) {
   const identityCache = new Map();
   const bannerCache = new Map();
 
@@ -223,8 +233,9 @@ export function createPassphraseService({ db, fetchImpl = fetch, now = () => Dat
 
   // Pending answers whose 30 days are over become live.
   function promote() {
-    db.prepare("UPDATE answers SET status = 'live' WHERE status = 'pending' AND visible_at <= ?").run(now());
+    db.prepare("UPDATE answers SET status = 'live' WHERE status = 'pending' AND approved_at IS NOT NULL AND visible_at <= ?").run(now());
   }
+
 
   function deleteBanner(bannerId) {
     db.prepare("DELETE FROM answers WHERE banner_id = ?").run(bannerId);
@@ -263,6 +274,7 @@ export function createPassphraseService({ db, fetchImpl = fetch, now = () => Dat
           wrongs: row.wrongs,
           myVote: row.my_vote ?? null,
           mine: Boolean(identity && row.submitted_by === identity.userId),
+          reviewed: row.approved_at !== null,
         };
       }),
     };
@@ -288,12 +300,12 @@ export function createPassphraseService({ db, fetchImpl = fetch, now = () => Dat
     const author = isAuthor(identity, bannerId);
     const at = now();
     const insert = db.prepare(`INSERT INTO answers
-      (banner_id, mission_id, mission_index, step_index, poi_id, kind, answer, normalized, source, status, submitted_by, submitted_at, visible_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      (banner_id, mission_id, mission_index, step_index, poi_id, kind, answer, normalized, source, status, submitted_by, submitted_at, visible_at, approved_at, submitter_agent)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       ON CONFLICT (banner_id, mission_id, step_index, normalized) DO NOTHING RETURNING id`);
     const existing = db.prepare("SELECT id, status FROM answers WHERE banner_id = ? AND mission_id = ? AND step_index = ? AND normalized = ?");
     const vote = db.prepare("INSERT INTO votes (answer_id, user_id, vote, at) VALUES (?, ?, 'confirm', ?) ON CONFLICT (answer_id, user_id) DO UPDATE SET vote = 'confirm', at = excluded.at");
-    const makeLive = db.prepare("UPDATE answers SET status = 'live', source = 'author', visible_at = ? WHERE id = ?");
+    const makeLive = db.prepare("UPDATE answers SET status = 'live', source = 'author', visible_at = ?, approved_at = COALESCE(approved_at, ?) WHERE id = ?");
     const prepared = items.map((item) => {
       const mission = missions.find((entry) => entry.id && entry.id === item?.missionId);
       const step = mission?.steps[item?.stepIndex];
@@ -316,14 +328,16 @@ export function createPassphraseService({ db, fetchImpl = fetch, now = () => Dat
         const row = insert.get(
           bannerId, mission.id, mission.index, stepIndex, step.poiId, kind, answer, normalized,
           author ? "author" : "crowd", live ? "live" : "pending", identity.userId, at,
-          live ? at : at + PENDING_DAYS * DAY_MS
+          live ? at : at + PENDING_DAYS * DAY_MS,
+          live ? at : null,
+          identity.agent
         );
         const id = row?.id ?? existing.get(bannerId, mission.id, stepIndex, normalized).id;
         if (!row) {
           // Same answer again: it counts as a confirmation, and an author's makes it live.
           vote.run(id, identity.userId, at);
           if (author) {
-            makeLive.run(at, id);
+            makeLive.run(at, at, id);
           }
         }
         results.push(id);
@@ -332,6 +346,11 @@ export function createPassphraseService({ db, fetchImpl = fetch, now = () => Dat
     } catch (error) {
       db.exec("ROLLBACK");
       throw error;
+    }
+    try {
+      onSubmitted();
+    } catch {
+      // Moderation notices retry on their own; a failure never fails the submit.
     }
     return { ids: results, ...listAnswers(bannerId, identity) };
   }
@@ -373,7 +392,7 @@ export function createPassphraseService({ db, fetchImpl = fetch, now = () => Dat
         throw new ApiError(404, "unknown_answer", "That answer doesn't exist any more.");
       }
       if (body.action === "approve") {
-        db.prepare("UPDATE answers SET status = 'live', visible_at = MIN(visible_at, ?) WHERE id = ?").run(at, row.id);
+        db.prepare("UPDATE answers SET status = 'live', visible_at = MIN(visible_at, ?), approved_at = COALESCE(approved_at, ?) WHERE id = ?").run(at, at, row.id);
       } else {
         db.prepare("DELETE FROM answers WHERE id = ?").run(row.id);
       }
@@ -518,7 +537,67 @@ export function createPassphraseService({ db, fetchImpl = fetch, now = () => Dat
     throw new ApiError(404, "not_found", "Not found.");
   }
 
-  return { handle, listAnswers, promote };
+  // Moderation (Telegram bot, admin tool). Only typed crowd answers wait for it.
+  const REVIEW_SQL = `SELECT a.*, b.title,
+      (SELECT group_concat(agent, ', ') FROM banner_authors ba WHERE ba.banner_id = a.banner_id) AS authors
+    FROM answers a LEFT JOIN banners b ON b.banner_id = a.banner_id`;
+
+  const moderation = {
+    awaitingReview: () => db.prepare(`${REVIEW_SQL} WHERE a.approved_at IS NULL ORDER BY a.submitted_at`).all(),
+    unnotified: () => db.prepare(`${REVIEW_SQL} WHERE a.approved_at IS NULL AND a.notified_at IS NULL ORDER BY a.submitted_at`).all(),
+    markNotified: (id) => db.prepare("UPDATE answers SET notified_at = ? WHERE id = ?").run(now(), id),
+    get: (id) => db.prepare(`${REVIEW_SQL} WHERE a.id = ?`).get(id) ?? null,
+    // approve: visible once its 30 days are over; publish: visible now; reject: deleted.
+    decide(id, action) {
+      const row = moderation.get(id);
+      if (!row) {
+        return null;
+      }
+      const at = now();
+      if (action === "approve") {
+        db.prepare("UPDATE answers SET approved_at = COALESCE(approved_at, ?) WHERE id = ?").run(at, id);
+      } else if (action === "publish") {
+        db.prepare("UPDATE answers SET approved_at = COALESCE(approved_at, ?), status = 'live', visible_at = MIN(visible_at, ?) WHERE id = ?").run(at, at, id);
+      } else if (action === "reject") {
+        db.prepare("DELETE FROM answers WHERE id = ?").run(id);
+        return { ...row, decided: "reject" };
+      } else {
+        throw new Error(`Unknown moderation action ${action}`);
+      }
+      promote();
+      return { ...moderation.get(id), decided: action };
+    },
+    block(scope, key, via) {
+      const normalizedKey = scope === "author" ? agentKey(key) : key;
+      db.exec("BEGIN");
+      try {
+        db.prepare("INSERT OR REPLACE INTO blocks (scope, key, via, at) VALUES (?, ?, ?, ?)").run(scope, normalizedKey, via, now());
+        const banners = scope === "banner"
+          ? [normalizedKey]
+          : db.prepare("SELECT banner_id FROM banner_authors WHERE agent = ?").all(normalizedKey).map((row) => row.banner_id);
+        let deleted = 0;
+        for (const bannerId of banners) {
+          deleted += Number(db.prepare("DELETE FROM answers WHERE banner_id = ?").run(bannerId).changes);
+        }
+        db.exec("COMMIT");
+        return { banners: banners.length, deleted };
+      } catch (error) {
+        db.exec("ROLLBACK");
+        throw error;
+      }
+    },
+    unblock(scope, key) {
+      return Number(db.prepare("DELETE FROM blocks WHERE scope = ? AND key = ?").run(scope, scope === "author" ? agentKey(key) : key).changes);
+    },
+    blocks: () => db.prepare("SELECT scope, key, via, at FROM blocks ORDER BY at").all(),
+    logContact(agent, channel, bannerId, note) {
+      db.prepare("INSERT INTO contact_attempts (agent, banner_id, channel, note, at) VALUES (?, ?, ?, ?, ?)").run(agentKey(agent), bannerId, channel, note, now());
+    },
+    getValue: (key) => db.prepare("SELECT value FROM kv WHERE key = ?").get(key)?.value ?? null,
+    setValue: (key, value) => db.prepare("INSERT INTO kv (key, value) VALUES (?, ?) ON CONFLICT (key) DO UPDATE SET value = excluded.value").run(key, String(value)),
+  };
+
+  return { handle, listAnswers, promote, moderation };
 }
 
 function readBody(request) {
@@ -541,7 +620,7 @@ function readBody(request) {
 
 export function createPassphraseServer(options = {}) {
   const service = createPassphraseService(options);
-  return createServer(async (request, response) => {
+  const server = createServer(async (request, response) => {
     const send = (status, payload) => {
       response.writeHead(status, {
         "Content-Type": "application/json; charset=utf-8",
@@ -574,12 +653,24 @@ export function createPassphraseServer(options = {}) {
       }
     }
   });
+  return { server, service };
 }
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   const port = Number(process.env.OPENBANNERS_PASSPHRASES_PORT) || 8789;
   const db = openDatabase(process.env.OPENBANNERS_PASSPHRASES_DB || "/var/lib/openbanners/passphrases.sqlite");
-  createPassphraseServer({ db }).listen(port, "127.0.0.1", () => {
+  let bot = null;
+  const { server, service } = createPassphraseServer({ db, onSubmitted: () => bot?.notifyPending() });
+  server.listen(port, "127.0.0.1", () => {
     process.stdout.write(`OpenBanners passphrases listening on 127.0.0.1:${port}\n`);
   });
+  if (process.env.OPENBANNERS_TELEGRAM_BOT_TOKEN) {
+    const { startModerationBot } = await import("./passphrases-telegram.mjs");
+    bot = startModerationBot({
+      token: process.env.OPENBANNERS_TELEGRAM_BOT_TOKEN,
+      moderatorIds: String(process.env.OPENBANNERS_TELEGRAM_MODERATORS ?? "").split(",").map((id) => id.trim()).filter(Boolean),
+      siteUrl: process.env.OPENBANNERS_SITE_URL || "https://openbanners.org",
+      moderation: service.moderation,
+    });
+  }
 }

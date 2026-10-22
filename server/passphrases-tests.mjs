@@ -60,9 +60,45 @@ test("other answers stay hidden for 30 days, then go live", async () => {
   assert.equal(anon.answers[0].answer, null);
   assert.equal((await service.handle("GET", "/banners/b1", as("alice"), null)).answers[0].answer, "Blue door");
   advance(PENDING_DAYS * DAY);
+  // 30 days alone isn't enough: a moderator has to approve it too.
+  assert.equal((await service.handle("GET", "/banners/b1", {}, null)).answers[0].status, "pending");
+  const [waiting] = service.moderation.awaitingReview();
+  assert.equal(waiting.answer, "Blue door");
+  service.moderation.decide(waiting.id, "approve");
   const later = await service.handle("GET", "/banners/b1", {}, null);
   assert.equal(later.answers[0].status, "live");
   assert.equal(later.answers[0].answer, "Blue door");
+});
+
+test("moderation: approve waits out the 30 days, publish shows now, reject deletes", async () => {
+  const { service, as, advance } = setup();
+  let notified = 0;
+  const text = (stepIndex, missionId, value) => ({ missionId, stepIndex, kind: "text", text: value });
+  await service.handle("POST", "/banners/b1/answers", as("alice"), { answers: [text(1, "m1", "Blue"), text(0, "m2", "Red")] });
+  const [first, second] = service.moderation.unnotified();
+  assert.equal(service.moderation.unnotified().length, 2);
+  service.moderation.markNotified(first.id);
+  assert.equal(service.moderation.unnotified().length, 1);
+
+  assert.equal(service.moderation.decide(first.id, "approve").status, "pending");
+  assert.equal(service.moderation.decide(second.id, "publish").status, "live");
+  advance(PENDING_DAYS * DAY);
+  assert.equal(service.moderation.get(first.id).status, "pending");
+  await service.handle("GET", "/banners/b1", {}, null);
+  assert.equal(service.moderation.get(first.id).status, "live");
+
+  await service.handle("POST", "/banners/b1/answers", as("bob"), { answers: [text(1, "m1", "Green")] });
+  const [third] = service.moderation.awaitingReview();
+  assert.equal(service.moderation.decide(third.id, "reject").decided, "reject");
+  assert.equal(service.moderation.get(third.id), null);
+  assert.equal(notified, 0);
+});
+
+test("mission numbers and authors' answers need no moderation", async () => {
+  const { service, as } = setup();
+  await service.handle("POST", "/banners/b1/answers", as("alice"), { answers: [{ missionId: "m2", stepIndex: 0, kind: "number" }] });
+  await service.handle("POST", "/banners/b1/answers", as("maker"), { answers: [{ missionId: "m1", stepIndex: 1, kind: "text", text: "x" }] });
+  assert.deepEqual(service.moderation.awaitingReview(), []);
 });
 
 test("only steps that ask for a passphrase are accepted", async () => {

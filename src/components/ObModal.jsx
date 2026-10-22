@@ -15,7 +15,9 @@ export default function ObModal({ title, onClose, children, labelId = "ob-modal-
     };
     window.addEventListener("keydown", onKey);
     const previous = document.activeElement;
-    cardRef.current?.querySelector("button, input, a")?.focus?.();
+    // First real action, not the X.
+    const card = cardRef.current;
+    (card?.querySelector(":scope > :not(.ob-modal-head) :is(button, input, a)") ?? card?.querySelector("button"))?.focus?.();
     return () => {
       window.removeEventListener("keydown", onKey);
       previous?.focus?.();

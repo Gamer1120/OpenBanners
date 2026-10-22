@@ -2254,7 +2254,7 @@ body {
   display: flex;
   align-items: center;
   gap: 8px;
-  margin-right: -12px;
+  margin-right: -8px;
 }
 
 .ob-modal-head h2 {

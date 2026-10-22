@@ -10,8 +10,9 @@
 //   (live at once), approve or delete suggestions, and object for one banner or
 //   all their banners: that deletes the answers permanently and blocks new ones.
 // - Typed crowd answers also need a moderator's approval (Telegram bot,
-//   server/passphrases-telegram.mjs): approved ones still wait out the 30 days,
-//   "publish now" skips the wait, rejected ones are deleted.
+//   server/passphrases-telegram.mjs, one message per banner): approved ones
+//   still wait out the 30 days, "publish now" skips the wait, rejected ones are
+//   deleted.
 import { createHash } from "node:crypto";
 import { mkdirSync } from "node:fs";
 import { createServer } from "node:http";
@@ -122,6 +123,17 @@ export function openDatabase(path) {
     }
   }
   db.exec("CREATE TABLE IF NOT EXISTS kv (key TEXT PRIMARY KEY, value TEXT)");
+  // One Telegram review message per banner and moderator; items = the answers it shows.
+  db.exec(`CREATE TABLE IF NOT EXISTS reviews (
+    id INTEGER PRIMARY KEY,
+    banner_id TEXT NOT NULL,
+    chat_id TEXT NOT NULL,
+    message_id INTEGER,
+    items TEXT NOT NULL,
+    mode TEXT NOT NULL DEFAULT 'banner',
+    closed INTEGER NOT NULL DEFAULT 0,
+    created_at INTEGER NOT NULL
+  )`);
   return db;
 }
 
@@ -548,6 +560,14 @@ export function createPassphraseService({ db, fetchImpl = fetch, now = () => Dat
     unnotified: () => db.prepare(`${REVIEW_SQL} WHERE a.approved_at IS NULL AND a.notified_at IS NULL ORDER BY a.submitted_at`).all(),
     markNotified: (id) => db.prepare("UPDATE answers SET notified_at = ? WHERE id = ?").run(now(), id),
     get: (id) => db.prepare(`${REVIEW_SQL} WHERE a.id = ?`).get(id) ?? null,
+    // Answers still open for moderation (to review, or approved and in their 30 days) on one banner.
+    openForBanner: (bannerId) =>
+      db.prepare(`${REVIEW_SQL} WHERE a.banner_id = ? AND (a.approved_at IS NULL OR a.status = 'pending') ORDER BY a.mission_index, a.step_index, a.submitted_at`).all(bannerId),
+    // Banners with answers nobody was told about yet, with when the last one came in.
+    unnotifiedBanners: () =>
+      db.prepare("SELECT banner_id AS bannerId, MAX(submitted_at) AS lastAt, COUNT(*) AS count FROM answers WHERE approved_at IS NULL AND notified_at IS NULL GROUP BY banner_id").all(),
+    bannersWithOpenAnswers: () =>
+      db.prepare("SELECT DISTINCT banner_id AS bannerId FROM answers WHERE approved_at IS NULL OR status = 'pending' ORDER BY banner_id").all().map((row) => row.bannerId),
     // approve: visible once its 30 days are over; publish: visible now; reject: deleted.
     decide(id, action) {
       const row = moderation.get(id);
@@ -593,6 +613,19 @@ export function createPassphraseService({ db, fetchImpl = fetch, now = () => Dat
     blocks: () => db.prepare("SELECT scope, key, via, at FROM blocks ORDER BY at").all(),
     logContact(agent, channel, bannerId, note) {
       db.prepare("INSERT INTO contact_attempts (agent, banner_id, channel, note, at) VALUES (?, ?, ?, ?, ?)").run(agentKey(agent), bannerId, channel, note, now());
+    },
+    reviews: {
+      create: (bannerId, chatId, items) =>
+        Number(db.prepare("INSERT INTO reviews (banner_id, chat_id, items, created_at) VALUES (?, ?, ?, ?)").run(bannerId, chatId, JSON.stringify(items), now()).lastInsertRowid),
+      setMessage: (id, messageId) => db.prepare("UPDATE reviews SET message_id = ? WHERE id = ?").run(messageId, id),
+      setMode: (id, mode) => db.prepare("UPDATE reviews SET mode = ? WHERE id = ?").run(mode, id),
+      close: (id) => db.prepare("UPDATE reviews SET closed = 1 WHERE id = ?").run(id),
+      get(id) {
+        const row = db.prepare("SELECT * FROM reviews WHERE id = ?").get(id);
+        return row ? { ...row, items: JSON.parse(row.items) } : null;
+      },
+      openFor: (bannerId, chatId) =>
+        db.prepare("SELECT * FROM reviews WHERE banner_id = ? AND chat_id = ? AND closed = 0").all(bannerId, chatId).map((row) => ({ ...row, items: JSON.parse(row.items) })),
     },
     getValue: (key) => db.prepare("SELECT value FROM kv WHERE key = ?").get(key)?.value ?? null,
     setValue: (key, value) => db.prepare("INSERT INTO kv (key, value) VALUES (?, ?) ON CONFLICT (key) DO UPDATE SET value = excluded.value").run(key, String(value)),
@@ -671,6 +704,8 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
       token: process.env.OPENBANNERS_TELEGRAM_BOT_TOKEN,
       moderatorIds: String(process.env.OPENBANNERS_TELEGRAM_MODERATORS ?? "").split(",").map((id) => id.trim()).filter(Boolean),
       siteUrl: process.env.OPENBANNERS_SITE_URL || "https://openbanners.org",
+      // Answers for a banner are sent together once it has been quiet this long.
+      quietMs: (Number(process.env.OPENBANNERS_TELEGRAM_QUIET_MINUTES) || 15) * 60 * 1000,
       moderation: service.moderation,
     });
   }

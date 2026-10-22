@@ -1,66 +1,123 @@
 // Telegram moderation bot for passphrase answers (long polling, no webhook).
-// - Every typed crowd answer is sent to the moderators with three buttons:
-//   Approve (visible after its 30 days), Publish now, Reject (deleted).
-// - Moderators also get commands: /pending, /blocks, /block, /unblock, /contact.
+// - One message per banner, not per answer: answers are collected until the
+//   banner has been quiet for a while (people submit while walking), then the
+//   moderators get a single message listing them, with buttons for the whole
+//   banner (Approve all = visible after the 30 days, Publish all now, Reject
+//   all) and "Per answer" for single decisions. New answers for the same banner
+//   replace the old message with a fresh one, so there is one per banner.
+// - Commands: /pending, /blocks, /block, /unblock, /contact.
 // - Anyone else who writes to the bot (an author objecting via Telegram) gets
-//   told how to object, and the message is forwarded to the moderators, who
-//   can apply it with /block.
-// Only chats listed in OPENBANNERS_TELEGRAM_MODERATORS can moderate.
+//   told how to object, and the message is forwarded to the moderators.
+// Only Telegram user ids in OPENBANNERS_TELEGRAM_MODERATORS can moderate.
 
 const API = "https://api.telegram.org";
+const MAX_TEXT = 3800;
+const MAX_ITEM_ROWS = 30;
 
 const escapeHtml = (value) =>
   String(value ?? "").replace(/[&<>"]/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[char]);
 
 const shortDate = (ms) => new Date(ms).toISOString().slice(0, 10);
+const place = (item) => `${item.m + 1}.${item.w + 1}`;
 
-export function describeAnswer(row, siteUrl) {
-  const link = `${siteUrl}/banner/${encodeURIComponent(row.banner_id)}`;
-  return [
-    `🔑 <b>Passphrase answer</b> #${row.id}`,
-    `<a href="${escapeHtml(link)}">${escapeHtml(row.title || row.banner_id)}</a>`,
-    `Mission ${row.mission_index + 1}, waypoint ${row.step_index + 1}`,
-    `Answer: <code>${escapeHtml(row.answer)}</code>`,
-    `By: ${escapeHtml(row.submitter_agent || "unverified Bannergress user")}`,
-    `Authors: ${escapeHtml(row.authors || "unknown")}`,
-    `Submitted ${shortDate(row.submitted_at)}, 30 days end ${shortDate(row.visible_at)}`,
-  ].join("\n");
+// What happened to an answer since the message was sent.
+function stateOf(row) {
+  if (!row) {
+    return "rejected";
+  }
+  if (row.status === "live") {
+    return "live";
+  }
+  return row.approved_at === null ? "review" : "approved";
 }
 
-const OUTCOME = {
-  approve: (row) => `✅ Approved: visible from ${shortDate(row.visible_at)}${row.status === "live" ? " (already live)" : ""}`,
-  publish: () => "🚀 Published now",
-  reject: () => "🗑 Rejected and deleted",
-};
+const ICON = { review: "⏳", approved: "✅", live: "🚀", rejected: "🗑" };
+const DONE = { a: "Approved", p: "Published", r: "Rejected" };
+const ACTIONS = { a: "approve", p: "publish", r: "reject" };
 
-// After Approve the answer still waits out its 30 days, so keep a way to
-// publish it now (or still reject it).
-export function approvedButtonsFor(id) {
-  return {
-    inline_keyboard: [
-      [
-        { text: "🚀 Publish now", callback_data: `pp:publish:${id}` },
-        { text: "🗑 Reject", callback_data: `pp:reject:${id}` },
-      ],
-    ],
-  };
+export function renderReview(review, rows, siteUrl) {
+  const byId = new Map(rows.filter(Boolean).map((row) => [row.id, row]));
+  const first = rows.find(Boolean);
+  const link = `${siteUrl}/banner/${encodeURIComponent(review.banner_id)}`;
+  const submitters = [...new Set(review.items.map((item) => item.by || "unverified user"))];
+  const counts = { review: 0, approved: 0, live: 0, rejected: 0 };
+  const lines = review.items.map((item) => {
+    const row = byId.get(item.id);
+    const state = stateOf(row);
+    counts[state] += 1;
+    const answer = state === "rejected" ? `<s>${escapeHtml(item.answer)}</s>` : `<code>${escapeHtml(item.answer)}</code>`;
+    const note =
+      state === "approved" ? ` · visible ${shortDate(row.visible_at)}` : state === "live" ? " · live" : state === "rejected" ? " · rejected" : "";
+    return `${ICON[state]} ${place(item)}  ${answer}${note}`;
+  });
+  const head = [
+    `🔑 <b>Passphrase answers</b> · <a href="${escapeHtml(link)}">${escapeHtml(first?.title || review.banner_id)}</a>`,
+    `Authors: ${escapeHtml(first?.authors || "unknown")}`,
+    `From: ${escapeHtml(submitters.join(", "))}`,
+    `${review.items.length} answer${review.items.length > 1 ? "s" : ""} (mission.waypoint)` +
+      (counts.review ? ` · ${counts.review} to review` : "") +
+      (counts.approved ? ` · ${counts.approved} approved` : ""),
+    "",
+  ];
+  let text = head.join("\n");
+  let shown = 0;
+  for (const line of lines) {
+    if (text.length + line.length + 60 > MAX_TEXT) {
+      break;
+    }
+    text += `${line}\n`;
+    shown += 1;
+  }
+  if (shown < lines.length) {
+    text += `…and ${lines.length - shown} more (the buttons cover all of them)\n`;
+  }
+  return { text: text.trimEnd(), counts };
 }
 
-export function buttonsFor(id) {
+export function keyboardFor(review, rows) {
+  const byId = new Map(rows.filter(Boolean).map((row) => [row.id, row]));
+  const open = review.items
+    .map((item) => ({ item, state: stateOf(byId.get(item.id)) }))
+    .filter(({ state }) => state === "review" || state === "approved");
+  if (!open.length) {
+    return undefined;
+  }
+  const cb = (action) => `pp:r:${review.id}:${action}`;
+  if (review.mode === "items") {
+    const perAnswer = open.slice(0, MAX_ITEM_ROWS).map(({ item, state }) => [
+      ...(state === "review" ? [{ text: `${place(item)} ✅`, callback_data: `pp:i:${review.id}:${item.id}:a` }] : []),
+      { text: `${place(item)} 🚀`, callback_data: `pp:i:${review.id}:${item.id}:p` },
+      { text: `${place(item)} 🗑`, callback_data: `pp:i:${review.id}:${item.id}:r` },
+    ]);
+    return { inline_keyboard: [...perAnswer, [{ text: "« All at once", callback_data: cb("back") }]] };
+  }
+  const toReview = open.some(({ state }) => state === "review");
   return {
-    inline_keyboard: [
-      [
-        { text: "✅ Approve (30 days)", callback_data: `pp:approve:${id}` },
-        { text: "🚀 Publish now", callback_data: `pp:publish:${id}` },
-      ],
-      [{ text: "🗑 Reject", callback_data: `pp:reject:${id}` }],
-    ],
+    inline_keyboard: toReview
+      ? [
+          [
+            { text: "✅ Approve all (30 days)", callback_data: cb("a") },
+            { text: "🚀 Publish all now", callback_data: cb("p") },
+          ],
+          [
+            { text: "🗑 Reject all", callback_data: cb("r") },
+            { text: "✏️ Per answer", callback_data: cb("items") },
+          ],
+        ]
+      : [
+          [
+            { text: "🚀 Publish all now", callback_data: cb("p") },
+            { text: "🗑 Reject all", callback_data: cb("r") },
+          ],
+          [{ text: "✏️ Per answer", callback_data: cb("items") }],
+        ],
   };
 }
 
 const HELP = [
   "<b>OpenBanners passphrase moderation</b>",
-  "/pending: answers waiting for review, and approved ones still in their 30 days",
+  "Answers come in as one message per banner, once nobody has added any for a while.",
+  "/pending: a fresh message for every banner with answers to review, or approved ones still in their 30 days",
   "/blocks: banners and authors that objected",
   "/block banner &lt;banner-id&gt; or /block author &lt;agent&gt;: delete their answers and block new ones",
   "/unblock banner|author &lt;key&gt;",
@@ -73,8 +130,18 @@ const OBJECT_HELP = [
   "You can also reply here with your agent name and the banner, and a moderator will take care of it.",
 ].join("\n\n");
 
-export function createModerationBot({ token, moderatorIds, siteUrl, moderation, fetchImpl = fetch, log = () => {} }) {
-  const moderators = new Set(moderatorIds.map(String));
+export function createModerationBot({
+  token,
+  moderatorIds,
+  siteUrl,
+  moderation,
+  quietMs = 15 * 60 * 1000,
+  now = () => Date.now(),
+  fetchImpl = fetch,
+  log = () => {},
+}) {
+  const moderators = [...new Set(moderatorIds.map(String))];
+  const isModerator = (id) => moderators.includes(String(id));
 
   async function api(method, body) {
     const response = await fetchImpl(`${API}/bot${token}/${method}`, {
@@ -92,18 +159,71 @@ export function createModerationBot({ token, moderatorIds, siteUrl, moderation, 
   const send = (chatId, text, extra = {}) =>
     api("sendMessage", { chat_id: chatId, text, parse_mode: "HTML", disable_web_page_preview: true, ...extra });
 
+  const rowsOf = (review) => review.items.map((item) => moderation.get(item.id));
+
+  async function redraw(reviewId, chatId, messageId) {
+    const review = moderation.reviews.get(reviewId);
+    const rows = rowsOf(review);
+    const { text } = renderReview(review, rows, siteUrl);
+    const keyboard = keyboardFor(review, rows);
+    if (!keyboard) {
+      moderation.reviews.close(review.id);
+    }
+    await api("editMessageText", {
+      chat_id: chatId,
+      message_id: messageId,
+      text,
+      parse_mode: "HTML",
+      disable_web_page_preview: true,
+      ...(keyboard ? { reply_markup: keyboard } : {}),
+    }).catch((error) => {
+      if (!/not modified/.test(error.message)) {
+        log(`edit: ${error.message}`);
+      }
+    });
+  }
+
+  // One fresh message for this banner per moderator; older open ones go away.
+  async function postBanner(bannerId) {
+    const rows = moderation.openForBanner(bannerId);
+    if (!rows.length) {
+      return false;
+    }
+    const items = rows.map((row) => ({ id: row.id, m: row.mission_index, w: row.step_index, answer: row.answer, by: row.submitter_agent }));
+    for (const chatId of moderators) {
+      for (const old of moderation.reviews.openFor(bannerId, chatId)) {
+        moderation.reviews.close(old.id);
+        if (old.message_id) {
+          await api("deleteMessage", { chat_id: chatId, message_id: old.message_id }).catch(() =>
+            api("editMessageText", { chat_id: chatId, message_id: old.message_id, text: "➡️ Moved to a newer message for this banner." }).catch(() => {})
+          );
+        }
+      }
+      const id = moderation.reviews.create(bannerId, chatId, items);
+      const review = moderation.reviews.get(id);
+      const { text } = renderReview(review, rows, siteUrl);
+      const message = await send(chatId, text, { reply_markup: keyboardFor(review, rows) });
+      moderation.reviews.setMessage(id, message.message_id);
+    }
+    for (const row of rows) {
+      if (row.notified_at === null) {
+        moderation.markNotified(row.id);
+      }
+    }
+    return true;
+  }
+
   let notifying = false;
-  async function notifyPending() {
-    if (notifying || !moderators.size) {
+  async function notifyPending({ force = false } = {}) {
+    if (notifying || !moderators.length) {
       return;
     }
     notifying = true;
     try {
-      for (const row of moderation.unnotified()) {
-        for (const chatId of moderators) {
-          await send(chatId, describeAnswer(row, siteUrl), { reply_markup: buttonsFor(row.id) });
+      for (const { bannerId, lastAt } of moderation.unnotifiedBanners()) {
+        if (force || now() - lastAt >= quietMs) {
+          await postBanner(bannerId);
         }
-        moderation.markNotified(row.id);
       }
     } catch (error) {
       log(`notify: ${error.message}`);
@@ -113,51 +233,61 @@ export function createModerationBot({ token, moderatorIds, siteUrl, moderation, 
   }
 
   async function onCallback(query) {
-    const chatId = String(query.message?.chat?.id ?? query.from?.id ?? "");
-    const match = /^pp:(approve|publish|reject):(\d+)$/.exec(query.data ?? "");
-    if (!moderators.has(String(query.from?.id)) || !match) {
-      await api("answerCallbackQuery", { callback_query_id: query.id, text: "Not allowed." });
-      return;
+    const reply = (text) => api("answerCallbackQuery", { callback_query_id: query.id, text: text.slice(0, 190) }).catch(() => {});
+    if (!isModerator(query.from?.id)) {
+      return reply("Not allowed.");
     }
-    const [, action, id] = match;
-    const before = moderation.get(Number(id));
-    const row = moderation.decide(Number(id), action);
-    const outcome = row ? OUTCOME[action](row) : "Already gone (rejected, or the author objected).";
-    await api("answerCallbackQuery", { callback_query_id: query.id, text: outcome.slice(0, 190) });
-    if (query.message) {
-      const text = `${before ? describeAnswer(before, siteUrl) : `🔑 Passphrase answer #${id}`}\n\n<b>${escapeHtml(outcome)}</b>`;
-      await api("editMessageText", {
-        chat_id: chatId,
-        message_id: query.message.message_id,
-        text,
-        parse_mode: "HTML",
-        disable_web_page_preview: true,
-        ...(action === "approve" && row?.status === "pending" ? { reply_markup: approvedButtonsFor(row.id) } : {}),
-      }).catch((error) => log(`edit: ${error.message}`));
+    const chatId = String(query.message?.chat?.id ?? query.from.id);
+    const messageId = query.message?.message_id;
+    const bulk = /^pp:r:(\d+):(a|p|r|items|back)$/.exec(query.data ?? "");
+    const single = /^pp:i:(\d+):(\d+):(a|p|r)$/.exec(query.data ?? "");
+    const review = moderation.reviews.get(Number((bulk ?? single)?.[1]));
+    if (!review || review.closed) {
+      return reply("This message is outdated. Send /pending for a fresh one.");
     }
+    if (bulk) {
+      const action = bulk[2];
+      if (action === "items" || action === "back") {
+        moderation.reviews.setMode(review.id, action === "items" ? "items" : "banner");
+        await reply(action === "items" ? "Per answer" : "All at once");
+      } else {
+        let changed = 0;
+        for (const item of review.items) {
+          const state = stateOf(moderation.get(item.id));
+          // Approve all only touches answers still to review; publish and reject also the approved ones.
+          if (state === "review" || (state === "approved" && action !== "a")) {
+            moderation.decide(item.id, ACTIONS[action]);
+            changed += 1;
+          }
+        }
+        await reply(`${DONE[action]} ${changed} answer${changed === 1 ? "" : "s"}.`);
+      }
+    } else {
+      const [, , answerId, action] = single;
+      if (!review.items.some((item) => item.id === Number(answerId))) {
+        return reply("That answer isn't in this message.");
+      }
+      const row = moderation.decide(Number(answerId), ACTIONS[action]);
+      await reply(row ? `${DONE[action]}.` : "Already gone.");
+    }
+    if (messageId) {
+      await redraw(review.id, chatId, messageId);
+    }
+    return null;
   }
 
   async function onModeratorCommand(chatId, text) {
     const [command, ...args] = text.trim().split(/\s+/);
     const name = command.replace(/@.*$/, "").toLowerCase();
     if (name === "/pending") {
-      const rows = moderation.awaitingReview();
-      const approved = moderation.approvedWaiting();
-      if (!rows.length && !approved.length) {
-        return send(chatId, "Nothing waiting for review, and nothing approved that's still waiting.");
+      const banners = moderation.bannersWithOpenAnswers();
+      if (!banners.length) {
+        return send(chatId, "Nothing to review, and nothing approved that's still waiting.");
       }
-      for (const row of rows.slice(0, 20)) {
-        await send(chatId, describeAnswer(row, siteUrl), { reply_markup: buttonsFor(row.id) });
+      for (const bannerId of banners.slice(0, 20)) {
+        await postBanner(bannerId);
       }
-      if (rows.length > 20) {
-        await send(chatId, `…and ${rows.length - 20} more to review. Handle these first, then /pending again.`);
-      }
-      for (const row of approved.slice(0, 20)) {
-        await send(chatId, `${describeAnswer(row, siteUrl)}\n\n<b>${escapeHtml(OUTCOME.approve(row))}</b>`, {
-          reply_markup: approvedButtonsFor(row.id),
-        });
-      }
-      return approved.length > 20 ? send(chatId, `…and ${approved.length - 20} more approved ones waiting.`) : null;
+      return banners.length > 20 ? send(chatId, `…and ${banners.length - 20} more banners. Handle these first, then /pending again.`) : null;
     }
     if (name === "/blocks") {
       const rows = moderation.blocks();
@@ -186,18 +316,21 @@ export function createModerationBot({ token, moderatorIds, siteUrl, moderation, 
   async function onMessage(message) {
     const chatId = String(message.chat?.id ?? "");
     const text = typeof message.text === "string" ? message.text : "";
-    if (moderators.has(String(message.from?.id)) && message.chat?.type === "private") {
-      return onModeratorCommand(chatId, text);
-    }
     if (message.chat?.type !== "private") {
       return null;
+    }
+    if (isModerator(message.from?.id)) {
+      return onModeratorCommand(chatId, text);
     }
     // Someone else (an author objecting?): explain, and pass it on.
     await send(chatId, escapeHtml(OBJECT_HELP));
     const from = [message.from?.first_name, message.from?.last_name].filter(Boolean).join(" ");
     const who = `${escapeHtml(from || "Someone")}${message.from?.username ? ` (@${escapeHtml(message.from.username)})` : ""}`;
     for (const moderator of moderators) {
-      await send(moderator, `✉️ Message to the passphrase bot from ${who}:\n\n${escapeHtml(text || "(no text)")}\n\nApply an objection with /block banner &lt;id&gt; or /block author &lt;agent&gt;.`);
+      await send(
+        moderator,
+        `✉️ Message to the passphrase bot from ${who}:\n\n${escapeHtml(text || "(no text)")}\n\nApply an objection with /block banner &lt;id&gt; or /block author &lt;agent&gt;.`
+      );
     }
     return null;
   }
@@ -233,9 +366,8 @@ export function createModerationBot({ token, moderatorIds, siteUrl, moderation, 
     handleUpdate,
     start() {
       poll();
-      notifyPending();
-      // Retry notices that failed, e.g. while Telegram was unreachable.
-      setInterval(notifyPending, 10 * 60 * 1000).unref();
+      // Every minute: post banners that have gone quiet; also retries failed sends.
+      setInterval(notifyPending, 60 * 1000).unref();
     },
     stop() {
       stopped = true;
@@ -248,4 +380,3 @@ export function startModerationBot(options) {
   bot.start();
   return bot;
 }
-

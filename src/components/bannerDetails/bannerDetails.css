@@ -263,22 +263,56 @@
   white-space: nowrap;
 }
 
-/* Actions per type and mixed mission types (Bannergress info card parity). */
-.bp-actions {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
+/* Secondary facts: one list in the tiles' surface and type, label left, value right. */
+.bp-facts dl {
+  margin: 0;
+  background: var(--sc);
+  border-radius: var(--r-m);
+  padding: 4px 14px;
 }
 
-.bp-actions-row {
+.bp-fact {
   display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 6px;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 0;
+  border-top: 1px solid var(--outline-variant);
 }
 
-.bp-actions-row b {
-  margin-right: 4px;
+.bp-fact:first-child {
+  border-top: 0;
+}
+
+.bp-fact dt {
+  font: 500 12px/20px var(--font);
+  letter-spacing: 0.04em;
+  color: var(--on-surface-variant);
+}
+
+.bp-fact dd {
+  margin: 0;
+  font: 400 16px/20px var(--font);
+  text-align: right;
+}
+
+.bp-fact-sub {
+  padding: 4px 0 4px 12px;
+  border-top: 0;
+}
+
+.bp-fact-sub dt {
+  font-weight: 400;
+  letter-spacing: 0;
+  font-size: 14px;
+}
+
+.bp-fact-sub dd {
+  font-size: 14px;
+  color: var(--on-surface-variant);
+}
+
+.bp-fact-sub:last-child {
+  padding-bottom: 10px;
 }
 
 .a-about .desc p,

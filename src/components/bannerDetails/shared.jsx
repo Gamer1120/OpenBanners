@@ -338,7 +338,7 @@ export function MissionItem({ mission, index, color, selected, expanded, onToggl
                   Offline
                 </span>
               ) : null}
-              {typeLabel ? <span className="chip mini">{typeLabel}</span> : null}
+              {typeLabel ? <span>{typeLabel}</span> : null}
               {Number.isFinite(length) && length > 0 ? <span>{formatLength(length)}</span> : null}
               {duration ? <span>{duration}</span> : null}
               <span>{steps.length} waypoints</span>
@@ -925,7 +925,7 @@ export function useBannerDetails({ tabs = true } = {}) {
     lastCheckedLabel: lastChecked
       ? new Date(`${lastChecked}T12:00:00`).toLocaleDateString(undefined, {
           day: "numeric",
-          month: "short",
+          month: "long",
           year: "numeric",
         })
       : null,
@@ -1361,32 +1361,52 @@ export function DetailTabs({ d, labels = { overview: "Overview", missions: "Miss
 }
 
 
-// Actions per type over the whole banner, and the mission types when mixed.
-export function BannerActions({ d }) {
-  if (d.isLoading || !d.actionCounts.length) {
+// The secondary facts as one label/value list, below the headline tiles:
+// waypoints, start to finish, last checked, the actions per type and, when
+// mixed, the mission types (Bannergress shows these as info rows too).
+export function BannerDetailsList({ d }) {
+  if (d.isLoading) {
     return null;
   }
 
+  const rows = [["Waypoints", d.waypointCount]];
+  if (d.startToFinishLabel) {
+    rows.push(["Start to finish", d.startToFinishLabel]);
+  }
+  if (d.lastCheckedLabel) {
+    rows.push(["Last checked", d.lastCheckedLabel]);
+  }
+  const groups = [["Actions", d.actionCounts]];
+  if (d.missionTypes.length > 1) {
+    groups.push(["Mission types", d.missionTypes]);
+  }
+
   return (
-    <section className="bp-actions small" aria-label="Actions and mission types">
-      <div className="bp-actions-row">
-        <b>Actions</b>
-        {d.actionCounts.map((action) => (
-          <span className="chip mini" key={action.key}>
-            {action.label} {action.count}
-          </span>
+    <section className="bp-facts" aria-label="Banner details list">
+      <dl>
+        {rows.map(([label, value]) => (
+          <div className="bp-fact" key={label}>
+            <dt>{label}</dt>
+            <dd>{value}</dd>
+          </div>
         ))}
-      </div>
-      {d.missionTypes.length > 1 ? (
-        <div className="bp-actions-row">
-          <b>Mission types</b>
-          {d.missionTypes.map((type) => (
-            <span className="chip mini" key={type.key}>
-              {type.label} {type.count}
-            </span>
-          ))}
-        </div>
-      ) : null}
+        {groups.map(([title, items]) =>
+          items.length ? (
+            <React.Fragment key={title}>
+              <div className="bp-fact bp-fact-head">
+                <dt>{title}</dt>
+                <dd>{items.reduce((sum, item) => sum + item.count, 0)}</dd>
+              </div>
+              {items.map((item) => (
+                <div className="bp-fact bp-fact-sub" key={`${title}-${item.key}`}>
+                  <dt>{item.label}</dt>
+                  <dd>{item.count}</dd>
+                </div>
+              ))}
+            </React.Fragment>
+          ) : null
+        )}
+      </dl>
     </section>
   );
 }

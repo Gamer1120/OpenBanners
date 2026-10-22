@@ -6,7 +6,7 @@ import BannerImage from "../BannerImage";
 import MarkDoneNotice from "../MarkDoneNotice";
 import {
   AddressLink,
-  BannerActions,
+  BannerDetailsList,
   BannerTitle,
   BannergressLink,
   Byline,
@@ -88,20 +88,10 @@ export default function DesignA() {
               <BannerInfo banner={d.items} loading={d.isLoading} variant="row" />
               <KeyNumbers
                 d={d}
-                keys={[
-                  "distance",
-                  "missions",
-                  "time",
-                  "perKm",
-                  "order",
-                  "waypoints",
-                  "uniques",
-                  "straight",
-                  "lastChecked",
-                ]}
+                keys={["distance", "missions", "time", "uniques", "perKm", "order"]}
                 className="stats a-stats"
               />
-              <BannerActions d={d} />
+              <BannerDetailsList d={d} />
               <BannergressLink d={d} />
               <AboutNotice className="bp-about" />
             </div>

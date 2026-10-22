@@ -92,68 +92,110 @@ export function WaypointAnswer({ d, missionId, stepIndex }) {
   );
 }
 
-// One row per passphrase waypoint: mission number, another answer, or skip.
+function passphraseRows(d) {
+  return d.passphraseMissions.flatMap((entry) => {
+    const mission = d.missions[entry.index];
+    if (!mission?.id) {
+      return [];
+    }
+    return entry.steps.map((stepIndex) => ({
+      key: stepKey(mission.id, stepIndex),
+      missionId: mission.id,
+      missionIndex: entry.index,
+      stepIndex,
+      title: Object.values(mission.steps ?? {})[stepIndex]?.poi?.title || "Hidden waypoint",
+      missionTitle: mission.title || `Mission ${entry.index + 1}`,
+    }));
+  });
+}
+
+// A banner's answers are either all the mission numbers or all typed, so the
+// form asks that first. Typed answers are saved one at a time, as you go.
 function AnswerForm({ d, onDone }) {
   const pass = d.passphrases;
-  const rows = d.passphraseMissions.flatMap((entry) =>
-    entry.steps.map((stepIndex) => {
-      const mission = d.missions[entry.index];
-      const step = Object.values(mission?.steps ?? {})[stepIndex];
-      return {
-        key: stepKey(mission.id, stepIndex),
-        missionId: mission.id,
-        missionIndex: entry.index,
-        stepIndex,
-        title: step?.poi?.title || "Hidden waypoint",
-        missionTitle: mission.title || `Mission ${entry.index + 1}`,
-      };
-    })
-  );
-  const [choices, setChoices] = useState({});
-  const [busy, setBusy] = useState(false);
+  const bannerId = d.items.id ?? d.bannerId;
+  const rows = passphraseRows(d);
+  const [mode, setMode] = useState("");
+  const [texts, setTexts] = useState({});
+  const [saved, setSaved] = useState({});
+  const [busy, setBusy] = useState("");
   const [error, setError] = useState("");
-  const set = (key, value) => setChoices((current) => ({ ...current, [key]: { ...current[key], ...value } }));
-  const allNumbers = () => setChoices(Object.fromEntries(rows.map((row) => [row.key, { kind: "number" }])));
 
-  const answers = rows
-    .map((row) => ({ row, choice: choices[row.key] }))
-    .filter(({ choice }) => choice?.kind === "number" || (choice?.kind === "text" && choice.text?.trim()))
-    .map(({ row, choice }) => ({
-      missionId: row.missionId,
-      stepIndex: row.stepIndex,
-      kind: choice.kind,
-      ...(choice.kind === "text" ? { text: choice.text.trim() } : {}),
-    }));
-  const textCount = answers.filter((answer) => answer.kind === "text").length;
-
-  const send = () => {
-    setBusy(true);
+  const sendNumbers = () => {
+    setBusy("numbers");
     setError("");
-    submitPassphrases(d.items.id ?? d.bannerId, answers).then(
+    submitPassphrases(
+      bannerId,
+      rows.map((row) => ({ missionId: row.missionId, stepIndex: row.stepIndex, kind: "number" }))
+    ).then(
       (data) => {
         pass.apply(data);
-        onDone(answers.length, textCount);
+        onDone("Thanks! The mission numbers are visible now.");
       },
       (e) => {
         setError(e.message);
-        setBusy(false);
+        setBusy("");
       }
     );
   };
 
+  const saveOne = (row) => {
+    const text = (texts[row.key] ?? "").trim();
+    if (!text) {
+      return;
+    }
+    setBusy(row.key);
+    setError("");
+    submitPassphrases(bannerId, [{ missionId: row.missionId, stepIndex: row.stepIndex, kind: "text", text }]).then(
+      (data) => {
+        pass.apply(data);
+        setSaved((current) => ({ ...current, [row.key]: text }));
+        setBusy("");
+      },
+      (e) => {
+        setError(e.message);
+        setBusy("");
+      }
+    );
+  };
+
+  if (!mode) {
+    return (
+      <div className="pp-form">
+        <p className="small">What are the answers?</p>
+        <div className="pp-actions">
+          <button type="button" className="btn filled sl" disabled={busy === "numbers"} onClick={sendNumbers}>
+            All are the mission number
+          </button>
+          <button type="button" className="btn outlined sl" onClick={() => setMode("text")}>
+            I’ll type them
+          </button>
+          <button type="button" className="btn text sl" onClick={() => onDone("")}>
+            Cancel
+          </button>
+        </div>
+        <p className="small muted">Mission numbers show right away.</p>
+        {error ? <p className="small pp-error" role="alert">{error}</p> : null}
+      </div>
+    );
+  }
+
+  const savedCount = Object.keys(saved).length;
   let lastMission = -1;
   return (
     <div className="pp-form">
-      {rows.length > 1 ? (
-        <button type="button" className="btn outlined sl" onClick={allNumbers}>
-          All answers are the mission number
-        </button>
-      ) : null}
+      <p className="small muted">
+        {pass.isAuthor
+          ? "You’re an author of this banner, so your answers show right away. Save each one when you have it."
+          : `Save each answer when you have it. They show after ${pass.pendingDays} days, unless the author objects.`}
+      </p>
       <ol className="pp-rows">
         {rows.map((row) => {
-          const choice = choices[row.key]?.kind ?? "";
           const heading = row.missionIndex !== lastMission;
           lastMission = row.missionIndex;
+          const text = texts[row.key] ?? "";
+          const isSaved = saved[row.key] !== undefined && saved[row.key] === text.trim();
+          const label = `Answer for mission ${row.missionIndex + 1}, waypoint ${row.stepIndex + 1}`;
           return (
             <li key={row.key}>
               {heading ? (
@@ -164,45 +206,59 @@ function AnswerForm({ d, onDone }) {
               <div className="pp-step small muted">
                 Waypoint {row.stepIndex + 1}: {row.title}
               </div>
-              <div className="seg pp-seg" role="group" aria-label={`Answer for mission ${row.missionIndex + 1}, waypoint ${row.stepIndex + 1}`}>
-                <button type="button" aria-pressed={choice === "number"} onClick={() => set(row.key, { kind: "number" })}>
-                  {row.missionIndex + 1}
-                </button>
-                <button type="button" aria-pressed={choice === "text"} onClick={() => set(row.key, { kind: "text" })}>
-                  Other
-                </button>
-                <button type="button" aria-pressed={choice === ""} onClick={() => set(row.key, { kind: "" })}>
-                  Skip
-                </button>
-              </div>
-              {choice === "text" ? (
+              <form
+                className="pp-line"
+                onSubmit={(event) => {
+                  event.preventDefault();
+                  saveOne(row);
+                }}
+              >
                 <input
                   className="pp-input"
                   type="text"
                   maxLength={200}
                   autoComplete="off"
-                  aria-label={`Answer for mission ${row.missionIndex + 1}, waypoint ${row.stepIndex + 1}`}
+                  aria-label={label}
                   placeholder="The answer"
-                  value={choices[row.key]?.text ?? ""}
-                  onChange={(event) => set(row.key, { text: event.target.value })}
+                  value={text}
+                  onChange={(event) => setTexts((current) => ({ ...current, [row.key]: event.target.value }))}
                 />
-              ) : null}
+                <button
+                  type="submit"
+                  className={`btn sl ${isSaved ? "text" : "tonal"}`}
+                  disabled={isSaved || !text.trim() || busy === row.key}
+                  aria-label={isSaved ? `${label} saved` : `Save ${label.toLowerCase()}`}
+                >
+                  {isSaved ? (
+                    <>
+                      <Check fontSize="small" />
+                      Saved
+                    </>
+                  ) : (
+                    "Save"
+                  )}
+                </button>
+              </form>
             </li>
           );
         })}
       </ol>
-      <p className="small muted">
-        {pass.isAuthor
-          ? "You’re an author of this banner, so your answers show right away."
-          : `Mission numbers show right away. Other answers show after ${pass.pendingDays} days, unless the author objects.`}
-      </p>
       {error ? <p className="small pp-error" role="alert">{error}</p> : null}
       <div className="pp-actions">
-        <button type="button" className="btn filled sl" disabled={busy || !answers.length} onClick={send}>
-          {answers.length ? `Send ${answers.length} answer${answers.length > 1 ? "s" : ""}` : "Send answers"}
-        </button>
-        <button type="button" className="btn text sl" onClick={() => onDone(0, 0)}>
-          Cancel
+        <button
+          type="button"
+          className="btn filled sl"
+          onClick={() =>
+            onDone(
+              !savedCount
+                ? ""
+                : pass.isAuthor
+                  ? "Thanks! Your answers are visible now."
+                  : `Thanks! Your answers show after ${pass.pendingDays} days unless the author objects.`
+            )
+          }
+        >
+          Done
         </button>
       </div>
     </div>
@@ -338,15 +394,9 @@ export function PassphrasePanel({ d }) {
         {open ? (
           <AnswerForm
             d={d}
-            onDone={(count, textCount) => {
+            onDone={(message) => {
               setOpen(false);
-              setThanks(
-                !count
-                  ? ""
-                  : textCount && !pass.isAuthor
-                    ? `Thanks! ${textCount === count ? "Your answers show" : "Mission numbers show now, the others"} after ${pass.pendingDays} days unless the author objects.`
-                    : "Thanks! Your answers are visible now."
-              );
+              setThanks(message);
             }}
           />
         ) : pass.status === "ready" ? (

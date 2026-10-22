@@ -1391,7 +1391,14 @@ export function BannerDetailsList({ d }) {
           </div>
         ))}
         {groups.map(([title, items]) =>
-          items.length ? (
+          items.length === 1 ? (
+            <div className="bp-fact" key={title}>
+              <dt>{title}</dt>
+              <dd>
+                {items[0].label} {items[0].count}
+              </dd>
+            </div>
+          ) : items.length ? (
             <React.Fragment key={title}>
               <div className="bp-fact bp-fact-head">
                 <dt>{title}</dt>

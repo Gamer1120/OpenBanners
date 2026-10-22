@@ -48,7 +48,8 @@ export function renderReview(review, rows, siteUrl) {
     const answer = state === "rejected" ? `<s>${escapeHtml(item.answer)}</s>` : `<code>${escapeHtml(item.answer)}</code>`;
     const note =
       state === "approved" ? ` · visible ${shortDate(row.visible_at)}` : state === "live" ? " · live" : state === "rejected" ? " · rejected" : "";
-    return `${ICON[state]} ${place(item)}  ${answer}${note}`;
+    const instead = item.alt ? `\n      instead of <code>${escapeHtml(item.alt)}</code>${item.altRemoved ? " (removed)" : ""}` : "";
+    return `${ICON[state]} ${place(item)}  ${answer}${note}${instead}`;
   });
   const head = [
     `🔑 <b>Passphrase answers</b> · <a href="${escapeHtml(link)}">${escapeHtml(first?.title || review.banner_id)}</a>`,
@@ -88,6 +89,8 @@ export function keyboardFor(review, rows) {
       ...(state === "review" ? [{ text: `${place(item)} ✅`, callback_data: `pp:i:${review.id}:${item.id}:a` }] : []),
       { text: `${place(item)} 🚀`, callback_data: `pp:i:${review.id}:${item.id}:p` },
       { text: `${place(item)} 🗑`, callback_data: `pp:i:${review.id}:${item.id}:r` },
+      // A correction: the old live answer can go too.
+      ...(item.alt && !item.altRemoved ? [{ text: `${place(item)} 🗑 old`, callback_data: `pp:i:${review.id}:${item.id}:o` }] : []),
     ]);
     return { inline_keyboard: [...perAnswer, [{ text: "« All at once", callback_data: cb("back") }]] };
   }
@@ -189,7 +192,14 @@ export function createModerationBot({
     if (!rows.length) {
       return false;
     }
-    const items = rows.map((row) => ({ id: row.id, m: row.mission_index, w: row.step_index, answer: row.answer, by: row.submitter_agent }));
+    const items = rows.map((row) => ({
+      id: row.id,
+      m: row.mission_index,
+      w: row.step_index,
+      answer: row.answer,
+      by: row.submitter_agent,
+      ...(row.others ? { alt: row.others } : {}),
+    }));
     for (const chatId of moderators) {
       for (const old of moderation.reviews.openFor(bannerId, chatId)) {
         moderation.reviews.close(old.id);
@@ -240,7 +250,7 @@ export function createModerationBot({
     const chatId = String(query.message?.chat?.id ?? query.from.id);
     const messageId = query.message?.message_id;
     const bulk = /^pp:r:(\d+):(a|p|r|items|back)$/.exec(query.data ?? "");
-    const single = /^pp:i:(\d+):(\d+):(a|p|r)$/.exec(query.data ?? "");
+    const single = /^pp:i:(\d+):(\d+):(a|p|r|o)$/.exec(query.data ?? "");
     const review = moderation.reviews.get(Number((bulk ?? single)?.[1]));
     if (!review || review.closed) {
       return reply("This message is outdated. Send /pending for a fresh one.");
@@ -267,8 +277,14 @@ export function createModerationBot({
       if (!review.items.some((item) => item.id === Number(answerId))) {
         return reply("That answer isn't in this message.");
       }
-      const row = moderation.decide(Number(answerId), ACTIONS[action]);
-      await reply(row ? `${DONE[action]}.` : "Already gone.");
+      if (action === "o") {
+        const removed = moderation.removeOthers(Number(answerId));
+        moderation.reviews.markAltRemoved(review.id, Number(answerId));
+        await reply(removed ? "Removed the old answer." : "The old answer was already gone.");
+      } else {
+        const row = moderation.decide(Number(answerId), ACTIONS[action]);
+        await reply(row ? `${DONE[action]}.` : "Already gone.");
+      }
     }
     if (messageId) {
       await redraw(review.id, chatId, messageId);

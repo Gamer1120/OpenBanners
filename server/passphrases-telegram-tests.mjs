@@ -142,3 +142,28 @@ test("anyone else gets the how-to-object text, and the moderator gets their mess
   assert.equal(calls[1].body.chat_id, "42");
   assert.match(calls[1].body.text, /please remove b1/);
 });
+
+test("a correction shows the answer it replaces, and the old one can be removed", async () => {
+  const { service, bot, submit, sent, press, buttons, calls, advance } = setup();
+  await submit("m1", 0, "Blue");
+  advance(20 * MIN);
+  await bot.notifyPending();
+  const first = buttons(sent()[0].body.reply_markup)[0].split(":")[2];
+  await press(`pp:r:${first}:p`, 101);
+
+  await submit("m1", 0, "Red");
+  advance(20 * MIN);
+  await bot.notifyPending();
+  const message = sent().at(-1).body;
+  assert.match(message.text, /⏳ 1\.1 {2}<code>Red<\/code>\n {6}instead of <code>Blue<\/code>/);
+  const review = buttons(message.reply_markup)[0].split(":")[2];
+  await press(`pp:r:${review}:items`, 102);
+  const red = service.moderation.openForBanner("b1").find((row) => row.answer === "Red");
+  assert.ok(buttons(calls.filter((c) => c.method === "editMessageText").at(-1).body.reply_markup).includes(`pp:i:${review}:${red.id}:o`));
+  await press(`pp:i:${review}:${red.id}:o`, 102);
+  await press(`pp:i:${review}:${red.id}:p`, 102);
+  const edit = calls.filter((c) => c.method === "editMessageText").at(-1).body;
+  assert.match(edit.text, /🚀 1\.1 {2}<code>Red<\/code> · live\n {6}instead of <code>Blue<\/code> \(removed\)/);
+  const banner = await service.handle("GET", "/banners/b1", {}, null);
+  assert.deepEqual(banner.answers.map((a) => a.answer), ["Red"]);
+});

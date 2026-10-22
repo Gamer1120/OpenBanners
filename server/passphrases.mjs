@@ -561,8 +561,24 @@ export function createPassphraseService({ db, fetchImpl = fetch, now = () => Dat
     markNotified: (id) => db.prepare("UPDATE answers SET notified_at = ? WHERE id = ?").run(now(), id),
     get: (id) => db.prepare(`${REVIEW_SQL} WHERE a.id = ?`).get(id) ?? null,
     // Answers still open for moderation (to review, or approved and in their 30 days) on one banner.
+    // `others`: the live answers on the same waypoint, when this one is a correction.
     openForBanner: (bannerId) =>
-      db.prepare(`${REVIEW_SQL} WHERE a.banner_id = ? AND (a.approved_at IS NULL OR a.status = 'pending') ORDER BY a.mission_index, a.step_index, a.submitted_at`).all(bannerId),
+      db.prepare(`SELECT x.*, (SELECT group_concat(o.answer, ' / ') FROM answers o
+          WHERE o.banner_id = x.banner_id AND o.mission_id = x.mission_id AND o.step_index = x.step_index
+            AND o.status = 'live' AND o.id != x.id) AS others
+        FROM (${REVIEW_SQL} WHERE a.banner_id = ? AND (a.approved_at IS NULL OR a.status = 'pending')) x
+        ORDER BY x.mission_index, x.step_index, x.submitted_at`).all(bannerId),
+    // Deletes the other live answers on this answer's waypoint (the ones it corrects).
+    removeOthers(id) {
+      const row = moderation.get(id);
+      if (!row) {
+        return 0;
+      }
+      return Number(
+        db.prepare("DELETE FROM answers WHERE banner_id = ? AND mission_id = ? AND step_index = ? AND status = 'live' AND id != ?")
+          .run(row.banner_id, row.mission_id, row.step_index, id).changes
+      );
+    },
     // Banners with answers nobody was told about yet, with when the last one came in.
     unnotifiedBanners: () =>
       db.prepare("SELECT banner_id AS bannerId, MAX(submitted_at) AS lastAt, COUNT(*) AS count FROM answers WHERE approved_at IS NULL AND notified_at IS NULL GROUP BY banner_id").all(),
@@ -619,6 +635,11 @@ export function createPassphraseService({ db, fetchImpl = fetch, now = () => Dat
         Number(db.prepare("INSERT INTO reviews (banner_id, chat_id, items, created_at) VALUES (?, ?, ?, ?)").run(bannerId, chatId, JSON.stringify(items), now()).lastInsertRowid),
       setMessage: (id, messageId) => db.prepare("UPDATE reviews SET message_id = ? WHERE id = ?").run(messageId, id),
       setMode: (id, mode) => db.prepare("UPDATE reviews SET mode = ? WHERE id = ?").run(mode, id),
+      markAltRemoved(id, answerId) {
+        const review = moderation.reviews.get(id);
+        const items = review.items.map((item) => (item.id === answerId ? { ...item, altRemoved: true } : item));
+        db.prepare("UPDATE reviews SET items = ? WHERE id = ?").run(JSON.stringify(items), id);
+      },
       close: (id) => db.prepare("UPDATE reviews SET closed = 1 WHERE id = ?").run(id),
       get(id) {
         const row = db.prepare("SELECT * FROM reviews WHERE id = ?").get(id);

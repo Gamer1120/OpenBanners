@@ -187,3 +187,26 @@ describe("after marking the banner done", () => {
     expect(screen.queryByRole("dialog")).toBeNull();
   });
 });
+
+describe("a known answer that's wrong", () => {
+  it("saying it's wrong asks for the right one, which goes to review", async () => {
+    const user = userEvent.setup();
+    const { voteOnPassphrase } = await import("../../passphraseApi");
+    voteOnPassphrase.mockResolvedValue({ answers: [] });
+    render(<WaypointAnswer d={d({ data: { answers: [{ ...live, kind: "text", answer: "Blue" }] } })} missionId="m1" missionIndex={0} stepIndex={1} />);
+    await user.click(screen.getByRole("button", { name: "Show answer" }));
+    await user.click(screen.getByRole("button", { name: "This answer is wrong: Blue" }));
+    expect(voteOnPassphrase).toHaveBeenCalledWith(1, "wrong");
+    await user.type(screen.getByRole("textbox", { name: "Different answer for mission 1, waypoint 2" }), "Red door{Enter}");
+    expect(submit).toHaveBeenCalledWith("b", [{ missionId: "m1", stepIndex: 1, kind: "text", text: "Red door" }]);
+    expect(await screen.findByText("Thanks! Your answer is in review.")).toBeInTheDocument();
+  });
+
+  it("can also be corrected without voting", async () => {
+    const user = userEvent.setup();
+    render(<WaypointAnswer d={d({ data: { answers: [live] } })} missionId="m1" missionIndex={0} stepIndex={1} />);
+    await user.click(screen.getByRole("button", { name: "Show answer" }));
+    await user.click(screen.getByRole("button", { name: "Suggest a different answer" }));
+    expect(screen.getByRole("textbox", { name: /Different answer/ })).toBeInTheDocument();
+  });
+});

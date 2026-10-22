@@ -48,9 +48,10 @@ function fillMissionNumbers(d, slots) {
   ).then(d.passphrases.apply);
 }
 
-function LiveAnswers({ d, answers }) {
+function LiveAnswers({ d, answers, missionId, missionIndex, stepIndex }) {
   const pass = d.passphrases;
   const [shown, setShown] = useState(false);
+  const [suggesting, setSuggesting] = useState(false);
   const [error, setError] = useState("");
   const vote = (answer, value) => {
     if (!pass.loggedIn) {
@@ -58,7 +59,12 @@ function LiveAnswers({ d, answers }) {
       return;
     }
     setError("");
-    voteOnPassphrase(answer.id, answer.myVote === value ? null : value).then(pass.apply, (e) => setError(e.message));
+    const next = answer.myVote === value ? null : value;
+    voteOnPassphrase(answer.id, next).then(pass.apply, (e) => setError(e.message));
+    // "It's wrong" goes straight on to "what is it, then?"
+    if (next === "wrong") {
+      setSuggesting(true);
+    }
   };
 
   if (!shown) {
@@ -104,20 +110,38 @@ function LiveAnswers({ d, answers }) {
         </div>
       ))}
       {error ? <div className="wp-ans-note" role="alert">{error}</div> : null}
+      <AddAnswer
+        d={d}
+        missionId={missionId}
+        missionIndex={missionIndex}
+        stepIndex={stepIndex}
+        suggest
+        open={suggesting}
+        setOpen={setSuggesting}
+      />
     </>
   );
 }
 
 // "+ Add answer" -> one field with Save. The mission number goes live at once
 // and offers to fill in the rest the same way; anything else waits.
-function AddAnswer({ d, missionId, missionIndex, stepIndex }) {
+// `suggest`: there is already an answer and this one is a different one, so it
+// never offers to fill in the rest. `open`/`setOpen` let the caller open it.
+function AddAnswer({ d, missionId, missionIndex, stepIndex, suggest = false, open: openProp, setOpen: setOpenProp }) {
   const pass = d.passphrases;
-  const [open, setOpen] = useState(false);
+  const [openState, setOpenState] = useState(false);
+  const open = openProp ?? openState;
+  const setOpen = setOpenProp ?? setOpenState;
   const [text, setText] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [askRest, setAskRest] = useState(false);
-  const label = `Answer for mission ${missionIndex + 1}, waypoint ${stepIndex + 1}`;
+  const [sent, setSent] = useState("");
+  const label = `${suggest ? "Different answer" : "Answer"} for mission ${missionIndex + 1}, waypoint ${stepIndex + 1}`;
+
+  if (sent && !open) {
+    return <div className="wp-ans-note">{sent}</div>;
+  }
 
   if (askRest) {
     const rest = passphraseSlots(d).filter((slot) => !slot.live && !slot.pending);
@@ -162,7 +186,7 @@ function AddAnswer({ d, missionId, missionIndex, stepIndex }) {
         onClick={() => (pass.loggedIn ? setOpen(true) : requestLogin())}
       >
         <Add fontSize="small" />
-        Add answer
+        {suggest ? "Suggest a different answer" : "Add answer"}
       </button>
     );
   }
@@ -184,7 +208,8 @@ function AddAnswer({ d, missionId, missionIndex, stepIndex }) {
         setBusy(false);
         setOpen(false);
         setText("");
-        setAskRest(isNumber);
+        setAskRest(isNumber && !suggest);
+        setSent(suggest ? (isNumber || pass.isAuthor ? "Thanks! Your answer is visible now." : "Thanks! Your answer is in review.") : "");
       },
       (e) => {
         setError(e.message);
@@ -202,7 +227,7 @@ function AddAnswer({ d, missionId, missionIndex, stepIndex }) {
         autoComplete="off"
         autoFocus
         aria-label={label}
-        placeholder="The answer"
+        placeholder={suggest ? "The right answer" : "The answer"}
         value={text}
         onChange={(event) => setText(event.target.value)}
       />
@@ -238,7 +263,9 @@ export function WaypointAnswer({ d, missionId, missionIndex, stepIndex }) {
 
   return (
     <div className="wp-answer">
-      {live.length ? <LiveAnswers d={d} answers={live} /> : null}
+      {live.length ? (
+        <LiveAnswers d={d} answers={live} missionId={missionId} missionIndex={missionIndex} stepIndex={stepIndex} />
+      ) : null}
       {pending.map((answer) => (
         <div className="wp-ans-note" key={answer.id}>
           {answer.answer !== null ? <b>{answer.answer}</b> : "Answer suggested"}

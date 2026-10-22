@@ -18,4 +18,17 @@ mkdir -p /run/nginx
   done
 ) &
 
+# Passphrase answers: SQLite on the /data volume; the moderation bot starts when
+# OPENBANNERS_TELEGRAM_BOT_TOKEN is set (env_file in docker-compose).
+mkdir -p /data
+chown node:node /data
+(
+  while :; do
+    OPENBANNERS_PASSPHRASES_DB="${OPENBANNERS_PASSPHRASES_DB:-/data/passphrases.sqlite}" \
+    OPENBANNERS_PASSPHRASES_PORT=8789 \
+      su-exec node node /usr/share/nginx/server/passphrases.mjs || true
+    sleep 1
+  done
+) &
+
 exec nginx -g "daemon off;"

@@ -1,0 +1,133 @@
+import assert from "node:assert/strict";
+import { test } from "node:test";
+import { createPassphraseService, openDatabase, PENDING_DAYS } from "./passphrases.mjs";
+
+const DAY = 24 * 60 * 60 * 1000;
+const token = (sub) => `x.${Buffer.from(JSON.stringify({ sub })).toString("base64url")}.y`;
+
+// Bannergress stand-in: two users, one of them the verified author "Maker";
+// mission authors are only sent with a login, as on Bannergress.
+function setup({ verified = { alice: null, maker: "Maker" } } = {}) {
+  let clock = Date.UTC(2026, 9, 22);
+  const banner = (auth) => ({
+    id: "b1",
+    title: "Banner One",
+    missions: {
+      0: { id: "m1", author: auth ? { name: "Maker" } : undefined, steps: [{ objective: "hack", poi: { id: "p1" } }, { objective: "enterPassphrase", poi: { id: "p2" } }] },
+      1: { id: "m2", author: auth ? { name: "Maker" } : undefined, steps: [{ objective: "enterPassphrase", poi: { id: "p3" } }] },
+    },
+  });
+  const fetchImpl = async (url, { headers = {} } = {}) => {
+    const sub = headers.Authorization ? JSON.parse(Buffer.from(headers.Authorization.split(".")[1], "base64url")).sub : null;
+    if (url.endsWith("/user")) {
+      return sub ? { ok: true, status: 200, json: async () => (verified[sub] ? { agent: { name: verified[sub] } } : {}) } : { ok: false, status: 401 };
+    }
+    if (url.endsWith("/bnrs/b1")) {
+      return { ok: true, status: 200, json: async () => banner(Boolean(sub)) };
+    }
+    return { ok: false, status: 404 };
+  };
+  const service = createPassphraseService({ db: openDatabase(":memory:"), fetchImpl, now: () => clock });
+  const as = (sub) => ({ authorization: `Bearer ${token(sub)}` });
+  return { service, as, advance: (ms) => (clock += ms) };
+}
+
+test("reading is public, writing needs a login", async () => {
+  const { service } = setup();
+  assert.deepEqual((await service.handle("GET", "/banners/b1", {}, null)).answers, []);
+  await assert.rejects(service.handle("POST", "/banners/b1/answers", {}, { answers: [] }), { status: 401 });
+});
+
+test("mission-number answers go live at once and can be confirmed", async () => {
+  const { service, as } = setup();
+  const result = await service.handle("POST", "/banners/b1/answers", as("alice"), {
+    answers: [{ missionId: "m2", stepIndex: 0, kind: "number" }],
+  });
+  assert.equal(result.answers[0].answer, "2");
+  assert.equal(result.answers[0].status, "live");
+  const voted = await service.handle("POST", `/answers/${result.answers[0].id}/vote`, as("bob"), { vote: "confirm" });
+  assert.equal(voted.answers[0].confirms, 1);
+  assert.equal(voted.answers[0].myVote, "confirm");
+});
+
+test("other answers stay hidden for 30 days, then go live", async () => {
+  const { service, as, advance } = setup();
+  await service.handle("POST", "/banners/b1/answers", as("alice"), {
+    answers: [{ missionId: "m1", stepIndex: 1, kind: "text", text: "Blue door" }],
+  });
+  const anon = await service.handle("GET", "/banners/b1", {}, null);
+  assert.equal(anon.answers[0].status, "pending");
+  assert.equal(anon.answers[0].answer, null);
+  assert.equal((await service.handle("GET", "/banners/b1", as("alice"), null)).answers[0].answer, "Blue door");
+  advance(PENDING_DAYS * DAY);
+  const later = await service.handle("GET", "/banners/b1", {}, null);
+  assert.equal(later.answers[0].status, "live");
+  assert.equal(later.answers[0].answer, "Blue door");
+});
+
+test("only steps that ask for a passphrase are accepted", async () => {
+  const { service, as } = setup();
+  await assert.rejects(
+    service.handle("POST", "/banners/b1/answers", as("alice"), { answers: [{ missionId: "m1", stepIndex: 0, kind: "number" }] }),
+    { code: "not_a_passphrase" }
+  );
+});
+
+test("the same answer again counts as a confirmation", async () => {
+  const { service, as } = setup();
+  const answer = { missionId: "m1", stepIndex: 1, kind: "text", text: "Blue door" };
+  await service.handle("POST", "/banners/b1/answers", as("alice"), { answers: [answer] });
+  const again = await service.handle("POST", "/banners/b1/answers", as("bob"), { answers: [{ ...answer, text: " blue  DOOR " }] });
+  assert.equal(again.answers.length, 1);
+  assert.equal(again.answers[0].confirms, 1);
+});
+
+test("a verified author sees pending answers and can approve them", async () => {
+  const { service, as } = setup();
+  const { answers } = await service.handle("POST", "/banners/b1/answers", as("alice"), {
+    answers: [{ missionId: "m1", stepIndex: 1, kind: "text", text: "Blue door" }],
+  });
+  const view = await service.handle("GET", "/banners/b1", as("maker"), null);
+  assert.equal(view.viewer.isAuthor, true);
+  assert.equal(view.answers[0].answer, "Blue door");
+  const me = await service.handle("GET", "/me", as("maker"), null);
+  assert.equal(me.pending[0].bannerId, "b1");
+  const approved = await service.handle("POST", "/banners/b1/author", as("maker"), { action: "approve", answerId: answers[0].id });
+  assert.equal(approved.answers[0].status, "live");
+  assert.equal((await service.handle("GET", "/banners/b1", {}, null)).answers[0].answer, "Blue door");
+});
+
+test("an author's own answers go live at once", async () => {
+  const { service, as } = setup();
+  const result = await service.handle("POST", "/banners/b1/answers", as("maker"), {
+    answers: [{ missionId: "m1", stepIndex: 1, kind: "text", text: "Red" }],
+  });
+  assert.equal(result.answers[0].status, "live");
+  assert.equal(result.answers[0].source, "author");
+});
+
+test("someone who isn't a verified author can't act as one", async () => {
+  const { service, as } = setup({ verified: { alice: "Somebody", maker: "Maker" } });
+  await assert.rejects(service.handle("POST", "/banners/b1/author", as("alice"), { action: "object", scope: "banner" }), { status: 403 });
+});
+
+test("an objection deletes the answers and blocks new ones", async () => {
+  const { service, as } = setup();
+  await service.handle("POST", "/banners/b1/answers", as("alice"), {
+    answers: [{ missionId: "m2", stepIndex: 0, kind: "number" }, { missionId: "m1", stepIndex: 1, kind: "text", text: "x" }],
+  });
+  const after = await service.handle("POST", "/banners/b1/author", as("maker"), { action: "object", scope: "banner" });
+  assert.deepEqual(after.answers, []);
+  assert.equal(after.blocked, "banner");
+  await assert.rejects(
+    service.handle("POST", "/banners/b1/answers", as("alice"), { answers: [{ missionId: "m2", stepIndex: 0, kind: "number" }] }),
+    { code: "blocked" }
+  );
+});
+
+test("objecting for all banners blocks by author", async () => {
+  const { service, as } = setup();
+  await service.handle("POST", "/banners/b1/author", as("maker"), { action: "object", scope: "all" });
+  assert.equal((await service.handle("GET", "/banners/b1", {}, null)).blocked, "author");
+  assert.equal((await service.handle("GET", "/me", as("maker"), null)).blockedAll, true);
+});

@@ -4,6 +4,7 @@ import AboutNotice from "../AboutNotice";
 import BannerInfo from "../BannerInfo";
 import BannerImage from "../BannerImage";
 import MarkDoneNotice from "../MarkDoneNotice";
+import { PassphrasePanel } from "./Passphrases";
 import {
   AddressLink,
   BannerDetailsList,
@@ -98,6 +99,7 @@ export default function DesignA() {
 
             <div className="bp-view" role="tabpanel" hidden={d.paneTab !== "missions"}>
               <MissionsHeader d={d} />
+              <PassphrasePanel d={d} />
               <MissionList d={d} />
             </div>
           </>

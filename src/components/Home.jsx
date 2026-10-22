@@ -12,6 +12,7 @@ import BannerDetailsPage from "./BannerDetailsPage";
 import DiscoveryMap from "./discoveryMap/DiscoveryMap";
 import BannerRerouterPage from "./BannerRerouterPage";
 import BannerTogetherPage from "./BannerTogetherPage";
+import AuthorPassphraseNotice from "./AuthorPassphraseNotice";
 import {
   getBrowseStateScope,
   readBrowseFilters,
@@ -280,6 +281,7 @@ export default function Home() {
           title={VIEW_TITLES[currentView] ?? ""}
         />
         <main className="ob-main" id="main-content" tabIndex={-1}>
+          {currentView === "start" || currentView === "lists" ? <AuthorPassphraseNotice /> : null}
           {currentView === "start" && <BannersStartPage />}
           {currentView === "near" && (
             <BannersNearMe

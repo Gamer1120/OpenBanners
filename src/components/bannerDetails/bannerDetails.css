@@ -355,3 +355,179 @@
   margin-top: 6px;
   color: var(--on-warn-container);
 }
+
+/* Passphrase answers: under the waypoint, and the panel in the Missions tab. */
+.wp-answer {
+  margin: -2px 0 6px 44px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.wp-reveal {
+  align-self: flex-start;
+  min-height: 32px;
+  margin-left: -12px;
+}
+
+.wp-ans {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px 10px;
+}
+
+.wp-ans-text {
+  font: 600 15px/20px var(--font);
+  overflow-wrap: anywhere;
+}
+
+.wp-ans-meta,
+.wp-ans-pending {
+  font-size: 13px;
+  line-height: 18px;
+  color: var(--on-surface-variant);
+}
+
+.mission.sel .wp-ans-meta,
+.mission.sel .wp-ans-pending {
+  color: var(--on-primary-container);
+}
+
+.wp-ans-votes {
+  display: inline-flex;
+  margin-left: auto;
+}
+
+.icon-btn.sm {
+  width: 36px;
+  height: 36px;
+}
+
+.icon-btn.sm svg {
+  width: 18px;
+  height: 18px;
+}
+
+.icon-btn[aria-pressed="true"] {
+  background: var(--secondary-container);
+  color: var(--on-secondary-container);
+}
+
+.pp-panel {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  margin: 12px 0;
+  padding: 14px 16px;
+  border-radius: var(--r-l);
+  background: var(--sc-low);
+}
+
+.pp-panel > svg {
+  flex: none;
+  color: var(--on-warn-container);
+}
+
+.pp-panel b {
+  display: block;
+}
+
+.pp-add {
+  margin-top: 10px;
+}
+
+.pp-thanks {
+  margin-top: 6px;
+}
+
+.pp-form {
+  margin-top: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.pp-form > .btn {
+  align-self: flex-start;
+}
+
+.pp-rows {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.pp-mission {
+  font-weight: 600;
+  margin-bottom: 2px;
+}
+
+.pp-step {
+  margin-bottom: 6px;
+}
+
+.pp-input {
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
+  margin-top: 8px;
+  min-height: 44px;
+  padding: 0 12px;
+  border-radius: var(--r-s, 8px);
+  border: 1px solid var(--outline);
+  background: var(--surface);
+  color: var(--on-surface);
+  font: 400 16px/20px var(--font);
+}
+
+.pp-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.pp-error {
+  color: var(--on-error-container);
+}
+
+.pp-author {
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px solid var(--outline-variant, var(--outline));
+}
+
+.pp-pending {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.pp-pending li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+}
+
+.pp-pending .grow {
+  flex: 1;
+  min-width: 160px;
+  overflow-wrap: anywhere;
+}
+
+.pp-confirm {
+  margin-top: 8px;
+}
+
+.btn.filled.pp-danger {
+  background: var(--error-container);
+  color: var(--on-error-container);
+}

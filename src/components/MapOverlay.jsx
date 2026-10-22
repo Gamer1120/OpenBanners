@@ -30,6 +30,7 @@ export default function MapOverlay({
   currentMission,
   setCurrentMission,
   bannerId,
+  passphraseAnswers = [],
   map = null,
   locationDebugSnapshot = null,
   showDebugControls = false,
@@ -37,7 +38,23 @@ export default function MapOverlay({
   const missionCount = missions.length;
   const [debugCopyStatus, setDebugCopyStatus] = useState("");
   // NEXT opens missions[currentMission]: warn before it's opened, not after.
-  const nextHasPassphrase = Object.values(missions[currentMission]?.steps ?? {}).some(isPassphraseStep);
+  const nextMission = missions[currentMission];
+  const passphraseSteps = Object.values(nextMission?.steps ?? {})
+    .map((step, index) => (isPassphraseStep(step) ? index : -1))
+    .filter((index) => index >= 0);
+  const nextHasPassphrase = passphraseSteps.length > 0;
+  // Best live answer per passphrase waypoint (the server sends the best first).
+  const knownAnswers = passphraseSteps.map(
+    (stepIndex) =>
+      passphraseAnswers.find(
+        (answer) =>
+          answer.missionId === nextMission?.id &&
+          answer.stepIndex === stepIndex &&
+          answer.status === "live" &&
+          answer.answer !== null
+      )?.answer
+  );
+  const allKnown = nextHasPassphrase && knownAnswers.every(Boolean);
 
   const stopPropagation = (event) => {
     event.stopPropagation();
@@ -141,7 +158,13 @@ export default function MapOverlay({
       </button>
       {nextHasPassphrase ? (
         <p className="overlay-note" role="note">
-          Mission {currentMission + 1} has a passphrase
+          {allKnown ? (
+            <>
+              Passphrase{knownAnswers.length > 1 ? "s" : ""}: <b>{knownAnswers.join(" · ")}</b>
+            </>
+          ) : (
+            `Mission ${currentMission + 1} has a passphrase`
+          )}
         </p>
       ) : null}
       {showDebugControls ? (

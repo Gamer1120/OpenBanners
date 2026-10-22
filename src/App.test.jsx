@@ -1989,6 +1989,17 @@ test("warns about passphrases and opens those missions", async () => {
     poi: { id: title, title, type: "portal", latitude, longitude: 6.14 },
   });
   global.fetch.mockImplementation((url) => {
+    if (url.endsWith("/_openbanners/passphrases/v1/banners/passphrase-banner")) {
+      return Promise.resolve({ ok: true, status: 200, json: async () => ({
+        bannerId: "passphrase-banner",
+        blocked: null,
+        pendingDays: 30,
+        viewer: null,
+        answers: [
+          { id: 1, missionId: "m-2", missionIndex: 1, stepIndex: 1, kind: "number", source: "crowd", status: "live", answer: "2", confirms: 3, wrongs: 0, myVote: null, visibleAt: "2026-10-22T00:00:00Z" },
+        ],
+      }) });
+    }
     if (url.endsWith("/bnrs/passphrase-banner")) {
       return jsonResponse({
         id: "passphrase-banner",
@@ -2030,6 +2041,13 @@ test("warns about passphrases and opens those missions", async () => {
   expect(waypoints).toHaveTextContent("Enter passphrase");
   expect(screen.getByText("Passphrase")).toHaveClass("chip");
   expect(screen.getByText(/1 with a passphrase/)).toBeInTheDocument();
+
+  expect(await screen.findByText("1 of 1 known")).toBeInTheDocument();
+  expect(screen.getByRole("button", { name: "Log in to add answers" })).toBeInTheDocument();
+  expect(within(waypoints).queryByText("2", { selector: ".wp-ans-text" })).toBeNull();
+  await userEvent.setup().click(within(waypoints).getByRole("button", { name: "Show answer" }));
+  expect(within(waypoints).getByText("2", { selector: ".wp-ans-text" })).toBeInTheDocument();
+  expect(within(waypoints).getByText(/3 confirmed/)).toBeInTheDocument();
 });
 
 test("shows separate overview and map tabs for banner details on mobile", async () => {

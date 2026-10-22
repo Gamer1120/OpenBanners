@@ -2211,3 +2211,18 @@ body {
   flex: 1;
   min-width: 0;
 }
+
+/* Author notice about suggested passphrase answers (Home and Lists). */
+.ob-author-notice {
+  margin: 12px 16px 0;
+}
+
+.ob-author-list {
+  margin: 6px 0 0;
+  padding-left: 18px;
+}
+
+.ob-author-list a {
+  color: inherit;
+  font-weight: 600;
+}

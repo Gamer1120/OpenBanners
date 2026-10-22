@@ -6,6 +6,8 @@ import MapOverlay from "./MapOverlay";
 import { useState, useEffect, useMemo, useRef } from "react";
 import L from "leaflet";
 import { fetchBannergress } from "../bannergressSync";
+import { isPassphraseStep } from "../bannerFacts";
+import { getPassphrases } from "../passphraseApi";
 import {
   applyPageMetadata,
   buildBannerMetadata,
@@ -37,6 +39,7 @@ export default function Map() {
   );
 
   const [items, setItems] = useState({});
+  const [passphraseAnswers, setPassphraseAnswers] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const mapRef = useRef(null);
   const [mapInitialized, setMapInitialized] = useState(false);
@@ -80,6 +83,22 @@ export default function Map() {
         }
       );
   }, [bannerId]);
+
+  // Known answers for the passphrase notes; the guide works the same without them.
+  const hasPassphrases = missions.some((mission) => Object.values(mission?.steps ?? {}).some(isPassphraseStep));
+  useEffect(() => {
+    if (!hasPassphrases) {
+      return undefined;
+    }
+    let cancelled = false;
+    getPassphrases(bannerId).then(
+      (data) => !cancelled && setPassphraseAnswers(data.answers ?? []),
+      () => {}
+    );
+    return () => {
+      cancelled = true;
+    };
+  }, [bannerId, hasPassphrases]);
 
   useEffect(() => {
     applyPageMetadata({
@@ -195,6 +214,7 @@ export default function Map() {
         currentMission={currentMission}
         setCurrentMission={setCurrentMission}
         bannerId={bannerId}
+        passphraseAnswers={passphraseAnswers}
         map={mapRef.current}
         locationDebugSnapshot={locationDebugSnapshot}
         showDebugControls={showDebugControls}

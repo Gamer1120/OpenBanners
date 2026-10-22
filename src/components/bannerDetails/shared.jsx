@@ -36,6 +36,8 @@ import {
 import userLocationIcon from "../../constants";
 import BannerImage from "../BannerImage";
 import SimpleMarkdown from "./SimpleMarkdown";
+import { WaypointAnswer } from "./Passphrases";
+import { useBannerPassphrases } from "../../passphraseApi";
 import {
   formatEvent,
   formatMissionNumbers,
@@ -298,7 +300,7 @@ export function EnlargeableArt({ banner, missions, colors, children }) {
   );
 }
 
-export function MissionItem({ mission, index, color, selected, expanded, onToggle, itemRef, showType = false }) {
+export function MissionItem({ mission, index, color, selected, expanded, onToggle, itemRef, showType = false, renderAnswer = null }) {
   const steps = getSteps(mission);
   const typeLabel = showType && mission?.type ? MISSION_TYPE_LABELS[mission.type] ?? mission.type : "";
   const offline = isMissionOffline(mission);
@@ -430,6 +432,7 @@ export function MissionItem({ mission, index, color, selected, expanded, onToggl
                   ) : (
                     <a aria-disabled="true">{content}</a>
                   )}
+                  {renderAnswer && isPassphraseStep(step) ? renderAnswer(stepIndex) : null}
                 </li>
               );
             })}
@@ -894,6 +897,7 @@ export function useBannerDetails({ tabs = true } = {}) {
   const startToFinish = getStartToFinishMeters(missions);
   const perKm = getMissionsPerKm(items);
   const passphraseMissions = getPassphraseMissions(missions);
+  const passphrases = useBannerPassphrases(items.id ?? bannerId, !isLoading && passphraseMissions.length > 0);
 
   return {
     bannerId,
@@ -950,6 +954,7 @@ export function useBannerDetails({ tabs = true } = {}) {
     startToFinishLabel: startToFinish !== null ? formatLength(startToFinish) : null,
     eventLabel: formatEvent(items.eventStartDate, items.eventEndDate),
     passphraseMissions,
+    passphrases,
     submittedCount: Number(items.numberOfSubmittedMissions) || 0,
     distanceLabel: formatLength(items.lengthMeters),
     durationLabel: totalDuration === null ? (missions.length ? "Missing data" : null) : formatDuration(totalDuration),
@@ -1244,6 +1249,11 @@ export function MissionList({ d }) {
           expanded={d.expandedMissions.has(index)}
           onToggle={() => d.toggleMission(index)}
           showType={d.missionTypes.length > 1}
+          renderAnswer={
+            mission.id
+              ? (stepIndex) => <WaypointAnswer d={d} missionId={mission.id} stepIndex={stepIndex} />
+              : null
+          }
           itemRef={(element) => {
             d.missionItemRefs.current[index] = element;
           }}

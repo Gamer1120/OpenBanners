@@ -19,3 +19,18 @@ describe("BannerGuider overlay", () => {
     expect(screen.queryByRole("note")).toBeNull();
   });
 });
+
+describe("BannerGuider overlay with known answers", () => {
+  it("shows the answer before NEXT", () => {
+    render(
+      <MapOverlay
+        missions={missions}
+        currentMission={1}
+        setCurrentMission={() => {}}
+        bannerId="x"
+        passphraseAnswers={[{ missionId: "b", stepIndex: 1, status: "live", answer: "2" }]}
+      />
+    );
+    expect(screen.getByRole("note")).toHaveTextContent("Passphrase: 2");
+  });
+});

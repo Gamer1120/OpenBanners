@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Check, Close, Key, Visibility } from "@mui/icons-material";
+import { Add, Check, Close, Key, Visibility } from "@mui/icons-material";
 import { BANNERGRESS_AUTH_REQUEST_EVENT } from "../../bannergressSync";
 import {
   authorPassphraseAction,
@@ -8,25 +8,48 @@ import {
   voteOnPassphrase,
 } from "../../passphraseApi";
 
+// Flow: answers live at their own waypoint (see, confirm, add one, save as you
+// go). The Missions tab card only says how many are known and asks the one
+// banner-wide question that saves typing: are they all the mission number?
+// Typing the mission number at a waypoint asks the same question.
+
 const longDate = (iso) =>
   new Date(iso).toLocaleDateString(undefined, { day: "numeric", month: "long", year: "numeric" });
 
 const requestLogin = () => window.dispatchEvent(new Event(BANNERGRESS_AUTH_REQUEST_EVENT));
 
-// Under a passphrase waypoint: live answers behind a tap (no accidental
-// spoilers), with confirm / wrong votes; pending ones say when they show.
-export function WaypointAnswer({ d, missionId, stepIndex }) {
+// Every passphrase waypoint of the banner, with whether an answer is live or waiting.
+export function passphraseSlots(d) {
+  const byStep = d.passphrases?.byStep ?? new Map();
+  return (d.passphraseMissions ?? []).flatMap((entry) => {
+    const mission = d.missions[entry.index];
+    if (!mission?.id) {
+      return [];
+    }
+    return entry.steps.map((stepIndex) => {
+      const answers = byStep.get(stepKey(mission.id, stepIndex)) ?? [];
+      return {
+        missionId: mission.id,
+        missionIndex: entry.index,
+        stepIndex,
+        live: answers.some((answer) => answer.status === "live"),
+        pending: answers.some((answer) => answer.status === "pending"),
+      };
+    });
+  });
+}
+
+function fillMissionNumbers(d, slots) {
+  return submitPassphrases(
+    d.items.id ?? d.bannerId,
+    slots.map((slot) => ({ missionId: slot.missionId, stepIndex: slot.stepIndex, kind: "number" }))
+  ).then(d.passphrases.apply);
+}
+
+function LiveAnswers({ d, answers }) {
   const pass = d.passphrases;
   const [shown, setShown] = useState(false);
   const [error, setError] = useState("");
-  const answers = pass?.byStep.get(stepKey(missionId, stepIndex)) ?? [];
-  const live = answers.filter((answer) => answer.status === "live" && answer.answer !== null);
-  const pending = answers.filter((answer) => answer.status === "pending");
-
-  if (!live.length && !pending.length) {
-    return null;
-  }
-
   const vote = (answer, value) => {
     if (!pass.loggedIn) {
       requestLogin();
@@ -36,231 +59,195 @@ export function WaypointAnswer({ d, missionId, stepIndex }) {
     voteOnPassphrase(answer.id, answer.myVote === value ? null : value).then(pass.apply, (e) => setError(e.message));
   };
 
+  if (!shown) {
+    return (
+      <button type="button" className="btn text sl wp-act" onClick={() => setShown(true)}>
+        <Visibility fontSize="small" />
+        Show answer{answers.length > 1 ? "s" : ""}
+      </button>
+    );
+  }
   return (
-    <div className="wp-answer">
-      {live.length && !shown ? (
-        <button type="button" className="btn text sl wp-reveal" onClick={() => setShown(true)}>
-          <Visibility fontSize="small" />
-          Show answer{live.length > 1 ? "s" : ""}
-        </button>
-      ) : null}
-      {shown
-        ? live.map((answer) => (
-            <div className="wp-ans" key={answer.id}>
-              <span className="wp-ans-text">{answer.answer}</span>
-              <span className="wp-ans-meta">
-                {answer.source === "author" ? "From the author" : answer.kind === "number" ? "Mission number" : "Suggested"}
-                {answer.confirms ? ` · ${answer.confirms} confirmed` : ""}
-                {answer.wrongs ? ` · ${answer.wrongs} say it’s wrong` : ""}
-              </span>
-              <span className="wp-ans-votes">
-                <button
-                  type="button"
-                  className="icon-btn sl sm"
-                  aria-pressed={answer.myVote === "confirm"}
-                  aria-label={`This answer is right: ${answer.answer}`}
-                  title="It's right"
-                  onClick={() => vote(answer, "confirm")}
-                >
-                  <Check />
-                </button>
-                <button
-                  type="button"
-                  className="icon-btn sl sm"
-                  aria-pressed={answer.myVote === "wrong"}
-                  aria-label={`This answer is wrong: ${answer.answer}`}
-                  title="It's wrong"
-                  onClick={() => vote(answer, "wrong")}
-                >
-                  <Close />
-                </button>
-              </span>
-            </div>
-          ))
-        : null}
-      {pending.map((answer) => (
-        <div className="wp-ans-pending" key={answer.id}>
-          {answer.answer !== null ? <b>{answer.answer}</b> : null}
-          {answer.answer !== null ? " · " : ""}
-          {d.passphrases.isAuthor
-            ? "Suggested, waiting for you"
-            : `Answer suggested, visible from ${longDate(answer.visibleAt)} unless the author objects`}
+    <>
+      {answers.map((answer) => (
+        <div className="wp-ans" key={answer.id}>
+          <span className="wp-ans-text">{answer.answer}</span>
+          <span className="wp-ans-meta">
+            {answer.source === "author" ? "From the author" : answer.kind === "number" ? "Mission number" : "Suggested"}
+            {answer.confirms ? ` · ${answer.confirms} confirmed` : ""}
+            {answer.wrongs ? ` · ${answer.wrongs} say it’s wrong` : ""}
+          </span>
+          <span className="wp-ans-votes">
+            <button
+              type="button"
+              className="icon-btn sl sm"
+              aria-pressed={answer.myVote === "confirm"}
+              aria-label={`This answer is right: ${answer.answer}`}
+              title="It's right"
+              onClick={() => vote(answer, "confirm")}
+            >
+              <Check />
+            </button>
+            <button
+              type="button"
+              className="icon-btn sl sm"
+              aria-pressed={answer.myVote === "wrong"}
+              aria-label={`This answer is wrong: ${answer.answer}`}
+              title="It's wrong"
+              onClick={() => vote(answer, "wrong")}
+            >
+              <Close />
+            </button>
+          </span>
         </div>
       ))}
-      {error ? <div className="wp-ans-pending" role="alert">{error}</div> : null}
-    </div>
+      {error ? <div className="wp-ans-note" role="alert">{error}</div> : null}
+    </>
   );
 }
 
-function passphraseRows(d) {
-  return d.passphraseMissions.flatMap((entry) => {
-    const mission = d.missions[entry.index];
-    if (!mission?.id) {
-      return [];
-    }
-    return entry.steps.map((stepIndex) => ({
-      key: stepKey(mission.id, stepIndex),
-      missionId: mission.id,
-      missionIndex: entry.index,
-      stepIndex,
-      title: Object.values(mission.steps ?? {})[stepIndex]?.poi?.title || "Hidden waypoint",
-      missionTitle: mission.title || `Mission ${entry.index + 1}`,
-    }));
-  });
-}
-
-// A banner's answers are either all the mission numbers or all typed, so the
-// form asks that first. Typed answers are saved one at a time, as you go.
-function AnswerForm({ d, onDone }) {
+// "+ Add answer" -> one field with Save. The mission number goes live at once
+// and offers to fill in the rest the same way; anything else waits.
+function AddAnswer({ d, missionId, missionIndex, stepIndex }) {
   const pass = d.passphrases;
-  const bannerId = d.items.id ?? d.bannerId;
-  const rows = passphraseRows(d);
-  const [mode, setMode] = useState("");
-  const [texts, setTexts] = useState({});
-  const [saved, setSaved] = useState({});
-  const [busy, setBusy] = useState("");
+  const [open, setOpen] = useState(false);
+  const [text, setText] = useState("");
+  const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [askRest, setAskRest] = useState(false);
+  const label = `Answer for mission ${missionIndex + 1}, waypoint ${stepIndex + 1}`;
 
-  const sendNumbers = () => {
-    setBusy("numbers");
-    setError("");
-    submitPassphrases(
-      bannerId,
-      rows.map((row) => ({ missionId: row.missionId, stepIndex: row.stepIndex, kind: "number" }))
-    ).then(
-      (data) => {
-        pass.apply(data);
-        onDone("Thanks! The mission numbers are visible now.");
-      },
-      (e) => {
-        setError(e.message);
-        setBusy("");
-      }
-    );
-  };
-
-  const saveOne = (row) => {
-    const text = (texts[row.key] ?? "").trim();
-    if (!text) {
-      return;
+  if (askRest) {
+    const rest = passphraseSlots(d).filter((slot) => !slot.live && !slot.pending);
+    if (!rest.length) {
+      return null;
     }
-    setBusy(row.key);
-    setError("");
-    submitPassphrases(bannerId, [{ missionId: row.missionId, stepIndex: row.stepIndex, kind: "text", text }]).then(
-      (data) => {
-        pass.apply(data);
-        setSaved((current) => ({ ...current, [row.key]: text }));
-        setBusy("");
-      },
-      (e) => {
-        setError(e.message);
-        setBusy("");
-      }
-    );
-  };
-
-  if (!mode) {
     return (
-      <div className="pp-form">
-        <p className="small">What are the answers?</p>
-        <div className="pp-actions">
-          <button type="button" className="btn filled sl" disabled={busy === "numbers"} onClick={sendNumbers}>
-            All are the mission number
+      <div className="wp-ask" role="group" aria-label="Fill in the rest">
+        <span className="wp-ans-note">That’s the mission number. Is every answer its mission number?</span>
+        <span className="pp-actions">
+          <button
+            type="button"
+            className="btn tonal sl"
+            disabled={busy}
+            onClick={() => {
+              setBusy(true);
+              fillMissionNumbers(d, rest).then(
+                () => setAskRest(false),
+                (e) => {
+                  setError(e.message);
+                  setBusy(false);
+                }
+              );
+            }}
+          >
+            Yes, fill in {rest.length} more
           </button>
-          <button type="button" className="btn outlined sl" onClick={() => setMode("text")}>
-            I’ll type them
+          <button type="button" className="btn text sl" onClick={() => setAskRest(false)}>
+            No
           </button>
-          <button type="button" className="btn text sl" onClick={() => onDone("")}>
-            Cancel
-          </button>
-        </div>
-        <p className="small muted">Mission numbers show right away.</p>
-        {error ? <p className="small pp-error" role="alert">{error}</p> : null}
+        </span>
+        {error ? <span className="wp-ans-note" role="alert">{error}</span> : null}
       </div>
     );
   }
 
-  const savedCount = Object.keys(saved).length;
-  let lastMission = -1;
+  if (!open) {
+    return (
+      <button
+        type="button"
+        className="btn text sl wp-act"
+        onClick={() => (pass.loggedIn ? setOpen(true) : requestLogin())}
+      >
+        <Add fontSize="small" />
+        {pass.loggedIn ? "Add answer" : "Log in to add the answer"}
+      </button>
+    );
+  }
+
+  const save = (event) => {
+    event.preventDefault();
+    const answer = text.trim();
+    if (!answer) {
+      return;
+    }
+    const isNumber = answer === String(missionIndex + 1);
+    setBusy(true);
+    setError("");
+    submitPassphrases(d.items.id ?? d.bannerId, [
+      { missionId, stepIndex, kind: isNumber ? "number" : "text", ...(isNumber ? {} : { text: answer }) },
+    ]).then(
+      (data) => {
+        pass.apply(data);
+        setBusy(false);
+        setOpen(false);
+        setText("");
+        setAskRest(isNumber);
+      },
+      (e) => {
+        setError(e.message);
+        setBusy(false);
+      }
+    );
+  };
+
   return (
-    <div className="pp-form">
-      <p className="small muted">
-        {pass.isAuthor
-          ? "You’re an author of this banner, so your answers show right away. Save each one when you have it."
-          : `Save each answer when you have it. They show after ${pass.pendingDays} days, unless the author objects.`}
-      </p>
-      <ol className="pp-rows">
-        {rows.map((row) => {
-          const heading = row.missionIndex !== lastMission;
-          lastMission = row.missionIndex;
-          const text = texts[row.key] ?? "";
-          const isSaved = saved[row.key] !== undefined && saved[row.key] === text.trim();
-          const label = `Answer for mission ${row.missionIndex + 1}, waypoint ${row.stepIndex + 1}`;
-          return (
-            <li key={row.key}>
-              {heading ? (
-                <div className="pp-mission">
-                  {row.missionIndex + 1}. {row.missionTitle}
-                </div>
-              ) : null}
-              <div className="pp-step small muted">
-                Waypoint {row.stepIndex + 1}: {row.title}
-              </div>
-              <form
-                className="pp-line"
-                onSubmit={(event) => {
-                  event.preventDefault();
-                  saveOne(row);
-                }}
-              >
-                <input
-                  className="pp-input"
-                  type="text"
-                  maxLength={200}
-                  autoComplete="off"
-                  aria-label={label}
-                  placeholder="The answer"
-                  value={text}
-                  onChange={(event) => setTexts((current) => ({ ...current, [row.key]: event.target.value }))}
-                />
-                <button
-                  type="submit"
-                  className={`btn sl ${isSaved ? "text" : "tonal"}`}
-                  disabled={isSaved || !text.trim() || busy === row.key}
-                  aria-label={isSaved ? `${label} saved` : `Save ${label.toLowerCase()}`}
-                >
-                  {isSaved ? (
-                    <>
-                      <Check fontSize="small" />
-                      Saved
-                    </>
-                  ) : (
-                    "Save"
-                  )}
-                </button>
-              </form>
-            </li>
-          );
-        })}
-      </ol>
-      {error ? <p className="small pp-error" role="alert">{error}</p> : null}
-      <div className="pp-actions">
-        <button
-          type="button"
-          className="btn filled sl"
-          onClick={() =>
-            onDone(
-              !savedCount
-                ? ""
-                : pass.isAuthor
-                  ? "Thanks! Your answers are visible now."
-                  : `Thanks! Your answers show after ${pass.pendingDays} days unless the author objects.`
-            )
-          }
-        >
-          Done
-        </button>
-      </div>
+    <form className="pp-line" onSubmit={save}>
+      <input
+        className="pp-input"
+        type="text"
+        maxLength={200}
+        autoComplete="off"
+        autoFocus
+        aria-label={label}
+        placeholder="The answer"
+        value={text}
+        onChange={(event) => setText(event.target.value)}
+      />
+      <button type="submit" className="btn tonal sl" disabled={busy || !text.trim()}>
+        Save
+      </button>
+      <button
+        type="button"
+        className="icon-btn sl sm"
+        aria-label="Cancel"
+        title="Cancel"
+        onClick={() => {
+          setOpen(false);
+          setText("");
+        }}
+      >
+        <Close />
+      </button>
+      {error ? <span className="wp-ans-note pp-error" role="alert">{error}</span> : null}
+    </form>
+  );
+}
+
+// Under each passphrase waypoint.
+export function WaypointAnswer({ d, missionId, missionIndex, stepIndex }) {
+  const pass = d.passphrases;
+  if (!pass || pass.status !== "ready" || pass.blocked) {
+    return null;
+  }
+  const answers = pass.byStep.get(stepKey(missionId, stepIndex)) ?? [];
+  const live = answers.filter((answer) => answer.status === "live" && answer.answer !== null);
+  const pending = answers.filter((answer) => answer.status === "pending");
+
+  return (
+    <div className="wp-answer">
+      {live.length ? <LiveAnswers d={d} answers={live} /> : null}
+      {pending.map((answer) => (
+        <div className="wp-ans-note" key={answer.id}>
+          {answer.answer !== null ? <b>{answer.answer}</b> : "Answer suggested"}
+          {pass.isAuthor
+            ? " · waiting for you to publish it"
+            : ` · visible from ${longDate(answer.visibleAt)}, unless the author objects`}
+        </div>
+      ))}
+      {!live.length && !pending.length ? (
+        <AddAnswer d={d} missionId={missionId} missionIndex={missionIndex} stepIndex={stepIndex} />
+      ) : null}
     </div>
   );
 }
@@ -337,23 +324,24 @@ function AuthorTools({ d }) {
   );
 }
 
-// In the Missions tab, under the header: what's known, and the way to add more.
+// In the Missions tab, under the header.
 export function PassphrasePanel({ d }) {
   const pass = d.passphrases;
-  const [open, setOpen] = useState(false);
-  const [thanks, setThanks] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
   if (d.isLoading || !d.passphraseMissions?.length || !pass || pass.status === "idle") {
     return null;
   }
 
-  const total = d.passphraseMissions.reduce((sum, entry) => sum + entry.steps.length, 0);
-  const answers = pass.data?.answers ?? [];
-  const knownSteps = new Set(answers.filter((a) => a.status === "live").map((a) => stepKey(a.missionId, a.stepIndex)));
-  const waiting = new Set(answers.filter((a) => a.status === "pending").map((a) => stepKey(a.missionId, a.stepIndex)));
+  const slots = passphraseSlots(d);
+  const known = slots.filter((slot) => slot.live).length;
+  const waiting = slots.filter((slot) => !slot.live && slot.pending).length;
+  const open = slots.filter((slot) => !slot.live && !slot.pending);
+  const fresh = !known && !waiting;
 
   if (pass.blocked) {
     return (
-      <section className="pp-panel" aria-label="Passphrase answers">
+      <section className="pp-panel" aria-label="Passphrases">
         <Key />
         <div className="grow small">
           {pass.blocked === "author"
@@ -378,36 +366,56 @@ export function PassphrasePanel({ d }) {
     );
   }
 
+  const fill = () => {
+    if (!pass.loggedIn) {
+      requestLogin();
+      return;
+    }
+    setBusy(true);
+    setError("");
+    fillMissionNumbers(d, open).then(
+      () => setBusy(false),
+      (e) => {
+        setError(e.message);
+        setBusy(false);
+      }
+    );
+  };
+
   return (
-    <section className="pp-panel" aria-label="Passphrase answers">
+    <section className="pp-panel" aria-label="Passphrases">
       <Key />
       <div className="grow">
-        <b>Passphrase answers</b>
+        <b>Passphrases</b>
         <div className="small muted">
           {pass.status === "error"
             ? "Couldn’t load the answers."
             : pass.status === "loading" && !pass.data
               ? "Loading…"
-              : `${knownSteps.size} of ${total} known${waiting.size ? ` · ${waiting.size} waiting` : ""}`}
+              : `${known} of ${slots.length} answer${slots.length > 1 ? "s" : ""} known${waiting ? ` · ${waiting} waiting` : ""}`}
         </div>
-        {thanks ? <div className="small pp-thanks">{thanks}</div> : null}
-        {open ? (
-          <AnswerForm
-            d={d}
-            onDone={(message) => {
-              setOpen(false);
-              setThanks(message);
-            }}
-          />
-        ) : pass.status === "ready" ? (
-          <button
-            type="button"
-            className="btn tonal sl pp-add"
-            onClick={() => (pass.loggedIn ? setOpen(true) : requestLogin())}
-          >
-            {pass.loggedIn ? "Add answers" : "Log in to add answers"}
-          </button>
+        {pass.status === "ready" && fresh && open.length ? (
+          <div className="pp-ask">
+            <span className="small">
+              Is every answer its mission number? Otherwise add each answer at its waypoint.
+            </span>
+            <div className="pp-actions">
+              <button type="button" className="btn tonal sl" disabled={busy} onClick={fill}>
+                {pass.loggedIn ? "Yes, fill them in" : "Log in to fill them in"}
+              </button>
+              <button type="button" className="btn text sl" onClick={d.showPassphrases}>
+                Show the waypoints
+              </button>
+            </div>
+          </div>
+        ) : pass.status === "ready" && open.length ? (
+          <div className="pp-actions">
+            <button type="button" className="btn text sl pp-show" onClick={d.showPassphrases}>
+              Show the {open.length} without an answer
+            </button>
+          </div>
         ) : null}
+        {error ? <p className="small pp-error" role="alert">{error}</p> : null}
         {pass.isAuthor ? <AuthorTools d={d} /> : null}
       </div>
     </section>

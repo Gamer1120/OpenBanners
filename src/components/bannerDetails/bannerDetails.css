@@ -364,11 +364,6 @@
   gap: 4px;
 }
 
-.wp-reveal {
-  align-self: flex-start;
-  min-height: 32px;
-  margin-left: -12px;
-}
 
 .wp-ans {
   display: flex;
@@ -383,14 +378,14 @@
 }
 
 .wp-ans-meta,
-.wp-ans-pending {
+.wp-ans-note {
   font-size: 13px;
   line-height: 18px;
   color: var(--on-surface-variant);
 }
 
 .mission.sel .wp-ans-meta,
-.mission.sel .wp-ans-pending {
+.mission.sel .wp-ans-note {
   color: var(--on-primary-container);
 }
 
@@ -433,42 +428,12 @@
   display: block;
 }
 
-.pp-add {
-  margin-top: 10px;
-}
 
-.pp-thanks {
-  margin-top: 6px;
-}
 
-.pp-form {
-  margin-top: 12px;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
 
-.pp-form > .btn {
-  align-self: flex-start;
-}
 
-.pp-rows {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
 
-.pp-mission {
-  font-weight: 600;
-  margin-bottom: 2px;
-}
 
-.pp-step {
-  margin-bottom: 6px;
-}
 
 .pp-input {
   display: block;
@@ -547,4 +512,37 @@
 
 .pp-line .btn {
   flex: none;
+}
+
+.wp-act {
+  align-self: flex-start;
+  min-height: 32px;
+  margin-left: -12px;
+  padding: 0 12px;
+}
+
+.wp-ask {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.wp-ask .pp-actions {
+  margin-top: 2px;
+}
+
+.pp-line {
+  flex-wrap: wrap;
+}
+
+.pp-line .pp-error {
+  flex-basis: 100%;
+}
+
+.pp-ask {
+  margin-top: 10px;
+}
+
+.pp-show {
+  margin-left: -12px;
 }

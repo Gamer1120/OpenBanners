@@ -920,6 +920,14 @@ export function useBannerDetails({ tabs = true } = {}) {
     expandedMissions,
     toggleMission,
     showInList,
+    // Opens every mission with a passphrase waypoint, scrolled to the first.
+    showPassphrases: () => {
+      const indexes = passphraseMissions.map((entry) => entry.index);
+      if (indexes.length) {
+        setExpandedMissions((current) => new Set([...current, ...indexes]));
+        showInList(indexes[0]);
+      }
+    },
     handleMapSelect,
     missionItemRefs,
     mapRef,
@@ -1251,7 +1259,9 @@ export function MissionList({ d }) {
           showType={d.missionTypes.length > 1}
           renderAnswer={
             mission.id
-              ? (stepIndex) => <WaypointAnswer d={d} missionId={mission.id} stepIndex={stepIndex} />
+              ? (stepIndex) => (
+                  <WaypointAnswer d={d} missionId={mission.id} missionIndex={index} stepIndex={stepIndex} />
+                )
               : null
           }
           itemRef={(element) => {

@@ -2042,8 +2042,7 @@ test("warns about passphrases and opens those missions", async () => {
   expect(screen.getByText("Passphrase")).toHaveClass("chip");
   expect(screen.getByText(/1 with a passphrase/)).toBeInTheDocument();
 
-  expect(await screen.findByText("1 of 1 known")).toBeInTheDocument();
-  expect(screen.getByRole("button", { name: "Log in to add answers" })).toBeInTheDocument();
+  expect(await screen.findByText("1 of 1 answer known")).toBeInTheDocument();
   expect(within(waypoints).queryByText("2", { selector: ".wp-ans-text" })).toBeNull();
   await userEvent.setup().click(within(waypoints).getByRole("button", { name: "Show answer" }));
   expect(within(waypoints).getByText("2", { selector: ".wp-ans-text" })).toBeInTheDocument();

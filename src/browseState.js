@@ -6,6 +6,9 @@ const BROWSE_STATE_STORAGE_KEY = "openbanners.browse.state";
 const SEARCH_STATE_STORAGE_KEY = "openbanners.search.state";
 const SEARCH_SCOPE_PREFIX = "search:";
 const BROWSE_STATE_VERSION = 1;
+// "Show offline banners" lasts for this tab only (sessionStorage), so Back
+// keeps it but a new visit starts with offline banners hidden again.
+const SESSION_OFFLINE_STORAGE_KEY = "openbanners.browse.showOffline";
 const DEFAULT_SORT_OPTION = "Created";
 const DEFAULT_SORT_ORDER = "DESC";
 const SEARCH_SORT_OPTION = "Relevance";
@@ -41,9 +44,35 @@ function readStoredState(scope) {
   }
 }
 
+function readSessionOffline() {
+  try {
+    return JSON.parse(window.sessionStorage.getItem(SESSION_OFFLINE_STORAGE_KEY) ?? "{}") ?? {};
+  } catch {
+    return {};
+  }
+}
+
+function writeSessionOffline(scope, showOfflineBanners) {
+  try {
+    const byScope = readSessionOffline();
+    if (showOfflineBanners) {
+      byScope[scope] = true;
+    } else {
+      delete byScope[scope];
+    }
+    window.sessionStorage.setItem(SESSION_OFFLINE_STORAGE_KEY, JSON.stringify(byScope));
+  } catch {
+    // Without sessionStorage it just isn't remembered.
+  }
+}
+
 function writeStoredState(nextState) {
   if (typeof window === "undefined") {
     return;
+  }
+
+  if (nextState.filters) {
+    writeSessionOffline(nextState.scope, Boolean(nextState.filters.showOfflineBanners));
   }
 
   try {
@@ -51,7 +80,8 @@ function writeStoredState(nextState) {
       getStorageKey(nextState.scope),
       JSON.stringify({
         ...nextState,
-        // Offline banners are hidden by default; showing them is never remembered.
+        // Offline banners are hidden by default; showing them is only
+        // remembered for this tab (see SESSION_OFFLINE_STORAGE_KEY).
         filters: nextState.filters
           ? { ...nextState.filters, showOfflineBanners: false }
           : nextState.filters,
@@ -179,7 +209,10 @@ export function readBrowseState(scope) {
     return getDefaultBrowseState(scope);
   }
 
-  return normalizeBrowseState(storedState, scope);
+  const state = normalizeBrowseState(storedState, scope);
+  return readSessionOffline()[scope]
+    ? { ...state, filters: { ...state.filters, showOfflineBanners: true } }
+    : state;
 }
 
 export function readBrowseFilters(scope) {

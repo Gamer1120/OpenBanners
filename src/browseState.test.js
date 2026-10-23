@@ -7,6 +7,7 @@ import {
 
 beforeEach(() => {
   window.localStorage.clear();
+  window.sessionStorage.clear();
 });
 
 test("search results get their own scope that starts on Best match", () => {
@@ -36,4 +37,14 @@ test("Best match is only kept for search results", () => {
   saveBrowseState(placeScope, { sortOption: "Relevance" });
 
   expect(readBrowseState(placeScope).sortOption).toBe("Created");
+});
+
+test("Show offline banners survives Back in this tab, but not a new visit", () => {
+  const scope = getBrowseStateScope({ placeId: "nl" });
+  saveBrowseState(scope, { filters: { showOfflineBanners: true, minimumMissions: 12 } });
+  expect(readBrowseState(scope).filters).toMatchObject({ showOfflineBanners: true, minimumMissions: 12 });
+  expect(JSON.parse(window.localStorage.getItem("openbanners.browse.state")).filters.showOfflineBanners).toBe(false);
+
+  window.sessionStorage.clear();
+  expect(readBrowseState(scope).filters).toMatchObject({ showOfflineBanners: false, minimumMissions: 12 });
 });

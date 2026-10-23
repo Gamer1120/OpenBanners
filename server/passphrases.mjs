@@ -154,7 +154,9 @@ export function passphraseStepsOf(banner) {
   }));
 }
 
-export function createPassphraseService({ db, fetchImpl = fetch, now = () => Date.now(), onSubmitted = () => {} } = {}) {
+// unlimitedAgents: verified agent names that skip the daily answer limit (they still need review).
+export function createPassphraseService({ db, fetchImpl = fetch, now = () => Date.now(), onSubmitted = () => {}, unlimitedAgents = [] } = {}) {
+  const unlimited = new Set(unlimitedAgents.map(agentKey).filter(Boolean));
   const identityCache = new Map();
   const bannerCache = new Map();
 
@@ -300,7 +302,7 @@ export function createPassphraseService({ db, fetchImpl = fetch, now = () => Dat
     }
     const since = now() - DAY_MS;
     const recent = db.prepare("SELECT COUNT(*) AS n FROM answers WHERE submitted_by = ? AND submitted_at > ?").get(identity.userId, since).n;
-    if (recent + items.length > MAX_ANSWERS_PER_USER_PER_DAY) {
+    if (recent + items.length > MAX_ANSWERS_PER_USER_PER_DAY && !unlimited.has(agentKey(identity.agent))) {
       throw new ApiError(429, "too_many", "That's a lot of answers for one day. Try again tomorrow.");
     }
     const banner = await loadBanner(bannerId, identity.token);
@@ -718,7 +720,12 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
   const port = Number(process.env.OPENBANNERS_PASSPHRASES_PORT) || 8789;
   const db = openDatabase(process.env.OPENBANNERS_PASSPHRASES_DB || "/var/lib/openbanners/passphrases.sqlite");
   let bot = null;
-  const { server, service } = createPassphraseServer({ db, onSubmitted: () => bot?.notifyPending() });
+  const { server, service } = createPassphraseServer({
+    db,
+    onSubmitted: () => bot?.notifyPending(),
+    // Comma-separated verified agent names that skip the daily answer limit.
+    unlimitedAgents: String(process.env.OPENBANNERS_UNLIMITED_AGENTS ?? "").split(",").map((name) => name.trim()).filter(Boolean),
+  });
   server.listen(port, "127.0.0.1", () => {
     process.stdout.write(`OpenBanners passphrases listening on 127.0.0.1:${port}\n`);
   });

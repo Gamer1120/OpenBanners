@@ -7,7 +7,7 @@ const token = (sub) => `x.${Buffer.from(JSON.stringify({ sub })).toString("base6
 
 // Bannergress stand-in: two users, one of them the verified author "Maker";
 // mission authors are only sent with a login, as on Bannergress.
-function setup({ verified = { alice: null, maker: "Maker" } } = {}) {
+function setup({ verified = { alice: null, maker: "Maker" }, unlimitedAgents = [] } = {}) {
   let clock = Date.UTC(2026, 9, 22);
   const banner = (auth) => ({
     id: "b1",
@@ -27,7 +27,7 @@ function setup({ verified = { alice: null, maker: "Maker" } } = {}) {
     }
     return { ok: false, status: 404 };
   };
-  const service = createPassphraseService({ db: openDatabase(":memory:"), fetchImpl, now: () => clock });
+  const service = createPassphraseService({ db: openDatabase(":memory:"), fetchImpl, now: () => clock, unlimitedAgents });
   const as = (sub) => ({ authorization: `Bearer ${token(sub)}` });
   return { service, as, advance: (ms) => (clock += ms) };
 }
@@ -185,4 +185,16 @@ test("settings: ask after done, and never allow for my banners", async () => {
   assert.deepEqual(banner.answers, []);
   assert.equal(banner.blocked, "author");
   assert.equal((await service.handle("POST", "/settings", as("maker"), { blockMyBanners: false })).blockMyBanners, false);
+});
+
+test("the daily answer limit doesn't apply to unlimited agents, whose answers still need review", async () => {
+  const { service, as } = setup({ verified: { alice: null, mod: "Mod" }, unlimitedAgents: ["mod"] });
+  const batch = (from, count) => ({
+    answers: Array.from({ length: count }, (_, i) => ({ missionId: "m1", stepIndex: 1, kind: "text", text: `answer ${from + i}` })),
+  });
+  await service.handle("POST", "/banners/b1/answers", as("alice"), batch(0, 400));
+  await assert.rejects(service.handle("POST", "/banners/b1/answers", as("alice"), batch(400, 200)), { status: 429 });
+  await service.handle("POST", "/banners/b1/answers", as("mod"), batch(1000, 400));
+  const result = await service.handle("POST", "/banners/b1/answers", as("mod"), batch(1400, 200));
+  assert.ok(result.answers.filter((answer) => answer.mine).every((answer) => answer.status === "pending"));
 });

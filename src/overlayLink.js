@@ -37,3 +37,21 @@ export function buildOverlayStartIntentUrl(bannerId, origin) {
     `S.browser_fallback_url=${encodeURIComponent(OVERLAY_FALLBACK_URL)};end`
   );
 }
+
+// Mission Day plans (app v42+): openbanners-overlay://plan/{planId}?start=1&origin={site}
+// The app follows the plan's open missions as one route and ticks them off.
+function overlayPlanPath(planId, origin) {
+  const query = new URLSearchParams({ start: "1" });
+  if (origin) {
+    query.set("origin", origin);
+  }
+  return `plan/${encodeURIComponent(planId)}?${query.toString()}`;
+}
+
+export function buildOverlayPlanIntentUrl(planId, origin) {
+  return (
+    `intent://${overlayPlanPath(planId, origin)}` +
+    `#Intent;scheme=${OVERLAY_SCHEME};package=${OVERLAY_PACKAGE};` +
+    `S.browser_fallback_url=${encodeURIComponent(OVERLAY_FALLBACK_URL)};end`
+  );
+}

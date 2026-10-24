@@ -1,8 +1,9 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Add, ArrowDownward, ArrowUpward, Close, DragIndicator, EventNote, MyLocation, Search, Share } from "@mui/icons-material";
+import { Add, ArrowDownward, ArrowUpward, Close, DragIndicator, EventNote, Layers, MyLocation, OpenInNew, Search, Share } from "@mui/icons-material";
 import { BANNERGRESS_AUTH_REQUEST_EVENT, useBannergressAuth } from "../bannergressSync";
-import { formatLength, getBannerPictureUrl, getDistanceMeters } from "../bannerDisplay";
+import { buildIngressMissionUrl, formatLength, getBannerPictureUrl, getDistanceMeters } from "../bannerDisplay";
+import { buildOverlayPlanIntentUrl, isAndroidUserAgent, OVERLAY_FALLBACK_URL } from "../overlayLink";
 import {
   createPlan,
   fetchActiveMissionDays,
@@ -368,6 +369,37 @@ function useHere() {
   return { here, state, start };
 }
 
+// The plan in the OpenBanners Overlay (Android): one route through the missions
+// that aren't done yet, in this order; going on from a mission ticks it off here.
+function OverlayStart({ plan }) {
+  const open = plan.items.filter((item) => !item.done).length;
+  if (!plan.items.length) {
+    return null;
+  }
+  const android = isAndroidUserAgent(navigator.userAgent);
+  return (
+    <div className="mdp-overlay">
+      {android ? (
+        <a className="btn filled sl" href={buildOverlayPlanIntentUrl(plan.id, window.location.origin)}>
+          <Layers fontSize="small" />
+          Start in OpenBanners Overlay
+        </a>
+      ) : null}
+      <span className="small muted">
+        {android
+          ? `Follows the ${open || plan.items.length} ${open === 1 ? "mission" : "missions"} still to do as one route and ticks them off here as you go.`
+          : "On Android, open this plan in the "}
+        {android ? null : (
+          <>
+            <a href={OVERLAY_FALLBACK_URL} target="_blank" rel="noopener noreferrer">OpenBanners Overlay</a>
+            {" "}(or share the plan link with it) to walk it as one route; missions get ticked off here as you go.
+          </>
+        )}
+      </span>
+    </div>
+  );
+}
+
 function MissionPicture({ mission }) {
   return <span className="mdp-mpic">{mission?.picture ? <img src={mission.picture} alt="" loading="lazy" /> : null}</span>;
 }
@@ -472,6 +504,7 @@ function PlanEditor({ planId }) {
         link can change this plan.
       </p>
       {message ? <p className="small mdp-msg" role="status">{message}</p> : null}
+      <OverlayStart plan={plan} />
 
       <section className="mdp-mapbox" aria-label="Map of the missions">
         <div className="mdp-map">
@@ -551,10 +584,19 @@ function PlanEditor({ planId }) {
                       />
                     </label>
                     <span className="mdp-tools">
+                      <a
+                        className="icon-btn sl"
+                        href={buildIngressMissionUrl(item.missionId)}
+                        aria-label={`Open ${mission?.title ?? "this mission"} in Ingress`}
+                        title="Open in Ingress"
+                      >
+                        <OpenInNew fontSize="small" />
+                      </a>
                       <button
                         type="button"
                         className="icon-btn sl"
                         aria-label="Move up"
+                        data-arrow=""
                         disabled={index === 0}
                         onClick={() => run([{ op: "move", missionId: item.missionId, index: index - 1 }])}
                       >
@@ -564,6 +606,7 @@ function PlanEditor({ planId }) {
                         type="button"
                         className="icon-btn sl"
                         aria-label="Move down"
+                        data-arrow=""
                         disabled={index === plan.items.length - 1}
                         onClick={() => run([{ op: "move", missionId: item.missionId, index: index + 1 }])}
                       >

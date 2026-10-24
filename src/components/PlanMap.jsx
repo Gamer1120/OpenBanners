@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef } from "react";
 import L from "leaflet";
 import { CircleMarker, MapContainer, Marker, Polyline, Popup, TileLayer, useMap } from "react-leaflet";
-import { formatLength, getDistanceMeters } from "../bannerDisplay";
+import { buildIngressMissionUrl, formatLength, getDistanceMeters } from "../bannerDisplay";
 
 // Map of a Mission Day plan: every mission's route with a marker at its start.
 // Planned missions are blue with their place in your order; the others are grey
@@ -124,6 +124,9 @@ export default function PlanMap({ missions, items, here, flyRequest, onToggle })
                 <button type="button" className={`btn ${planned ? "text" : "filled"} sl`} onClick={() => onToggle(mission)}>
                   {planned ? "Take out of the plan" : "Add to the plan"}
                 </button>
+                <a className="mdp-popup-link" href={buildIngressMissionUrl(mission.id)}>
+                  Open in Ingress
+                </a>
               </div>
             </Popup>
           </Marker>

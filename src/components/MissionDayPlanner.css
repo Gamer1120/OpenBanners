@@ -159,7 +159,7 @@
 }
 
 .mdp-tools .icon-btn {
-  width: 36px;
+  width: 34px;
   height: 36px;
 }
 
@@ -223,6 +223,11 @@
 }
 
 @media (max-width: 520px) {
+  /* Phones drag by the handle; the arrows would squeeze the titles. */
+  .mdp-tools [data-arrow] {
+    display: none;
+  }
+
   .mdp-gap {
     padding-left: 56px;
   }
@@ -345,4 +350,23 @@
   flex: none;
   font-size: 12px;
   opacity: 0.75;
+}
+
+.mdp-overlay {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  margin-top: 12px;
+}
+
+.mdp-overlay .small {
+  flex: 1 1 200px;
+}
+
+.mdp-popup-link {
+  align-self: center;
+  margin-top: 2px;
+  color: #1a5fd0;
+  font-weight: 500;
 }

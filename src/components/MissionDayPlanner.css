@@ -293,37 +293,39 @@
   height: 10px;
   margin: 0 2px 0 6px;
   border-radius: 50%;
-  background: linear-gradient(90deg, #d62b2b, #d6c62b, #2bd65a, #2b8fd6, #b02bd6);
-  opacity: 0.45;
+  background: #9aa0a6;
 }
 
 .mdp-key.in {
   margin-left: 0;
-  opacity: 1;
+  background: linear-gradient(90deg, #d62b2b, #d6c62b, #2bd65a, #2b8fd6, #b02bd6);
+  box-shadow: 0 0 0 1.5px #fff;
 }
 
-/* Plan map starts: the banner page's numbered circles; faded with the banner
-   number when not planned, filled with your order number when planned. */
-/* Leaflet places icons with position: absolute, which also anchors the badge. */
-.mk.mdp-mk {
-  opacity: 0.6;
-}
-
-.mk.mdp-mk.in {
-  opacity: 1;
+/* Plan map starts: small grey circles with the banner number when not added;
+   bigger, filled in the mission's colour with your order number when added. */
+.mk.mdp-mk span {
+  width: 16px;
+  height: 16px;
+  border-width: 1.5px;
+  background: #e8eaed;
+  color: #5f6368;
+  font-size: 8px;
 }
 
 .mk.mdp-mk.in span {
+  width: 24px;
+  height: 24px;
+  border: 2px solid #fff;
   background: var(--c);
   color: #fff;
-  border-color: #fff;
+  font-size: 11px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.5);
 }
 
-.mk.mdp-mk.done {
-  opacity: 0.45;
+.mk.mdp-mk.in.done {
+  opacity: 0.5;
 }
-
-
 
 .mdp-pin {
   display: grid;

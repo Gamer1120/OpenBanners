@@ -4,10 +4,11 @@ import { CircleMarker, MapContainer, Marker, Polyline, Popup, TileLayer, useMap 
 import { buildIngressMissionUrl, formatLength, getDistanceMeters } from "../bannerDisplay";
 import { missionColors } from "./bannerDetails/shared";
 
-// Map of a Mission Day plan, drawn like the banner page's map: every mission in
-// its own rainbow colour (by its number in the banner) with its portals and a
-// numbered start. Planned missions are solid and numbered by their place in your
-// order; the others are faded with their number in the banner. Tap a start to add or take out the mission.
+// Map of a Mission Day plan, drawn like the banner page's map. Your planned
+// missions stand out in their rainbow colour (by number in the banner) with a
+// white edge, portal dots and a start numbered by your order; the others are a
+// quiet grey layer with their banner number, still tappable to add. Tap a start to add or take out the mission.
+const OUT = "#9aa0a6";
 const iconCache = new Map();
 function startIcon(number, color, order, done) {
   const key = `${number}|${color}|${order}|${done}`;
@@ -17,9 +18,9 @@ function startIcon(number, color, order, done) {
       L.divIcon({
         className: `mk mk-num mdp-mk${order ? " in" : ""}${done ? " done" : ""}`,
         html: `<span style="--c:${color}">${order || number}</span>`,
-        iconSize: [22, 22],
-        iconAnchor: [11, 11],
-        popupAnchor: [0, -11],
+        iconSize: order ? [26, 26] : [18, 18],
+        iconAnchor: order ? [13, 13] : [9, 9],
+        popupAnchor: [0, order ? -13 : -9],
       })
     );
   }
@@ -86,28 +87,47 @@ export default function PlanMap({ missions, items, here, flyRequest, onToggle })
       />
       <FitOnce points={points} fitKey={fitKey} />
       <FlyToMe here={here} request={flyRequest} />
-      {missions.map((mission) => {
-        const planned = position.get(mission.id);
-        const opacity = planned ? (planned.done ? 0.4 : 0.95) : 0.45;
-        return (
-          <React.Fragment key={`p-${mission.id}`}>
-            {mission.path.length > 1 ? (
+      {/* Not added: thin grey lines underneath. Added: rainbow on top, with a
+          white edge and portal dots; done ones dimmed. */}
+      {[...missions]
+        .sort((a, b) => Number(position.has(a.id)) - Number(position.has(b.id)))
+        .map((mission) => {
+          const planned = position.get(mission.id);
+          if (!planned) {
+            return mission.path.length > 1 ? (
               <Polyline
+                key={`p-${mission.id}`}
                 positions={mission.path}
-                pathOptions={{ color: colorOf(mission), weight: planned ? 5 : 3, opacity, interactive: false }}
+                pathOptions={{ color: OUT, weight: 2.5, opacity: 0.75, interactive: false }}
               />
-            ) : null}
-            {mission.path.slice(1).map((point, index) => (
-              <CircleMarker
-                key={index}
-                center={point}
-                radius={planned ? 4 : 3}
-                pathOptions={{ color: "#fff", weight: 1.5, fillColor: colorOf(mission), fillOpacity: 1, opacity, interactive: false }}
-              />
-            ))}
-          </React.Fragment>
-        );
-      })}
+            ) : null;
+          }
+          const opacity = planned.done ? 0.4 : 1;
+          return (
+            <React.Fragment key={`p-${mission.id}`}>
+              {mission.path.length > 1 ? (
+                <>
+                  <Polyline
+                    positions={mission.path}
+                    pathOptions={{ color: "#fff", weight: 8, opacity: opacity * 0.85, interactive: false }}
+                  />
+                  <Polyline
+                    positions={mission.path}
+                    pathOptions={{ color: colorOf(mission), weight: 5, opacity, interactive: false }}
+                  />
+                </>
+              ) : null}
+              {mission.path.slice(1).map((point, index) => (
+                <CircleMarker
+                  key={index}
+                  center={point}
+                  radius={4}
+                  pathOptions={{ color: "#fff", weight: 1.5, fillColor: colorOf(mission), fillOpacity: 1, opacity, interactive: false }}
+                />
+              ))}
+            </React.Fragment>
+          );
+        })}
       {walks.map((positions, index) => (
         <Polyline
           key={`w-${index}`}
@@ -125,7 +145,7 @@ export default function PlanMap({ missions, items, here, flyRequest, onToggle })
           <Marker
             key={`m-${mission.id}`}
             position={[mission.start.latitude, mission.start.longitude]}
-            icon={startIcon(mission.number, colorOf(mission), planned ? planned.index + 1 : 0, planned?.done)}
+            icon={startIcon(mission.number, planned ? colorOf(mission) : OUT, planned ? planned.index + 1 : 0, planned?.done)}
             zIndexOffset={planned ? 1000 : 0}
           >
             <Popup>

@@ -5,7 +5,7 @@ RUN apk add --no-cache nginx su-exec
 COPY docker/nginx.conf /etc/nginx/http.d/default.conf
 COPY docker/entrypoint.sh /usr/local/bin/openbanners-entrypoint
 COPY dist /usr/share/nginx/html
-COPY server/banner-meta.mts /usr/share/nginx/server/banner-meta.mts
+COPY server/banner-meta.mts server/page-meta.mjs /usr/share/nginx/server/
 COPY server/banner-meta-tests.mts /usr/share/nginx/server/banner-meta-tests.mts
 COPY server/banner-together-signal.mjs /usr/share/nginx/server/banner-together-signal.mjs
 COPY server/banner-together-signal-tests.mjs /usr/share/nginx/server/banner-together-signal-tests.mjs

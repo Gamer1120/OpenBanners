@@ -4,7 +4,7 @@ import path from "node:path";
 const SITE_ORIGIN = "https://openbanners.org";
 const SITE_NAME = "OpenBanners";
 const DEFAULT_DESCRIPTION = "An open-source front-end for banners";
-const DEFAULT_IMAGE = `${SITE_ORIGIN}/logo512.png`;
+const DEFAULT_IMAGE = `${SITE_ORIGIN}/og/openbanners-card-v1.png`;
 const BANNERGRESS_IMAGE_ORIGIN = "https://api.bannergress.com";
 const OUTPUT_DIR = path.resolve("dist", "banner");
 

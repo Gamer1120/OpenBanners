@@ -10,25 +10,30 @@
     />
     <meta name="theme-color" content="#16161c" />
     <meta name="color-scheme" content="dark" />
-    <meta name="description" content="An open-source front-end for banners" />
+    <meta name="description" content="Find, plan and walk Ingress mission banners." />
     <meta property="og:site_name" content="OpenBanners" />
     <meta property="og:type" content="website" />
     <meta property="og:title" content="OpenBanners" />
     <meta
       property="og:description"
-      content="An open-source front-end for banners"
+      content="Find, plan and walk Ingress mission banners."
     />
     <meta property="og:url" content="https://openbanners.org/" />
-    <meta property="og:image" content="https://openbanners.org/logo512.png" />
+    <!-- Versioned name: chat apps cache preview images by URL (logo512.png was
+         once the React logo and still shows up in old Telegram previews). -->
+    <meta property="og:image" content="https://openbanners.org/og/openbanners-card-v1.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="OpenBanners" />
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="OpenBanners" />
     <meta
       name="twitter:description"
-      content="An open-source front-end for banners"
+      content="Find, plan and walk Ingress mission banners."
     />
     <meta
       name="twitter:image"
-      content="https://openbanners.org/logo512.png"
+      content="https://openbanners.org/og/openbanners-card-v1.png"
     />
     <link rel="canonical" href="https://openbanners.org/" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
@@ -44,7 +49,7 @@
       (function () {
         const SITE_NAME = "OpenBanners";
         const DEFAULT_DESCRIPTION = "An open-source front-end for banners";
-        const DEFAULT_IMAGE = "https://openbanners.org/logo512.png";
+        const DEFAULT_IMAGE = "https://openbanners.org/og/openbanners-card-v1.png";
         const BANNERGRESS_IMAGE_ORIGIN = "https://api.bannergress.com";
         const origin = window.location.origin || "https://openbanners.org";
         const currentUrl = new URL(

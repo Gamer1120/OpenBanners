@@ -1,6 +1,6 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Add, ArrowDownward, ArrowUpward, Close, EventNote, Search, Share } from "@mui/icons-material";
+import { Add, ArrowDownward, ArrowUpward, Close, DragIndicator, EventNote, Search, Share } from "@mui/icons-material";
 import { BANNERGRESS_AUTH_REQUEST_EVENT, useBannergressAuth } from "../bannergressSync";
 import { formatLength, getBannerPictureUrl, getDistanceMeters } from "../bannerDisplay";
 import {
@@ -218,6 +218,117 @@ function useBanners(bannerIds) {
   return banners;
 }
 
+// Drag to reorder (mouse and touch): grab the handle, the row follows the
+// pointer, the others make room, and dropping calls onDrop(from, to).
+const EDGE_PX = 70;
+
+function useDragSort(onDrop) {
+  const listRef = useRef(null);
+  const dragRef = useRef(null);
+  const [drag, setDrag] = useState(null);
+
+  const targetIndex = (state, pageY) => {
+    let to = state.from;
+    state.mids.forEach((mid, index) => {
+      if (index < state.from && pageY < mid) {
+        to = Math.min(to, index);
+      } else if (index > state.from && pageY > mid) {
+        to = Math.max(to, index);
+      }
+    });
+    return to;
+  };
+
+  const update = (pageY) => {
+    const state = dragRef.current;
+    if (!state) {
+      return;
+    }
+    const next = { from: state.from, dy: pageY - state.startY, to: targetIndex(state, pageY), height: state.height };
+    setDrag(next);
+  };
+
+  useEffect(() => {
+    if (!drag) {
+      return undefined;
+    }
+    // Scroll while the pointer is near the top or bottom of the screen.
+    const timer = window.setInterval(() => {
+      const state = dragRef.current;
+      if (!state) {
+        return;
+      }
+      const step = state.clientY < EDGE_PX ? -12 : state.clientY > window.innerHeight - EDGE_PX ? 12 : 0;
+      if (step) {
+        window.scrollBy(0, step);
+        update(state.clientY + window.scrollY);
+      }
+    }, 16);
+    return () => window.clearInterval(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [Boolean(drag)]);
+
+  const handleProps = (index) => ({
+    onPointerDown: (event) => {
+      if (event.button !== 0 || !listRef.current) {
+        return;
+      }
+      event.preventDefault();
+      event.currentTarget.setPointerCapture(event.pointerId);
+      const rows = [...listRef.current.children];
+      const rects = rows.map((row) => row.getBoundingClientRect());
+      dragRef.current = {
+        from: index,
+        startY: event.clientY + window.scrollY,
+        clientY: event.clientY,
+        height: rects[index].height,
+        mids: rects.map((rect) => rect.top + window.scrollY + rect.height / 2),
+      };
+      update(event.clientY + window.scrollY);
+    },
+    onPointerMove: (event) => {
+      if (dragRef.current) {
+        dragRef.current.clientY = event.clientY;
+        update(event.clientY + window.scrollY);
+      }
+    },
+    onPointerUp: (event) => {
+      const state = dragRef.current;
+      if (state) {
+        const to = targetIndex(state, event.clientY + window.scrollY);
+        dragRef.current = null;
+        setDrag(null);
+        if (to !== state.from) {
+          onDrop(state.from, to);
+        }
+      }
+    },
+    onPointerCancel: () => {
+      dragRef.current = null;
+      setDrag(null);
+    },
+  });
+
+  // Where each row is drawn while dragging.
+  const rowStyle = (index) => {
+    if (!drag) {
+      return undefined;
+    }
+    if (index === drag.from) {
+      return { transform: `translateY(${drag.dy}px)`, zIndex: 2, position: "relative" };
+    }
+    if (drag.from < index && index <= drag.to) {
+      return { transform: `translateY(${-drag.height}px)`, transition: "transform 0.15s" };
+    }
+    if (drag.to <= index && index < drag.from) {
+      return { transform: `translateY(${drag.height}px)`, transition: "transform 0.15s" };
+    }
+    return { transition: "transform 0.15s" };
+  };
+
+  return { listRef, handleProps, rowStyle, dragging: drag?.from ?? null };
+}
+
 function MissionPicture({ mission }) {
   return <span className="mdp-mpic">{mission?.picture ? <img src={mission.picture} alt="" loading="lazy" /> : null}</span>;
 }
@@ -228,6 +339,13 @@ function PlanEditor({ planId }) {
   const [addingBanner, setAddingBanner] = useState(false);
   const [title, setTitle] = useState(null);
   const [message, setMessage] = useState("");
+  const sort = useDragSort((from, to) => {
+    const item = plan?.items[from];
+    if (item) {
+      setMessage("");
+      apply([{ op: "move", missionId: item.missionId, index: to }]).catch((e) => setMessage(e.message));
+    }
+  });
 
   const missionById = useMemo(() => {
     const map = new Map();
@@ -319,12 +437,24 @@ function PlanEditor({ planId }) {
         {!plan.items.length ? (
           <p className="small muted">Add missions from the banners below. They show up here in the order you add them.</p>
         ) : (
-          <ol className="mdp-plan">
+          <ol className="mdp-plan" ref={sort.listRef}>
             {plan.items.map((item, index) => {
               const mission = missionById.get(item.missionId);
               return (
-                <li key={item.missionId} className={item.done ? "done" : ""}>
+                <li
+                  key={item.missionId}
+                  className={`${item.done ? "done" : ""}${sort.dragging === index ? " dragging" : ""}`}
+                  style={sort.rowStyle(index)}
+                >
                   <div className="mdp-item">
+                    <span
+                      className="mdp-handle"
+                      title="Drag to move"
+                      aria-hidden="true"
+                      {...sort.handleProps(index)}
+                    >
+                      <DragIndicator fontSize="small" />
+                    </span>
                     <span className="mdp-pos">{index + 1}</span>
                     <MissionPicture mission={mission} />
                     <span className="txt">

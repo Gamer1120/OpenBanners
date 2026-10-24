@@ -165,7 +165,7 @@
 
 .mdp-gap {
   display: block;
-  padding-left: 80px;
+  padding-left: 102px;
 }
 
 .mdp-source-tools {
@@ -224,7 +224,7 @@
 
 @media (max-width: 520px) {
   .mdp-gap {
-    padding-left: 34px;
+    padding-left: 56px;
   }
 
   .mdp-mpic {
@@ -234,4 +234,31 @@
   .mdp-mission .mdp-mpic {
     display: block;
   }
+}
+
+.mdp-handle {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 40px;
+  flex: none;
+  margin-right: -6px;
+  color: var(--on-surface-variant);
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+}
+
+.mdp-plan li.dragging {
+  border-radius: var(--r-m, 12px);
+  background: var(--sc-high, var(--sc-low));
+  box-shadow: 0 4px 14px rgb(0 0 0 / 0.35);
+}
+
+.mdp-plan li.dragging .mdp-handle {
+  cursor: grabbing;
+}
+
+.mdp-plan li.dragging .mdp-gap {
+  visibility: hidden;
 }

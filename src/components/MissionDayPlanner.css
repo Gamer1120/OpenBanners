@@ -1,0 +1,237 @@
+/* Mission Day planner */
+.mdp section {
+  margin-top: 20px;
+}
+
+.mdp .ob-h2 a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.mdp-thumb {
+  width: 56px;
+  height: 40px;
+  flex: none;
+  border-radius: var(--r-s, 8px);
+  overflow: hidden;
+  background: var(--sc-high, var(--sc-low));
+}
+
+.mdp-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.mdp-recent {
+  display: flex;
+  align-items: center;
+}
+
+.mdp-field {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 48px;
+  padding: 0 14px;
+  border-radius: 24px;
+  background: var(--sc-high, var(--sc-low));
+  color: var(--on-surface-variant);
+}
+
+.mdp-field input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--on-surface);
+  font: 400 16px/20px var(--font);
+}
+
+.mdp-search .ob-list,
+.mdp-search p {
+  margin-top: 8px;
+}
+
+.mdp-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.mdp-title {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  padding: 2px 6px;
+  border: 1px solid transparent;
+  border-radius: var(--r-s, 8px);
+  background: transparent;
+  color: inherit;
+}
+
+.mdp-title:hover,
+.mdp-title:focus {
+  border-color: var(--outline);
+  outline: 0;
+}
+
+.mdp-msg {
+  color: var(--primary);
+  overflow-wrap: anywhere;
+}
+
+.mdp-plan {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.mdp-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 0;
+}
+
+.mdp-plan li.done .mdp-item .txt,
+.mdp-plan li.done .mdp-mpic {
+  opacity: 0.5;
+}
+
+.mdp-plan li.done .t {
+  text-decoration: line-through;
+}
+
+.mdp-item .txt {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.mdp-item .t {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mdp-item .s {
+  font-size: 13px;
+  color: var(--on-surface-variant);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mdp-pos {
+  width: 24px;
+  flex: none;
+  text-align: right;
+  font-weight: 500;
+  color: var(--on-surface-variant);
+}
+
+.mdp-mpic {
+  width: 36px;
+  height: 36px;
+  flex: none;
+  border-radius: 50%;
+  overflow: hidden;
+  background: var(--sc-high, var(--sc-low));
+}
+
+.mdp-mpic img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.mdp-done input {
+  width: 20px;
+  height: 20px;
+}
+
+.mdp-tools {
+  display: flex;
+  flex: none;
+}
+
+.mdp-tools .icon-btn {
+  width: 36px;
+  height: 36px;
+}
+
+.mdp-gap {
+  display: block;
+  padding-left: 80px;
+}
+
+.mdp-source-tools {
+  display: flex;
+  gap: 4px;
+}
+
+.mdp-missions {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 6px;
+}
+
+.mdp-mission {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  padding: 4px 8px 4px 4px;
+  border: 1px solid var(--outline-variant, var(--outline));
+  border-radius: 24px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.mdp-mission.in {
+  border-color: transparent;
+  background: var(--secondary-container);
+  color: var(--on-secondary-container);
+}
+
+.mdp-mission .mdp-mpic {
+  width: 28px;
+  height: 28px;
+}
+
+.mdp-num {
+  font-weight: 500;
+  font-size: 13px;
+}
+
+.mdp-mt {
+  flex: 1;
+  min-width: 0;
+  font-size: 13px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (max-width: 520px) {
+  .mdp-gap {
+    padding-left: 34px;
+  }
+
+  .mdp-mpic {
+    display: none;
+  }
+
+  .mdp-mission .mdp-mpic {
+    display: block;
+  }
+}

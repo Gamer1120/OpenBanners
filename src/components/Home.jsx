@@ -11,6 +11,7 @@ import BrowsingPage from "./BrowsingPage";
 import BannerDetailsPage from "./BannerDetailsPage";
 import DiscoveryMap from "./discoveryMap/DiscoveryMap";
 import BannerRerouterPage from "./BannerRerouterPage";
+import MissionDayPlanner from "./MissionDayPlanner";
 import BannerTogetherPage from "./BannerTogetherPage";
 import AuthorPassphraseNotice from "./AuthorPassphraseNotice";
 import {
@@ -42,6 +43,7 @@ const VIEW_TITLES = {
   searching: "Search",
   together: "Banner Together",
   rerouter: "Reroute Banner",
+  planner: "Mission Day planner",
 };
 
 function formatRouteParam(value) {
@@ -113,6 +115,13 @@ function getRouteMetadata({ pathname, placeId, agentName, query }) {
     };
   }
 
+  if (pathname.startsWith("/planner")) {
+    return {
+      title: "Mission Day planner",
+      description: "Plan which missions to do and in what order, together.",
+    };
+  }
+
   if (pathname.startsWith("/rerouter")) {
     return {
       title: "Banner Rerouter",
@@ -163,6 +172,10 @@ function getCurrentView(pathname) {
     return "rerouter";
   }
 
+  if (pathname.startsWith("/planner")) {
+    return "planner";
+  }
+
   if (pathname.startsWith("/lists")) {
     return "lists";
   }
@@ -171,7 +184,7 @@ function getCurrentView(pathname) {
 }
 
 export default function Home() {
-  const { placeId, roomId, agentName, query } = useParams();
+  const { placeId, roomId, agentName, query, planId } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
   const browseStateScope = useMemo(
@@ -316,6 +329,7 @@ export default function Home() {
               <DiscoveryMap />
             </LegacyDark>
           )}
+          {currentView === "planner" && <MissionDayPlanner planId={planId} />}
           {currentView === "rerouter" && (
             <LegacyDark>
               <BannerRerouterPage />

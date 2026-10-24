@@ -42,6 +42,8 @@ function App() {
           <Route path="/together/:placeId" element={<TogetherRedirect />} />
           <Route path="/agent/:agentName" element={<Home />} />
           <Route path="/rerouter" element={<Home />} />
+          <Route path="/planner" element={<Home />} />
+          <Route path="/planner/:planId" element={<Home />} />
           <Route
             path="/bannerguider/:bannerId/debug"
             element={<BannerGuider />}

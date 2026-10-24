@@ -209,3 +209,31 @@ test("notes: private per account", async () => {
   await assert.rejects(service.handle("POST", "/notes/banners/b1", as("alice"), { text: "x".repeat(10001) }), { code: "invalid_note" });
   assert.equal((await service.handle("POST", "/notes/banners/b1", as("alice"), { text: "  " })).note, null);
 });
+
+test("plans: made with a login, edited by anyone with the link, one change at a time", async () => {
+  const { service, as } = setup();
+  await assert.rejects(service.handle("POST", "/plans", {}, { banners: ["b1"] }), { status: 401 });
+  const plan = await service.handle("POST", "/plans", as("alice"), { banners: ["b1"], title: "  MD   Paris " });
+  assert.match(plan.id, /^[A-Za-z0-9_-]{22}$/);
+  assert.equal(plan.title, "MD Paris");
+  assert.deepEqual(plan.banners, ["b1"]);
+  const path = `/plans/${plan.id}`;
+  // No login needed to edit with the link.
+  let next = await service.handle("POST", path, {}, { ops: [
+    { op: "add", bannerId: "b1", missionId: "m1" },
+    { op: "add", bannerId: "b1", missionId: "m2" },
+    { op: "add", bannerId: "b2", missionId: "m9", index: 0 },
+    { op: "add", bannerId: "b1", missionId: "m1" },
+  ] });
+  assert.deepEqual(next.items.map((item) => item.missionId), ["m9", "m1", "m2"]);
+  assert.deepEqual(next.banners, ["b1", "b2"]);
+  next = await service.handle("POST", path, {}, { ops: [{ op: "move", missionId: "m9", index: 2 }, { op: "done", missionId: "m1", done: true }] });
+  assert.deepEqual(next.items.map((item) => `${item.missionId}${item.done ? "!" : ""}`), ["m1!", "m2", "m9"]);
+  next = await service.handle("POST", path, {}, { ops: [{ op: "removeBanner", bannerId: "b2" }, { op: "remove", missionId: "m1" }] });
+  assert.deepEqual(next.items.map((item) => item.missionId), ["m2"]);
+  assert.equal(next.version, 4);
+  // A bad change applies nothing.
+  await assert.rejects(service.handle("POST", path, {}, { ops: [{ op: "remove", missionId: "m2" }, { op: "explode" }] }), { code: "invalid_ops" });
+  assert.deepEqual((await service.handle("GET", path, {}, null)).items.map((item) => item.missionId), ["m2"]);
+  await assert.rejects(service.handle("GET", "/plans/nope", {}, null), { status: 404 });
+});

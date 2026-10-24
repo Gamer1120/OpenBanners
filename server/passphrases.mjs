@@ -14,7 +14,7 @@
 //   server/passphrases-telegram.mjs, one message per banner): approved ones
 //   still wait out the 30 days, "publish now" skips the wait, rejected ones are
 //   deleted.
-import { createHash } from "node:crypto";
+import { createHash, randomBytes } from "node:crypto";
 import { mkdirSync } from "node:fs";
 import { createServer } from "node:http";
 import { dirname, resolve } from "node:path";
@@ -95,6 +95,15 @@ CREATE TABLE IF NOT EXISTS banner_notes (
   text TEXT NOT NULL,
   updated_at INTEGER NOT NULL,
   PRIMARY KEY (user_id, banner_id)
+);
+-- Mission Day plans: the random id in the link is what lets anyone view and edit one.
+CREATE TABLE IF NOT EXISTS plans (
+  id TEXT PRIMARY KEY,
+  owner TEXT NOT NULL,
+  data TEXT NOT NULL,
+  version INTEGER NOT NULL,
+  created_at INTEGER NOT NULL,
+  updated_at INTEGER NOT NULL
 );
 CREATE TABLE IF NOT EXISTS contact_attempts (
   id INTEGER PRIMARY KEY,
@@ -552,6 +561,137 @@ export function createPassphraseService({ db, fetchImpl = fetch, now = () => Dat
     return getNote(identity, bannerId);
   }
 
+  // Mission Day plans. Creating one needs a login (so it can't be spammed); anyone
+  // with the link edits it. Edits are small operations applied here one at a time,
+  // so two people changing the plan at once never overwrite each other.
+  const PLAN_ID = /^[A-Za-z0-9_-]{22}$/;
+  const MISSION_ID = /^[A-Za-z0-9._-]{1,100}$/;
+  const MAX_PLAN_ITEMS = 500;
+  const MAX_PLAN_BANNERS = 30;
+  const MAX_PLANS_PER_ACCOUNT = 200;
+
+  function planOut(row) {
+    return { id: row.id, ...JSON.parse(row.data), version: row.version, updatedAt: new Date(row.updated_at).toISOString() };
+  }
+
+  function loadPlan(id) {
+    if (!PLAN_ID.test(id)) {
+      throw new ApiError(404, "plan_not_found", "This plan doesn't exist.");
+    }
+    const row = db.prepare("SELECT * FROM plans WHERE id = ?").get(id);
+    if (!row) {
+      throw new ApiError(404, "plan_not_found", "This plan doesn't exist.");
+    }
+    return row;
+  }
+
+  const cleanTitle = (title) => String(title ?? "").replace(/\s+/g, " ").trim().slice(0, 120);
+
+  function checkBanner(bannerId) {
+    if (typeof bannerId !== "string" || !BANNER_ID_PATTERN.test(bannerId)) {
+      throw new ApiError(400, "invalid_banner", "Invalid banner id.");
+    }
+  }
+
+  function createPlan(identity, body) {
+    const count = Number(db.prepare("SELECT COUNT(*) AS n FROM plans WHERE owner = ?").get(identity.userId).n);
+    if (count >= MAX_PLANS_PER_ACCOUNT) {
+      throw new ApiError(429, "too_many_plans", "You have made the maximum number of plans.");
+    }
+    const banners = Array.isArray(body?.banners) ? body.banners : [];
+    banners.forEach(checkBanner);
+    const data = { title: cleanTitle(body?.title) || "Mission Day plan", banners: [...new Set(banners)].slice(0, MAX_PLAN_BANNERS), items: [] };
+    const id = randomBytes(16).toString("base64url").slice(0, 22);
+    const at = now();
+    db.prepare("INSERT INTO plans (id, owner, data, version, created_at, updated_at) VALUES (?, ?, ?, 1, ?, ?)")
+      .run(id, identity.userId, JSON.stringify(data), at, at);
+    return planOut(loadPlan(id));
+  }
+
+  // ops: [{ op: "title", title } | { op: "addBanner", bannerId } | { op: "removeBanner", bannerId }
+  //   | { op: "add", bannerId, missionId, index? } | { op: "remove", missionId } | { op: "move", missionId, index }
+  //   | { op: "done", missionId, done }]
+  function editPlan(id, body) {
+    const ops = Array.isArray(body?.ops) ? body.ops : null;
+    if (!ops || !ops.length || ops.length > MAX_PLAN_ITEMS) {
+      throw new ApiError(400, "invalid_ops", "Send the changes to make.");
+    }
+    db.exec("BEGIN IMMEDIATE");
+    try {
+      const row = loadPlan(id);
+      const data = JSON.parse(row.data);
+      const at = (missionId) => data.items.findIndex((item) => item.missionId === missionId);
+      const clampIndex = (index, length) => (Number.isInteger(index) ? Math.max(0, Math.min(index, length)) : length);
+      for (const change of ops) {
+        switch (change?.op) {
+          case "title":
+            data.title = cleanTitle(change.title) || data.title;
+            break;
+          case "addBanner":
+            checkBanner(change.bannerId);
+            if (!data.banners.includes(change.bannerId)) {
+              if (data.banners.length >= MAX_PLAN_BANNERS) {
+                throw new ApiError(400, "too_many_banners", `A plan can have ${MAX_PLAN_BANNERS} banners at most.`);
+              }
+              data.banners.push(change.bannerId);
+            }
+            break;
+          case "removeBanner":
+            data.banners = data.banners.filter((bannerId) => bannerId !== change.bannerId);
+            data.items = data.items.filter((item) => item.bannerId !== change.bannerId);
+            break;
+          case "add": {
+            checkBanner(change.bannerId);
+            if (typeof change.missionId !== "string" || !MISSION_ID.test(change.missionId)) {
+              throw new ApiError(400, "invalid_mission", "Invalid mission id.");
+            }
+            if (at(change.missionId) !== -1) {
+              break;
+            }
+            if (data.items.length >= MAX_PLAN_ITEMS) {
+              throw new ApiError(400, "too_many_missions", `A plan can have ${MAX_PLAN_ITEMS} missions at most.`);
+            }
+            if (!data.banners.includes(change.bannerId)) {
+              data.banners.push(change.bannerId);
+            }
+            data.items.splice(clampIndex(change.index, data.items.length), 0, { bannerId: change.bannerId, missionId: change.missionId, done: false });
+            break;
+          }
+          case "remove": {
+            const index = at(change.missionId);
+            if (index !== -1) {
+              data.items.splice(index, 1);
+            }
+            break;
+          }
+          case "move": {
+            const index = at(change.missionId);
+            if (index !== -1) {
+              const [item] = data.items.splice(index, 1);
+              data.items.splice(clampIndex(change.index, data.items.length), 0, item);
+            }
+            break;
+          }
+          case "done": {
+            const index = at(change.missionId);
+            if (index !== -1) {
+              data.items[index].done = Boolean(change.done);
+            }
+            break;
+          }
+          default:
+            throw new ApiError(400, "invalid_ops", "Unknown change.");
+        }
+      }
+      db.prepare("UPDATE plans SET data = ?, version = version + 1, updated_at = ? WHERE id = ?").run(JSON.stringify(data), now(), id);
+      db.exec("COMMIT");
+    } catch (error) {
+      db.exec("ROLLBACK");
+      throw error;
+    }
+    return planOut(loadPlan(id));
+  }
+
   async function handle(method, path, headers, body) {
     if (path === "/settings" && (method === "GET" || method === "POST")) {
       const identity = await identify(headers.authorization);
@@ -565,6 +705,16 @@ export function createPassphraseService({ db, fetchImpl = fetch, now = () => Dat
       }
       const identity = await identify(headers.authorization);
       return method === "GET" ? getNote(identity, bannerId) : saveNote(identity, bannerId, body);
+    }
+    if (path === "/plans" && method === "POST") {
+      return createPlan(await identify(headers.authorization), body);
+    }
+    const planMatch = /^\/plans\/([^/]+)$/.exec(path);
+    if (planMatch && method === "GET") {
+      return planOut(loadPlan(planMatch[1]));
+    }
+    if (planMatch && method === "POST") {
+      return editPlan(planMatch[1], body);
     }
     if (path === "/health" && method === "GET") {
       return { ok: true };

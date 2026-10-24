@@ -1,0 +1,465 @@
+import React, { useEffect, useMemo, useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import { Add, ArrowDownward, ArrowUpward, Close, EventNote, Search, Share } from "@mui/icons-material";
+import { BANNERGRESS_AUTH_REQUEST_EVENT, useBannergressAuth } from "../bannergressSync";
+import { formatLength, getBannerPictureUrl, getDistanceMeters } from "../bannerDisplay";
+import {
+  createPlan,
+  fetchActiveMissionDays,
+  fetchBannerWithMissions,
+  forgetPlan,
+  missionsOf,
+  planPath,
+  planUrl,
+  readRecentPlans,
+  searchBanners,
+  usePlan,
+} from "../missionPlans";
+import "./MissionDayPlanner.css";
+
+const MIN_QUERY = 2;
+
+// Mission Day planner: /planner picks a banner (active Mission Days or search),
+// /planner/:planId plans its missions. The overlay route comes later.
+export default function MissionDayPlanner({ planId }) {
+  return planId ? <PlanEditor planId={planId} /> : <PlannerStart />;
+}
+
+function BannerPickRow({ banner, onPick, busy }) {
+  const picture = getBannerPictureUrl(banner);
+  return (
+    <li>
+      <button type="button" className="li sl mdp-banner" onClick={() => onPick(banner)} disabled={busy}>
+        <span className="mdp-thumb">{picture ? <img src={picture} alt="" loading="lazy" /> : null}</span>
+        <span className="txt">
+          <span className="t">{(banner.title || "Untitled").trim()}</span>
+          <span className="s">
+            {banner.numberOfMissions ?? "?"} missions
+            {banner.formattedAddress ? ` · ${banner.formattedAddress}` : ""}
+          </span>
+        </span>
+      </button>
+    </li>
+  );
+}
+
+function useBannerSearch(query) {
+  const [state, setState] = useState({ status: "idle", banners: [] });
+  useEffect(() => {
+    if (query.trim().length < MIN_QUERY) {
+      setState({ status: "idle", banners: [] });
+      return undefined;
+    }
+    let cancelled = false;
+    setState((current) => ({ ...current, status: "loading" }));
+    const timer = window.setTimeout(() => {
+      searchBanners(query).then(
+        (banners) => !cancelled && setState({ status: "ready", banners }),
+        () => !cancelled && setState({ status: "error", banners: [] })
+      );
+    }, 250);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
+  }, [query]);
+  return state;
+}
+
+function BannerSearch({ onPick, busy, autoFocus = false }) {
+  const [query, setQuery] = useState("");
+  const results = useBannerSearch(query);
+  return (
+    <div className="mdp-search">
+      <label className="mdp-field">
+        <Search fontSize="small" />
+        <input
+          type="search"
+          value={query}
+          placeholder="Search for a banner"
+          aria-label="Search for a banner"
+          autoFocus={autoFocus}
+          onChange={(event) => setQuery(event.target.value)}
+        />
+      </label>
+      {results.status === "loading" && !results.banners.length ? <p className="small muted">Searching…</p> : null}
+      {results.status === "error" ? <p className="small pp-error">Search didn’t work. Try again.</p> : null}
+      {results.status === "ready" && !results.banners.length ? <p className="small muted">No banners found.</p> : null}
+      {results.banners.length ? (
+        <ul className="ob-list" aria-label="Search results">
+          {results.banners.map((banner) => (
+            <BannerPickRow key={banner.id} banner={banner} onPick={onPick} busy={busy} />
+          ))}
+        </ul>
+      ) : null}
+    </div>
+  );
+}
+
+function PlannerStart() {
+  const navigate = useNavigate();
+  const auth = useBannergressAuth();
+  const loggedIn = Boolean(auth?.accessToken || auth?.refreshToken);
+  const [active, setActive] = useState({ status: "loading", banners: [] });
+  const [recent, setRecent] = useState(readRecentPlans);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    let cancelled = false;
+    fetchActiveMissionDays().then(
+      (banners) => !cancelled && setActive({ status: "ready", banners }),
+      () => !cancelled && setActive({ status: "error", banners: [] })
+    );
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const start = (banner) => {
+    if (!loggedIn) {
+      window.dispatchEvent(new Event(BANNERGRESS_AUTH_REQUEST_EVENT));
+      return;
+    }
+    setBusy(true);
+    setError("");
+    createPlan({ banners: [banner.id], title: banner.title }).then(
+      (plan) => navigate(planPath(plan.id)),
+      (e) => {
+        setError(e.message);
+        setBusy(false);
+      }
+    );
+  };
+
+  return (
+    <div className="ob-page mdp">
+      <h1 className="ob-h1">Mission Day planner</h1>
+      <p className="small muted">
+        Pick the missions you want to do, put them in your order and share the plan. Everyone with the link can
+        change it.
+        {loggedIn ? "" : " Log in with Bannergress to start a plan."}
+      </p>
+      {error ? <p className="small pp-error" role="alert">{error}</p> : null}
+
+      {recent.length ? (
+        <section aria-labelledby="mdp-recent">
+          <h2 className="ob-h2" id="mdp-recent">Your plans</h2>
+          <ul className="ob-list">
+            {recent.map((entry) => (
+              <li key={entry.id} className="mdp-recent">
+                <Link className="li sl" to={planPath(entry.id)}>
+                  <span className="lead">
+                    <EventNote fontSize="small" />
+                  </span>
+                  <span className="txt">
+                    <span className="t">{entry.title}</span>
+                    <span className="s">{entry.missions} {entry.missions === 1 ? "mission" : "missions"} planned</span>
+                  </span>
+                </Link>
+                <button
+                  type="button"
+                  className="icon-btn sl"
+                  aria-label={`Remove ${entry.title} from this list`}
+                  title="Remove from this list (the plan itself stays)"
+                  onClick={() => {
+                    forgetPlan(entry.id);
+                    setRecent(readRecentPlans());
+                  }}
+                >
+                  <Close fontSize="small" />
+                </button>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
+
+      <section aria-labelledby="mdp-active">
+        <h2 className="ob-h2" id="mdp-active">Active Mission Days</h2>
+        {active.status === "loading" ? <p className="small muted">Loading…</p> : null}
+        {active.status === "error" ? <p className="small muted">Couldn’t load the Mission Days from Bannergress.</p> : null}
+        {active.status === "ready" && !active.banners.length ? (
+          <p className="small muted">No Mission Day is on right now. Search for its banner instead.</p>
+        ) : null}
+        {active.banners.length ? (
+          <ul className="ob-list" aria-label="Active Mission Days">
+            {active.banners.map((banner) => (
+              <BannerPickRow key={banner.id} banner={banner} onPick={start} busy={busy} />
+            ))}
+          </ul>
+        ) : null}
+      </section>
+
+      <section aria-labelledby="mdp-find">
+        <h2 className="ob-h2" id="mdp-find">Find a banner</h2>
+        <BannerSearch onPick={start} busy={busy} />
+      </section>
+    </div>
+  );
+}
+
+function useBanners(bannerIds) {
+  const [banners, setBanners] = useState({});
+  const key = bannerIds.join("\n");
+  useEffect(() => {
+    let cancelled = false;
+    for (const bannerId of bannerIds) {
+      fetchBannerWithMissions(bannerId).then(
+        (banner) => !cancelled && setBanners((current) => ({ ...current, [bannerId]: { status: "ready", banner, missions: missionsOf(banner) } })),
+        (error) => !cancelled && setBanners((current) => ({ ...current, [bannerId]: { status: "error", error: error.message } }))
+      );
+    }
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [key]);
+  return banners;
+}
+
+function MissionPicture({ mission }) {
+  return <span className="mdp-mpic">{mission?.picture ? <img src={mission.picture} alt="" loading="lazy" /> : null}</span>;
+}
+
+function PlanEditor({ planId }) {
+  const { status, plan, error, apply } = usePlan(planId);
+  const banners = useBanners(plan?.banners ?? []);
+  const [addingBanner, setAddingBanner] = useState(false);
+  const [title, setTitle] = useState(null);
+  const [message, setMessage] = useState("");
+
+  const missionById = useMemo(() => {
+    const map = new Map();
+    for (const [bannerId, entry] of Object.entries(banners)) {
+      for (const mission of entry.missions ?? []) {
+        map.set(mission.id, { ...mission, bannerId, bannerTitle: entry.banner.title });
+      }
+    }
+    return map;
+  }, [banners]);
+
+  if (status === "loading") {
+    return (
+      <div className="ob-page mdp">
+        <p className="small muted">Loading the plan…</p>
+      </div>
+    );
+  }
+  if (status === "error") {
+    return (
+      <div className="ob-page mdp">
+        <h1 className="ob-h1">Mission Day planner</h1>
+        <div className="ob-alert bad" role="alert">{error}</div>
+        <Link className="btn tonal sl" to="/planner">Start a new plan</Link>
+      </div>
+    );
+  }
+
+  const run = (ops) => {
+    setMessage("");
+    apply(ops).catch((e) => setMessage(e.message));
+  };
+  const planned = new Set(plan.items.map((item) => item.missionId));
+  const doneCount = plan.items.filter((item) => item.done).length;
+  const steps = plan.items.map((item) => missionById.get(item.missionId));
+  const gaps = steps.map((mission, index) => {
+    const next = steps[index + 1];
+    return mission?.end && next?.start ? getDistanceMeters(mission.end, next.start) : null;
+  });
+  const walk =
+    steps.reduce((sum, mission) => sum + (mission?.lengthMeters ?? 0), 0) + gaps.reduce((sum, gap) => sum + (gap ?? 0), 0);
+
+  const share = () => {
+    const url = planUrl(plan.id);
+    if (navigator.share) {
+      navigator.share({ title: plan.title, text: `${plan.title} – Mission Day plan`, url }).catch(() => {});
+      return;
+    }
+    navigator.clipboard.writeText(url).then(
+      () => setMessage("Link copied. Everyone with it can change the plan."),
+      () => setMessage(url)
+    );
+  };
+
+  const saveTitle = () => {
+    if (title !== null && title.trim() && title.trim() !== plan.title) {
+      run([{ op: "title", title }]);
+    }
+    setTitle(null);
+  };
+
+  return (
+    <div className="ob-page mdp">
+      <div className="mdp-head">
+        <input
+          className="mdp-title ob-h1"
+          aria-label="Plan name"
+          value={title ?? plan.title}
+          maxLength={120}
+          onChange={(event) => setTitle(event.target.value)}
+          onBlur={saveTitle}
+          onKeyDown={(event) => event.key === "Enter" && event.currentTarget.blur()}
+        />
+        <button type="button" className="btn filled sl" onClick={share}>
+          <Share fontSize="small" />
+          Share
+        </button>
+      </div>
+      <p className="small muted">
+        {plan.items.length} {plan.items.length === 1 ? "mission" : "missions"} planned
+        {doneCount ? ` · ${doneCount} done` : ""}
+        {walk > 0 ? ` · about ${formatLength(walk)} including the walks between missions` : ""}. Everyone with the
+        link can change this plan.
+      </p>
+      {message ? <p className="small mdp-msg" role="status">{message}</p> : null}
+
+      <section aria-labelledby="mdp-plan">
+        <h2 className="ob-h2" id="mdp-plan">Your order</h2>
+        {!plan.items.length ? (
+          <p className="small muted">Add missions from the banners below. They show up here in the order you add them.</p>
+        ) : (
+          <ol className="mdp-plan">
+            {plan.items.map((item, index) => {
+              const mission = missionById.get(item.missionId);
+              return (
+                <li key={item.missionId} className={item.done ? "done" : ""}>
+                  <div className="mdp-item">
+                    <span className="mdp-pos">{index + 1}</span>
+                    <MissionPicture mission={mission} />
+                    <span className="txt">
+                      <span className="t" title={mission?.title}>{mission?.shortTitle ?? "Loading…"}</span>
+                      <span className="s">
+                        {mission ? `#${mission.number} of ${mission.bannerTitle}` : ""}
+                        {mission?.offline ? " · offline" : ""}
+                      </span>
+                    </span>
+                    <label className="mdp-done" title="Done">
+                      <input
+                        type="checkbox"
+                        checked={item.done}
+                        aria-label={`Mark ${mission?.title ?? "mission"} done`}
+                        onChange={(event) => run([{ op: "done", missionId: item.missionId, done: event.target.checked }])}
+                      />
+                    </label>
+                    <span className="mdp-tools">
+                      <button
+                        type="button"
+                        className="icon-btn sl"
+                        aria-label="Move up"
+                        disabled={index === 0}
+                        onClick={() => run([{ op: "move", missionId: item.missionId, index: index - 1 }])}
+                      >
+                        <ArrowUpward fontSize="small" />
+                      </button>
+                      <button
+                        type="button"
+                        className="icon-btn sl"
+                        aria-label="Move down"
+                        disabled={index === plan.items.length - 1}
+                        onClick={() => run([{ op: "move", missionId: item.missionId, index: index + 1 }])}
+                      >
+                        <ArrowDownward fontSize="small" />
+                      </button>
+                      <button
+                        type="button"
+                        className="icon-btn sl"
+                        aria-label="Take out of the plan"
+                        onClick={() => run([{ op: "remove", missionId: item.missionId }])}
+                      >
+                        <Close fontSize="small" />
+                      </button>
+                    </span>
+                  </div>
+                  {gaps[index] !== null && gaps[index] !== undefined && index < plan.items.length - 1 ? (
+                    <span className="mdp-gap small muted">↓ {formatLength(gaps[index])} to the next start</span>
+                  ) : null}
+                </li>
+              );
+            })}
+          </ol>
+        )}
+      </section>
+
+      {plan.banners.map((bannerId) => {
+        const entry = banners[bannerId];
+        const missions = entry?.missions ?? [];
+        const open = missions.filter((mission) => !planned.has(mission.id));
+        return (
+          <section key={bannerId} className="mdp-source" aria-label={entry?.banner?.title ?? bannerId}>
+            <div className="ob-sec-head">
+              <h2 className="ob-h2">
+                <Link to={`/banner/${encodeURIComponent(bannerId)}`}>{entry?.banner?.title ?? "Loading…"}</Link>
+              </h2>
+              <span className="mdp-source-tools">
+                <button
+                  type="button"
+                  className="btn tonal sl"
+                  disabled={!open.length}
+                  onClick={() => run(open.map((mission) => ({ op: "add", bannerId, missionId: mission.id })))}
+                >
+                  Add all
+                </button>
+                <button
+                  type="button"
+                  className="btn text sl"
+                  onClick={() => run([{ op: "removeBanner", bannerId }])}
+                  title="Take this banner and its missions out of the plan"
+                >
+                  Remove
+                </button>
+              </span>
+            </div>
+            {entry?.status === "error" ? <p className="small pp-error">{entry.error}</p> : null}
+            <ul className="mdp-missions">
+              {missions.map((mission) => {
+                const inPlan = planned.has(mission.id);
+                return (
+                  <li key={mission.id}>
+                    <button
+                      type="button"
+                      className={`mdp-mission sl${inPlan ? " in" : ""}`}
+                      aria-pressed={inPlan}
+                      onClick={() =>
+                        run([inPlan ? { op: "remove", missionId: mission.id } : { op: "add", bannerId, missionId: mission.id }])
+                      }
+                    >
+                      <MissionPicture mission={mission} />
+                      <span className="mdp-num">{mission.number}</span>
+                      <span className="mdp-mt" title={mission.title}>{mission.shortTitle}</span>
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+          </section>
+        );
+      })}
+
+      <section aria-label="Add a banner">
+        {addingBanner ? (
+          <>
+            <div className="ob-sec-head">
+              <h2 className="ob-h2">Add a banner</h2>
+              <button type="button" className="btn text sl" onClick={() => setAddingBanner(false)}>
+                Done
+              </button>
+            </div>
+            <BannerSearch
+              autoFocus
+              onPick={(banner) => {
+                run([{ op: "addBanner", bannerId: banner.id }]);
+                setAddingBanner(false);
+              }}
+            />
+          </>
+        ) : (
+          <button type="button" className="btn tonal sl" onClick={() => setAddingBanner(true)}>
+            <Add fontSize="small" />
+            Add another banner
+          </button>
+        )}
+      </section>
+    </div>
+  );
+}

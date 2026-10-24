@@ -11,6 +11,7 @@ import {
 import {
   AccountCircleOutlined,
   AltRoute,
+  EventNote,
   Download,
   GitHub,
   Login,
@@ -475,6 +476,17 @@ export default function TopMenu({
                 <AltRoute fontSize="small" />
               </ListItemIcon>
               <ListItemText>Reroute Banner</ListItemText>
+            </MenuItem>
+            <MenuItem
+              onClick={() => {
+                closeMoreMenu();
+                navigate("/planner");
+              }}
+            >
+              <ListItemIcon>
+                <EventNote fontSize="small" />
+              </ListItemIcon>
+              <ListItemText>Mission Day planner</ListItemText>
             </MenuItem>
             {shouldShowAndroidDownloadButton ? (
               <MenuItem

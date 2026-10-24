@@ -302,8 +302,8 @@
   opacity: 1;
 }
 
-/* Plan map starts: the banner page's numbered circles; faded when not planned,
-   filled with a badge (place in your order) when planned. */
+/* Plan map starts: the banner page's numbered circles; faded with the banner
+   number when not planned, filled with your order number when planned. */
 /* Leaflet places icons with position: absolute, which also anchors the badge. */
 .mk.mdp-mk {
   opacity: 0.6;
@@ -323,21 +323,7 @@
   opacity: 0.45;
 }
 
-.mdp-order {
-  position: absolute;
-  top: -9px;
-  right: -11px;
-  min-width: 15px;
-  height: 15px;
-  padding: 0 3px;
-  box-sizing: border-box;
-  border-radius: 8px;
-  background: #111;
-  color: #fff;
-  font: 700 9px/15px var(--font);
-  text-align: center;
-  box-shadow: 0 0 0 1.5px #fff;
-}
+
 
 .mdp-pin {
   display: grid;

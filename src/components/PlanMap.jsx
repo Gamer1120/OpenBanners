@@ -6,8 +6,8 @@ import { missionColors } from "./bannerDetails/shared";
 
 // Map of a Mission Day plan, drawn like the banner page's map: every mission in
 // its own rainbow colour (by its number in the banner) with its portals and a
-// numbered start. Planned missions are solid with their place in your order on a
-// badge; the others are faded. Tap a start to add or take out the mission.
+// numbered start. Planned missions are solid and numbered by their place in your
+// order; the others are faded with their number in the banner. Tap a start to add or take out the mission.
 const iconCache = new Map();
 function startIcon(number, color, order, done) {
   const key = `${number}|${color}|${order}|${done}`;
@@ -16,7 +16,7 @@ function startIcon(number, color, order, done) {
       key,
       L.divIcon({
         className: `mk mk-num mdp-mk${order ? " in" : ""}${done ? " done" : ""}`,
-        html: `<span style="--c:${color}">${number}</span>${order ? `<b class="mdp-order">${order}</b>` : ""}`,
+        html: `<span style="--c:${color}">${order || number}</span>`,
         iconSize: [22, 22],
         iconAnchor: [11, 11],
         popupAnchor: [0, -11],

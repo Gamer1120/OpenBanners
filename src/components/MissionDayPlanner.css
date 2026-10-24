@@ -293,12 +293,50 @@
   height: 10px;
   margin: 0 2px 0 6px;
   border-radius: 50%;
-  background: #8a8f98;
+  background: linear-gradient(90deg, #d62b2b, #d6c62b, #2bd65a, #2b8fd6, #b02bd6);
+  opacity: 0.45;
 }
 
 .mdp-key.in {
   margin-left: 0;
-  background: #4c8dff;
+  opacity: 1;
+}
+
+/* Plan map starts: the banner page's numbered circles; faded when not planned,
+   filled with a badge (place in your order) when planned. */
+/* Leaflet places icons with position: absolute, which also anchors the badge. */
+.mk.mdp-mk {
+  opacity: 0.6;
+}
+
+.mk.mdp-mk.in {
+  opacity: 1;
+}
+
+.mk.mdp-mk.in span {
+  background: var(--c);
+  color: #fff;
+  border-color: #fff;
+}
+
+.mk.mdp-mk.done {
+  opacity: 0.45;
+}
+
+.mdp-order {
+  position: absolute;
+  top: -9px;
+  right: -11px;
+  min-width: 15px;
+  height: 15px;
+  padding: 0 3px;
+  box-sizing: border-box;
+  border-radius: 8px;
+  background: #111;
+  color: #fff;
+  font: 700 9px/15px var(--font);
+  text-align: center;
+  box-shadow: 0 0 0 1.5px #fff;
 }
 
 .mdp-pin {

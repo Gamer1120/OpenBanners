@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from "react";
-import { EditNote, Lock } from "@mui/icons-material";
+import { EditNote } from "@mui/icons-material";
 import { MAX_NOTE_LENGTH, useBannerNote } from "../../bannerNotes";
 
-// Your own notes on a banner: only while logged in, encrypted on this device.
+// Your own notes on a banner: only while logged in, and only you see them.
 export default function BannerNotes({ d }) {
   const bannerId = d.items?.id ?? d.bannerId;
   const note = useBannerNote(d.isLoading ? null : bannerId);
@@ -15,19 +15,6 @@ export default function BannerNotes({ d }) {
   if (!note.loggedIn || note.status === "idle" || note.status === "loading") {
     return null;
   }
-  if (note.status === "locked") {
-    return (
-      <section className="pp-panel bn-panel" aria-label="My notes">
-        <Lock />
-        <div className="grow small">
-          <b>My notes</b>
-          Your notes are locked on this device. On a device where you can read them, open Settings and copy the
-          link for another device, then open that link here.
-        </div>
-      </section>
-    );
-  }
-
   const editing = draft !== null;
   const save = () => {
     setBusy(true);
@@ -83,7 +70,7 @@ export default function BannerNotes({ d }) {
             Add a note
           </button>
         )}
-        <span className="small muted bn-private">Only you can read these. They’re encrypted on your device.</span>
+        <span className="small muted bn-private">Only you can see these.</span>
         {error ? <p className="small pp-error" role="alert">{error}</p> : null}
       </div>
     </section>

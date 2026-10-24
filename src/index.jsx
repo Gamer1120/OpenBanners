@@ -7,10 +7,6 @@ import "leaflet/dist/leaflet.css";
 import "./m3.css";
 import { useThemeMode } from "./themeMode";
 import App from "./App";
-import { captureNotesKeyFromUrl } from "./bannerNotes";
-
-// A notes key from another device (#notes-key=…) is taken out of the address at once.
-captureNotesKeyFromUrl();
 
 function ThemedApp() {
   const { resolvedMode } = useThemeMode();

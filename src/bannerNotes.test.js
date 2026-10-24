@@ -1,23 +1,27 @@
-import { describe, expect, it } from "vitest";
-import { accountOf, decryptNote, encryptNote, keyIdOf, newRawKey } from "./bannerNotes";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { renderHook, waitFor, act } from "@testing-library/react";
 
-describe("banner notes encryption", () => {
-  it("round-trips, and fails for another key, account or banner", async () => {
-    const key = newRawKey();
-    const sealed = await encryptNote(key, "acc", "b1", "Passphrase is café ☕");
-    expect(sealed.data).not.toContain("caf");
-    expect(await decryptNote(key, "acc", "b1", sealed)).toBe("Passphrase is café ☕");
-    await expect(decryptNote(newRawKey(), "acc", "b1", sealed)).rejects.toThrow();
-    await expect(decryptNote(key, "other", "b1", sealed)).rejects.toThrow();
-    await expect(decryptNote(key, "acc", "b2", sealed)).rejects.toThrow();
-  });
+vi.mock("./bannergressSync", () => ({
+  useBannergressAuth: () => ({ accessToken: "token" }),
+  requestBannergressAccessToken: async () => "token",
+}));
 
-  it("fingerprints keys and reads the account from a token", async () => {
-    const key = newRawKey();
-    expect(key).toMatch(/^[A-Za-z0-9_-]{43}$/);
-    expect(await keyIdOf(key)).toMatch(/^[A-Za-z0-9_-]{22}$/);
-    expect(await keyIdOf(key)).toBe(await keyIdOf(key));
-    const payload = btoa(JSON.stringify({ sub: "user-1" })).replace(/=+$/, "");
-    expect(accountOf(`x.${payload}.y`)).toBe("user-1");
+const { useBannerNote } = await import("./bannerNotes");
+
+describe("useBannerNote", () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("loads and saves the note with the login", async () => {
+    const fetchMock = vi.fn(async (url, options = {}) => ({
+      ok: true,
+      json: async () => ({ note: { text: options.body ? JSON.parse(options.body).text : "old", updatedAt: "2026-10-24T19:00:00.000Z" } }),
+    }));
+    vi.stubGlobal("fetch", fetchMock);
+    const { result } = renderHook(() => useBannerNote("b-1"));
+    await waitFor(() => expect(result.current.text).toBe("old"));
+    expect(fetchMock.mock.calls[0][0]).toBe("/_openbanners/passphrases/v1/notes/banners/b-1");
+    expect(fetchMock.mock.calls[0][1].headers.Authorization).toBe("Bearer token");
+    await act(() => result.current.save("new"));
+    expect(result.current.text).toBe("new");
   });
 });

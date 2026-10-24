@@ -88,18 +88,11 @@ CREATE TABLE IF NOT EXISTS user_settings (
   ask_after_done INTEGER NOT NULL DEFAULT 1,
   updated_at INTEGER NOT NULL
 );
--- Personal banner notes, encrypted in the browser with a key the server never sees.
--- key_id: a fingerprint of the account's key, so a device with another key can't mix in.
-CREATE TABLE IF NOT EXISTS note_keys (
-  user_id TEXT PRIMARY KEY,
-  key_id TEXT NOT NULL,
-  created_at INTEGER NOT NULL
-);
-CREATE TABLE IF NOT EXISTS notes (
+-- Personal banner notes, readable only through the owner's login.
+CREATE TABLE IF NOT EXISTS banner_notes (
   user_id TEXT NOT NULL,
   banner_id TEXT NOT NULL,
-  iv TEXT NOT NULL,
-  data TEXT NOT NULL,
+  text TEXT NOT NULL,
   updated_at INTEGER NOT NULL,
   PRIMARY KEY (user_id, banner_id)
 );
@@ -139,6 +132,8 @@ export function openDatabase(path) {
     }
   }
   db.exec("CREATE TABLE IF NOT EXISTS kv (key TEXT PRIMARY KEY, value TEXT)");
+  // Encrypted notes (24 Oct 2026, never used) were replaced by banner_notes.
+  db.exec("DROP TABLE IF EXISTS notes; DROP TABLE IF EXISTS note_keys;");
   // One Telegram review message per banner and moderator; items = the answers it shows.
   db.exec(`CREATE TABLE IF NOT EXISTS reviews (
     id INTEGER PRIMARY KEY,
@@ -526,80 +521,41 @@ export function createPassphraseService({ db, fetchImpl = fetch, now = () => Dat
     return settings(identity);
   }
 
-  // Personal notes: only ciphertext and the key's fingerprint come here.
-  const NOTE_KEY_ID = /^[A-Za-z0-9_-]{8,64}$/;
-  const NOTE_IV = /^[A-Za-z0-9_-]{16}$/;
-  const NOTE_DATA = /^[A-Za-z0-9_-]{1,24000}$/;
+  // Personal notes: each account sees only its own.
+  const MAX_NOTE_LENGTH = 10000;
   const MAX_NOTES = 20000;
 
-  function noteKeyId(identity) {
-    return db.prepare("SELECT key_id FROM note_keys WHERE user_id = ?").get(identity.userId)?.key_id ?? null;
-  }
-
-  function notesInfo(identity) {
-    return {
-      keyId: noteKeyId(identity),
-      count: Number(db.prepare("SELECT COUNT(*) AS n FROM notes WHERE user_id = ?").get(identity.userId).n),
-    };
-  }
-
   function getNote(identity, bannerId) {
-    const row = db.prepare("SELECT iv, data, updated_at FROM notes WHERE user_id = ? AND banner_id = ?").get(identity.userId, bannerId);
-    return {
-      keyId: noteKeyId(identity),
-      note: row ? { iv: row.iv, data: row.data, updatedAt: new Date(row.updated_at).toISOString() } : null,
-    };
+    const row = db.prepare("SELECT text, updated_at FROM banner_notes WHERE user_id = ? AND banner_id = ?").get(identity.userId, bannerId);
+    return { note: row ? { text: row.text, updatedAt: new Date(row.updated_at).toISOString() } : null };
   }
 
   function saveNote(identity, bannerId, body) {
-    if (!body || typeof body !== "object" || !NOTE_KEY_ID.test(body.keyId ?? "")) {
-      throw new ApiError(400, "invalid_note", "Send the encrypted note and its key id.");
+    if (!body || typeof body !== "object" || (typeof body.text !== "string" && body.text !== null)) {
+      throw new ApiError(400, "invalid_note", "Send the note text.");
     }
-    const keyId = noteKeyId(identity);
-    if (keyId && keyId !== body.keyId) {
-      throw new ApiError(409, "other_key", "Your notes use a key this device doesn't have.");
-    }
-    const at = now();
-    if (body.data === null || body.data === "") {
-      db.prepare("DELETE FROM notes WHERE user_id = ? AND banner_id = ?").run(identity.userId, bannerId);
+    const text = (body.text ?? "").trim() ? body.text : "";
+    if (!text) {
+      db.prepare("DELETE FROM banner_notes WHERE user_id = ? AND banner_id = ?").run(identity.userId, bannerId);
       return getNote(identity, bannerId);
     }
-    if (!NOTE_IV.test(body.iv ?? "") || !NOTE_DATA.test(body.data ?? "")) {
-      throw new ApiError(400, "invalid_note", "The note is too long or not encrypted.");
+    if (text.length > MAX_NOTE_LENGTH) {
+      throw new ApiError(400, "invalid_note", `Notes can be ${MAX_NOTE_LENGTH} characters at most.`);
     }
-    const exists = db.prepare("SELECT 1 FROM notes WHERE user_id = ? AND banner_id = ?").get(identity.userId, bannerId);
-    if (!exists && notesInfo(identity).count >= MAX_NOTES) {
+    const exists = db.prepare("SELECT 1 FROM banner_notes WHERE user_id = ? AND banner_id = ?").get(identity.userId, bannerId);
+    if (!exists && Number(db.prepare("SELECT COUNT(*) AS n FROM banner_notes WHERE user_id = ?").get(identity.userId).n) >= MAX_NOTES) {
       throw new ApiError(429, "too_many_notes", "You have the maximum number of notes.");
     }
-    if (!keyId) {
-      db.prepare("INSERT INTO note_keys (user_id, key_id, created_at) VALUES (?, ?, ?)").run(identity.userId, body.keyId, at);
-    }
-    db.prepare(`INSERT INTO notes (user_id, banner_id, iv, data, updated_at) VALUES (?, ?, ?, ?, ?)
-      ON CONFLICT (user_id, banner_id) DO UPDATE SET iv = excluded.iv, data = excluded.data, updated_at = excluded.updated_at`)
-      .run(identity.userId, bannerId, body.iv, body.data, at);
+    db.prepare(`INSERT INTO banner_notes (user_id, banner_id, text, updated_at) VALUES (?, ?, ?, ?)
+      ON CONFLICT (user_id, banner_id) DO UPDATE SET text = excluded.text, updated_at = excluded.updated_at`)
+      .run(identity.userId, bannerId, text, now());
     return getNote(identity, bannerId);
-  }
-
-  // A lost key makes the notes unreadable for everyone: deleting them lets the account start over.
-  function resetNotes(identity, body) {
-    if (body?.confirm !== true) {
-      throw new ApiError(400, "confirm_required", "Confirm deleting all your notes.");
-    }
-    db.prepare("DELETE FROM notes WHERE user_id = ?").run(identity.userId);
-    db.prepare("DELETE FROM note_keys WHERE user_id = ?").run(identity.userId);
-    return notesInfo(identity);
   }
 
   async function handle(method, path, headers, body) {
     if (path === "/settings" && (method === "GET" || method === "POST")) {
       const identity = await identify(headers.authorization);
       return method === "GET" ? settings(identity) : updateSettings(identity, body);
-    }
-    if (path === "/notes" && method === "GET") {
-      return notesInfo(await identify(headers.authorization));
-    }
-    if (path === "/notes/reset" && method === "POST") {
-      return resetNotes(await identify(headers.authorization), body);
     }
     const noteMatch = /^\/notes\/banners\/([^/]+)$/.exec(path);
     if (noteMatch && (method === "GET" || method === "POST")) {

@@ -2,78 +2,6 @@ import React, { useState } from "react";
 import ObModal from "./ObModal";
 import { BANNERGRESS_AUTH_REQUEST_EVENT } from "../bannergressSync";
 import { useUserSettings } from "../passphraseApi";
-import { notesLinkFor, useNotesAccount } from "../bannerNotes";
-
-// Personal notes: the key lives only on your devices; a link carries it to another one.
-function NotesSettings() {
-  const notes = useNotesAccount(true);
-  const [copied, setCopied] = useState(false);
-  const [confirmReset, setConfirmReset] = useState(false);
-  const [error, setError] = useState("");
-  if (!notes.loggedIn) {
-    return null;
-  }
-  const copy = () => {
-    setError("");
-    navigator.clipboard.writeText(notesLinkFor(notes.rawKey)).then(
-      () => setCopied(true),
-      () => setError("Couldn’t copy the link.")
-    );
-  };
-  return (
-    <>
-      <h3 className="ob-settings-h">My notes</h3>
-      {notes.status !== "ready" ? (
-        <p className="small muted">{notes.status === "error" ? notes.error || "Couldn’t load your notes." : "Loading…"}</p>
-      ) : notes.locked ? (
-        <div className="ob-setting">
-          <span className="grow">
-            <b>Locked on this device</b>
-            <span className="small muted">
-              Open the link from Settings on a device where you can read your notes. Lost that device? Delete your
-              notes and start over.
-            </span>
-          </span>
-          <button type="button" className="btn text sl pp-danger" onClick={() => setConfirmReset(true)}>
-            Start over
-          </button>
-        </div>
-      ) : (
-        <div className="ob-setting">
-          <span className="grow">
-            <b>Use my notes on another device</b>
-            <span className="small muted">
-              {notes.hasKey
-                ? `${notes.count} ${notes.count === 1 ? "note" : "notes"}, encrypted with a key that only your devices have. Open this link on your other device while logged in. Keep it private, and keep a copy: without the key nobody can read your notes, not even OpenBanners.`
-                : "Add a note to a banner first."}
-            </span>
-          </span>
-          <button type="button" className="btn tonal sl" disabled={!notes.hasKey} onClick={copy}>
-            {copied ? "Copied" : "Copy link"}
-          </button>
-        </div>
-      )}
-      {confirmReset ? (
-        <div className="pp-confirm" role="alertdialog" aria-label="Delete my notes">
-          <p className="small">This deletes all your notes for good.</p>
-          <div className="pp-actions">
-            <button
-              type="button"
-              className="btn filled sl pp-danger"
-              onClick={() => notes.reset().then(() => setConfirmReset(false), (e) => setError(e.message))}
-            >
-              Delete my notes
-            </button>
-            <button type="button" className="btn text sl" onClick={() => setConfirmReset(false)}>
-              Cancel
-            </button>
-          </div>
-        </div>
-      ) : null}
-      {error ? <p className="small pp-error" role="alert">{error}</p> : null}
-    </>
-  );
-}
 
 // Account settings (stored per Bannergress account by the passphrase service).
 export default function SettingsDialog({ onClose }) {
@@ -161,7 +89,6 @@ export default function SettingsDialog({ onClose }) {
         </>
       )}
       {error ? <p className="small pp-error" role="alert">{error}</p> : null}
-      <NotesSettings />
     </ObModal>
   );
 }

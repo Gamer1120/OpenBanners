@@ -5,7 +5,7 @@ import { requestBannergressAccessToken, useBannergressAuth } from "./bannergress
 // the server can ask Bannergress who you are; it never stores it.
 export const PASSPHRASES_BASE = "/_openbanners/passphrases/v1";
 
-async function call(path, { method = "GET", body, authenticate = true } = {}) {
+export async function call(path, { method = "GET", body, authenticate = true } = {}) {
   const token = authenticate ? await requestBannergressAccessToken().catch(() => null) : null;
   const headers = { Accept: "application/json" };
   if (token) {

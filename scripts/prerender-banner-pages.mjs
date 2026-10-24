@@ -4,7 +4,8 @@ import path from "node:path";
 const SITE_ORIGIN = "https://openbanners.org";
 const SITE_NAME = "OpenBanners";
 const DEFAULT_DESCRIPTION = "An open-source front-end for banners";
-const DEFAULT_IMAGE = `${SITE_ORIGIN}/og/openbanners-card-v1.png`;
+// No logo fallback: without a banner picture the preview has no image.
+const DEFAULT_IMAGE = "";
 const BANNERGRESS_IMAGE_ORIGIN = "https://api.bannergress.com";
 const OUTPUT_DIR = path.resolve("dist", "banner");
 
@@ -108,6 +109,10 @@ function injectMetadata(template, metadata) {
   ]);
 
   let html = template;
+  if (!metadata.image) {
+    replacements.delete([...replacements.keys()].find((pattern) => String(pattern).includes("og:image")));
+    replacements.delete([...replacements.keys()].find((pattern) => String(pattern).includes("twitter:image")));
+  }
 
   for (const [pattern, replacement] of replacements.entries()) {
     html = html.replace(pattern, replacement);

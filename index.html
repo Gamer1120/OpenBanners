@@ -19,21 +19,13 @@
       content="Find, plan and walk Ingress mission banners."
     />
     <meta property="og:url" content="https://openbanners.org/" />
-    <!-- Versioned name: chat apps cache preview images by URL (logo512.png was
-         once the React logo and still shows up in old Telegram previews). -->
-    <meta property="og:image" content="https://openbanners.org/og/openbanners-card-v1.png" />
-    <meta property="og:image:width" content="1200" />
-    <meta property="og:image:height" content="630" />
-    <meta property="og:image:alt" content="OpenBanners" />
-    <meta name="twitter:card" content="summary_large_image" />
+    <!-- No og:image by default: only pages with a picture of their own (banners,
+         Mission Day plans) get one, from server/banner-meta.mts. -->
+    <meta name="twitter:card" content="summary" />
     <meta name="twitter:title" content="OpenBanners" />
     <meta
       name="twitter:description"
       content="Find, plan and walk Ingress mission banners."
-    />
-    <meta
-      name="twitter:image"
-      content="https://openbanners.org/og/openbanners-card-v1.png"
     />
     <link rel="canonical" href="https://openbanners.org/" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
@@ -49,7 +41,6 @@
       (function () {
         const SITE_NAME = "OpenBanners";
         const DEFAULT_DESCRIPTION = "An open-source front-end for banners";
-        const DEFAULT_IMAGE = "https://openbanners.org/og/openbanners-card-v1.png";
         const BANNERGRESS_IMAGE_ORIGIN = "https://api.bannergress.com";
         const origin = window.location.origin || "https://openbanners.org";
         const currentUrl = new URL(
@@ -119,7 +110,7 @@
               .join(", ");
             const image = banner.picture
               ? new URL(banner.picture, BANNERGRESS_IMAGE_ORIGIN).toString()
-              : DEFAULT_IMAGE;
+              : "";
 
             document.title =
               banner.title === SITE_NAME
@@ -134,15 +125,17 @@
               description || DEFAULT_DESCRIPTION
             );
             setMeta("property", "og:url", currentUrl);
-            setMeta("property", "og:image", image);
-            setMeta("name", "twitter:card", "summary_large_image");
+            if (image) {
+              setMeta("property", "og:image", image);
+              setMeta("name", "twitter:image", image);
+            }
+            setMeta("name", "twitter:card", image ? "summary_large_image" : "summary");
             setMeta("name", "twitter:title", banner.title);
             setMeta(
               "name",
               "twitter:description",
               description || DEFAULT_DESCRIPTION
             );
-            setMeta("name", "twitter:image", image);
           })
           .catch(() => {});
       })();

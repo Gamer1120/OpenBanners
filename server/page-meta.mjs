@@ -6,13 +6,6 @@
 export const SITE_ORIGIN = "https://openbanners.org";
 export const SITE_NAME = "OpenBanners";
 export const DEFAULT_DESCRIPTION = "Find, plan and walk Ingress mission banners.";
-// Versioned: chat apps cache images by URL, so a new card needs a new name.
-export const CARD_IMAGE = {
-  url: `${SITE_ORIGIN}/og/openbanners-card-v1.png`,
-  width: 1200,
-  height: 630,
-  alt: "OpenBanners",
-};
 
 // kind: what the server looks up for the preview (none, banner, place, plan).
 // title/description: text for pages that need no lookup, or the fallback while
@@ -85,13 +78,14 @@ export function matchPage(requestPath) {
 
 const text = (value, params) => (typeof value === "function" ? value(params) : value);
 
-// The preview without any lookup: the card image and the page's own text.
+// The preview without any lookup: the page's own text, no image (only banners
+// and plans have a picture worth showing; a logo isn't).
 export function staticPreview({ page, params, path }) {
   return {
     title: text(page.title, params),
     description: text(page.description, params),
     url: `${SITE_ORIGIN}${path}`,
-    image: CARD_IMAGE,
+    image: "",
     type: "website",
   };
 }

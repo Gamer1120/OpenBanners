@@ -5,13 +5,12 @@ import type { AddressInfo } from "node:net";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { CARD_IMAGE, matchPage, SITE_ORIGIN as PAGE_ORIGIN, staticPreview } from "./page-meta.mjs";
+import { matchPage, SITE_ORIGIN as PAGE_ORIGIN, staticPreview } from "./page-meta.mjs";
 
 export const SITE_ORIGIN = "https://openbanners.org";
 const SITE_NAME = "OpenBanners";
 const DEFAULT_TITLE = "OpenBanners";
 const DEFAULT_DESCRIPTION = "An open-source front-end for banners";
-const DEFAULT_IMAGE = CARD_IMAGE.url;
 // Mission Day plans live in the passphrase service next to this one.
 const DEFAULT_PLANS_API = "http://127.0.0.1:8789/_openbanners/passphrases/v1";
 const BANNERGRESS_API_ORIGIN = "https://api.bannergress.com";
@@ -29,11 +28,8 @@ type BannerMetadata = {
   title: string;
   description: string;
   url: string;
+  // "" = no image: pages without a picture of their own get a text-only preview.
   image: string;
-  // Only for our own card: chat apps lay out the preview before the image loads.
-  imageWidth?: number;
-  imageHeight?: number;
-  imageAlt?: string;
   type?: "website" | "article";
 };
 
@@ -111,7 +107,7 @@ function toAbsoluteImageUrl(value: unknown): string {
   const image = normalizeText(value);
 
   if (image === "") {
-    return DEFAULT_IMAGE;
+    return "";
   }
 
   if (/^https?:\/\//i.test(image)) {
@@ -151,35 +147,35 @@ export function buildMetadata(banner: Banner, requestedBannerId: string): Banner
 }
 
 export function injectMetadata(html: string, metadata: BannerMetadata): string {
-  // Image size/alt only describe our own card; drop them for banner pictures.
-  html = html.replace(/\s*<meta\s+property="og:image:(?:width|height|alt)"\s+content="[^"]*"\s*\/>/gi, "");
-  const imageExtras = metadata.imageWidth && metadata.imageHeight
-    ? `\n    <meta property="og:image:width" content="${metadata.imageWidth}" />`
-      + `\n    <meta property="og:image:height" content="${metadata.imageHeight}" />`
-      + `\n    <meta property="og:image:alt" content="${escapeHtml(metadata.imageAlt ?? SITE_NAME)}" />`
-    : "";
   const title = escapeHtml(metadata.title);
   const description = escapeHtml(metadata.description);
   const url = escapeHtml(metadata.url);
   const image = escapeHtml(metadata.image);
+  // Image tags only when the page has its own picture; never a logo.
+  // They go right after og:url, with the matching Twitter card size.
+  const afterUrl = (image
+    ? `\n<meta property="og:image" content="${image}" />\n<meta name="twitter:image" content="${image}" />`
+    : "") + `\n<meta name="twitter:card" content="${image ? "summary_large_image" : "summary"}" />`;
+  const cleaned = html.replace(
+    /[ \t]*<meta\s+(?:property="og:image(?::[a-z]+)?"|name="twitter:(?:image|card)")\s+content="[^"]*"\s*\/>\n?/gi,
+    "",
+  );
   const replacements: Array<[RegExp, string]> = [
     [/<title>[\s\S]*?<\/title>/i, `<title>${escapeHtml(formatDocumentTitle(metadata.title))}</title>`],
     [/<meta\s+name="description"\s+content="[\s\S]*?"\s*\/>/i, `<meta name="description" content="${description}" />`],
     [/<meta\s+property="og:type"\s+content="[\s\S]*?"\s*\/>/i, `<meta property="og:type" content="${metadata.type ?? "article"}" />`],
     [/<meta\s+property="og:title"\s+content="[\s\S]*?"\s*\/>/i, `<meta property="og:title" content="${title}" />`],
     [/<meta\s+property="og:description"\s+content="[\s\S]*?"\s*\/>/i, `<meta property="og:description" content="${description}" />`],
-    [/<meta\s+property="og:url"\s+content="[\s\S]*?"\s*\/>/i, `<meta property="og:url" content="${url}" />`],
-    [/<meta\s+property="og:image"\s+content="[\s\S]*?"\s*\/>/i, `<meta property="og:image" content="${image}" />${imageExtras}`],
+    [/<meta\s+property="og:url"\s+content="[\s\S]*?"\s*\/>/i, `<meta property="og:url" content="${url}" />${afterUrl}`],
     [/<meta\s+name="twitter:title"\s+content="[\s\S]*?"\s*\/>/i, `<meta name="twitter:title" content="${title}" />`],
     [/<meta\s+name="twitter:description"\s+content="[\s\S]*?"\s*\/>/i, `<meta name="twitter:description" content="${description}" />`],
-    [/<meta\s+name="twitter:image"\s+content="[\s\S]*?"\s*\/>/i, `<meta name="twitter:image" content="${image}" />`],
     [/<link\s+rel="canonical"\s+href="[\s\S]*?"\s*\/>/i, `<link rel="canonical" href="${url}" />`],
   ];
 
   // A replacer function keeps "$" sequences in banner titles from being read as patterns.
   return replacements.reduce(
     (result, [pattern, replacement]) => result.replace(pattern, () => replacement),
-    html,
+    cleaned,
   );
 }
 
@@ -321,8 +317,7 @@ export function createBannerMetaServer(options: BannerMetaServerOptions = {}) {
     }
     const { page, params } = match;
     const fallback = staticPreview(match);
-    const card = { image: CARD_IMAGE.url, imageWidth: CARD_IMAGE.width, imageHeight: CARD_IMAGE.height, imageAlt: CARD_IMAGE.alt };
-    const base: BannerMetadata = { ...fallback, ...card, type: "website" };
+    const base: BannerMetadata = { ...fallback, type: "website" };
 
     if (page.kind === "banner") {
       const banner = await fetchBanner(params.bannerId);
@@ -371,7 +366,7 @@ export function createBannerMetaServer(options: BannerMetaServerOptions = {}) {
         ...base,
         title: normalizeText(plan.title) || base.title,
         description: `Mission Day plan: ${parts.join(", ")}.${plan.readOnly === true ? " View only." : ""}`,
-        ...(picture ? { image: toAbsoluteImageUrl(picture.picture), imageWidth: undefined, imageHeight: undefined } : {}),
+        image: picture ? toAbsoluteImageUrl(picture.picture) : "",
       };
     }
 

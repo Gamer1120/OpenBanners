@@ -92,6 +92,9 @@ test("injects escaped banner metadata into the SPA shell", async (t) => {
   assert.match(html, /<meta property="og:url" content="https:\/\/openbanners.org\/banner\/nice-banner-1234" \/>/);
   assert.match(html, /<link rel="canonical" href="https:\/\/openbanners.org\/banner\/nice-banner-1234" \/>/);
   assert.match(html, /<meta name="twitter:image" content="https:\/\/api.bannergress.com\/bnrs\/pictures\/abc" \/>/);
+  assert.match(html, /<meta property="og:image" content="https:\/\/api.bannergress.com\/bnrs\/pictures\/abc" \/>/);
+  assert.equal(html.match(/og:image"/g)?.length, 1);
+  assert.doesNotMatch(html, /logo512/);
   assert.match(html, /<meta name="description" content="18 Missions, 4.6 km, Enschede, Netherlands" \/>/);
   assert.match(html, /<div id="root"><\/div>/);
 });
@@ -100,16 +103,16 @@ test("falls back to the card when the banner is unavailable, and the plain shell
   const baseUrl = await startServer(t, async () => jsonResponse({ error: "nope" }, 404));
 
   const missing = await fetch(`${baseUrl}/banner/missing`).then((response) => response.text());
-  assert.match(missing, /<meta property="og:image" content="https:\/\/openbanners.org\/og\/openbanners-card-v1.png" \/>/);
-  assert.match(missing, /<meta property="og:image:width" content="1200" \/>/);
-  assert.doesNotMatch(missing, /logo512/);
+  assert.match(missing, /<meta property="og:type" content="website" \/>/);
+  assert.doesNotMatch(missing, /og:image|twitter:image|logo512/);
+  assert.match(missing, /<meta name="twitter:card" content="summary" \/>/);
 
   const response = await fetch(`${baseUrl}/not-a-page`);
   assert.equal(response.status, 200);
   assert.equal(await response.text(), shellHtml);
 });
 
-test("every page gets its own title, and the card instead of the old logo", async (t) => {
+test("every page gets its own title, and no logo as its image", async (t) => {
   const baseUrl = await startServer(t, async () => jsonResponse({ error: "nope" }, 404));
   for (const [path, title] of [
     ["/", "OpenBanners"],
@@ -120,7 +123,7 @@ test("every page gets its own title, and the card instead of the old logo", asyn
   ]) {
     const html = await fetch(`${baseUrl}${path}`).then((response) => response.text());
     assert.match(html, new RegExp(`<title>${title}</title>`), path);
-    assert.match(html, /og:image" content="https:\/\/openbanners.org\/og\/openbanners-card-v1.png"/, path);
+    assert.doesNotMatch(html, /og:image|twitter:image/, path);
     assert.match(html, /<meta property="og:type" content="website" \/>/, path);
   }
 });

@@ -26,7 +26,7 @@ export function readRecentPlans() {
 }
 
 export function rememberPlan(plan) {
-  const entry = { id: plan.id, title: plan.title, missions: plan.items?.length ?? 0, openedAt: Date.now() };
+  const entry = { id: plan.id, title: plan.title, missions: plan.items?.length ?? 0, readOnly: Boolean(plan.readOnly), openedAt: Date.now() };
   const next = [entry, ...readRecentPlans().filter((other) => other.id !== plan.id)].slice(0, MAX_RECENT);
   window.localStorage.setItem(RECENT_KEY, JSON.stringify(next));
 }

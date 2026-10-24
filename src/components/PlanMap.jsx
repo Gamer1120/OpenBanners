@@ -156,10 +156,12 @@ export default function PlanMap({ missions, items, here, flyRequest, onToggle })
                   {mission.lengthMeters ? ` · ${formatLength(mission.lengthMeters)}` : ""}
                   {distance !== null ? ` · ${formatLength(distance)} from you` : ""}
                 </span>
-                <span>{planned ? `Number ${planned.index + 1} in your order${planned.done ? " · done" : ""}` : "Not in your plan"}</span>
-                <button type="button" className={`btn ${planned ? "text" : "filled"} sl`} onClick={() => onToggle(mission)}>
-                  {planned ? "Take out of the plan" : "Add to the plan"}
-                </button>
+                <span>{planned ? `Number ${planned.index + 1} in the order${planned.done ? " · done" : ""}` : "Not in the plan"}</span>
+                {onToggle ? (
+                  <button type="button" className={`btn ${planned ? "text" : "filled"} sl`} onClick={() => onToggle(mission)}>
+                    {planned ? "Take out of the plan" : "Add to the plan"}
+                  </button>
+                ) : null}
                 <a className="mdp-popup-link" href={buildIngressMissionUrl(mission.id)}>
                   Open in Ingress
                 </a>

@@ -156,7 +156,10 @@ function PlannerStart() {
                   </span>
                   <span className="txt">
                     <span className="t">{entry.title}</span>
-                    <span className="s">{entry.missions} {entry.missions === 1 ? "mission" : "missions"} planned</span>
+                    <span className="s">
+                      {entry.missions} {entry.missions === 1 ? "mission" : "missions"} planned
+                      {entry.readOnly ? " · view only" : ""}
+                    </span>
                   </span>
                 </Link>
                 <button
@@ -387,7 +390,9 @@ function OverlayStart({ plan }) {
       ) : null}
       <span className="small muted">
         {android
-          ? `Follows the ${open || plan.items.length} ${open === 1 ? "mission" : "missions"} still to do as one route and ticks them off here as you go.`
+          ? `Follows the ${open || plan.items.length} ${open === 1 ? "mission" : "missions"} still to do as one route${
+              plan.readOnly ? "." : " and ticks them off here as you go."
+            }`
           : "On Android, open this plan in the "}
         {android ? null : (
           <>
@@ -410,6 +415,7 @@ function PlanEditor({ planId }) {
   const [addingBanner, setAddingBanner] = useState(false);
   const [title, setTitle] = useState(null);
   const [message, setMessage] = useState("");
+  const [sharing, setSharing] = useState(false);
   const location = useHere();
   const [flyRequest, setFlyRequest] = useState(0);
   const sort = useDragSort((from, to) => {
@@ -461,14 +467,20 @@ function PlanEditor({ planId }) {
   const walk =
     steps.reduce((sum, mission) => sum + (mission?.lengthMeters ?? 0), 0) + gaps.reduce((sum, gap) => sum + (gap ?? 0), 0);
 
-  const share = () => {
-    const url = planUrl(plan.id);
+  const ro = plan.readOnly;
+  // Two links: the edit link (anyone with it can change the plan) and the
+  // read-only link (only looks). A read-only page can only pass on itself.
+  const share = (readOnly) => {
+    setSharing(false);
+    const url = planUrl(readOnly ? plan.viewId : plan.id);
     if (navigator.share) {
-      navigator.share({ title: plan.title, text: `${plan.title} – Mission Day plan`, url }).catch(() => {});
+      navigator
+        .share({ title: plan.title, text: `${plan.title} – Mission Day plan${readOnly ? " (view only)" : ""}`, url })
+        .catch(() => {});
       return;
     }
     navigator.clipboard.writeText(url).then(
-      () => setMessage("Link copied. Everyone with it can change the plan."),
+      () => setMessage(readOnly ? "Read-only link copied. People with it can look, not change." : "Edit link copied. Everyone with it can change the plan."),
       () => setMessage(url)
     );
   };
@@ -483,25 +495,50 @@ function PlanEditor({ planId }) {
   return (
     <div className="ob-page mdp">
       <div className="mdp-head">
-        <input
-          className="mdp-title ob-h1"
-          aria-label="Plan name"
-          value={title ?? plan.title}
-          maxLength={120}
-          onChange={(event) => setTitle(event.target.value)}
-          onBlur={saveTitle}
-          onKeyDown={(event) => event.key === "Enter" && event.currentTarget.blur()}
-        />
-        <button type="button" className="btn filled sl" onClick={share}>
+        {ro ? (
+          <h1 className="mdp-title ob-h1">{plan.title}</h1>
+        ) : (
+          <input
+            className="mdp-title ob-h1"
+            aria-label="Plan name"
+            value={title ?? plan.title}
+            maxLength={120}
+            onChange={(event) => setTitle(event.target.value)}
+            onBlur={saveTitle}
+            onKeyDown={(event) => event.key === "Enter" && event.currentTarget.blur()}
+          />
+        )}
+        <button
+          type="button"
+          className="btn filled sl"
+          aria-expanded={ro ? undefined : sharing}
+          onClick={() => (ro ? share(true) : setSharing((open) => !open))}
+        >
           <Share fontSize="small" />
           Share
         </button>
       </div>
+      {sharing ? (
+        <div className="mdp-share" role="group" aria-label="Share the plan">
+          <button type="button" className="li sl" onClick={() => share(false)}>
+            <span className="txt">
+              <span className="t">Edit link</span>
+              <span className="s">Everyone with it can change the plan</span>
+            </span>
+          </button>
+          <button type="button" className="li sl" onClick={() => share(true)}>
+            <span className="txt">
+              <span className="t">Read-only link</span>
+              <span className="s">People with it can look at the plan, not change it</span>
+            </span>
+          </button>
+        </div>
+      ) : null}
       <p className="small muted">
         {plan.items.length} {plan.items.length === 1 ? "mission" : "missions"} planned
         {doneCount ? ` · ${doneCount} done` : ""}
-        {walk > 0 ? ` · about ${formatLength(walk)} including the walks between missions` : ""}. Everyone with the
-        link can change this plan.
+        {walk > 0 ? ` · about ${formatLength(walk)} including the walks between missions` : ""}.{" "}
+        {ro ? "You’re looking at a read-only link, so you can’t change this plan." : "Everyone with the edit link can change this plan."}
       </p>
       {message ? <p className="small mdp-msg" role="status">{message}</p> : null}
       <OverlayStart plan={plan} />
@@ -513,7 +550,7 @@ function PlanEditor({ planId }) {
             items={plan.items}
             here={location.here}
             flyRequest={flyRequest}
-            onToggle={(mission) =>
+            onToggle={ro ? null : (mission) =>
               run([
                 planned.has(mission.id)
                   ? { op: "remove", missionId: mission.id }
@@ -524,7 +561,7 @@ function PlanEditor({ planId }) {
         </div>
         <div className="mdp-map-bar">
           <span className="small muted">
-            <span className="mdp-key in" /> in your plan <span className="mdp-key" /> not yet · tap a start to add it
+            <span className="mdp-key in" /> in the plan <span className="mdp-key" /> not{ro ? "" : " yet · tap a start to add it"}
           </span>
           <button
             type="button"
@@ -544,9 +581,11 @@ function PlanEditor({ planId }) {
       </section>
 
       <section aria-labelledby="mdp-plan">
-        <h2 className="ob-h2" id="mdp-plan">Your order</h2>
+        <h2 className="ob-h2" id="mdp-plan">{ro ? "Order" : "Your order"}</h2>
         {!plan.items.length ? (
-          <p className="small muted">Add missions from the banners below. They show up here in the order you add them.</p>
+          <p className="small muted">
+            {ro ? "No missions planned yet." : "Add missions from the banners below. They show up here in the order you add them."}
+          </p>
         ) : (
           <ol className="mdp-plan" ref={sort.listRef}>
             {plan.items.map((item, index) => {
@@ -558,14 +597,16 @@ function PlanEditor({ planId }) {
                   style={sort.rowStyle(index)}
                 >
                   <div className="mdp-item">
-                    <span
-                      className="mdp-handle"
-                      title="Drag to move"
-                      aria-hidden="true"
-                      {...sort.handleProps(index)}
-                    >
-                      <DragIndicator fontSize="small" />
-                    </span>
+                    {ro ? null : (
+                      <span
+                        className="mdp-handle"
+                        title="Drag to move"
+                        aria-hidden="true"
+                        {...sort.handleProps(index)}
+                      >
+                        <DragIndicator fontSize="small" />
+                      </span>
+                    )}
                     <span className="mdp-pos">{index + 1}</span>
                     <MissionPicture mission={mission} />
                     <span className="txt">
@@ -579,6 +620,7 @@ function PlanEditor({ planId }) {
                       <input
                         type="checkbox"
                         checked={item.done}
+                        disabled={ro}
                         aria-label={`Mark ${mission?.title ?? "mission"} done`}
                         onChange={(event) => run([{ op: "done", missionId: item.missionId, done: event.target.checked }])}
                       />
@@ -592,34 +634,38 @@ function PlanEditor({ planId }) {
                       >
                         <OpenInNew fontSize="small" />
                       </a>
-                      <button
-                        type="button"
-                        className="icon-btn sl"
-                        aria-label="Move up"
-                        data-arrow=""
-                        disabled={index === 0}
-                        onClick={() => run([{ op: "move", missionId: item.missionId, index: index - 1 }])}
-                      >
-                        <ArrowUpward fontSize="small" />
-                      </button>
-                      <button
-                        type="button"
-                        className="icon-btn sl"
-                        aria-label="Move down"
-                        data-arrow=""
-                        disabled={index === plan.items.length - 1}
-                        onClick={() => run([{ op: "move", missionId: item.missionId, index: index + 1 }])}
-                      >
-                        <ArrowDownward fontSize="small" />
-                      </button>
-                      <button
-                        type="button"
-                        className="icon-btn sl"
-                        aria-label="Take out of the plan"
-                        onClick={() => run([{ op: "remove", missionId: item.missionId }])}
-                      >
-                        <Close fontSize="small" />
-                      </button>
+                      {ro ? null : (
+                        <>
+                          <button
+                            type="button"
+                            className="icon-btn sl"
+                            aria-label="Move up"
+                            data-arrow=""
+                            disabled={index === 0}
+                            onClick={() => run([{ op: "move", missionId: item.missionId, index: index - 1 }])}
+                          >
+                            <ArrowUpward fontSize="small" />
+                          </button>
+                          <button
+                            type="button"
+                            className="icon-btn sl"
+                            aria-label="Move down"
+                            data-arrow=""
+                            disabled={index === plan.items.length - 1}
+                            onClick={() => run([{ op: "move", missionId: item.missionId, index: index + 1 }])}
+                          >
+                            <ArrowDownward fontSize="small" />
+                          </button>
+                          <button
+                            type="button"
+                            className="icon-btn sl"
+                            aria-label="Take out of the plan"
+                            onClick={() => run([{ op: "remove", missionId: item.missionId }])}
+                          >
+                            <Close fontSize="small" />
+                          </button>
+                        </>
+                      )}
                     </span>
                   </div>
                   {gaps[index] !== null && gaps[index] !== undefined && index < plan.items.length - 1 ? (
@@ -647,24 +693,26 @@ function PlanEditor({ planId }) {
               <h2 className="ob-h2">
                 <Link to={`/banner/${encodeURIComponent(bannerId)}`}>{entry?.banner?.title ?? "Loading…"}</Link>
               </h2>
-              <span className="mdp-source-tools">
-                <button
-                  type="button"
-                  className="btn tonal sl"
-                  disabled={!open.length}
-                  onClick={() => run(open.map((mission) => ({ op: "add", bannerId, missionId: mission.id })))}
-                >
-                  Add all
-                </button>
-                <button
-                  type="button"
-                  className="btn text sl"
-                  onClick={() => run([{ op: "removeBanner", bannerId }])}
-                  title="Take this banner and its missions out of the plan"
-                >
-                  Remove
-                </button>
-              </span>
+              {ro ? null : (
+                <span className="mdp-source-tools">
+                  <button
+                    type="button"
+                    className="btn tonal sl"
+                    disabled={!open.length}
+                    onClick={() => run(open.map((mission) => ({ op: "add", bannerId, missionId: mission.id })))}
+                  >
+                    Add all
+                  </button>
+                  <button
+                    type="button"
+                    className="btn text sl"
+                    onClick={() => run([{ op: "removeBanner", bannerId }])}
+                    title="Take this banner and its missions out of the plan"
+                  >
+                    Remove
+                  </button>
+                </span>
+              )}
             </div>
             {entry?.status === "error" ? <p className="small pp-error">{entry.error}</p> : null}
             <ul className="mdp-missions">
@@ -676,6 +724,7 @@ function PlanEditor({ planId }) {
                       type="button"
                       className={`mdp-mission sl${inPlan ? " in" : ""}`}
                       aria-pressed={inPlan}
+                      disabled={ro}
                       onClick={() =>
                         run([inPlan ? { op: "remove", missionId: mission.id } : { op: "add", bannerId, missionId: mission.id }])
                       }
@@ -695,30 +744,32 @@ function PlanEditor({ planId }) {
         );
       })}
 
-      <section aria-label="Add a banner">
-        {addingBanner ? (
-          <>
-            <div className="ob-sec-head">
-              <h2 className="ob-h2">Add a banner</h2>
-              <button type="button" className="btn text sl" onClick={() => setAddingBanner(false)}>
-                Done
-              </button>
-            </div>
-            <BannerSearch
-              autoFocus
-              onPick={(banner) => {
-                run([{ op: "addBanner", bannerId: banner.id }]);
-                setAddingBanner(false);
-              }}
-            />
-          </>
-        ) : (
-          <button type="button" className="btn tonal sl" onClick={() => setAddingBanner(true)}>
-            <Add fontSize="small" />
-            Add another banner
-          </button>
-        )}
-      </section>
+      {ro ? null : (
+        <section aria-label="Add a banner">
+          {addingBanner ? (
+            <>
+              <div className="ob-sec-head">
+                <h2 className="ob-h2">Add a banner</h2>
+                <button type="button" className="btn text sl" onClick={() => setAddingBanner(false)}>
+                  Done
+                </button>
+              </div>
+              <BannerSearch
+                autoFocus
+                onPick={(banner) => {
+                  run([{ op: "addBanner", bannerId: banner.id }]);
+                  setAddingBanner(false);
+                }}
+              />
+            </>
+          ) : (
+            <button type="button" className="btn tonal sl" onClick={() => setAddingBanner(true)}>
+              <Add fontSize="small" />
+              Add another banner
+            </button>
+          )}
+        </section>
+      )}
     </div>
   );
 }

@@ -237,3 +237,18 @@ test("plans: made with a login, edited by anyone with the link, one change at a 
   assert.deepEqual((await service.handle("GET", path, {}, null)).items.map((item) => item.missionId), ["m2"]);
   await assert.rejects(service.handle("GET", "/plans/nope", {}, null), { status: 404 });
 });
+
+test("plans: the read-only link shows the plan but can't change it or reveal the edit link", async () => {
+  const { service, as } = setup();
+  const plan = await service.handle("POST", "/plans", as("alice"), { banners: ["b1"] });
+  assert.match(plan.viewId, /^[A-Za-z0-9_-]{22}$/);
+  assert.notEqual(plan.viewId, plan.id);
+  assert.equal(plan.readOnly, false);
+  await service.handle("POST", `/plans/${plan.id}`, {}, { ops: [{ op: "add", bannerId: "b1", missionId: "m1" }] });
+  const viewed = await service.handle("GET", `/plans/${plan.viewId}`, {}, null);
+  assert.equal(viewed.readOnly, true);
+  assert.equal(viewed.id, plan.viewId);
+  assert.ok(!JSON.stringify(viewed).includes(plan.id));
+  assert.deepEqual(viewed.items.map((item) => item.missionId), ["m1"]);
+  await assert.rejects(service.handle("POST", `/plans/${plan.viewId}`, {}, { ops: [{ op: "remove", missionId: "m1" }] }), { status: 403, code: "read_only" });
+});

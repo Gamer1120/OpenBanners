@@ -141,6 +141,14 @@ export function openDatabase(path) {
     }
   }
   db.exec("CREATE TABLE IF NOT EXISTS kv (key TEXT PRIMARY KEY, value TEXT)");
+  // Mission Day plans: a second, read-only link per plan.
+  if (!new Set(db.prepare("PRAGMA table_info(plans)").all().map((column) => column.name)).has("view_id")) {
+    db.exec("ALTER TABLE plans ADD COLUMN view_id TEXT");
+  }
+  for (const { id } of db.prepare("SELECT id FROM plans WHERE view_id IS NULL").all()) {
+    db.prepare("UPDATE plans SET view_id = ? WHERE id = ?").run(randomBytes(16).toString("base64url").slice(0, 22), id);
+  }
+  db.exec("CREATE UNIQUE INDEX IF NOT EXISTS plans_view_id ON plans (view_id)");
   // Encrypted notes (24 Oct 2026, never used) were replaced by banner_notes.
   db.exec("DROP TABLE IF EXISTS notes; DROP TABLE IF EXISTS note_keys;");
   // One Telegram review message per banner and moderator; items = the answers it shows.
@@ -570,17 +578,35 @@ export function createPassphraseService({ db, fetchImpl = fetch, now = () => Dat
   const MAX_PLAN_BANNERS = 30;
   const MAX_PLANS_PER_ACCOUNT = 200;
 
-  function planOut(row) {
-    return { id: row.id, ...JSON.parse(row.data), version: row.version, updatedAt: new Date(row.updated_at).toISOString() };
+  // Opened with the read-only link, the plan comes back under that link's id and
+  // without the edit id, so nobody can get from one to the other.
+  function planOut(row, readOnly = false) {
+    return {
+      id: readOnly ? row.view_id : row.id,
+      viewId: row.view_id,
+      readOnly,
+      ...JSON.parse(row.data),
+      version: row.version,
+      updatedAt: new Date(row.updated_at).toISOString(),
+    };
   }
 
-  function loadPlan(id) {
+  // { row, readOnly }: the id is either the edit link's or the read-only link's.
+  function findPlan(id) {
     if (!PLAN_ID.test(id)) {
       throw new ApiError(404, "plan_not_found", "This plan doesn't exist.");
     }
-    const row = db.prepare("SELECT * FROM plans WHERE id = ?").get(id);
+    const row = db.prepare("SELECT * FROM plans WHERE id = ? OR view_id = ?").get(id, id);
     if (!row) {
       throw new ApiError(404, "plan_not_found", "This plan doesn't exist.");
+    }
+    return { row, readOnly: row.id !== id };
+  }
+
+  function loadPlan(id) {
+    const { row, readOnly } = findPlan(id);
+    if (readOnly) {
+      throw new ApiError(403, "read_only", "This is a read-only link to the plan.");
     }
     return row;
   }
@@ -603,8 +629,8 @@ export function createPassphraseService({ db, fetchImpl = fetch, now = () => Dat
     const data = { title: cleanTitle(body?.title) || "Mission Day plan", banners: [...new Set(banners)].slice(0, MAX_PLAN_BANNERS), items: [] };
     const id = randomBytes(16).toString("base64url").slice(0, 22);
     const at = now();
-    db.prepare("INSERT INTO plans (id, owner, data, version, created_at, updated_at) VALUES (?, ?, ?, 1, ?, ?)")
-      .run(id, identity.userId, JSON.stringify(data), at, at);
+    db.prepare("INSERT INTO plans (id, view_id, owner, data, version, created_at, updated_at) VALUES (?, ?, ?, ?, 1, ?, ?)")
+      .run(id, randomBytes(16).toString("base64url").slice(0, 22), identity.userId, JSON.stringify(data), at, at);
     return planOut(loadPlan(id));
   }
 
@@ -711,7 +737,8 @@ export function createPassphraseService({ db, fetchImpl = fetch, now = () => Dat
     }
     const planMatch = /^\/plans\/([^/]+)$/.exec(path);
     if (planMatch && method === "GET") {
-      return planOut(loadPlan(planMatch[1]));
+      const { row, readOnly } = findPlan(planMatch[1]);
+      return planOut(row, readOnly);
     }
     if (planMatch && method === "POST") {
       return editPlan(planMatch[1], body);

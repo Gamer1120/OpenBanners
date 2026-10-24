@@ -396,3 +396,15 @@
   color: #1a5fd0;
   font-weight: 500;
 }
+
+.mdp-share {
+  display: flex;
+  flex-direction: column;
+  margin-top: 8px;
+  border-radius: var(--r-l, 16px);
+  background: var(--sc-high, var(--sc-low));
+}
+
+.mdp-mission:disabled {
+  cursor: default;
+}

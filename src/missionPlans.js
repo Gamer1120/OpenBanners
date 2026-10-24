@@ -117,6 +117,7 @@ export function missionsOf(banner) {
         steps: Object.keys(mission?.steps ?? {}).length,
         lengthMeters: mission?.lengthMeters ?? null,
         offline: mission?.status && mission.status !== "published",
+        path: pois.map((poi) => [poi.latitude, poi.longitude]),
         start: pois[0] ?? null,
         end: pois[pois.length - 1] ?? null,
       };

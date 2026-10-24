@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Add, ArrowDownward, ArrowUpward, Close, DragIndicator, EventNote, Search, Share } from "@mui/icons-material";
+import { Add, ArrowDownward, ArrowUpward, Close, DragIndicator, EventNote, MyLocation, Search, Share } from "@mui/icons-material";
 import { BANNERGRESS_AUTH_REQUEST_EVENT, useBannergressAuth } from "../bannergressSync";
 import { formatLength, getBannerPictureUrl, getDistanceMeters } from "../bannerDisplay";
 import {
@@ -15,6 +15,7 @@ import {
   searchBanners,
   usePlan,
 } from "../missionPlans";
+import PlanMap from "./PlanMap";
 import "./MissionDayPlanner.css";
 
 const MIN_QUERY = 2;
@@ -329,6 +330,44 @@ function useDragSort(onDrop) {
   return { listRef, handleProps, rowStyle, dragging: drag?.from ?? null };
 }
 
+// Your position, followed once you ask for it (or at once if the browser already allows it).
+function useHere() {
+  const [here, setHere] = useState(null);
+  const [state, setState] = useState("off");
+  const watchRef = useRef(null);
+  const start = () => {
+    if (!("geolocation" in navigator)) {
+      setState("unsupported");
+      return;
+    }
+    if (watchRef.current !== null) {
+      return;
+    }
+    setState("finding");
+    watchRef.current = navigator.geolocation.watchPosition(
+      (position) => {
+        setHere({ latitude: position.coords.latitude, longitude: position.coords.longitude });
+        setState("on");
+      },
+      () => {
+        setState("denied");
+        navigator.geolocation.clearWatch(watchRef.current);
+        watchRef.current = null;
+      },
+      { enableHighAccuracy: true, maximumAge: 15000 }
+    );
+  };
+  useEffect(() => {
+    navigator.permissions?.query({ name: "geolocation" }).then(
+      (status) => status.state === "granted" && start(),
+      () => {}
+    );
+    return () => watchRef.current !== null && navigator.geolocation.clearWatch(watchRef.current);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  return { here, state, start };
+}
+
 function MissionPicture({ mission }) {
   return <span className="mdp-mpic">{mission?.picture ? <img src={mission.picture} alt="" loading="lazy" /> : null}</span>;
 }
@@ -339,6 +378,8 @@ function PlanEditor({ planId }) {
   const [addingBanner, setAddingBanner] = useState(false);
   const [title, setTitle] = useState(null);
   const [message, setMessage] = useState("");
+  const location = useHere();
+  const [flyRequest, setFlyRequest] = useState(0);
   const sort = useDragSort((from, to) => {
     const item = plan?.items[from];
     if (item) {
@@ -432,6 +473,43 @@ function PlanEditor({ planId }) {
       </p>
       {message ? <p className="small mdp-msg" role="status">{message}</p> : null}
 
+      <section className="mdp-mapbox" aria-label="Map of the missions">
+        <div className="mdp-map">
+          <PlanMap
+            missions={[...missionById.values()]}
+            items={plan.items}
+            here={location.here}
+            flyRequest={flyRequest}
+            onToggle={(mission) =>
+              run([
+                planned.has(mission.id)
+                  ? { op: "remove", missionId: mission.id }
+                  : { op: "add", bannerId: mission.bannerId, missionId: mission.id },
+              ])
+            }
+          />
+        </div>
+        <div className="mdp-map-bar">
+          <span className="small muted">
+            <span className="mdp-key in" /> in your plan <span className="mdp-key" /> not yet · tap a start to add it
+          </span>
+          <button
+            type="button"
+            className="btn tonal sl"
+            onClick={() => {
+              location.start();
+              setFlyRequest((n) => n + 1);
+            }}
+          >
+            <MyLocation fontSize="small" />
+            {location.state === "finding" ? "Finding you…" : "Near me"}
+          </button>
+        </div>
+        {location.state === "denied" ? (
+          <p className="small muted">Your browser didn’t share your location.</p>
+        ) : null}
+      </section>
+
       <section aria-labelledby="mdp-plan">
         <h2 className="ob-h2" id="mdp-plan">Your order</h2>
         {!plan.items.length ? (
@@ -515,6 +593,11 @@ function PlanEditor({ planId }) {
         const entry = banners[bannerId];
         const missions = entry?.missions ?? [];
         const open = missions.filter((mission) => !planned.has(mission.id));
+        const distanceTo = (mission) =>
+          location.here && mission.start ? getDistanceMeters(location.here, mission.start) : null;
+        const shown = location.here
+          ? [...missions].sort((a, b) => (distanceTo(a) ?? Infinity) - (distanceTo(b) ?? Infinity))
+          : missions;
         return (
           <section key={bannerId} className="mdp-source" aria-label={entry?.banner?.title ?? bannerId}>
             <div className="ob-sec-head">
@@ -542,7 +625,7 @@ function PlanEditor({ planId }) {
             </div>
             {entry?.status === "error" ? <p className="small pp-error">{entry.error}</p> : null}
             <ul className="mdp-missions">
-              {missions.map((mission) => {
+              {shown.map((mission) => {
                 const inPlan = planned.has(mission.id);
                 return (
                   <li key={mission.id}>
@@ -557,6 +640,9 @@ function PlanEditor({ planId }) {
                       <MissionPicture mission={mission} />
                       <span className="mdp-num">{mission.number}</span>
                       <span className="mdp-mt" title={mission.title}>{mission.shortTitle}</span>
+                      {distanceTo(mission) !== null ? (
+                        <span className="mdp-dist">{formatLength(distanceTo(mission))}</span>
+                      ) : null}
                     </button>
                   </li>
                 );

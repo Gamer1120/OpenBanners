@@ -262,3 +262,87 @@
 .mdp-plan li.dragging .mdp-gap {
   visibility: hidden;
 }
+
+.mdp-mapbox {
+  margin-top: 12px;
+}
+
+.mdp-map {
+  height: min(55vh, 460px);
+  border-radius: var(--r-l, 16px);
+  overflow: hidden;
+  isolation: isolate;
+}
+
+.mdp-map-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.mdp-key {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  margin: 0 2px 0 6px;
+  border-radius: 50%;
+  background: #8a8f98;
+}
+
+.mdp-key.in {
+  margin-left: 0;
+  background: #4c8dff;
+}
+
+.mdp-pin {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  box-sizing: border-box;
+  border: 2px solid #8a8f98;
+  border-radius: 50%;
+  background: #fff;
+  color: #333;
+  font: 600 12px/1 var(--font, sans-serif);
+  box-shadow: 0 1px 4px rgb(0 0 0 / 0.4);
+}
+
+.mdp-pin.in {
+  border-color: #fff;
+  background: #4c8dff;
+  color: #fff;
+}
+
+.mdp-pin.done {
+  opacity: 0.5;
+}
+
+.mdp-popup {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 180px;
+  font: 400 13px/18px var(--font, sans-serif);
+  color: #222;
+}
+
+.mdp-popup b {
+  font-size: 14px;
+}
+
+.mdp-popup .btn {
+  margin-top: 6px;
+}
+
+.mdp-popup .btn.text {
+  color: #b3261e;
+}
+
+.mdp-dist {
+  flex: none;
+  font-size: 12px;
+  opacity: 0.75;
+}

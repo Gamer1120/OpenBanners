@@ -5,6 +5,7 @@ import BannerInfo from "../BannerInfo";
 import BannerImage from "../BannerImage";
 import MarkDoneNotice from "../MarkDoneNotice";
 import { PassphraseDonePrompt, PassphrasePanel } from "./Passphrases";
+import BannerNotes from "./BannerNotes";
 import {
   AddressLink,
   BannerDetailsList,
@@ -86,6 +87,7 @@ export default function DesignA() {
               </section>
               <StatusAlerts d={d} />
               <ListActions d={d} />
+              <BannerNotes d={d} />
               <BannerInfo banner={d.items} loading={d.isLoading} variant="row" />
               <KeyNumbers
                 d={d}

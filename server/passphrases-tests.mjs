@@ -198,3 +198,23 @@ test("the daily answer limit doesn't apply to unlimited agents, whose answers st
   const result = await service.handle("POST", "/banners/b1/answers", as("mod"), batch(1400, 200));
   assert.ok(result.answers.filter((answer) => answer.mine).every((answer) => answer.status === "pending"));
 });
+
+test("notes: private per account, ciphertext only, one key per account", async () => {
+  const { service, as } = setup();
+  const iv = "AAAAAAAAAAAAAAAA";
+  await assert.rejects(service.handle("GET", "/notes/banners/b1", {}, null), { status: 401 });
+  assert.deepEqual(await service.handle("GET", "/notes/banners/b1", as("alice"), null), { keyId: null, note: null });
+  await assert.rejects(service.handle("POST", "/notes/banners/b1", as("alice"), { keyId: "key-one-1", iv, data: "not base64!" }), { code: "invalid_note" });
+  const saved = await service.handle("POST", "/notes/banners/b1", as("alice"), { keyId: "key-one-1", iv, data: "c2VjcmV0" });
+  assert.equal(saved.keyId, "key-one-1");
+  assert.equal(saved.note.data, "c2VjcmV0");
+  // Another account sees nothing; another key on the same account is refused.
+  assert.deepEqual(await service.handle("GET", "/notes/banners/b1", as("maker"), null), { keyId: null, note: null });
+  await assert.rejects(service.handle("POST", "/notes/banners/b2", as("alice"), { keyId: "key-two-2", iv, data: "eA" }), { status: 409, code: "other_key" });
+  assert.deepEqual(await service.handle("GET", "/notes", as("alice"), null), { keyId: "key-one-1", count: 1 });
+  // Emptying deletes; reset forgets the key.
+  assert.equal((await service.handle("POST", "/notes/banners/b1", as("alice"), { keyId: "key-one-1", data: null })).note, null);
+  await service.handle("POST", "/notes/banners/b1", as("alice"), { keyId: "key-one-1", iv, data: "eA" });
+  await assert.rejects(service.handle("POST", "/notes/reset", as("alice"), {}), { code: "confirm_required" });
+  assert.deepEqual(await service.handle("POST", "/notes/reset", as("alice"), { confirm: true }), { keyId: null, count: 0 });
+});

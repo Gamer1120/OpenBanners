@@ -546,3 +546,29 @@
 .pp-show {
   margin-left: -12px;
 }
+
+/* Personal banner notes */
+.bn-panel > svg {
+  color: var(--on-surface-variant, var(--on-surface));
+}
+
+.bn-input {
+  min-height: 96px;
+  padding: 10px 12px;
+  resize: vertical;
+}
+
+.bn-text {
+  margin: 4px 0 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.bn-add {
+  margin-top: 8px;
+}
+
+.bn-private {
+  display: block;
+  margin-top: 6px;
+}

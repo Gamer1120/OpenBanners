@@ -12,10 +12,20 @@ export default function BannerNotes({ d }) {
 
   useEffect(() => setDraft(null), [bannerId]);
 
-  if (!note.loggedIn || note.status === "idle" || note.status === "loading") {
+  // A failed load stays quiet: notes are a side feature.
+  if (!note.loggedIn || note.status !== "ready") {
     return null;
   }
   const editing = draft !== null;
+  // Most banners have no note: then only a small link, no panel.
+  if (!note.text && !editing) {
+    return (
+      <button type="button" className="btn text sl bn-add" onClick={() => setDraft("")}>
+        <EditNote fontSize="small" />
+        Add a private note
+      </button>
+    );
+  }
   const save = () => {
     setBusy(true);
     setError("");
@@ -36,9 +46,7 @@ export default function BannerNotes({ d }) {
       <EditNote />
       <div className="grow">
         <b>My notes</b>
-        {note.status === "error" ? (
-          <p className="small pp-error" role="alert">{note.error}</p>
-        ) : editing ? (
+        {editing ? (
           <>
             <textarea
               className="pp-input bn-input"
@@ -58,17 +66,13 @@ export default function BannerNotes({ d }) {
               </button>
             </div>
           </>
-        ) : note.text ? (
+        ) : (
           <>
             <p className="bn-text">{note.text}</p>
             <button type="button" className="btn text sl" onClick={() => setDraft(note.text)}>
               Edit
             </button>
           </>
-        ) : (
-          <button type="button" className="btn tonal sl bn-add" onClick={() => setDraft("")}>
-            Add a note
-          </button>
         )}
         <span className="small muted bn-private">Only you can see these.</span>
         {error ? <p className="small pp-error" role="alert">{error}</p> : null}

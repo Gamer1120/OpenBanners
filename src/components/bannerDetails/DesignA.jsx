@@ -5,7 +5,7 @@ import BannerInfo from "../BannerInfo";
 import BannerImage from "../BannerImage";
 import MarkDoneNotice from "../MarkDoneNotice";
 import { PassphraseDonePrompt, PassphrasePanel } from "./Passphrases";
-import BannerNotes from "./BannerNotes";
+import BannerNotes, { AddNoteButton, useBannerNotes } from "./BannerNotes";
 import {
   AddressLink,
   BannerDetailsList,
@@ -32,6 +32,7 @@ const LONG_DESCRIPTION = 240;
 export default function DesignA() {
   const d = useBannerDetails({ tabs: true });
   const [aboutOpen, setAboutOpen] = useState(false);
+  const notes = useBannerNotes(d);
   const description = d.items.description || "";
   const isLong = description.length > LONG_DESCRIPTION;
 
@@ -87,7 +88,7 @@ export default function DesignA() {
               </section>
               <StatusAlerts d={d} />
               <ListActions d={d} />
-              <BannerNotes d={d} />
+              <BannerNotes notes={notes} />
               <BannerInfo banner={d.items} loading={d.isLoading} variant="row" />
               <KeyNumbers
                 d={d}
@@ -95,7 +96,10 @@ export default function DesignA() {
                 className="stats a-stats"
               />
               <BannerDetailsList d={d} />
-              <BannergressLink d={d} />
+              <div className="bn-links">
+                <BannergressLink d={d} button />
+                <AddNoteButton notes={notes} />
+              </div>
               <AboutNotice className="bp-about" />
             </div>
 

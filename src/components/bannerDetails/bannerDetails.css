@@ -564,12 +564,17 @@
   overflow-wrap: anywhere;
 }
 
+.bn-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 12px 0;
+}
+
 .bn-add {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  margin: 4px 0;
-  opacity: 0.8;
 }
 
 .bn-private {

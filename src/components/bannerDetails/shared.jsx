@@ -1210,9 +1210,21 @@ export function Description({ d, className = "desc" }) {
   return <SimpleMarkdown text={d.items.description} className={className} />;
 }
 
-export function BannergressLink({ d, className = "small" }) {
+export function BannergressLink({ d, className = "small", button = false }) {
   if (d.isLoading) {
     return null;
+  }
+  if (button) {
+    return (
+      <a
+        className="btn tonal sl"
+        href={`https://bannergress.com/banner/${encodeURIComponent(d.items.id ?? d.bannerId)}`}
+        target="_blank"
+        rel="noopener noreferrer"
+      >
+        View on Bannergress
+      </a>
+    );
   }
 
   return (

@@ -2,34 +2,43 @@ import React, { useEffect, useState } from "react";
 import { EditNote } from "@mui/icons-material";
 import { MAX_NOTE_LENGTH, useBannerNote } from "../../bannerNotes";
 
-// Your own notes on a banner: only while logged in, and only you see them.
-export default function BannerNotes({ d }) {
-  const bannerId = d.items?.id ?? d.bannerId;
-  const note = useBannerNote(d.isLoading ? null : bannerId);
+// Your own notes on a banner, only while logged in. Most banners have none, so
+// without a note there is only an "Add a private note" button next to
+// "View on Bannergress" (AddNoteButton); the panel shows once there is a note
+// or while writing one.
+export function useBannerNotes(d) {
+  const bannerId = d.isLoading ? null : d.items?.id ?? d.bannerId;
+  const note = useBannerNote(bannerId);
   const [draft, setDraft] = useState(null);
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState("");
-
   useEffect(() => setDraft(null), [bannerId]);
+  const ready = note.loggedIn && note.status === "ready";
+  return { ...note, draft, setDraft, showPanel: ready && (Boolean(note.text) || draft !== null), canAdd: ready && !note.text && draft === null };
+}
 
-  // A failed load stays quiet: notes are a side feature.
-  if (!note.loggedIn || note.status !== "ready") {
+export function AddNoteButton({ notes }) {
+  if (!notes.canAdd) {
     return null;
   }
-  const editing = draft !== null;
-  // Most banners have no note: then only a small link, no panel.
-  if (!note.text && !editing) {
-    return (
-      <button type="button" className="btn text sl bn-add" onClick={() => setDraft("")}>
-        <EditNote fontSize="small" />
-        Add a private note
-      </button>
-    );
+  return (
+    <button type="button" className="btn tonal sl bn-add" onClick={() => notes.setDraft("")}>
+      <EditNote fontSize="small" />
+      Add a private note
+    </button>
+  );
+}
+
+export default function BannerNotes({ notes }) {
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  if (!notes.showPanel) {
+    return null;
   }
+  const { draft, setDraft } = notes;
+  const editing = draft !== null;
   const save = () => {
     setBusy(true);
     setError("");
-    note.save(draft).then(
+    notes.save(draft).then(
       () => {
         setDraft(null);
         setBusy(false);
@@ -68,8 +77,8 @@ export default function BannerNotes({ d }) {
           </>
         ) : (
           <>
-            <p className="bn-text">{note.text}</p>
-            <button type="button" className="btn text sl" onClick={() => setDraft(note.text)}>
+            <p className="bn-text">{notes.text}</p>
+            <button type="button" className="btn text sl" onClick={() => setDraft(notes.text)}>
               Edit
             </button>
           </>

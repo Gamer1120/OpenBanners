@@ -636,7 +636,7 @@ export function createPassphraseService({ db, fetchImpl = fetch, now = () => Dat
 
   // ops: [{ op: "title", title } | { op: "addBanner", bannerId } | { op: "removeBanner", bannerId }
   //   | { op: "add", bannerId, missionId, index? } | { op: "remove", missionId } | { op: "move", missionId, index }
-  //   | { op: "done", missionId, done }]
+  //   | { op: "done", missionId, done } | { op: "reverse", missionId, reversed }]
   function editPlan(id, body) {
     const ops = Array.isArray(body?.ops) ? body.ops : null;
     if (!ops || !ops.length || ops.length > MAX_PLAN_ITEMS) {
@@ -702,6 +702,18 @@ export function createPassphraseService({ db, fetchImpl = fetch, now = () => Dat
             const index = at(change.missionId);
             if (index !== -1) {
               data.items[index].done = Boolean(change.done);
+            }
+            break;
+          }
+          // Walk an any-order mission from its last portal to its first.
+          case "reverse": {
+            const index = at(change.missionId);
+            if (index !== -1) {
+              if (change.reversed) {
+                data.items[index].reversed = true;
+              } else {
+                delete data.items[index].reversed;
+              }
             }
             break;
           }

@@ -117,6 +117,7 @@ export function missionsOf(banner) {
         steps: Object.keys(mission?.steps ?? {}).length,
         lengthMeters: mission?.lengthMeters ?? null,
         offline: mission?.status && mission.status !== "published",
+        anyOrder: mission?.type === "anyOrder",
         path: pois.map((poi) => [poi.latitude, poi.longitude]),
         start: pois[0] ?? null,
         end: pois[pois.length - 1] ?? null,
@@ -128,6 +129,15 @@ export function missionsOf(banner) {
     ...mission,
     shortTitle: mission.title.slice(prefix.length).replace(/^[\s:,|–—-]+/, "") || mission.title,
   }));
+}
+
+// The mission as walked in the plan: an any-order mission can be done from its
+// last portal back to its first, which turns its path (and start/end) around.
+export function orient(mission, reversed) {
+  if (!mission || !reversed || !mission.anyOrder) {
+    return mission;
+  }
+  return { ...mission, reversed: true, path: [...mission.path].reverse(), start: mission.end, end: mission.start };
 }
 
 // The server's plan changes, applied locally so the screen follows at once.
@@ -157,6 +167,9 @@ export function applyOps(plan, ops) {
       items.splice(clamp(change.index, items.length), 0, item);
     } else if (change.op === "done" && at(change.missionId) !== -1) {
       items[at(change.missionId)] = { ...items[at(change.missionId)], done: Boolean(change.done) };
+    } else if (change.op === "reverse" && at(change.missionId) !== -1) {
+      const { reversed, ...item } = items[at(change.missionId)];
+      items[at(change.missionId)] = change.reversed ? { ...item, reversed: true } : item;
     }
   }
   return { ...plan, title, banners, items };

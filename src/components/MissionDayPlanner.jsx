@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Add, ArrowDownward, ArrowUpward, Close, DragIndicator, EventNote, Layers, MyLocation, OpenInNew, Search, Share } from "@mui/icons-material";
+import { Add, ArrowDownward, ArrowUpward, Close, DragIndicator, EventNote, Layers, MyLocation, OpenInNew, Search, Share, SwapVert } from "@mui/icons-material";
 import { BANNERGRESS_AUTH_REQUEST_EVENT, useBannergressAuth } from "../bannergressSync";
 import { buildIngressMissionUrl, formatLength, getBannerPictureUrl, getDistanceMeters } from "../bannerDisplay";
 import { buildOverlayPlanIntentUrl, isAndroidUserAgent, OVERLAY_FALLBACK_URL } from "../overlayLink";
@@ -10,6 +10,7 @@ import {
   fetchBannerWithMissions,
   forgetPlan,
   missionsOf,
+  orient,
   planPath,
   planUrl,
   readRecentPlans,
@@ -426,15 +427,18 @@ function PlanEditor({ planId }) {
     }
   });
 
+  // Missions as walked in this plan (reversed ones turned around).
+  const items = plan?.items;
   const missionById = useMemo(() => {
+    const reversed = new Set((items ?? []).filter((item) => item.reversed).map((item) => item.missionId));
     const map = new Map();
     for (const [bannerId, entry] of Object.entries(banners)) {
       for (const mission of entry.missions ?? []) {
-        map.set(mission.id, { ...mission, bannerId, bannerTitle: entry.banner.title });
+        map.set(mission.id, orient({ ...mission, bannerId, bannerTitle: entry.banner.title }, reversed.has(mission.id)));
       }
     }
     return map;
-  }, [banners]);
+  }, [banners, items]);
 
   if (status === "loading") {
     return (
@@ -614,6 +618,7 @@ function PlanEditor({ planId }) {
                       <span className="s">
                         {mission ? `#${mission.number} of ${mission.bannerTitle}` : ""}
                         {mission?.offline ? " · offline" : ""}
+                        {mission?.reversed ? " · reversed" : ""}
                       </span>
                     </span>
                     <label className="mdp-done" title="Done">
@@ -634,6 +639,18 @@ function PlanEditor({ planId }) {
                       >
                         <OpenInNew fontSize="small" />
                       </a>
+                      {ro || !mission?.anyOrder ? null : (
+                        <button
+                          type="button"
+                          className={`icon-btn sl${item.reversed ? " on" : ""}`}
+                          aria-pressed={Boolean(item.reversed)}
+                          aria-label={item.reversed ? "Walk in the normal order" : "Walk in reverse order"}
+                          title={item.reversed ? "Reversed: walked from the last portal to the first. Tap for the normal order." : "Walk in reverse order (any-order mission)"}
+                          onClick={() => run([{ op: "reverse", missionId: item.missionId, reversed: !item.reversed }])}
+                        >
+                          <SwapVert fontSize="small" />
+                        </button>
+                      )}
                       {ro ? null : (
                         <>
                           <button

@@ -229,9 +229,13 @@ test("plans: made with a login, edited by anyone with the link, one change at a 
   assert.deepEqual(next.banners, ["b1", "b2"]);
   next = await service.handle("POST", path, {}, { ops: [{ op: "move", missionId: "m9", index: 2 }, { op: "done", missionId: "m1", done: true }] });
   assert.deepEqual(next.items.map((item) => `${item.missionId}${item.done ? "!" : ""}`), ["m1!", "m2", "m9"]);
+  next = await service.handle("POST", path, {}, { ops: [{ op: "reverse", missionId: "m2", reversed: true }] });
+  assert.deepEqual(next.items.map((item) => Boolean(item.reversed)), [false, true, false]);
+  next = await service.handle("POST", path, {}, { ops: [{ op: "reverse", missionId: "m2", reversed: false }] });
+  assert.equal("reversed" in next.items[1], false);
   next = await service.handle("POST", path, {}, { ops: [{ op: "removeBanner", bannerId: "b2" }, { op: "remove", missionId: "m1" }] });
   assert.deepEqual(next.items.map((item) => item.missionId), ["m2"]);
-  assert.equal(next.version, 4);
+  assert.equal(next.version, 6);
   // A bad change applies nothing.
   await assert.rejects(service.handle("POST", path, {}, { ops: [{ op: "remove", missionId: "m2" }, { op: "explode" }] }), { code: "invalid_ops" });
   assert.deepEqual((await service.handle("GET", path, {}, null)).items.map((item) => item.missionId), ["m2"]);

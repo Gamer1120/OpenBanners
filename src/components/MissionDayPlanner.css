@@ -163,6 +163,10 @@
   height: 36px;
 }
 
+.mdp-tools .icon-btn.on {
+  color: var(--primary);
+}
+
 .mdp-gap {
   display: block;
   padding-left: 102px;

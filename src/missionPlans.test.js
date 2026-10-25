@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { applyOps, missionsOf, sharedTitlePrefix } from "./missionPlans";
+import { applyOps, missionsOf, orient, sharedTitlePrefix } from "./missionPlans";
 
 describe("mission plans", () => {
   it("applies changes locally like the server", () => {
@@ -30,6 +30,26 @@ describe("mission plans", () => {
     expect(missions.map((mission) => [mission.id, mission.number, mission.offline])).toEqual([["a", 1, true], ["b", 2, false]]);
     expect(missions[1].start.latitude).toBe(2);
     expect(missions[1].end.latitude).toBe(3);
+  });
+
+  it("turns only any-order missions around when reversed", () => {
+    const poi = (latitude) => ({ poi: { latitude, longitude: 4 } });
+    const [anyOrder, sequential] = missionsOf({
+      missions: {
+        0: { id: "a", title: "A", type: "anyOrder", steps: [poi(1), poi(2), poi(3)] },
+        1: { id: "b", title: "B", type: "sequential", steps: [poi(4), poi(5)] },
+      },
+    });
+    const turned = orient(anyOrder, true);
+    expect([turned.start.latitude, turned.end.latitude, turned.reversed]).toEqual([3, 1, true]);
+    expect(turned.path.map(([latitude]) => latitude)).toEqual([3, 2, 1]);
+    expect(orient(anyOrder, false)).toBe(anyOrder);
+    expect(orient(sequential, true)).toBe(sequential);
+    let plan = { title: "MD", banners: ["b1"], items: [{ bannerId: "b1", missionId: "a", done: false }] };
+    plan = applyOps(plan, [{ op: "reverse", missionId: "a", reversed: true }]);
+    expect(plan.items[0].reversed).toBe(true);
+    plan = applyOps(plan, [{ op: "reverse", missionId: "a", reversed: false }]);
+    expect("reversed" in plan.items[0]).toBe(false);
   });
 
   it("leaves out the title part all missions share", () => {

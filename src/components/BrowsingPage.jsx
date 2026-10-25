@@ -7,6 +7,7 @@ import BrowseBannerList from "./BrowseBannerList";
 import PlaceCloud, { getChipName, usePlaces } from "./PlaceCloud";
 import { getFlagForPlace } from "./CountryFlags";
 import { DEFAULT_BANNER_FILTERS } from "../bannerFilters";
+import { getLanguage, t, tn } from "../i18n";
 
 function useCurrentPlace(placeId) {
   const [currentPlace, setCurrentPlace] = useState(null);
@@ -80,13 +81,15 @@ export default function BrowsingPage({
   const headerTitle = isAgentView
     ? authorName
     : placeId
-      ? placeName || "Loading…"
-      : "All countries";
+      ? placeName || t("Loading…")
+      : t("All countries");
   const headerDescription = isAgentView
-    ? `Banners created by ${authorName}.`
+    ? t("Banners created by {agent}.", { agent: authorName })
     : placeId
       ? currentPlace && Number.isFinite(currentPlace.numberOfBanners)
-        ? `${currentPlace.numberOfBanners.toLocaleString("en-US")} banners${
+        ? `${tn("{count} banner", "{count} banners", currentPlace.numberOfBanners, {
+            count: currentPlace.numberOfBanners.toLocaleString(getLanguage()),
+          })}${
             currentPlace.formattedAddress && currentPlace.formattedAddress !== placeName
               ? ` · ${currentPlace.formattedAddress}`
               : ""
@@ -94,34 +97,36 @@ export default function BrowsingPage({
         : ""
       : placesState.loading
         ? ""
-        : `${placesState.places
-            .reduce((total, place) => total + (Number(place.numberOfBanners) || 0), 0)
-            .toLocaleString("en-US")} banners in ${placesState.places.length} countries`;
+        : tn("{banners} banners in {count} country", "{banners} banners in {count} countries", placesState.places.length, {
+            banners: placesState.places
+              .reduce((total, place) => total + (Number(place.numberOfBanners) || 0), 0)
+              .toLocaleString(getLanguage()),
+          });
   const cloudHeading = !placeId
-    ? "Countries"
+    ? t("Countries")
     : currentPlace?.type === "country"
-      ? "Regions and cities"
-      : "Places";
+      ? t("Regions and cities")
+      : t("Places");
 
   return (
     <div className="ob-page">
       <header className="ob-sec-head" style={{ alignItems: "flex-start" }}>
         <div style={{ minWidth: 0 }}>
           {!isAgentView ? (
-            <nav className="crumbs scope" aria-label="Scope">
+            <nav className="crumbs scope" aria-label={t("Scope")}>
               {canUseLocation ? (
                 <>
                   <Link className="scope-near" to="/near">
                     <NearMe fontSize="inherit" />
-                    Near you
+                    {t("Near you")}
                   </Link>
                   <span aria-hidden="true">·</span>
                 </>
               ) : null}
               {placeId ? (
-                <Link to="/browse/">All countries</Link>
+                <Link to="/browse/">{t("All countries")}</Link>
               ) : (
-                <span aria-current="page">All countries</span>
+                <span aria-current="page">{t("All countries")}</span>
               )}
               {placeTrail
                 .filter(

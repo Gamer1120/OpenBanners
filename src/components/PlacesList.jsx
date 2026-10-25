@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { Alert, Box, Typography } from "@mui/material";
 import { Link, useParams } from "react-router-dom";
 import { getFlagForPlace } from "./CountryFlags";
+import { t } from "../i18n";
 
 const COUNTRY_PLACES_CACHE_KEY = "openbanners-country-places-v1";
 const COUNTRY_PLACES_CACHE_TTL_MS = 30 * 24 * 60 * 60 * 1000;
@@ -28,7 +29,7 @@ function getPlaceLabel(place) {
     place?.longName ||
     place?.formattedAddress ||
     place?.shortName ||
-    "All countries"
+    t("All countries")
   );
 }
 
@@ -163,7 +164,7 @@ export default function PlacesList({ parentPlaceId }) {
             }
           } else {
             setPlaces([]);
-            setError("Couldn't load places.");
+            setError(t("Couldn't load places."));
           }
         }
       } catch (fetchError) {
@@ -171,7 +172,7 @@ export default function PlacesList({ parentPlaceId }) {
 
         if (!ignore) {
           setPlaces([]);
-          setError("Couldn't load places.");
+          setError(t("Couldn't load places."));
         }
       } finally {
         if (!ignore) {
@@ -194,8 +195,8 @@ export default function PlacesList({ parentPlaceId }) {
           <Link
             aria-label={
               currentPlace?.parentPlace
-                ? `Up to ${getPlaceLabel(currentPlace.parentPlace)}`
-                : "Up to all countries"
+                ? t("Up to {place}", { place: getPlaceLabel(currentPlace.parentPlace) })
+                : t("Up to all countries")
             }
             to={
               currentPlace?.parentPlace
@@ -210,7 +211,7 @@ export default function PlacesList({ parentPlaceId }) {
             <span>
               {currentPlace?.parentPlace
                 ? getPlaceLabel(currentPlace.parentPlace)
-                : "All countries"}
+                : t("All countries")}
             </span>
           </Link>
         </Box>
@@ -218,7 +219,7 @@ export default function PlacesList({ parentPlaceId }) {
 
       {loading && (
         <Typography variant="body2" color="text.secondary">
-          Loading places...
+          {t("Loading places...")}
         </Typography>
       )}
 
@@ -226,7 +227,7 @@ export default function PlacesList({ parentPlaceId }) {
 
       {!loading && !error && places.length === 0 && (
         <Typography variant="body2" color="text.secondary">
-          No places available.
+          {t("No places available.")}
         </Typography>
       )}
 

@@ -1,6 +1,7 @@
 import React, { useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { Close } from "@mui/icons-material";
+import { t } from "../i18n";
 
 // Small design-X modal: closes with the X, Escape or a tap outside. Bottom
 // sheet on phones, centred card on wider screens.
@@ -29,7 +30,7 @@ export default function ObModal({ title, onClose, children, labelId = "ob-modal-
       <div className="ob-modal-card" role="dialog" aria-modal="true" aria-labelledby={labelId} ref={cardRef}>
         <div className="ob-modal-head">
           <h2 id={labelId}>{title}</h2>
-          <button type="button" className="icon-btn sl" aria-label="Close" onClick={onClose}>
+          <button type="button" className="icon-btn sl" aria-label={t("Close")} onClick={onClose}>
             <Close />
           </button>
         </div>

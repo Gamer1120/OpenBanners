@@ -20,29 +20,30 @@ import {
   getMissionCountBounds,
   PRESET_MISSION_COUNT_FILTERS,
 } from "../bannerFilters";
+import { t, tk } from "../i18n";
 
 const baseFilterOptions = [
   {
     key: "showOfflineBanners",
-    label: "Show offline banners",
+    label: tk("Show offline banners"),
   },
   {
     key: "showHiddenBanners",
-    label: "Show hidden banners",
-    helperText: "To do and Done markers can't be shown.",
+    label: tk("Show hidden banners"),
+    helperText: tk("To do and Done markers can't be shown."),
   },
   {
     key: "hideDoneBanners",
-    hideLabel: "Hide done banners",
-    showLabel: "Show done banners",
-    helperText: "Can't be combined with Show hidden banners.",
+    hideLabel: tk("Hide done banners"),
+    showLabel: tk("Show done banners"),
+    helperText: tk("Can't be combined with Show hidden banners."),
   },
 ];
 
 const todoListFilterOption = {
   key: "showTodoBannersOnly",
-  label: "Only to do banners",
-  helperText: "Can't be combined with Show hidden banners or Show done banners.",
+  label: tk("Only to do banners"),
+  helperText: tk("Can't be combined with Show hidden banners or Show done banners."),
 };
 
 const LIST_STATE_FILTER_KEYS = [
@@ -126,7 +127,9 @@ export default function BannerFilterButton({
     : String(minimumMissions);
   const { hasKilometerFilter } = getKilometerBounds(filters);
   const buttonLabel =
-    activeFilterCount > 0 ? `Filters (${activeFilterCount})` : "Filters";
+    activeFilterCount > 0
+      ? t("Filters ({count})", { count: activeFilterCount })
+      : t("Filters");
 
   return (
     <>
@@ -155,7 +158,7 @@ export default function BannerFilterButton({
             variant="overline"
             sx={{ color: "text.secondary", letterSpacing: "0.12em" }}
           >
-            Banner Filters
+            {t("Banner Filters")}
           </Typography>
           <FormGroup sx={{ mt: 0.5 }}>
             {visibleFilterOptions.map((option) => {
@@ -219,7 +222,7 @@ export default function BannerFilterButton({
                         }}
                       />
                     }
-                    label={optionLabel}
+                    label={t(optionLabel)}
                   />
                   {isChecked && option.helperText ? (
                     <Typography
@@ -233,7 +236,7 @@ export default function BannerFilterButton({
                         maxWidth: 220,
                       }}
                     >
-                      {option.helperText}
+                      {t(option.helperText)}
                     </Typography>
                   ) : null}
                 </Box>
@@ -247,7 +250,7 @@ export default function BannerFilterButton({
                 variant="overline"
                 sx={{ color: "text.secondary", letterSpacing: "0.12em" }}
               >
-                Banner length
+                {t("Banner length")}
               </Typography>
               <ToggleButtonGroup
                 size="small"
@@ -274,18 +277,18 @@ export default function BannerFilterButton({
                 }}
                 sx={{ mt: 0.75, display: "flex", flexWrap: "wrap" }}
               >
-                <ToggleButton value="0">Any</ToggleButton>
+                <ToggleButton value="0">{t("Any")}</ToggleButton>
                 <ToggleButton value="6">6+</ToggleButton>
                 <ToggleButton value="12">12+</ToggleButton>
                 <ToggleButton value="18">18+</ToggleButton>
-                <ToggleButton value="custom">Custom</ToggleButton>
+                <ToggleButton value="custom">{t("Custom")}</ToggleButton>
               </ToggleButtonGroup>
 
               {isCustomMissionFilter ? (
                 <>
                   <Stack direction="row" spacing={1} sx={{ mt: 1.25 }}>
                     <TextField
-                      label="Minimum"
+                      label={t("Minimum")}
                       size="small"
                       type="number"
                       value={filters?.customMinimumMissions ?? ""}
@@ -302,7 +305,7 @@ export default function BannerFilterButton({
                       sx={{ width: 120 }}
                     />
                     <TextField
-                      label="Maximum"
+                      label={t("Maximum")}
                       size="small"
                       type="number"
                       value={filters?.customMaximumMissions ?? ""}
@@ -323,7 +326,7 @@ export default function BannerFilterButton({
                     variant="caption"
                     sx={{ display: "block", mt: 0.75, color: "text.secondary" }}
                   >
-                    Leave a field empty to remove that limit.
+                    {t("Leave a field empty to remove that limit.")}
                   </Typography>
                 </>
               ) : null}
@@ -336,11 +339,11 @@ export default function BannerFilterButton({
                 variant="overline"
                 sx={{ color: "text.secondary", letterSpacing: 0 }}
               >
-                Route length
+                {t("Route length")}
               </Typography>
               <Stack direction="row" spacing={1} sx={{ mt: 0.75 }}>
                 <TextField
-                  label="Minimum km"
+                  label={t("Minimum km")}
                   size="small"
                   type="number"
                   value={filters?.minimumKilometers ?? ""}
@@ -356,7 +359,7 @@ export default function BannerFilterButton({
                   sx={{ width: 120 }}
                 />
                 <TextField
-                  label="Maximum km"
+                  label={t("Maximum km")}
                   size="small"
                   type="number"
                   value={filters?.maximumKilometers ?? ""}
@@ -377,8 +380,8 @@ export default function BannerFilterButton({
                 sx={{ display: "block", mt: 0.75, color: "text.secondary" }}
               >
                 {hasKilometerFilter
-                  ? "Filtering by banner route length."
-                  : "Leave a field empty to remove that limit."}
+                  ? t("Filtering by banner route length.")
+                  : t("Leave a field empty to remove that limit.")}
               </Typography>
             </Box>
           ) : null}

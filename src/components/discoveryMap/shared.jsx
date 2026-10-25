@@ -1,6 +1,7 @@
 import L from "leaflet";
 import { MapContainer, Marker, TileLayer, useMapEvents } from "react-leaflet";
 import { Link } from "react-router-dom";
+import { t } from "../../i18n";
 import { getStatusStyle } from "./mapStatus";
 
 const iconCache = new globalThis.Map();
@@ -91,7 +92,9 @@ export function DiscoveryBaseMap({ vm, onMapClick, children }) {
       whenReady={(event) => vm.handleViewportChange(event.target)}
     >
       <TileLayer
-        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors. Not affiliated with Bannergress.'
+        attribution={t("© {osm} contributors. Not affiliated with Bannergress.", {
+          osm: '<a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+        })}
         url="https://tile.openstreetmap.org/{z}/{x}/{y}.png"
       />
       {vm.userLocation ? (
@@ -114,8 +117,8 @@ export function LocateButton({ vm, style }) {
       type="button"
       className={`mv-fab${vm.locating ? " busy" : ""}`}
       style={style}
-      aria-label="Go to my location"
-      title="My location"
+      aria-label={t("Go to my location")}
+      title={t("My location")}
       onClick={() => vm.requestLocation({ recenter: true })}
     >
       <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -126,15 +129,15 @@ export function LocateButton({ vm, style }) {
 }
 
 // "Loading…", errors and the empty state, as a small pill.
-export function MapStatusPill({ vm, count, noun = "banners", bottom = 16 }) {
+export function MapStatusPill({ vm, count, emptyText, bottom = 16 }) {
   let text = "";
 
   if (vm.error) {
     text = vm.error;
   } else if (vm.loading && !vm.banners.length) {
-    text = "Loading banners…";
+    text = t("Loading banners…");
   } else if (count === 0 && vm.searchArea) {
-    text = `No ${noun} here – zoom out or move the map`;
+    text = emptyText ?? t("No banners here – zoom out or move the map");
   }
 
   return text ? (
@@ -153,15 +156,15 @@ export function StatusChip({ status }) {
 
   return (
     <span className="mv-chip" style={{ "--ring": style.ring, "--chip-text": style.text }}>
-      {style.label}
+      {t(style.label)}
     </span>
   );
 }
 
-export function OpenBannerLink({ banner, children = "Open", className = "mv-btn primary" }) {
+export function OpenBannerLink({ banner, children, className = "mv-btn primary" }) {
   return (
     <Link className={className} to={`/banner/${banner.id}`} onClick={(event) => event.stopPropagation()}>
-      {children}
+      {children ?? t("Open")}
     </Link>
   );
 }

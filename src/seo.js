@@ -1,6 +1,8 @@
+import { t, tk, tn } from "./i18n";
+
 const SITE_NAME = "OpenBanners";
 const DEFAULT_TITLE = SITE_NAME;
-const DEFAULT_DESCRIPTION = "An open-source front-end for banners";
+const DEFAULT_DESCRIPTION = tk("An open-source front-end for banners");
 const DEFAULT_PATH = "/";
 const DEFAULT_IMAGE_PATH = "/logo512.png";
 const BANNERGRESS_IMAGE_ORIGIN = "https://api.bannergress.com";
@@ -115,7 +117,7 @@ export function buildBannerMetadata(banner) {
     ? `${Math.round((lengthMeters / 1000) * 10) / 10} km`
     : null;
   const formattedMissions = Number.isFinite(missionCount)
-    ? `${missionCount} ${missionCount === 1 ? "Mission" : "Missions"}`
+    ? tn("{count} Mission", "{count} Missions", missionCount)
     : null;
   const formattedAddress =
     typeof banner.formattedAddress === "string" &&
@@ -133,7 +135,7 @@ export function buildBannerMetadata(banner) {
 
   return {
     title,
-    description: description || DEFAULT_DESCRIPTION,
+    description: description || t(DEFAULT_DESCRIPTION),
     image,
     url: toAbsoluteSiteUrl(path, path),
   };
@@ -142,7 +144,7 @@ export function buildBannerMetadata(banner) {
 export function applyPageMetadata({
   title = DEFAULT_TITLE,
   documentTitle = formatDocumentTitle(title),
-  description = DEFAULT_DESCRIPTION,
+  description = t(DEFAULT_DESCRIPTION),
   image = toAbsoluteSiteUrl(DEFAULT_IMAGE_PATH, DEFAULT_IMAGE_PATH),
   url = toAbsoluteSiteUrl(DEFAULT_PATH, DEFAULT_PATH),
   type = "website",

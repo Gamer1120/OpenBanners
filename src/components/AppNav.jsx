@@ -11,12 +11,13 @@ import {
   MapOutlined,
 } from "@mui/icons-material";
 import { getBrowseStateScope, resetBrowseState } from "../browseState";
+import { t, tk } from "../i18n";
 import AppLogo from "./AppLogo";
 
 const NAV_ITEMS = [
   {
     key: "banners",
-    label: "Banners",
+    label: tk("Banners"),
     to: "/",
     icon: ExploreOutlined,
     activeIcon: Explore,
@@ -29,7 +30,7 @@ const NAV_ITEMS = [
   },
   {
     key: "search",
-    label: "Search",
+    label: tk("Search"),
     to: "/search",
     icon: SearchOutlined,
     activeIcon: SearchIcon,
@@ -37,7 +38,7 @@ const NAV_ITEMS = [
   },
   {
     key: "map",
-    label: "Map",
+    label: tk("Map"),
     to: "/map",
     icon: MapOutlined,
     activeIcon: MapIcon,
@@ -45,7 +46,7 @@ const NAV_ITEMS = [
   },
   {
     key: "lists",
-    label: "Lists",
+    label: tk("Lists"),
     to: "/lists",
     icon: BookmarksOutlined,
     activeIcon: Bookmarks,
@@ -57,8 +58,8 @@ export default function AppNav() {
   const { pathname } = useLocation();
 
   return (
-    <nav className="ob-nav" aria-label="Main">
-      <Link className="ob-nav-brand" to="/" aria-label="OpenBanners home" tabIndex={-1}>
+    <nav className="ob-nav" aria-label={t("Main")}>
+      <Link className="ob-nav-brand" to="/" aria-label={t("OpenBanners home")} tabIndex={-1}>
         <AppLogo />
       </Link>
       {NAV_ITEMS.map((item) => {
@@ -80,7 +81,7 @@ export default function AppNav() {
             <span className="ind sl">
               <Icon fontSize="small" />
             </span>
-            <span>{item.label}</span>
+            <span>{t(item.label)}</span>
           </Link>
         );
       })}

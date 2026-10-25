@@ -4,6 +4,9 @@ import react from "@vitejs/plugin-react";
 
 export default defineConfig({
   plugins: [react()],
+  // the rerouter workers import ../i18n, whose locale files are split chunks;
+  // they are module workers already ({ type: "module" })
+  worker: { format: "es" },
   server: {
     host: "0.0.0.0",
     // https: {

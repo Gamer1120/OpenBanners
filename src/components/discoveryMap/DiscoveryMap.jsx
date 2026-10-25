@@ -28,13 +28,28 @@ import { FINISH_FLAG_SVG, missionColors } from "../BannerDetailsPage";
 import { formatLength } from "../../bannerDisplay";
 import BannerImage from "../BannerImage";
 import { useRememberEntry, useRestoredEntry } from "../../scrollRestoration";
+import { t, tk, tn } from "../../i18n";
 import "./discoveryMap.css";
 
 const GROUPS = [
-  { key: "status", title: "Status", options: STATUS_OPTIONS },
-  { key: "distance", title: "Distance", options: distanceOptions() },
-  { key: "missions", title: "Number of missions", options: MISSION_OPTIONS },
+  { key: "status", title: tk("Status"), options: STATUS_OPTIONS },
+  { key: "distance", title: tk("Distance"), options: distanceOptions() },
+  { key: "missions", title: tk("Number of missions"), options: MISSION_OPTIONS },
 ];
+
+// A translated sentence with one value in bold: template is t()/tn() output
+// that still holds the {name} placeholder.
+function BoldIn({ template, name, children }) {
+  const [before, after = ""] = template.split(`{${name}}`);
+
+  return (
+    <>
+      {before}
+      <b>{children}</b>
+      {after}
+    </>
+  );
+}
 
 function CustomDistance({ filters, onChange }) {
   const set = (key) => (event) => {
@@ -45,7 +60,7 @@ function CustomDistance({ filters, onChange }) {
   return (
     <div className="mv-range">
       <label>
-        <span>Min</span>
+        <span>{t("Min")}</span>
         <input
           type="number"
           inputMode="decimal"
@@ -58,13 +73,13 @@ function CustomDistance({ filters, onChange }) {
       </label>
       <span aria-hidden="true">–</span>
       <label>
-        <span>Max</span>
+        <span>{t("Max")}</span>
         <input
           type="number"
           inputMode="decimal"
           min="0"
           step="any"
-          placeholder="any"
+          placeholder={t("any")}
           value={filters.distMax ?? ""}
           onChange={set("distMax")}
         />
@@ -155,9 +170,9 @@ function RouteLayer({ route }) {
         ) : null
       )}
       {route.finish ? (
-        <Marker position={route.finish.position} icon={finishMarker} zIndexOffset={1500} title="Finish">
+        <Marker position={route.finish.position} icon={finishMarker} zIndexOffset={1500} title={t("Finish")}>
           <Tooltip direction="top" offset={[0, -10]}>
-            Finish · {route.finish.title}
+            {t("Finish · {title}", { title: route.finish.title })}
           </Tooltip>
         </Marker>
       ) : null}
@@ -167,18 +182,18 @@ function RouteLayer({ route }) {
 
 function FilterSheet({ filters, onChange, onClose, focusKey, matchCount }) {
   return (
-    <div className="mv-sheet mv-filter-sheet" role="dialog" aria-label="Map filters">
+    <div className="mv-sheet mv-filter-sheet" role="dialog" aria-label={t("Map filters")}>
       <div className="mv-grip" aria-hidden="true" />
       <div className="mv-card-head">
-        <div className="mv-card-title">Filters</div>
-        <button type="button" className="mv-btn icon ghost" aria-label="Close filters" onClick={onClose}>
+        <div className="mv-card-title">{t("Filters")}</div>
+        <button type="button" className="mv-btn icon ghost" aria-label={t("Close filters")} onClick={onClose}>
           ×
         </button>
       </div>
       {GROUPS.map((group) => (
         <section key={group.key} className={`mv-filter-group${focusKey === group.key ? " focus" : ""}`}>
-          <h3>{group.title}</h3>
-          <div className="mv-seg wrap" role="radiogroup" aria-label={group.title}>
+          <h3>{t(group.title)}</h3>
+          <div className="mv-seg wrap" role="radiogroup" aria-label={t(group.title)}>
             {group.options.map((option) => (
               <button
                 type="button"
@@ -188,7 +203,7 @@ function FilterSheet({ filters, onChange, onClose, focusKey, matchCount }) {
                 className={filters[group.key] === option.id ? "on" : ""}
                 onClick={() => onChange({ ...filters, [group.key]: option.id })}
               >
-                {option.label}
+                {t(option.label)}
               </button>
             ))}
           </div>
@@ -200,11 +215,11 @@ function FilterSheet({ filters, onChange, onClose, focusKey, matchCount }) {
       ))}
       <div className="mv-card-actions">
         <button type="button" className="mv-btn" onClick={() => onChange(normalizeMapFilters({ status: "all" }))}>
-          Reset
+          {t("Reset")}
         </button>
         <span className="mv-spacer" />
         <button type="button" className="mv-btn primary" onClick={onClose}>
-          Show {matchCount} banner{matchCount === 1 ? "" : "s"}
+          {tn("Show {count} banner", "Show {count} banners", matchCount)}
         </button>
       </div>
     </div>
@@ -219,12 +234,12 @@ function RouteCard({ banner, routeStatus, onClose, cardRef }) {
   const minutes = walkingMinutes(banner.lengthMeters);
 
   return (
-    <div className="mv-sheet mv-route-card" ref={cardRef} aria-label="Selected banner">
+    <div className="mv-sheet mv-route-card" ref={cardRef} aria-label={t("Selected banner")}>
       <BannerImage banner={banner} className="mv-route-thumb" minAspect={ROUTE_THUMB_ASPECT} />
       <div className="mv-route-body">
         <div className="mv-card-head">
           <div className="mv-card-title">{banner.title}</div>
-          <button type="button" className="mv-btn icon ghost" aria-label="Close route" onClick={onClose}>
+          <button type="button" className="mv-btn icon ghost" aria-label={t("Close route")} onClick={onClose}>
             ×
           </button>
         </div>
@@ -233,20 +248,29 @@ function RouteCard({ banner, routeStatus, onClose, cardRef }) {
             <b>{formatLength(banner.lengthMeters)}</b>
           </span>
           <span>
-            <b>{Number.isFinite(missions) ? missions : "?"}</b> missions
+            <BoldIn
+              name="count"
+              template={tn("{count} mission", "{count} missions", Number.isFinite(missions) ? missions : 2, {
+                count: "{count}",
+              })}
+            >
+              {Number.isFinite(missions) ? missions : "?"}
+            </BoldIn>
           </span>
           {minutes !== null ? (
             <span>
-              <b>~{formatMinutes(minutes)}</b> walk
+              <BoldIn name="time" template={t("{time} walk")}>
+                ~{formatMinutes(minutes)}
+              </BoldIn>
             </span>
           ) : null}
         </div>
         <div className="mv-mini-row">
           <StatusChip status={banner._status} />
-          {routeStatus === "loading" ? <span className="mv-muted">Loading route…</span> : null}
-          {routeStatus === "error" ? <span className="mv-muted">Couldn't load the route</span> : null}
+          {routeStatus === "loading" ? <span className="mv-muted">{t("Loading route…")}</span> : null}
+          {routeStatus === "error" ? <span className="mv-muted">{t("Couldn't load the route")}</span> : null}
           <span className="mv-spacer" />
-          <OpenBannerLink banner={banner}>Open</OpenBannerLink>
+          <OpenBannerLink banner={banner} />
         </div>
       </div>
     </div>
@@ -255,12 +279,14 @@ function RouteCard({ banner, routeStatus, onClose, cardRef }) {
 
 // A group that can't be split by zooming (same spot, or already zoomed in): pick one.
 function ClusterSheet({ banners, onPick, onClose }) {
+  const heading = tn("{count} banner here", "{count} banners here", banners.length);
+
   return (
-    <div className="mv-sheet mv-filter-sheet" role="dialog" aria-label={`${banners.length} banners here`}>
+    <div className="mv-sheet mv-filter-sheet" role="dialog" aria-label={heading}>
       <div className="mv-grip" aria-hidden="true" />
       <div className="mv-card-head">
-        <div className="mv-card-title">{banners.length} banners here</div>
-        <button type="button" className="mv-btn icon ghost" aria-label="Close list" onClick={onClose}>
+        <div className="mv-card-title">{heading}</div>
+        <button type="button" className="mv-btn icon ghost" aria-label={t("Close list")} onClick={onClose}>
           ×
         </button>
       </div>
@@ -275,7 +301,10 @@ function ClusterSheet({ banners, onPick, onClose }) {
                 <span className="mv-cluster-text">
                   <b>{banner.title}</b>
                   <span className="mv-muted">
-                    {formatLength(banner.lengthMeters)} · {Number.isFinite(missions) ? missions : "?"} missions
+                    {formatLength(banner.lengthMeters)} ·{" "}
+                    {Number.isFinite(missions)
+                      ? tn("{count} mission", "{count} missions", missions)
+                      : t("? missions")}
                   </span>
                 </span>
                 <StatusChip status={banner._status} />
@@ -459,7 +488,7 @@ export default function DiscoveryMap() {
                 ]}
                 icon={clusterIcon(members, { dim: Boolean(selected) })}
                 zIndexOffset={members.length}
-                title={`${members.length} banners`}
+                title={tn("{count} banner", "{count} banners", members.length)}
                 eventHandlers={{ click: () => openCluster(members) }}
               />
             );
@@ -485,17 +514,17 @@ export default function DiscoveryMap() {
         {route ? <RouteLayer route={route} /> : null}
       </DiscoveryBaseMap>
 
-      <div className="mv-filterbar" role="toolbar" aria-label="Filters">
+      <div className="mv-filterbar" role="toolbar" aria-label={t("Filters")}>
         <button
           type="button"
           className={`mv-fchip${activeCount ? " on" : ""}`}
-          aria-label={activeCount ? `Filters (${activeCount} on)` : "Filters"}
+          aria-label={activeCount ? t("Filters ({count} on)", { count: activeCount }) : t("Filters")}
           onClick={() => setSheet("status")}
         >
           <svg viewBox="0 0 24 24" aria-hidden="true">
             <path d="M3 17v2h6v-2H3zM3 5v2h10V5H3zm10 16v-2h8v-2h-8v-2h-2v6h2zM7 9v2H3v2h4v2h2V9H7zm14 4v-2H11v2h10zm-6-4h2V7h4V5h-4V3h-2v6z" />
           </svg>
-          {activeCount ? activeCount : "Filters"}
+          {activeCount ? activeCount : t("Filters")}
         </button>
         {GROUPS.map((group) => {
           const active =
@@ -512,20 +541,22 @@ export default function DiscoveryMap() {
               className={`mv-fchip${active ? " on" : ""}`}
               onClick={() => setSheet(group.key)}
             >
-              {summary[group.key]}
+              {t(summary[group.key])}
               <span aria-hidden="true">▾</span>
             </button>
           );
         })}
       </div>
       <div className="mv-count" style={{ top: FILTERBAR_SPACE }} role="status">
-        {vm.loading && !vm.banners.length ? "Loading…" : `${matchingInView.length} of ${inViewCount} in view`}
+        {vm.loading && !vm.banners.length
+          ? t("Loading…")
+          : t("{shown} of {total} in view", { shown: matchingInView.length, total: inViewCount })}
         {!vm.loading && !selected && matchingInView.length ? (
-          <span className="mv-count-hint"> · tap one for its route</span>
+          <span className="mv-count-hint"> · {t("tap one for its route")}</span>
         ) : null}
       </div>
       <LocateButton vm={vm} style={{ bottom: controlsBottom + 24 }} />
-      <MapStatusPill vm={vm} count={matching.length} noun="matching banners" bottom={controlsBottom + 16} />
+      <MapStatusPill vm={vm} count={matching.length} emptyText={t("No matching banners here – zoom out or move the map")} bottom={controlsBottom + 16} />
 
       {showCard ? (
         <RouteCard

@@ -25,28 +25,36 @@ import {
   getDistanceMeters,
   getMissionsPerKm,
 } from "../bannerDisplay";
+import { t, tk, tn } from "../i18n";
 import BannerImage, { getBoxAspect } from "./BannerImage";
 
 const LIST_META = {
-  todo: { label: "To do", icon: BookmarkBorder },
-  done: { label: "Done", icon: CheckCircleOutline },
-  blacklist: { label: "Hidden", icon: VisibilityOff },
+  todo: { label: tk("To do"), icon: BookmarkBorder },
+  done: { label: tk("Done"), icon: CheckCircleOutline },
+  blacklist: { label: tk("Hidden"), icon: VisibilityOff },
 };
 const MIN_TILE_ASPECT = 0.8;
 // List-row thumbnails are 112 × 72.
 const ROW_THUMB_ASPECT = 112 / 72;
 
 const ROW_ACTIONS = [
-  { listType: "todo", label: "To do", icon: BookmarkBorder, activeIcon: Bookmark },
-  { listType: "done", label: "Done", icon: CheckCircleOutline, activeIcon: CheckCircle },
-  { listType: "blacklist", label: "Hide", icon: Visibility, activeIcon: VisibilityOff },
+  { listType: "todo", label: tk("To do"), icon: BookmarkBorder, activeIcon: Bookmark },
+  { listType: "done", label: tk("Done"), icon: CheckCircleOutline, activeIcon: CheckCircle },
+  { listType: "blacklist", label: tk("Hide"), icon: Visibility, activeIcon: VisibilityOff },
 ];
+
+function missionCountText(banner) {
+  const count = Number(banner.numberOfMissions);
+  return banner.numberOfMissions != null && Number.isFinite(count)
+    ? tn("{count} mission", "{count} missions", count)
+    : t("? missions");
+}
 
 // To do / Done / Hide toggles on a compact row (same Bannergress call as the banner page).
 function RowListActions({ banner, listType }) {
   const [pending, setPending] = useState(null);
   const [error, setError] = useState("");
-  const title = (banner.title || "Untitled").trim();
+  const title = (banner.title || t("Untitled")).trim();
 
   const toggle = async (nextListType) => {
     if (pending) {
@@ -65,8 +73,8 @@ function RowListActions({ banner, listType }) {
       console.error("Couldn't update Bannergress list type.", updateError);
       setError(
         updateError?.status === 401 || updateError?.status === 403
-          ? "Authenticate again."
-          : "Update failed."
+          ? t("Authenticate again.")
+          : t("Update failed.")
       );
     } finally {
       setPending(null);
@@ -74,7 +82,7 @@ function RowListActions({ banner, listType }) {
   };
 
   return (
-    <div className="brow-acts" role="group" aria-label={`Lists for ${title}`}>
+    <div className="brow-acts" role="group" aria-label={t("Lists for {title}", { title })}>
       {ROW_ACTIONS.map((action) => {
         const active = listType === action.listType;
         const Icon = active ? action.activeIcon : action.icon;
@@ -85,8 +93,8 @@ function RowListActions({ banner, listType }) {
             type="button"
             className={`brow-act sl ${action.listType}${active ? " on" : ""}`}
             aria-pressed={active}
-            aria-label={`${action.label}: ${title}`}
-            title={action.label}
+            aria-label={t("{label}: {title}", { label: t(action.label), title })}
+            title={t(action.label)}
             disabled={Boolean(pending)}
             onClick={() => toggle(action.listType)}
           >
@@ -113,27 +121,29 @@ function OfflineFlag({ banner }) {
   return (
     <span className="aflag bad">
       <CloudOff />
-      {disabled >= Number(banner.numberOfMissions) ? "Offline" : `${disabled} offline`}
+      {disabled >= Number(banner.numberOfMissions)
+        ? t("Offline")
+        : tn("{count} offline", "{count} offline", disabled)}
     </span>
   );
 }
 
 function describeBanner(banner, distance, listType) {
   const parts = [
-    (banner.title || "Untitled").trim(),
-    `${banner.numberOfMissions ?? "?"} missions, ${formatLength(banner.lengthMeters)}`,
+    (banner.title || t("Untitled")).trim(),
+    `${missionCountText(banner)}, ${formatLength(banner.lengthMeters)}`,
   ];
 
   if (distance !== null) {
-    parts.push(`${formatLength(distance)} away`);
+    parts.push(t("{distance} away", { distance: formatLength(distance) }));
   }
 
   if (getDisabledMissionCount(banner)) {
-    parts.push("has offline missions");
+    parts.push(t("has offline missions"));
   }
 
   if (LIST_META[listType]) {
-    parts.push(LIST_META[listType].label);
+    parts.push(t(LIST_META[listType].label));
   }
 
   return parts.join(". ");
@@ -170,9 +180,9 @@ export function BannerTile({ banner, here, showAddress = true, listType }) {
           </span>
         </BannerImage>
         <span className="art-cap" aria-hidden="true">
-          <span className="art-t">{(banner.title || "Untitled").trim()}</span>
+          <span className="art-t">{(banner.title || t("Untitled")).trim()}</span>
           <span className="art-m">
-            {distance !== null ? <b>{formatLength(distance)} away</b> : null}
+            {distance !== null ? <b>{t("{distance} away", { distance: formatLength(distance) })}</b> : null}
             <span>
               <FormatListNumbered />
               {banner.numberOfMissions ?? "?"}
@@ -266,7 +276,7 @@ export default function BannerWall({
   showAddress = true,
   loadingMore = false,
   skeletonCount = 0,
-  label = "Banners",
+  label = t("Banners"),
 }) {
   const containerRef = useRef(null);
   const syncState = useBannergressSync();
@@ -338,7 +348,7 @@ export default function BannerWall({
   );
 }
 
-export function BannerRows({ banners, here = null, label = "Banners", loadingMore = false }) {
+export function BannerRows({ banners, here = null, label = t("Banners"), loadingMore = false }) {
   const syncState = useBannergressSync();
   const canUpdateLists = isBannergressAuthSupportedOrigin();
 
@@ -364,12 +374,12 @@ export function BannerRows({ banners, here = null, label = "Banners", loadingMor
             <Link className="brow-a sl" to={`/banner/${encodeURIComponent(banner.id)}`}>
               <BannerImage banner={banner} className="brow-pic" minAspect={ROW_THUMB_ASPECT} />
               <span className="brow-txt">
-                <span className="brow-t">{(banner.title || "Untitled").trim()}</span>
+                <span className="brow-t">{(banner.title || t("Untitled")).trim()}</span>
                 <span className="brow-s">
-                  {banner.numberOfMissions ?? "?"} missions ·{" "}
+                  {missionCountText(banner)} ·{" "}
                   {formatLength(banner.lengthMeters)}
                   {perKm !== null ? ` · ${perKm.toFixed(1)}/km` : ""}
-                  {distance !== null ? ` · ${formatLength(distance)} away` : ""}
+                  {distance !== null ? ` · ${t("{distance} away", { distance: formatLength(distance) })}` : ""}
                 </span>
                 {banner.formattedAddress ? (
                   <span className="brow-s">{banner.formattedAddress}</span>

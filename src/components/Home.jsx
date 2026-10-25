@@ -21,6 +21,7 @@ import {
 } from "../browseState";
 import { applyPageMetadata } from "../seo";
 import { buildAppTheme } from "../appTheme";
+import { t, tk } from "../i18n";
 
 const legacyDarkTheme = buildAppTheme("dark");
 
@@ -33,17 +34,17 @@ function LegacyDark({ children, fill = false }) {
 }
 
 const VIEW_TITLES = {
-  start: "Banners",
-  near: "Banners",
-  browsing: "Banners",
-  agentBrowsing: "Banners",
-  search: "Search",
-  map: "Map",
-  lists: "Lists",
-  searching: "Search",
+  start: tk("Banners"),
+  near: tk("Banners"),
+  browsing: tk("Banners"),
+  agentBrowsing: tk("Banners"),
+  search: tk("Search"),
+  map: tk("Map"),
+  lists: tk("Lists"),
+  searching: tk("Search"),
   together: "Banner Together",
-  rerouter: "Reroute Banner",
-  planner: "Mission Day planner",
+  rerouter: tk("Reroute Banner"),
+  planner: tk("Mission Day planner"),
 };
 
 function formatRouteParam(value) {
@@ -67,8 +68,8 @@ function getRouteMetadata({ pathname, placeId, agentName, query }) {
     const searchQuery = typeof query === "string" ? query.trim() : "";
 
     return {
-      title: searchQuery ? `Search: ${searchQuery}` : "Search",
-      description: "Search Bannergress places and banners on OpenBanners.",
+      title: searchQuery ? t("Search: {query}", { query: searchQuery }) : t("Search"),
+      description: t("Search Bannergress places and banners on OpenBanners."),
     };
   }
 
@@ -76,8 +77,8 @@ function getRouteMetadata({ pathname, placeId, agentName, query }) {
     const placeLabel = formatRouteParam(placeId);
 
     return {
-      title: placeLabel ? `Browse: ${placeLabel}` : "Browse Banners",
-      description: "Explore Bannergress banners by place on OpenBanners.",
+      title: placeLabel ? t("Browse: {place}", { place: placeLabel }) : t("Browse Banners"),
+      description: t("Explore Bannergress banners by place on OpenBanners."),
     };
   }
 
@@ -85,18 +86,18 @@ function getRouteMetadata({ pathname, placeId, agentName, query }) {
     const agentLabel =
       typeof agentName === "string" && agentName.trim() !== ""
         ? agentName.trim()
-        : "Agent";
+        : t("Agent");
 
     return {
-      title: `Agent: ${agentLabel}`,
-      description: `Banners created by ${agentLabel}.`,
+      title: t("Agent: {agent}", { agent: agentLabel }),
+      description: t("Banners created by {agent}.", { agent: agentLabel }),
     };
   }
 
   if (pathname.startsWith("/map")) {
     return {
-      title: "Discovery Map",
-      description: "Explore Bannergress banners on an interactive map.",
+      title: t("Discovery Map"),
+      description: t("Explore Bannergress banners on an interactive map."),
     };
   }
 
@@ -104,34 +105,34 @@ function getRouteMetadata({ pathname, placeId, agentName, query }) {
     return {
       title: "Banner Together",
       description:
-        "Compare Bannergress banner list states in a live peer room.",
+        t("Compare Bannergress banner list states in a live peer room."),
     };
   }
 
   if (pathname.startsWith("/lists")) {
     return {
-      title: "Your lists",
-      description: "Your Bannergress to-do, done and hidden banners.",
+      title: t("Your lists"),
+      description: t("Your Bannergress to-do, done and hidden banners."),
     };
   }
 
   if (pathname.startsWith("/planner")) {
     return {
-      title: "Mission Day planner",
-      description: "Plan which missions to do and in what order, together.",
+      title: t("Mission Day planner"),
+      description: t("Plan which missions to do and in what order, together."),
     };
   }
 
   if (pathname.startsWith("/rerouter")) {
     return {
-      title: "Banner Rerouter",
-      description: "Build rerouted banners from imported UMM data.",
+      title: t("Banner Rerouter"),
+      description: t("Build rerouted banners from imported UMM data."),
     };
   }
 
   return {
-    title: "Banners Near Me",
-    description: "Find live Bannergress banners near your current location.",
+    title: t("Banners Near Me"),
+    description: t("Find live Bannergress banners near your current location."),
   };
 }
 
@@ -284,14 +285,14 @@ export default function Home() {
   return (
     <div className={`ob-app${fillViewport ? " fill" : ""}`}>
       <a className="sr" href="#main-content">
-        Skip to content
+        {t("Skip to content")}
       </a>
       <AppNav />
       <div className="ob-col">
         <TopMenu
           onRerouterClick={handleRerouterClick}
           onTitleClick={handleTitleClick}
-          title={VIEW_TITLES[currentView] ?? ""}
+          title={VIEW_TITLES[currentView] ? t(VIEW_TITLES[currentView]) : ""}
         />
         <main className="ob-main" id="main-content" tabIndex={-1}>
           {currentView === "start" || currentView === "lists" ? <AuthorPassphraseNotice /> : null}

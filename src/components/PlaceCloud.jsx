@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { LocationCity, Place } from "@mui/icons-material";
 import { getFlagForPlace } from "./CountryFlags";
 import { getBrowseStateScope, resetBrowseState } from "../browseState";
+import { getLanguage, t, tn } from "../i18n";
 
 const COUNTRY_PLACES_CACHE_KEY = "openbanners-country-places-v1";
 const COUNTRY_PLACES_CACHE_TTL_MS = 30 * 24 * 60 * 60 * 1000;
@@ -90,14 +91,14 @@ export function usePlaces(parentPlaceId, enabled = true) {
           }
         } else {
           setPlaces([]);
-          setError("Couldn't load places.");
+          setError(t("Couldn't load places."));
         }
       } catch (fetchError) {
         console.error(fetchError);
 
         if (!ignore) {
           setPlaces([]);
-          setError("Couldn't load places.");
+          setError(t("Couldn't load places."));
         }
       } finally {
         if (!ignore) {
@@ -169,7 +170,6 @@ export default function PlaceCloud({
     observer.observe(cloud);
     return () => observer.disconnect();
   }, [folded, visiblePlaces.length, rows]);
-  const noun = isCountryList ? "countries" : "places";
 
   useEffect(() => {
     setExpanded(false);
@@ -190,14 +190,14 @@ export default function PlaceCloud({
           <input
             className="cloud-filter"
             type="search"
-            placeholder={isCountryList ? "Find a country" : "Find a place"}
-            aria-label={isCountryList ? "Find a country" : "Find a place"}
+            placeholder={isCountryList ? t("Find a country") : t("Find a place")}
+            aria-label={isCountryList ? t("Find a country") : t("Find a place")}
             value={filterText}
             onChange={(event) => setFilterText(event.target.value)}
           />
         ) : null}
       </div>
-      {loading ? <p className="small muted">Loading places...</p> : null}
+      {loading ? <p className="small muted">{t("Loading places...")}</p> : null}
       {error ? (
         <div className="ob-alert bad" role="alert">
           {error}
@@ -231,7 +231,7 @@ export default function PlaceCloud({
                 )}
                 {name}
                 <span className="count">
-                  {Number(place.numberOfBanners || 0).toLocaleString("en-US")}
+                  {Number(place.numberOfBanners || 0).toLocaleString(getLanguage())}
                 </span>
               </Link>
             </li>
@@ -239,12 +239,20 @@ export default function PlaceCloud({
         })}
       </ul>
       {normalizedFilter && visiblePlaces.length === 0 ? (
-        <p className="small muted">No {noun} match “{filterText.trim()}”.</p>
+        <p className="small muted">
+          {isCountryList
+            ? t("No countries match “{filter}”.", { filter: filterText.trim() })
+            : t("No places match “{filter}”.", { filter: filterText.trim() })}
+        </p>
       ) : null}
       {foldable ? (
         <div className="cloud-more">
           <button type="button" className="btn text sl" onClick={() => setExpanded(!expanded)}>
-            {expanded ? "Show fewer" : `Show all ${sortedPlaces.length} ${noun}`}
+            {expanded
+              ? t("Show fewer")
+              : isCountryList
+                ? tn("Show all {count} country", "Show all {count} countries", sortedPlaces.length)
+                : tn("Show all {count} place", "Show all {count} places", sortedPlaces.length)}
           </button>
         </div>
       ) : null}

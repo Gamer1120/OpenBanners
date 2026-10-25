@@ -5,6 +5,7 @@ import MapOverlay from "./MapOverlay";
 import { useState, useEffect, useMemo, useRef } from "react";
 import L from "leaflet";
 import { fetchBannergress } from "../bannergressSync";
+import { t } from "../i18n";
 import {
   applyPageMetadata,
   buildBannerMetadata,
@@ -76,7 +77,7 @@ export default function Map() {
   useEffect(() => {
     applyPageMetadata({
       title: "BannerGuider",
-      description: "Follow an OpenBanners banner mission by mission.",
+      description: t("Follow an OpenBanners banner mission by mission."),
     });
 
     return () => {
@@ -95,7 +96,7 @@ export default function Map() {
       return;
     }
 
-    const title = `Guide: ${metadata.title}`;
+    const title = t("Guide: {title}", { title: metadata.title });
 
     applyPageMetadata({
       ...metadata,
@@ -126,7 +127,7 @@ export default function Map() {
   }, [bannerId, isLoading, mapInitialized, missionCoordinates]);
 
   if (isLoading) {
-    return <div className="banner-guider-shell">Loading...</div>;
+    return <div className="banner-guider-shell">{t("Loading...")}</div>;
   }
 
   const handleMapContainerReady = () => {
@@ -146,7 +147,9 @@ export default function Map() {
         preferCanvas={missionCoordinates.length > 200}
       >
         <TileLayer
-          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors. This website is NOT affiliated with Bannergress in any way!'
+          attribution={t("&copy; {osm} contributors. This website is NOT affiliated with Bannergress in any way!", {
+            osm: '<a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+          })}
           url="https://tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
         <BannerMarkers

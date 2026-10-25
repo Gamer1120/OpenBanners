@@ -33,6 +33,7 @@ import {
   saveBannergressSyncData,
   serializeBannergressPendingAuth,
 } from "../bannergressSync";
+import { t, tk, tn } from "../i18n";
 import AppLogo from "./AppLogo";
 
 const AUTH_POLL_INTERVAL_MS = 1500;
@@ -150,7 +151,11 @@ export default function TopMenu({
 
         setFeedback({
           severity: "success",
-          message: `Synced ${savedTotal} banner list states from Bannergress.`,
+          message: tn(
+            "Synced {count} banner list state from Bannergress.",
+            "Synced {count} banner list states from Bannergress.",
+            savedTotal
+          ),
         });
       }
 
@@ -174,7 +179,7 @@ export default function TopMenu({
           message:
             error instanceof Error
               ? error.message
-              : "Bannergress sync failed.",
+              : t("Bannergress sync failed."),
         });
       }
 
@@ -217,7 +222,7 @@ export default function TopMenu({
       if (announceAuthenticated) {
         setFeedback({
           severity: "success",
-          message: "Bannergress authenticated.",
+          message: t("Bannergress authenticated."),
         });
       }
 
@@ -237,7 +242,7 @@ export default function TopMenu({
       setFeedback({
         severity: "warning",
         message:
-          "Bannergress auth is currently only available on supported OpenBanners domains.",
+          t("Bannergress auth is currently only available on supported OpenBanners domains."),
       });
       return;
     }
@@ -255,7 +260,7 @@ export default function TopMenu({
     if (!popup) {
       setFeedback({
         severity: "error",
-        message: "Couldn't open Bannergress. Allow popups and try again.",
+        message: t("Couldn't open Bannergress. Allow popups and try again."),
       });
       return;
     }
@@ -277,7 +282,7 @@ export default function TopMenu({
         message:
           error instanceof Error
             ? error.message
-            : "Bannergress authentication couldn't be started.",
+            : t("Bannergress authentication couldn't be started."),
       });
       return;
     }
@@ -299,7 +304,7 @@ export default function TopMenu({
       setFeedback({
         severity: "warning",
         message:
-          "Authentication is still pending. Finish signing in on Bannergress, then return here.",
+          t("Authentication is still pending. Finish signing in on Bannergress, then return here."),
       });
       debugLog("Authentication popup polling timed out.");
     }, AUTH_POLL_TIMEOUT_MS);
@@ -363,7 +368,7 @@ export default function TopMenu({
         message:
           typeof event.data.message === "string"
             ? event.data.message
-            : "Bannergress authentication failed.",
+            : t("Bannergress authentication failed."),
       });
       void refreshAuthStatus({ suppressLoading: true, forceRefresh: true });
     };
@@ -392,29 +397,32 @@ export default function TopMenu({
     };
   }, [authSupportedOrigin, isBannerTogetherRoute]);
 
-  let authButtonLabel = "Authenticate";
+  // English keys (compared below); translated where shown.
+  let authButtonLabel = tk("Authenticate");
   let authButtonDisabled = false;
 
   if (!authSupportedOrigin) {
-    authButtonLabel = "Auth Unavailable Here";
+    authButtonLabel = tk("Auth Unavailable Here");
     authButtonDisabled = true;
   } else if (authStatus?.authenticated) {
-    authButtonLabel = "Authenticated";
+    authButtonLabel = tk("Authenticated");
     authButtonDisabled = true;
   } else if (isCheckingAuth) {
-    authButtonLabel = "Checking...";
+    authButtonLabel = tk("Checking...");
     authButtonDisabled = true;
   } else if (isAuthenticating) {
-    authButtonLabel = "Authenticating...";
+    authButtonLabel = tk("Authenticating...");
     authButtonDisabled = true;
   }
 
   const agentName = authStatus?.authenticated ? getBannergressAgentName() : null;
   const authButtonTitle = authStatus?.authenticated
-    ? `Signed in with Bannergress${agentName ? ` as ${agentName}` : ""}`
+    ? agentName
+      ? t("Signed in with Bannergress as {agent}", { agent: agentName })
+      : t("Signed in with Bannergress")
     : authButtonLabel === "Authenticate"
-      ? "Sign in with Bannergress"
-      : authButtonLabel;
+      ? t("Sign in with Bannergress")
+      : t(authButtonLabel);
   const closeMoreMenu = () => setMoreMenuAnchor(null);
 
   return (
@@ -424,7 +432,7 @@ export default function TopMenu({
           type="button"
           className="ob-brand sl"
           onClick={onTitleClick}
-          aria-label="Go to home page"
+          aria-label={t("Go to home page")}
         >
           <AppLogo />
           <span className="ob-brand-text">{title || "OpenBanners"}</span>
@@ -433,7 +441,7 @@ export default function TopMenu({
           <button
             type="button"
             className="icon-btn sl"
-            aria-label={authButtonLabel}
+            aria-label={t(authButtonLabel)}
             title={authButtonTitle}
             onClick={handleAuthButtonClick}
             disabled={authButtonDisabled && !authStatus?.authenticated}
@@ -452,7 +460,7 @@ export default function TopMenu({
           <button
             type="button"
             className="icon-btn sl"
-            aria-label="More options"
+            aria-label={t("More options")}
             aria-haspopup="menu"
             aria-expanded={Boolean(moreMenuAnchor)}
             onClick={(event) => setMoreMenuAnchor(event.currentTarget)}
@@ -475,7 +483,7 @@ export default function TopMenu({
               <ListItemIcon>
                 <AltRoute fontSize="small" />
               </ListItemIcon>
-              <ListItemText>Reroute Banner</ListItemText>
+              <ListItemText>{t("Reroute Banner")}</ListItemText>
             </MenuItem>
             <MenuItem
               onClick={() => {
@@ -486,7 +494,7 @@ export default function TopMenu({
               <ListItemIcon>
                 <EventNote fontSize="small" />
               </ListItemIcon>
-              <ListItemText>Mission Day planner</ListItemText>
+              <ListItemText>{t("Mission Day planner")}</ListItemText>
             </MenuItem>
             {shouldShowAndroidDownloadButton ? (
               <MenuItem
@@ -498,7 +506,7 @@ export default function TopMenu({
                 <ListItemIcon>
                   <Download fontSize="small" />
                 </ListItemIcon>
-                <ListItemText>Download App</ListItemText>
+                <ListItemText>{t("Download App")}</ListItemText>
               </MenuItem>
             ) : null}
             <MenuItem
@@ -510,7 +518,7 @@ export default function TopMenu({
               <ListItemIcon>
                 <SettingsIcon fontSize="small" />
               </ListItemIcon>
-              <ListItemText>Settings</ListItemText>
+              <ListItemText>{t("Settings")}</ListItemText>
             </MenuItem>
             <Divider />
             <MenuItem
@@ -523,7 +531,7 @@ export default function TopMenu({
               <ListItemIcon>
                 <GitHub fontSize="small" />
               </ListItemIcon>
-              <ListItemText>Source code</ListItemText>
+              <ListItemText>{t("Source code")}</ListItemText>
             </MenuItem>
           </Menu>
         </div>

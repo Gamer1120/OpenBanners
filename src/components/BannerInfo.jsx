@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { Alert, Snackbar } from "@mui/material";
 import { Directions, Explore, Layers, OpenInNew, Share } from "@mui/icons-material";
 import { useNavigate } from "react-router-dom";
+import { t } from "../i18n";
 import { buildOverlayStartIntentUrl, isAndroidUserAgent } from "../overlayLink";
 
 function RowAction({ icon: Icon, label, title, onClick, disabled, primary = false }) {
@@ -42,7 +43,7 @@ function ActionItem({ icon: Icon, title, subtitle, onClick, disabled, trailing =
 // "Start this banner": navigation, BannerGuider, OpenBanners Overlay and share.
 // variant "list" = card with one row per action; "row" = one row of compact
 // buttons (heading optional, e.g. inside a sticky action bar).
-const BannerInfo = ({ banner, loading = false, variant = "list", heading = "Start this banner", className = "" }) => {
+const BannerInfo = ({ banner, loading = false, variant = "list", heading = t("Start this banner"), className = "" }) => {
   const navigate = useNavigate();
   const [shareFeedback, setShareFeedback] = useState(null);
   const hasStartPoint = Boolean(banner.startLatitude && banner.startLongitude);
@@ -57,7 +58,7 @@ const BannerInfo = ({ banner, loading = false, variant = "list", heading = "Star
     if (!hasStartPoint) {
       setShareFeedback({
         severity: "warning",
-        message: "This banner does not have a valid start point.",
+        message: t("This banner does not have a valid start point."),
       });
       return;
     }
@@ -72,7 +73,7 @@ const BannerInfo = ({ banner, loading = false, variant = "list", heading = "Star
     text,
     {
       title = "OpenBanners",
-      successMessage = "Banner link copied to clipboard.",
+      successMessage = t("Banner link copied to clipboard."),
     } = {}
   ) => {
     if (navigator.share) {
@@ -85,7 +86,7 @@ const BannerInfo = ({ banner, loading = false, variant = "list", heading = "Star
           console.error("Error sharing:", error);
           setShareFeedback({
             severity: "error",
-            message: "Couldn't share this banner.",
+            message: t("Couldn't share this banner."),
           });
         });
       return;
@@ -104,7 +105,7 @@ const BannerInfo = ({ banner, loading = false, variant = "list", heading = "Star
           console.error("Error copying banner URL:", error);
           setShareFeedback({
             severity: "error",
-            message: "Couldn't copy the banner link.",
+            message: t("Couldn't copy the banner link."),
           });
         });
       return;
@@ -125,7 +126,7 @@ const BannerInfo = ({ banner, loading = false, variant = "list", heading = "Star
       console.error("Error copying banner URL:", error);
       setShareFeedback({
         severity: "error",
-        message: "Couldn't copy the banner link.",
+        message: t("Couldn't copy the banner link."),
       });
     } finally {
       document.body.removeChild(textarea);
@@ -137,7 +138,7 @@ const BannerInfo = ({ banner, loading = false, variant = "list", heading = "Star
     const bannerTitle =
       typeof banner.title === "string" && banner.title.trim() !== ""
         ? banner.title.trim()
-        : "OpenBanners banner";
+        : t("OpenBanners banner");
     const shareText = [
       bannerTitle,
       `https://openbanners.org/banner/${encodedBannerId}`,
@@ -162,7 +163,7 @@ const BannerInfo = ({ banner, loading = false, variant = "list", heading = "Star
 
     shareBannerText(`https://bannergress.com/banner/${banner.id}`, {
       title: banner.title,
-      successMessage: "OpenBanners Overlay link copied to clipboard.",
+      successMessage: t("OpenBanners Overlay link copied to clipboard."),
     });
   };
 
@@ -170,9 +171,9 @@ const BannerInfo = ({ banner, loading = false, variant = "list", heading = "Star
     {
       key: "navigate",
       icon: Directions,
-      label: "Navigate",
-      title: "Navigate to Start Point",
-      subtitle: "Google Maps directions to the first waypoint",
+      label: t("Navigate"),
+      title: t("Navigate to Start Point"),
+      subtitle: t("Google Maps directions to the first waypoint"),
       onClick: handleNavigateToStartPoint,
       disabled: loading || !hasStartPoint,
       trailing: <OpenInNew fontSize="small" className="muted" />,
@@ -181,8 +182,8 @@ const BannerInfo = ({ banner, loading = false, variant = "list", heading = "Star
       key: "guider",
       icon: Explore,
       label: "BannerGuider",
-      title: "Open BannerGuider",
-      subtitle: "Step through the missions one by one",
+      title: t("Open BannerGuider"),
+      subtitle: t("Step through the missions one by one"),
       onClick: handleOpenBannerGuider,
       disabled: loading,
       primary: true,
@@ -190,18 +191,18 @@ const BannerInfo = ({ banner, loading = false, variant = "list", heading = "Star
     {
       key: "overlay",
       icon: Layers,
-      label: "Start with Overlay",
-      title: "Start with OpenBanners Overlay",
-      subtitle: "Opens mission 1 in Ingress with the overlay on top (Android app)",
+      label: t("Start with Overlay"),
+      title: t("Start with OpenBanners Overlay"),
+      subtitle: t("Opens mission 1 in Ingress with the overlay on top (Android app)"),
       onClick: handleStartWithOverlay,
       disabled: loading,
     },
     {
       key: "share",
       icon: Share,
-      label: "Share",
-      title: "Share banner",
-      subtitle: "Send this banner to a friend",
+      label: t("Share"),
+      title: t("Share banner"),
+      subtitle: t("Send this banner to a friend"),
       onClick: handleShareBanner,
       disabled: loading,
     },
@@ -212,7 +213,7 @@ const BannerInfo = ({ banner, loading = false, variant = "list", heading = "Star
       {variant === "row" ? (
         <div className={`bi-row ${className}`.trim()}>
           {heading ? <h2 className="bi-row-h">{heading}</h2> : null}
-          <ul className="bi-row-list" aria-label={heading || "Start this banner"}>
+          <ul className="bi-row-list" aria-label={heading || t("Start this banner")}>
             {actions.map(({ key, trailing, subtitle, ...action }) => (
               <RowAction key={key} {...action} />
             ))}
@@ -227,7 +228,7 @@ const BannerInfo = ({ banner, loading = false, variant = "list", heading = "Star
             ))}
           </ul>
           {!loading && !hasStartPoint ? (
-            <p className="small muted">No start-point coordinates are available for navigation.</p>
+            <p className="small muted">{t("No start-point coordinates are available for navigation.")}</p>
           ) : null}
         </div>
       )}

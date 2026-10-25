@@ -18,6 +18,7 @@ import {
 } from "../bannerFilters";
 import { getBrowseStateScope, resetBrowseState } from "../browseState";
 import { getPlaceName, readCachedCity, resolveCityAt } from "../cityPlace";
+import { t } from "../i18n";
 
 const NEARBY_PAGE_SIZE = 24;
 
@@ -167,7 +168,7 @@ export default function BannersNearMe({
         if (!silent) {
           setLoading(false);
           setError(
-            "Couldn't determine your location. Please check your browser location settings and try again."
+            t("Couldn't determine your location. Please check your browser location settings and try again.")
           );
         }
       },
@@ -235,7 +236,7 @@ export default function BannersNearMe({
     } else {
       setPermissionState("unsupported");
       setLoading(false);
-      setError("This browser does not support geolocation.");
+      setError(t("This browser does not support geolocation."));
     }
 
     return () => {
@@ -298,7 +299,7 @@ export default function BannersNearMe({
         } else {
           setBannerData([]);
           setHasMore(false);
-          setError("Nearby banners returned an unexpected response.");
+          setError(t("Nearby banners returned an unexpected response."));
         }
       })
       .catch((fetchError) => {
@@ -307,7 +308,7 @@ export default function BannersNearMe({
         if (!ignore) {
           setBannerData([]);
           setHasMore(false);
-          setError("Couldn't load nearby banners. Please try again.");
+          setError(t("Couldn't load nearby banners. Please try again."));
         }
       })
       .finally(() => {
@@ -387,19 +388,23 @@ export default function BannersNearMe({
   };
 
   const cityName = getPlaceName(city);
+  // One sentence with a link in the middle, split at the link.
+  const [blockedBeforeLink, blockedAfterLink] = t(
+    "Location access is blocked. Allow it in your browser to use nearby banners, or pick a place under {link}."
+  ).split("{link}");
 
   return (
     <div className="ob-page">
       <header className="ob-sec-head" style={{ alignItems: "flex-start" }}>
         <div style={{ minWidth: 0 }}>
-          <nav className="crumbs scope" aria-label="Scope">
+          <nav className="crumbs scope" aria-label={t("Scope")}>
             <span className="scope-near on" aria-current="page">
               <NearMe fontSize="inherit" />
-              Near you
+              {t("Near you")}
             </span>
             <span aria-hidden="true">·</span>
             <Link to="/browse/" onClick={() => resetBrowseState(getBrowseStateScope())}>
-              All countries
+              {t("All countries")}
             </Link>
             {city?.id ? (
               <>
@@ -413,12 +418,12 @@ export default function BannersNearMe({
               </>
             ) : null}
           </nav>
-          <h1 className="ob-h1">Near you</h1>
-          <p className="small muted">Closest start point first.</p>
+          <h1 className="ob-h1">{t("Near you")}</h1>
+          <p className="small muted">{t("Closest start point first.")}</p>
         </div>
       </header>
 
-      <section aria-label="Banners near you" style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+      <section aria-label={t("Banners near you")} style={{ display: "flex", flexDirection: "column", gap: 16 }}>
         <div className="toolbar">
           <BannerFilterButton
             filters={bannerFilters}
@@ -435,15 +440,16 @@ export default function BannersNearMe({
               <NearMe />
             </span>
             <div className="grow">
-              <b>See what’s around you</b>
+              <b>{t("See what’s around you")}</b>
               <span className="small">
-                Enable location access to load nearby banners. Your location
-                stays in this browser, only the search itself is sent.
+                {t(
+                  "Enable location access to load nearby banners. Your location stays in this browser, only the search itself is sent."
+                )}
               </span>
               <div className="acts">
                 <button type="button" className="btn filled sl" onClick={handleGrantLocationAccess}>
                   <MyLocation fontSize="small" />
-                  Grant location access
+                  {t("Grant location access")}
                 </button>
               </div>
             </div>
@@ -453,11 +459,12 @@ export default function BannersNearMe({
         {!showPermissionPrompt && permissionState === "denied" ? (
           <div className="ob-alert warn" role="alert">
             <div className="grow">
-              Location access is blocked. Allow it in your browser to use nearby
-              banners, or pick a place under <Link to="/browse/">All countries</Link>.
+              {blockedBeforeLink}
+              <Link to="/browse/">{t("All countries")}</Link>
+              {blockedAfterLink}
             </div>
             <button type="button" className="btn text sl" onClick={handleRetry}>
-              Retry
+              {t("Retry")}
             </button>
           </div>
         ) : null}
@@ -466,21 +473,21 @@ export default function BannersNearMe({
           <div className="ob-alert bad" role="alert">
             <div className="grow">{error}</div>
             <button type="button" className="btn text sl" onClick={handleRetry}>
-              Retry
+              {t("Retry")}
             </button>
           </div>
         ) : null}
 
         {loading && !showPermissionPrompt ? (
           viewMode === "compact" ? (
-            <BannerRows banners={[]} loadingMore label="Loading banners" />
+            <BannerRows banners={[]} loadingMore label={t("Loading banners")} />
           ) : (
-            <BannerWall banners={[]} skeletonCount={8} label="Loading banners" />
+            <BannerWall banners={[]} skeletonCount={8} label={t("Loading banners")} />
           )
         ) : null}
 
         {!loading && !error && location && visibleBanners.length === 0 && (!hasMore || bannerData.length === 0) ? (
-          <div className="ob-alert">No nearby banners match.</div>
+          <div className="ob-alert">{t("No nearby banners match.")}</div>
         ) : null}
 
         {!loading && visibleBanners.length > 0 ? (
@@ -489,14 +496,14 @@ export default function BannersNearMe({
               banners={visibleBanners}
               here={location}
               loadingMore={loadingMore}
-              label="Banners near you"
+              label={t("Banners near you")}
             />
           ) : (
             <BannerWall
               banners={visibleBanners}
               here={location}
               loadingMore={loadingMore}
-              label="Banners near you"
+              label={t("Banners near you")}
             />
           )
         ) : null}

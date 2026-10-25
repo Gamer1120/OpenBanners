@@ -1,6 +1,7 @@
 import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Search } from "@mui/icons-material";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
+import { t } from "../i18n";
 import { addRecentSearch } from "../recentSearches";
 
 export const MIN_QUERY_LENGTH = 2;
@@ -22,7 +23,7 @@ function isSearchPath(pathname) {
 export default function SearchForm({
   big = false,
   className = "",
-  placeholder = "Search banners or places",
+  placeholder = t("Search banners or places"),
   autoFocus = false,
   onValueChange,
 }) {
@@ -133,14 +134,14 @@ export default function SearchForm({
       <form
         className={`searchbar${big ? " big" : ""}`}
         role="search"
-        aria-label="Search banners and places"
+        aria-label={t("Search banners and places")}
         onSubmit={handleSubmit}
       >
         <input
           ref={inputRef}
           type="search"
           placeholder={placeholder}
-          aria-label="Search query"
+          aria-label={t("Search query")}
           autoComplete="off"
           value={value}
           enterKeyHint="search"
@@ -149,7 +150,7 @@ export default function SearchForm({
             setValue(event.target.value);
           }}
         />
-        <button type="submit" className="icon-btn sl" aria-label="Submit search">
+        <button type="submit" className="icon-btn sl" aria-label={t("Submit search")}>
           <Search />
         </button>
       </form>

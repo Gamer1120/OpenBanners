@@ -4,6 +4,7 @@ import { LocationCity, Place } from "@mui/icons-material";
 import BrowseBannerList from "./BrowseBannerList";
 import { getFlagForPlace } from "./CountryFlags";
 import { rankPlacesForQuery } from "../cityPlace";
+import { t } from "../i18n";
 import {
   getBrowseStateScope,
   readBrowseFilters,
@@ -43,8 +44,8 @@ function SearchBanners({ query, onStatusChange }) {
       query={query}
       bannerFilters={bannerFilters}
       onBannerFiltersChange={handleFiltersChange}
-      heading="Banners"
-      label="Matching banners"
+      heading={t("Banners")}
+      label={t("Matching banners")}
       onStatusChange={onStatusChange}
       liveQuery
     />
@@ -105,7 +106,7 @@ export default function SearchResults({ query: queryProp }) {
           setPlacesQuery(query);
         } else {
           setResults([]);
-          setPlacesError("Place results returned an unexpected response.");
+          setPlacesError(t("Place results returned an unexpected response."));
         }
       } catch (fetchError) {
         if (controller.signal.aborted) {
@@ -114,7 +115,7 @@ export default function SearchResults({ query: queryProp }) {
 
         console.error("Error fetching place results:", fetchError);
         setResults([]);
-        setPlacesError("Couldn't load matching places.");
+        setPlacesError(t("Couldn't load matching places."));
       }
 
       setPlacesLoading(false);
@@ -149,17 +150,17 @@ export default function SearchResults({ query: queryProp }) {
 
       <section aria-labelledby="search-places">
         <div className="cloud-head">
-          <h2 id="search-places">Places</h2>
+          <h2 id="search-places">{t("Places")}</h2>
         </div>
         {placesError ? (
           <div className="ob-alert bad" role="alert">
             <div className="grow">{placesError}</div>
             <button type="button" className="btn text sl" onClick={reloadSearch}>
-              Retry
+              {t("Retry")}
             </button>
           </div>
         ) : placesLoading && results.length === 0 ? (
-          <p className="small muted">Loading places...</p>
+          <p className="small muted">{t("Loading places...")}</p>
         ) : results.length > 0 ? (
           <ul className="cloud" aria-busy={placesLoading || undefined}>
             {results.map((result) => {
@@ -191,13 +192,13 @@ export default function SearchResults({ query: queryProp }) {
             })}
           </ul>
         ) : (
-          <p className="small muted">No matching places found.</p>
+          <p className="small muted">{t("No matching places found.")}</p>
         )}
       </section>
 
       <SearchBanners query={query} onStatusChange={handleBannersStatus} />
 
-      {noResults ? <div className="ob-alert">No results found for "{query}".</div> : null}
+      {noResults ? <div className="ob-alert">{t("No results found for \"{query}\".", { query })}</div> : null}
     </>
   );
 }

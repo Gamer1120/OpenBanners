@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { GridView, ViewList } from "@mui/icons-material";
+import { t } from "../i18n";
 
 const VIEW_MODE_STORAGE_KEY = "openbanners-banner-view-mode";
 
@@ -28,26 +29,26 @@ export function useBannerViewMode() {
 // Only Wall and List: Browse has no map view (the Map page is one tap away).
 export default function ViewModeToggle({ viewMode, onChange }) {
   return (
-    <div className="seg" role="group" aria-label="Banner view mode">
+    <div className="seg" role="group" aria-label={t("Banner view mode")}>
       <button
         type="button"
         className="sl"
         aria-pressed={viewMode !== "compact"}
-        aria-label="Visual banner view"
+        aria-label={t("Visual banner view")}
         onClick={() => onChange("visual")}
       >
         <GridView fontSize="small" />
-        <span>Wall</span>
+        <span>{t("Wall")}</span>
       </button>
       <button
         type="button"
         className="sl"
         aria-pressed={viewMode === "compact"}
-        aria-label="Compact banner view"
+        aria-label={t("Compact banner view")}
         onClick={() => onChange("compact")}
       >
         <ViewList fontSize="small" />
-        <span>List</span>
+        <span>{t("List")}</span>
       </button>
     </div>
   );

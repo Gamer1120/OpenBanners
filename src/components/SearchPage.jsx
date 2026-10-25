@@ -3,6 +3,7 @@ import { Link, useParams } from "react-router-dom";
 import { History } from "@mui/icons-material";
 import SearchForm, { MIN_QUERY_LENGTH, searchPath } from "./SearchForm";
 import SearchResults from "./SearchResults";
+import { t } from "../i18n";
 import { addRecentSearch, clearRecentSearches, useRecentSearches } from "../recentSearches";
 
 // Search tab (/search and /search/<query>): one field, and under it the full
@@ -23,11 +24,11 @@ export default function SearchPage() {
 
   return (
     <div className={`ob-page search-page${urlQuery ? " has-results" : ""}`}>
-      <h1 className="ob-h1">Search</h1>
+      <h1 className="ob-h1">{t("Search")}</h1>
       <SearchForm
         big
         autoFocus={!urlQuery}
-        placeholder="Banners, cities or regions"
+        placeholder={t("Banners, cities or regions")}
         onValueChange={setValue}
       />
       {urlQuery ? (
@@ -39,13 +40,13 @@ export default function SearchPage() {
           <section aria-labelledby="recent-title">
             <div className="ob-sec-head">
               <h2 className="ob-h2" id="recent-title">
-                Recent searches
+                {t("Recent searches")}
               </h2>
               <button type="button" className="btn text sl" onClick={clearRecentSearches}>
-                Clear
+                {t("Clear")}
               </button>
             </div>
-            <ul className="ob-list" aria-label="Recent searches">
+            <ul className="ob-list" aria-label={t("Recent searches")}>
               {recent.map((entry) => (
                 <li key={entry}>
                   <Link className="li sl" to={searchPath(entry)}>
@@ -62,13 +63,13 @@ export default function SearchPage() {
           </section>
         ) : (
           <p className="small muted">
-            Type a banner title, a city or a region. Results show up as you type.
+            {t("Type a banner title, a city or a region. Results show up as you type.")}
           </p>
         )
       ) : typing.length < MIN_QUERY_LENGTH ? (
-        <p className="small muted">Keep typing…</p>
+        <p className="small muted">{t("Keep typing…")}</p>
       ) : (
-        <p className="small muted">Searching…</p>
+        <p className="small muted">{t("Searching…")}</p>
       )}
     </div>
   );

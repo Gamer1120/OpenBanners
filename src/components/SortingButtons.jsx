@@ -1,15 +1,25 @@
 import React, { useState } from "react";
 import { Box, Button, ListItemIcon, ListItemText, Menu, MenuItem } from "@mui/material";
 import { ArrowDownward, ArrowUpward, Sort } from "@mui/icons-material";
+import { t, tk } from "../i18n";
 import BannerFilterButton from "./BannerFilterButton";
 
 const SORT_LABELS = {
-  Relevance: { DESC: "Best match", ASC: "Best match" },
-  Created: { DESC: "Newest first", ASC: "Oldest first" },
-  "A-Z": { DESC: "Z–A", ASC: "A–Z" },
-  Distance: { DESC: "Longest first", ASC: "Shortest first" },
-  "Nr. of Missions": { DESC: "Most missions", ASC: "Fewest missions" },
-  Efficiency: { DESC: "Most missions per km", ASC: "Fewest missions per km" },
+  Relevance: { DESC: tk("Best match"), ASC: tk("Best match") },
+  Created: { DESC: tk("Newest first"), ASC: tk("Oldest first") },
+  "A-Z": { DESC: tk("Z–A"), ASC: tk("A–Z") },
+  Distance: { DESC: tk("Longest first"), ASC: tk("Shortest first") },
+  "Nr. of Missions": { DESC: tk("Most missions"), ASC: tk("Fewest missions") },
+  Efficiency: { DESC: tk("Most missions per km"), ASC: tk("Fewest missions per km") },
+};
+// Menu labels of the sort options (the option names are what the API gets).
+const OPTION_LABELS = {
+  Relevance: tk("Best match"),
+  Created: tk("Created"),
+  "A-Z": tk("A-Z"),
+  Distance: tk("Distance"),
+  "Nr. of Missions": tk("Nr. of Missions"),
+  Efficiency: tk("Efficiency"),
 };
 // Efficiency fetches every banner of the place, so it's off for the biggest countries.
 const EFFICIENCY_EXCLUDED_PLACES = new Set([
@@ -39,7 +49,7 @@ export default function SortingButtons({
     options.push("Efficiency");
   }
 
-  const currentLabel = SORT_LABELS[sortOption]?.[sortOrder] ?? sortOption;
+  const currentLabel = t(SORT_LABELS[sortOption]?.[sortOrder] ?? OPTION_LABELS[sortOption] ?? sortOption);
 
   return (
     <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap", alignItems: "center" }}>
@@ -50,7 +60,7 @@ export default function SortingButtons({
         startIcon={<Sort />}
         aria-haspopup="menu"
         aria-expanded={Boolean(menuAnchor)}
-        aria-label={`Sort: ${currentLabel}`}
+        aria-label={t("Sort: {order}", { order: currentLabel })}
         onClick={(event) => setMenuAnchor(event.currentTarget)}
       >
         {currentLabel}
@@ -77,7 +87,7 @@ export default function SortingButtons({
                   )
                 ) : null}
               </ListItemIcon>
-              <ListItemText>{option === "Relevance" ? "Best match" : option}</ListItemText>
+              <ListItemText>{t(OPTION_LABELS[option] ?? option)}</ListItemText>
             </MenuItem>
           );
         })}

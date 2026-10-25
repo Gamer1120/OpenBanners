@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { fetchBannergress } from "./bannergressSync";
+import { t } from "./i18n";
 
 // Discovery-map data loading for the map on /map (components/discoveryMap).
 // Bannergress /bnrs in a bounding box, paged. The view is covered by fixed
@@ -441,7 +442,7 @@ export function useDiscoveryMapBanners(visibleArea, userLocation, filters) {
       const failed = results.find((result) => result.status === "rejected");
       if (failed) {
         console.error("Error fetching banners:", failed.reason);
-        setError("Couldn't load banners in this area. Please try again.");
+        setError(t("Couldn't load banners in this area. Please try again."));
       }
       setLoading(false);
     }, 220);

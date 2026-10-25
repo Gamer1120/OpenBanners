@@ -24,6 +24,7 @@ import {
   DEFAULT_BANNER_FILTERS,
   getMissionCountBounds,
 } from "../bannerFilters";
+import { t } from "../i18n";
 import {
   getBrowseStateScope,
   readBrowseState,
@@ -113,7 +114,7 @@ export default function BrowseBannerList({
   bannerFilters = DEFAULT_BANNER_FILTERS,
   onBannerFiltersChange,
   heading = null,
-  label = "Banners",
+  label = t("Banners"),
   onStatusChange,
   // Search while typing: a new query keeps the sort and shows the current
   // banners until the new ones are in (no skeleton flash between letters).
@@ -339,7 +340,7 @@ export default function BrowseBannerList({
 
             if (!Array.isArray(data)) {
               console.error("Invalid response data:", data);
-              setError("Couldn't load banners for this place.");
+              setError(t("Couldn't load banners for this place."));
               break;
             }
 
@@ -396,7 +397,7 @@ export default function BrowseBannerList({
             if (requestedOffset === 0) {
               setBanners([]);
             }
-            setError("Couldn't load banners.");
+            setError(t("Couldn't load banners."));
             setHasMore(false);
             setHasLoaded(false);
           }
@@ -407,7 +408,7 @@ export default function BrowseBannerList({
           if (requestedOffset === 0) {
             setBanners([]);
           }
-          setError("Couldn't load banners. Please try again.");
+          setError(t("Couldn't load banners. Please try again."));
           setHasLoaded(false);
         }
       } finally {
@@ -619,7 +620,7 @@ export default function BrowseBannerList({
         <div className="ob-alert bad" role="alert">
           <div className="grow">{error}</div>
           <button type="button" className="btn text sl" onClick={handleRetry}>
-            Retry
+            {t("Retry")}
           </button>
         </div>
       ) : null}
@@ -633,15 +634,15 @@ export default function BrowseBannerList({
         </div>
       ) : loading ? (
         viewMode === "compact" ? (
-          <BannerRows banners={[]} loadingMore label="Loading banners" />
+          <BannerRows banners={[]} loadingMore label={t("Loading banners")} />
         ) : (
-          <BannerWall banners={[]} skeletonCount={8} label="Loading banners" />
+          <BannerWall banners={[]} skeletonCount={8} label={t("Loading banners")} />
         )
       ) : displayedBanners.length === 0 && !error ? (
         <div className="ob-alert">
           {query && banners.length === 0 && !hasMore
-            ? "No matching banners found."
-            : "No banners matched this selection."}
+            ? t("No matching banners found.")
+            : t("No banners matched this selection.")}
         </div>
       ) : viewMode === "compact" ? (
         <BannerRows banners={displayedBanners} loadingMore={loadingMore} label={label} />

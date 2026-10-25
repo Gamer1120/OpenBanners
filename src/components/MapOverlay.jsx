@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { getBannerGuiderLocationDebugInfo } from "../bannerGuiderLocationGeometry";
 import { isPassphraseStep } from "../bannerFacts";
+import { t, tn } from "../i18n";
 
 function copyTextToClipboard(text) {
   if (navigator.clipboard?.writeText) {
@@ -111,7 +112,7 @@ export default function MapOverlay({
       className="overlay"
       data-map-overlay="mission-controls"
       role="group"
-      aria-label="Mission controls"
+      aria-label={t("Mission controls")}
       onMouseDown={stopPropagation}
       onMouseUp={stopPropagation}
       onClick={stopPropagation}
@@ -125,7 +126,7 @@ export default function MapOverlay({
           }`}
           onClick={handleDecrement}
           disabled={currentMission === 0}
-          aria-label="Previous mission"
+          aria-label={t("Previous mission")}
         >
           -
         </button>
@@ -140,7 +141,7 @@ export default function MapOverlay({
           }`}
           onClick={handleIncrement}
           disabled={currentMission === missionCount}
-          aria-label="Next mission"
+          aria-label={t("Next mission")}
         >
           +
         </button>
@@ -150,20 +151,20 @@ export default function MapOverlay({
         onClick={handleStart}
         aria-label={
           currentMission === missionCount
-            ? "Open Bannergress banner page"
-            : "Open next mission in Ingress"
+            ? t("Open Bannergress banner page")
+            : t("Open next mission in Ingress")
         }
       >
-        {currentMission === missionCount ? "OPEN BG" : "NEXT"}
+        {currentMission === missionCount ? t("OPEN BG") : t("NEXT")}
       </button>
       {nextHasPassphrase ? (
         <p className="overlay-note" role="note">
           {allKnown ? (
             <>
-              Passphrase{knownAnswers.length > 1 ? "s" : ""}: <b>{knownAnswers.join(" · ")}</b>
+              {tn("Passphrase:", "Passphrases:", knownAnswers.length)} <b>{knownAnswers.join(" · ")}</b>
             </>
           ) : (
-            `Mission ${currentMission + 1} has a passphrase`
+            t("Mission {number} has a passphrase", { number: currentMission + 1 })
           )}
         </p>
       ) : null}

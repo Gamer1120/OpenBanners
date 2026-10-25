@@ -23,6 +23,7 @@ import {
   resolveCityAt,
 } from "../cityPlace";
 import { getFlagForPlace } from "./CountryFlags";
+import { t, tk, tn } from "../i18n";
 
 const TOP_COUNT = 3;
 const LOCATION_OPTIONS = { enableHighAccuracy: false, maximumAge: 5 * 60 * 1000, timeout: 8000 };
@@ -65,8 +66,10 @@ function PlaceButton({ place, icon: Icon, kind }) {
       <span className="grow">
         <b>{getPlaceLongName(place)}</b>
         <span className="small">
-          {kind}
-          {Number.isFinite(place.numberOfBanners) ? ` · ${place.numberOfBanners} banners` : ""}
+          {t(kind)}
+          {Number.isFinite(place.numberOfBanners)
+            ? ` · ${tn("{count} banner", "{count} banners", place.numberOfBanners)}`
+            : ""}
         </span>
       </span>
       <ChevronRight className="start-go" />
@@ -169,7 +172,7 @@ export default function BannersStartPage() {
       .catch(() => {
         if (!ignore) {
           setBanners((current) => current ?? []);
-          setBannerError("Couldn't load banners near you.");
+          setBannerError(t("Couldn't load banners near you."));
           setHierarchy((current) => current ?? { country: null, region: null, city: null });
         }
       });
@@ -211,46 +214,46 @@ export default function BannersStartPage() {
   const canAskLocation = permission !== "denied" && permission !== "unsupported";
   const placeButtons = hierarchy
     ? [
-        hierarchy.country && { place: hierarchy.country, icon: Public, kind: "Country" },
-        hierarchy.region && { place: hierarchy.region, icon: Place, kind: "Province" },
-        hierarchy.city && { place: hierarchy.city, icon: LocationCity, kind: "City" },
+        hierarchy.country && { place: hierarchy.country, icon: Public, kind: tk("Country") },
+        hierarchy.region && { place: hierarchy.region, icon: Place, kind: tk("Province") },
+        hierarchy.city && { place: hierarchy.city, icon: LocationCity, kind: tk("City") },
       ].filter(Boolean)
     : null;
 
   return (
     <div className="ob-page start-page">
       <header>
-        <h1 className="ob-h1">{hasLocation ? "Near you" : "Banners"}</h1>
+        <h1 className="ob-h1">{hasLocation ? t("Near you") : t("Banners")}</h1>
         <p className="small muted">
           {hasLocation
-            ? "The closest start points."
+            ? t("The closest start points.")
             : savedCity
-              ? `Around ${getPlaceLongName(savedCity)}, your last city.`
+              ? t("Around {city}, your last city.", { city: getPlaceLongName(savedCity) })
               : locating || permission === "checking" || permission === "granted"
-                ? "Finding your location…"
-                : "Share your location to see the banners closest to you."}
+                ? t("Finding your location…")
+                : t("Share your location to see the banners closest to you.")}
         </p>
       </header>
 
       {hasLocation ? (
         top === null ? (
-          <BannerWall banners={[]} skeletonCount={3} label="Loading banners near you" />
+          <BannerWall banners={[]} skeletonCount={3} label={t("Loading banners near you")} />
         ) : top.length > 0 ? (
-          <BannerWall banners={top} here={location} label="Banners near you" />
+          <BannerWall banners={top} here={location} label={t("Banners near you")} />
         ) : (
-          <div className="ob-alert">{bannerError || "No banners found near you."}</div>
+          <div className="ob-alert">{bannerError || t("No banners found near you.")}</div>
         )
       ) : null}
 
-      <nav className="start-acts" aria-label="Where to look">
+      <nav className="start-acts" aria-label={t("Where to look")}>
         {hasLocation ? (
           <Link className="start-btn primary sl" to="/near">
             <span className="start-ic" aria-hidden="true">
               <NearMe />
             </span>
             <span className="grow">
-              <b>More banners near you</b>
-              <span className="small">Closest first, with filters</span>
+              <b>{t("More banners near you")}</b>
+              <span className="small">{t("Closest first, with filters")}</span>
             </span>
             <ChevronRight className="start-go" />
           </Link>
@@ -260,8 +263,8 @@ export default function BannersStartPage() {
               <MyLocation />
             </span>
             <span className="grow">
-              <b>{locating ? "Finding you…" : "Use my location"}</b>
-              <span className="small">Show the banners closest to you</span>
+              <b>{locating ? t("Finding you…") : t("Use my location")}</b>
+              <span className="small">{t("Show the banners closest to you")}</span>
             </span>
           </button>
         ) : null}
@@ -275,8 +278,8 @@ export default function BannersStartPage() {
             <Language />
           </span>
           <span className="grow">
-            <b>All countries</b>
-            <span className="small">Every banner, by country</span>
+            <b>{t("All countries")}</b>
+            <span className="small">{t("Every banner, by country")}</span>
           </span>
           <ChevronRight className="start-go" />
         </Link>

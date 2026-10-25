@@ -220,11 +220,15 @@ export function createTranslationService({ db, source = loadI18nSource(), now = 
     return clean;
   }
 
-  function suggest(language, identity, body) {
-    checkLanguage(language);
+  function checkBody(language, body) {
     const key = body?.key;
     const form = typeof key === "string" && source.plural.has(key) ? String(body?.form ?? "") : "";
-    const clean = validate(language, key, form, body?.text);
+    return { key, form, clean: validate(language, key, form, body?.text) };
+  }
+
+  function suggest(language, identity, body) {
+    checkLanguage(language);
+    const { key, form, clean } = checkBody(language, body);
     const since = now() - DAY_MS;
     const recent = Number(db.prepare("SELECT COUNT(*) AS n FROM translation_suggestions WHERE submitted_by = ? AND submitted_at > ?").get(identity.userId, since).n);
     if (recent >= MAX_SUGGESTIONS_PER_DAY && !unlimited.has(agentKey(identity.agent))) {
@@ -272,6 +276,8 @@ export function createTranslationService({ db, source = loadI18nSource(), now = 
     }
     if (match[2] === "suggestions" && method === "POST") {
       checkLanguage(language);
+      // A suggestion that can't be right is refused before asking Bannergress who you are.
+      checkBody(language, body);
       return suggest(language, await identify(headers.authorization), body);
     }
     return undefined;

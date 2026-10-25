@@ -45,6 +45,7 @@ test("approved translations are public; suggesting needs a login", async () => {
   await assert.rejects(service.handle("GET", "/translations/en/approved", {}, null), { status: 404, code: "unknown_language" });
   await assert.rejects(service.handle("GET", "/translations/xx/approved", {}, null), { status: 404 });
   await assert.rejects(service.handle("POST", "/translations/nl/suggestions", {}, { key: "Log in", text: "Aanmelden" }), { status: 401 });
+  await assert.rejects(service.handle("POST", "/translations/nl/suggestions", {}, { key: "Hello {name}", text: "Hallo" }), { status: 400, code: "placeholders_differ" });
 });
 
 test("suggestions keep the placeholders, are sane and are real keys", async () => {

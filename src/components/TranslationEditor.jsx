@@ -289,7 +289,7 @@ function TextLine({ entry, form, label, english, language, current, updated, pen
       {mode === "login" ? (
         <div className="te-note" role="status">
           <span className="small">{t("Log in with Bannergress to suggest a translation.")}</span>
-          <button type="button" className="btn tonal sl" onClick={() => window.dispatchEvent(new Event(BANNERGRESS_AUTH_REQUEST_EVENT))}>
+          <button type="button" className="btn filled sl" onClick={() => window.dispatchEvent(new Event(BANNERGRESS_AUTH_REQUEST_EVENT))}>
             {t("Log in")}
           </button>
         </div>

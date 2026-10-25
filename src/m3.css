@@ -2327,3 +2327,15 @@ body {
   font: 500 14px/20px var(--font);
   color: var(--primary);
 }
+
+/* Settings: language picker */
+.ob-select {
+  flex: none;
+  max-width: 55%;
+  padding: 10px 12px;
+  border-radius: var(--r-s, 8px);
+  border: 1px solid var(--ol, rgba(255, 255, 255, 0.2));
+  background: var(--sc-high, #2a2a33);
+  color: inherit;
+  font: inherit;
+}

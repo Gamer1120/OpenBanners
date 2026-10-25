@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import ObModal from "./ObModal";
 import { BANNERGRESS_AUTH_REQUEST_EVENT } from "../bannergressSync";
 import { useUserSettings } from "../passphraseApi";
+import { LANGUAGES, getLanguageChoice, setLanguageChoice, t } from "../i18n";
 
 // Account settings (stored per Bannergress account by the passphrase service).
 export default function SettingsDialog({ onClose }) {
@@ -14,11 +15,31 @@ export default function SettingsDialog({ onClose }) {
   };
 
   return (
-    <ObModal title="Settings" onClose={onClose} labelId="settings-title">
-      <h3 className="ob-settings-h">Passphrases</h3>
+    <ObModal title={t("Settings")} onClose={onClose} labelId="settings-title">
+      <h3 className="ob-settings-h">{t("Language")}</h3>
+      <label className="ob-setting">
+        <span className="grow">
+          <b>{t("Language")}</b>
+          <span className="small muted">{t("Saved on this device.")}</span>
+        </span>
+        <select
+          className="ob-select"
+          aria-label={t("Language")}
+          defaultValue={getLanguageChoice()}
+          onChange={(event) => setLanguageChoice(event.target.value)}
+        >
+          <option value="auto">{t("Automatic (browser)")}</option>
+          {LANGUAGES.map((language) => (
+            <option key={language.code} value={language.code} lang={language.code}>
+              {language.name}
+            </option>
+          ))}
+        </select>
+      </label>
+      <h3 className="ob-settings-h">{t("Passphrases")}</h3>
       {!loggedIn ? (
         <div className="ob-setting">
-          <div className="grow small">These settings belong to your Bannergress account.</div>
+          <div className="grow small">{t("These settings belong to your Bannergress account.")}</div>
           <button
             type="button"
             className="btn tonal sl"
@@ -27,17 +48,17 @@ export default function SettingsDialog({ onClose }) {
               window.dispatchEvent(new Event(BANNERGRESS_AUTH_REQUEST_EVENT));
             }}
           >
-            Log in
+            {t("Log in")}
           </button>
         </div>
       ) : status !== "ready" ? (
-        <p className="small muted">{status === "error" ? loadError || "Couldn’t load your settings." : "Loading…"}</p>
+        <p className="small muted">{status === "error" ? loadError || t("Couldn’t load your settings.") : t("Loading…")}</p>
       ) : (
         <>
           <label className="ob-setting">
             <span className="grow">
-              <b>Ask after I mark a banner done</b>
-              <span className="small muted">Whether its passphrases were the mission numbers.</span>
+              <b>{t("Ask after I mark a banner done")}</b>
+              <span className="small muted">{t("Whether its passphrases were the mission numbers.")}</span>
             </span>
             <input
               type="checkbox"
@@ -49,11 +70,11 @@ export default function SettingsDialog({ onClose }) {
           </label>
           <label className="ob-setting">
             <span className="grow">
-              <b>Never allow passphrases for my banners</b>
+              <b>{t("Never allow passphrases for my banners")}</b>
               <span className="small muted">
                 {settings.canBlockMyBanners
-                  ? `For every banner by ${settings.agent}. Turning this on deletes their answers for good.`
-                  : "Verify your agent name on Bannergress to use this."}
+                  ? t("For every banner by {agent}. Turning this on deletes their answers for good.", { agent: settings.agent })
+                  : t("Verify your agent name on Bannergress to use this.")}
               </span>
             </span>
             <input
@@ -68,9 +89,9 @@ export default function SettingsDialog({ onClose }) {
             />
           </label>
           {confirmBlock ? (
-            <div className="pp-confirm" role="alertdialog" aria-label="Never allow passphrases for my banners">
+            <div className="pp-confirm" role="alertdialog" aria-label={t("Never allow passphrases for my banners")}>
               <p className="small">
-                This deletes all passphrase answers on your banners for good, and nobody can add new ones.
+                {t("This deletes all passphrase answers on your banners for good, and nobody can add new ones.")}
               </p>
               <div className="pp-actions">
                 <button
@@ -78,10 +99,10 @@ export default function SettingsDialog({ onClose }) {
                   className="btn filled sl pp-danger"
                   onClick={() => change({ blockMyBanners: true }).then(() => setConfirmBlock(false))}
                 >
-                  Delete and block
+                  {t("Delete and block")}
                 </button>
                 <button type="button" className="btn text sl" onClick={() => setConfirmBlock(false)}>
-                  Cancel
+                  {t("Cancel")}
                 </button>
               </div>
             </div>

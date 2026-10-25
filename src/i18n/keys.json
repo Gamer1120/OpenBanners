@@ -1,0 +1,22 @@
+{
+ "singular": [
+  "Ask after I mark a banner done",
+  "Automatic (browser)",
+  "Cancel",
+  "Couldn’t load your settings.",
+  "Delete and block",
+  "For every banner by {agent}. Turning this on deletes their answers for good.",
+  "Language",
+  "Loading…",
+  "Log in",
+  "Never allow passphrases for my banners",
+  "Passphrases",
+  "Saved on this device.",
+  "Settings",
+  "These settings belong to your Bannergress account.",
+  "This deletes all passphrase answers on your banners for good, and nobody can add new ones.",
+  "Verify your agent name on Bannergress to use this.",
+  "Whether its passphrases were the mission numbers."
+ ],
+ "plural": []
+}

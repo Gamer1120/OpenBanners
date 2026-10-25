@@ -44,10 +44,13 @@ function sortJsonByMissionsPerLength(data, sortOrder) {
 }
 
 // Bannergress matches whole words; a trailing * makes the last word a
-// prefix, so "Amst" finds Amsterdam while you type.
+// prefix, so "Amst" finds Amsterdam while you type. Only for plain English
+// letters for now: Bannergress stores Chinese and Japanese per character, so
+// "上理工*" or "へいく*" finds nothing while "上理工" does (Michael 10-25).
 export function toPrefixQuery(query) {
   const trimmed = String(query).trim();
-  return !trimmed || trimmed.endsWith("*") ? trimmed : `${trimmed}*`;
+  // eslint-disable-next-line no-control-regex
+  return !trimmed || trimmed.endsWith("*") || /[^\x00-\x7f]/.test(trimmed) ? trimmed : `${trimmed}*`;
 }
 
 function buildBannersUrl({

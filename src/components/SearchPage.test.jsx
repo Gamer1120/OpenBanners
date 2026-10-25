@@ -279,6 +279,9 @@ test("banner searches match the last word as a prefix", async () => {
   const { toPrefixQuery } = await import("./BrowseBannerList");
   expect(toPrefixQuery("Amst")).toBe("Amst*");
   expect(toPrefixQuery(" silver lio ")).toBe("silver lio*");
+  expect(toPrefixQuery("上理工")).toBe("上理工");
+  expect(toPrefixQuery("へいく")).toBe("へいく");
+  expect(toPrefixQuery("Zürich")).toBe("Zürich");
   expect(toPrefixQuery("Amsterdam*")).toBe("Amsterdam*");
   expect(toPrefixQuery("")).toBe("");
 });

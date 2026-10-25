@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { call } from "./passphraseApi";
 import { BANNERGRESS_ORIGIN } from "./bannerDisplay";
+import { toPrefixQuery } from "./components/BrowseBannerList";
 
 // Mission Day plans (server/passphrases.mjs /plans): pick missions from one or
 // more banners and put them in your own order. Anyone with the link edits it.
@@ -55,8 +56,7 @@ export async function fetchActiveMissionDays() {
 
 export async function searchBanners(query) {
   const url = new URL(`${BANNERGRESS_ORIGIN}/bnrs`);
-  const trimmed = query.trim();
-  url.searchParams.set("query", trimmed.endsWith("*") ? trimmed : `${trimmed}*`);
+  url.searchParams.set("query", toPrefixQuery(query));
   url.searchParams.set("orderBy", "relevance");
   url.searchParams.set("orderDirection", "DESC");
   url.searchParams.set("limit", "20");

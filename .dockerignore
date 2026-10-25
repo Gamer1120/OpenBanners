@@ -11,3 +11,6 @@
 !server/banner-meta-tests.mts
 !server/banner-together-signal.mjs
 !server/banner-together-signal-tests.mjs
+!src/i18n/keys.json
+!src/i18n/locales
+!src/i18n/locales/**

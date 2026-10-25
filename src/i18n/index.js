@@ -13,6 +13,11 @@ import { useSyncExternalStore } from "react";
 //
 // The choice is a per-device setting (localStorage), so it works logged out;
 // "auto" follows the browser.
+//
+// Translations approved in the translation editor (/translate, suggestions
+// moderated through the passphrase bot) come from the passphrase service and
+// are merged over the bundled locale, so they work without a redeploy;
+// scripts/i18n-apply-overrides.mjs writes them into locales/*.json for a commit.
 
 export const LANGUAGE_STORAGE_KEY = "openbanners-language";
 
@@ -76,15 +81,76 @@ function emit() {
   }
 }
 
-async function load(code) {
-  const loader = loaders[`./locales/${code}.json`];
-  const next = code === "en" || !loader ? {} : (await loader()).default;
-  if (code === language) {
-    catalog = next;
-    if (typeof document !== "undefined") {
-      document.documentElement.lang = code;
+const OVERRIDES_CACHE_KEY = "openbanners-i18n-overrides-";
+// The first render waits this long for the approved overrides, then goes on
+// with the last ones seen on this device and swaps in the fresh ones later.
+const OVERRIDES_WAIT_MS = 800;
+
+export const overridesUrl = (code) => `/_openbanners/passphrases/v1/translations/${encodeURIComponent(code)}/approved`;
+
+function cachedOverrides(code) {
+  try {
+    const value = JSON.parse(window.localStorage.getItem(OVERRIDES_CACHE_KEY + code) || "null");
+    return value && typeof value === "object" ? value : {};
+  } catch {
+    return {};
+  }
+}
+
+// The approved overrides of a language: { key: "text" | { one, few, many, other } }.
+export async function fetchOverrides(code) {
+  if (code === "en" || typeof fetch !== "function") {
+    return {};
+  }
+  const response = await fetch(overridesUrl(code), { headers: { Accept: "application/json" } });
+  if (!response.ok) {
+    throw new Error(`overrides ${response.status}`);
+  }
+  const data = await response.json();
+  const overrides = data?.overrides && typeof data.overrides === "object" ? data.overrides : {};
+  try {
+    window.localStorage.setItem(OVERRIDES_CACHE_KEY + code, JSON.stringify(overrides));
+  } catch {}
+  return overrides;
+}
+
+export function mergeOverrides(bundled, overrides) {
+  const merged = { ...bundled };
+  for (const [key, value] of Object.entries(overrides || {})) {
+    if (typeof value === "string" && value) {
+      merged[key] = value;
+    } else if (value && typeof value === "object") {
+      merged[key] = { ...(bundled[key] && typeof bundled[key] === "object" ? bundled[key] : {}), ...value };
     }
-    emit();
+  }
+  return merged;
+}
+
+// The bundled translations of a language (without the overrides).
+export async function loadBundledLocale(code) {
+  const loader = loaders[`./locales/${code}.json`];
+  return code === "en" || !loader ? {} : (await loader()).default;
+}
+
+async function load(code) {
+  const live = code === "en" ? Promise.resolve({}) : fetchOverrides(code).catch(() => null);
+  const bundled = await loadBundledLocale(code);
+  const quick = await Promise.race([live, new Promise((resolve) => setTimeout(() => resolve(undefined), OVERRIDES_WAIT_MS))]);
+  if (code !== language) {
+    return;
+  }
+  catalog = mergeOverrides(bundled, quick || cachedOverrides(code));
+  if (typeof document !== "undefined") {
+    document.documentElement.lang = code;
+  }
+  emit();
+  if (quick === undefined) {
+    live.then((overrides) => {
+      if (overrides && code === language) {
+        catalog = mergeOverrides(bundled, overrides);
+        emit();
+      }
+    });
   }
 }
 

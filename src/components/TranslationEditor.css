@@ -1,0 +1,156 @@
+/* Translation editor (/translate): M3 tokens, so it follows the light/dark theme. */
+.te-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  margin: 12px 0 8px;
+}
+
+.te-lang.ob-select {
+  max-width: none;
+  min-height: 48px;
+}
+
+.te-search {
+  flex: 1 1 220px;
+}
+
+.te-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.te-count {
+  margin-left: auto;
+}
+
+.te-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+
+.te-row {
+  padding: 12px 12px 8px 16px;
+  border-radius: var(--r-m, 12px);
+  background: var(--sc-low);
+  display: grid;
+  gap: 8px;
+}
+
+.te-en,
+.te-line {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.te-label {
+  font: 500 12px/16px var(--font);
+  letter-spacing: 0.04em;
+  color: var(--on-surface-variant);
+}
+
+.te-updated {
+  color: var(--primary);
+}
+
+.te-text {
+  font: 400 15px/22px var(--font);
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+.te-en .te-text {
+  color: var(--on-surface-variant);
+}
+
+.te-view {
+  display: flex;
+  align-items: flex-start;
+  gap: 4px;
+}
+
+.te-view .te-text {
+  flex: 1;
+  min-width: 0;
+  padding-top: 2px;
+}
+
+.te-edit.icon-btn {
+  flex: none;
+  width: 40px;
+  height: 40px;
+  margin: -6px -4px -4px 0;
+  color: var(--primary);
+}
+
+.te-form {
+  display: grid;
+  gap: 6px;
+}
+
+.te-input {
+  width: 100%;
+  box-sizing: border-box;
+  resize: vertical;
+  padding: 10px 12px;
+  border-radius: var(--r-s, 8px);
+  border: 1px solid var(--outline);
+  background: var(--sc-high);
+  color: var(--on-surface);
+  font: 400 16px/22px var(--font);
+}
+
+.te-input:focus {
+  outline: 2px solid var(--primary);
+  outline-offset: -1px;
+}
+
+.te-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.te-note {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 12px;
+  border-radius: var(--r-s, 8px);
+  background: var(--secondary-container);
+  color: var(--on-secondary-container);
+}
+
+.te-sent {
+  color: var(--primary);
+  margin: 0;
+}
+
+.te-pending {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.te-more {
+  margin: 16px auto 0;
+  display: flex;
+}
+
+@media (max-width: 599px) {
+  .te-lang.ob-select {
+    flex: 1 1 100%;
+  }
+  .te-row {
+    padding: 10px 8px 6px 12px;
+  }
+}

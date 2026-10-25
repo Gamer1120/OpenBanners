@@ -20,6 +20,7 @@ import { createServer } from "node:http";
 import { dirname, resolve } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import { fileURLToPath } from "node:url";
+import { createTranslationService, loadI18nSource, TranslationError } from "./translations.mjs";
 
 export const BASE_PATH = "/_openbanners/passphrases/v1";
 export const PENDING_DAYS = 30;
@@ -182,8 +183,24 @@ export function passphraseStepsOf(banner) {
 }
 
 // unlimitedAgents: verified agent names that skip the daily answer limit (they still need review).
-export function createPassphraseService({ db, fetchImpl = fetch, now = () => Date.now(), onSubmitted = () => {}, unlimitedAgents = [] } = {}) {
+// Translation suggestions (server/translations.mjs) share the login, the DB and the bot.
+export function createPassphraseService({
+  db,
+  fetchImpl = fetch,
+  now = () => Date.now(),
+  onSubmitted = () => {},
+  onTranslationSubmitted = () => {},
+  unlimitedAgents = [],
+  i18nSource = null,
+} = {}) {
   const unlimited = new Set(unlimitedAgents.map(agentKey).filter(Boolean));
+  const translations = createTranslationService({
+    db,
+    source: i18nSource ?? loadI18nSource(),
+    now,
+    unlimitedAgents,
+    onSubmitted: onTranslationSubmitted,
+  });
   const identityCache = new Map();
   const bannerCache = new Map();
 
@@ -756,6 +773,16 @@ export function createPassphraseService({ db, fetchImpl = fetch, now = () => Dat
   }
 
   async function handle(method, path, headers, body) {
+    if (path.startsWith("/translations/")) {
+      try {
+        const result = await translations.handle(method, path, headers, body, identify);
+        if (result !== undefined) {
+          return result;
+        }
+      } catch (error) {
+        throw error instanceof TranslationError ? new ApiError(error.status, error.code, error.message) : error;
+      }
+    }
     if (path === "/settings" && (method === "GET" || method === "POST")) {
       const identity = await identify(headers.authorization);
       return method === "GET" ? settings(identity) : updateSettings(identity, body);
@@ -924,7 +951,7 @@ export function createPassphraseService({ db, fetchImpl = fetch, now = () => Dat
     setValue: (key, value) => db.prepare("INSERT INTO kv (key, value) VALUES (?, ?) ON CONFLICT (key) DO UPDATE SET value = excluded.value").run(key, String(value)),
   };
 
-  return { handle, listAnswers, promote, moderation };
+  return { handle, listAnswers, promote, moderation, translations };
 }
 
 function readBody(request) {
@@ -990,6 +1017,7 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
   const { server, service } = createPassphraseServer({
     db,
     onSubmitted: () => bot?.notifyPending(),
+    onTranslationSubmitted: () => bot?.notifyPending(),
     // Comma-separated verified agent names that skip the daily answer limit.
     unlimitedAgents: String(process.env.OPENBANNERS_UNLIMITED_AGENTS ?? "").split(",").map((name) => name.trim()).filter(Boolean),
   });
@@ -1005,6 +1033,7 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
       // Answers for a banner are sent together once it has been quiet this long.
       quietMs: (Number(process.env.OPENBANNERS_TELEGRAM_QUIET_MINUTES) || 15) * 60 * 1000,
       moderation: service.moderation,
+      translations: service.translations.moderation,
     });
   }
 }

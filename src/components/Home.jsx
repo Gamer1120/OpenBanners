@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, lazy, Suspense } from "react";
 import { ThemeProvider } from "@mui/material/styles";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import TopMenu from "./TopMenu";
@@ -23,6 +23,9 @@ import { applyPageMetadata } from "../seo";
 import { buildAppTheme } from "../appTheme";
 import { t, tk } from "../i18n";
 
+// Loaded only when opened: it carries every UI text (keys.json).
+const TranslationEditor = lazy(() => import("./TranslationEditor"));
+
 const legacyDarkTheme = buildAppTheme("dark");
 
 function LegacyDark({ children, fill = false }) {
@@ -45,6 +48,7 @@ const VIEW_TITLES = {
   together: "Banner Together",
   rerouter: tk("Reroute Banner"),
   planner: tk("Mission Day planner"),
+  translate: tk("Translation editor"),
 };
 
 function formatRouteParam(value) {
@@ -123,6 +127,13 @@ function getRouteMetadata({ pathname, placeId, agentName, query }) {
     };
   }
 
+  if (pathname.startsWith("/translate")) {
+    return {
+      title: t("Translation editor"),
+      description: t("Help translate OpenBanners into your language."),
+    };
+  }
+
   if (pathname.startsWith("/rerouter")) {
     return {
       title: t("Banner Rerouter"),
@@ -175,6 +186,10 @@ function getCurrentView(pathname) {
 
   if (pathname.startsWith("/planner")) {
     return "planner";
+  }
+
+  if (pathname.startsWith("/translate")) {
+    return "translate";
   }
 
   if (pathname.startsWith("/lists")) {
@@ -331,6 +346,11 @@ export default function Home() {
             </LegacyDark>
           )}
           {currentView === "planner" && <MissionDayPlanner planId={planId} />}
+          {currentView === "translate" && (
+            <Suspense fallback={<p className="ob-page small muted">{t("Loading…")}</p>}>
+              <TranslationEditor />
+            </Suspense>
+          )}
           {currentView === "rerouter" && (
             <LegacyDark>
               <BannerRerouterPage />

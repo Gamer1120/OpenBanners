@@ -17,6 +17,7 @@ import {
   Login,
   MoreVert,
   Settings as SettingsIcon,
+  Translate,
 } from "@mui/icons-material";
 import SettingsDialog from "./SettingsDialog";
 import { useLocation, useNavigate } from "react-router-dom";
@@ -509,6 +510,17 @@ export default function TopMenu({
                 <ListItemText>{t("Download App")}</ListItemText>
               </MenuItem>
             ) : null}
+            <MenuItem
+              onClick={() => {
+                closeMoreMenu();
+                navigate("/translate");
+              }}
+            >
+              <ListItemIcon>
+                <Translate fontSize="small" />
+              </ListItemIcon>
+              <ListItemText>{t("Translation editor")}</ListItemText>
+            </MenuItem>
             <MenuItem
               onClick={() => {
                 closeMoreMenu();

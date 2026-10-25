@@ -10,6 +10,10 @@
 //   told how to object, and the message is forwarded to the moderators.
 // Only Telegram user ids in OPENBANNERS_TELEGRAM_MODERATORS can moderate.
 
+// Translation suggestions ride along: one message per language
+// (server/translations-telegram.mjs), callback data "tr:…".
+import { createTranslationReviewer } from "./translations-telegram.mjs";
+
 const API = "https://api.telegram.org";
 const MAX_TEXT = 3800;
 const MAX_ITEM_ROWS = 30;
@@ -123,7 +127,7 @@ export function keyboardFor(review, rows) {
 const HELP = [
   "<b>OpenBanners passphrase moderation</b>",
   "Answers come in as one message per banner, once nobody has added any for a while.",
-  "/pending: a fresh message for every banner with answers to review, or approved ones still in their 30 days",
+  "/pending: a fresh message for every banner with answers to review, or approved ones still in their 30 days, and for every language with translation suggestions",
   "/blocks: banners and authors that objected",
   "/block banner &lt;banner-id&gt; or /block author &lt;agent&gt;: delete their answers and block new ones",
   "/unblock banner|author &lt;key&gt;",
@@ -141,6 +145,7 @@ export function createModerationBot({
   moderatorIds,
   siteUrl,
   moderation,
+  translations = null,
   quietMs = 15 * 60 * 1000,
   now = () => Date.now(),
   fetchImpl = fetch,
@@ -166,6 +171,9 @@ export function createModerationBot({
     api("sendMessage", { chat_id: chatId, text, parse_mode: "HTML", disable_web_page_preview: true, ...extra });
 
   const rowsOf = (review) => review.items.map((item) => moderation.get(item.id));
+  const translationReviews = translations
+    ? createTranslationReviewer({ api, send, moderators, translations, quietMs, now, log })
+    : null;
 
   async function redraw(reviewId, chatId, messageId) {
     const review = moderation.reviews.get(reviewId);
@@ -241,6 +249,11 @@ export function createModerationBot({
       }
     } catch (error) {
       log(`notify: ${error.message}`);
+    }
+    try {
+      await translationReviews?.notify({ force });
+    } catch (error) {
+      log(`notify translations: ${error.message}`);
     } finally {
       notifying = false;
     }
@@ -250,6 +263,9 @@ export function createModerationBot({
     const reply = (text) => api("answerCallbackQuery", { callback_query_id: query.id, text: text.slice(0, 190) }).catch(() => {});
     if (!isModerator(query.from?.id)) {
       return reply("Not allowed.");
+    }
+    if (/^tr:/.test(query.data ?? "")) {
+      return translationReviews ? translationReviews.onCallback(query, reply) : reply("Not available.");
     }
     const chatId = String(query.message?.chat?.id ?? query.from.id);
     const messageId = query.message?.message_id;
@@ -301,11 +317,15 @@ export function createModerationBot({
     const name = command.replace(/@.*$/, "").toLowerCase();
     if (name === "/pending") {
       const banners = moderation.bannersWithOpenAnswers();
-      if (!banners.length) {
+      const languages = translationReviews?.openLanguages() ?? [];
+      if (!banners.length && !languages.length) {
         return send(chatId, "Nothing to review, and nothing approved that's still waiting.");
       }
       for (const bannerId of banners.slice(0, 20)) {
         await postBanner(bannerId);
+      }
+      for (const language of languages) {
+        await translationReviews.postLanguage(language);
       }
       return banners.length > 20 ? send(chatId, `…and ${banners.length - 20} more banners. Handle these first, then /pending again.`) : null;
     }

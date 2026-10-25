@@ -66,7 +66,7 @@ describe("passphrase card", () => {
     const user = userEvent.setup();
     render(<PassphrasePanel d={d()} />);
     expect(screen.getByText("0 of 2 answers known")).toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: "Yes, fill them in" }));
+    await user.click(screen.getByRole("button", { name: "Yes, use the mission numbers" }));
     expect(submit).toHaveBeenCalledWith("b", [
       { missionId: "m1", stepIndex: 1, kind: "number" },
       { missionId: "m2", stepIndex: 0, kind: "number" },
@@ -141,7 +141,7 @@ describe("answer at the waypoint", () => {
     await user.type(screen.getByRole("textbox"), "2{Enter}");
     expect(submit).toHaveBeenCalledWith("b", [{ missionId: "m2", stepIndex: 0, kind: "number" }]);
     expect(await screen.findByText(/That’s the mission number/)).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Yes, fill in \d more/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Yes, fill in the other \d/ })).toBeInTheDocument();
   });
 
   it("hides a known answer until asked", async () => {
@@ -173,7 +173,7 @@ describe("after marking the banner done", () => {
     expect(screen.queryByRole("dialog")).toBeNull();
     rerender(<PassphraseDonePrompt d={banner("done")} />);
     expect(screen.getByRole("dialog", { name: "Nice, banner done!" })).toHaveTextContent("It asked for 2 passphrases.");
-    await user.click(screen.getByRole("button", { name: "Yes, the mission numbers" }));
+    await user.click(screen.getByRole("button", { name: "Yes, use the mission numbers" }));
     expect(submit).toHaveBeenCalledWith("b", [
       { missionId: "m1", stepIndex: 1, kind: "number" },
       { missionId: "m2", stepIndex: 0, kind: "number" },
@@ -191,7 +191,7 @@ describe("after marking the banner done", () => {
     const { rerender } = render(<PassphraseDonePrompt d={first} />);
     const done = banner("done");
     rerender(<PassphraseDonePrompt d={done} />);
-    await user.click(screen.getByRole("button", { name: "No, I’ll add the answers" }));
+    await user.click(screen.getByRole("button", { name: "No, enter them one by one" }));
     expect(done.showPassphrases).toHaveBeenCalled();
 
     rerender(<PassphraseDonePrompt d={banner("todo")} />);

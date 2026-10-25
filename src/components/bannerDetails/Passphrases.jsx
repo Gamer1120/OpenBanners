@@ -190,7 +190,7 @@ function AddAnswer({ d, missionId, missionIndex, stepIndex, suggest = false, ope
     }
     return (
       <div className="wp-ask" role="group" aria-label="Fill in the rest">
-        <span className="wp-ans-note">That’s the mission number. Is every answer its mission number?</span>
+        <span className="wp-ans-note">That’s the mission number. Are the other passphrases also just their mission number?</span>
         <span className="pp-actions">
           <button
             type="button"
@@ -211,7 +211,7 @@ function AddAnswer({ d, missionId, missionIndex, stepIndex, suggest = false, ope
               );
             }}
           >
-            Yes, fill in {rest.length} more
+            Yes, fill in the other {rest.length}
           </button>
           <button type="button" className="btn text sl" onClick={() => setAskRest(false)}>
             No
@@ -485,14 +485,15 @@ export function PassphrasePanel({ d }) {
         {pass.status === "ready" && fresh && open.length ? (
           <div className="pp-ask">
             <span className="small">
-              Is every answer its mission number? Otherwise add each answer at its waypoint.
+              On many banners the passphrase is just the mission number: 1 for mission 1, 2 for mission 2, and so on. Is
+              that the case here?
             </span>
             <div className="pp-actions">
               <button type="button" className="btn tonal sl" disabled={busy} onClick={fill}>
-                Yes, fill them in
+                Yes, use the mission numbers
               </button>
               <button type="button" className="btn text sl" onClick={d.showPassphrases}>
-                Show the waypoints
+                No, enter them one by one
               </button>
             </div>
           </div>
@@ -629,7 +630,7 @@ export function PassphraseDonePrompt({ d }) {
         {slots.length === 1
           ? "It asked for a passphrase."
           : `It asked for ${slots.length} passphrases${missing.length < slots.length ? `, and ${missing.length} answers aren’t known yet` : ""}.`}{" "}
-        Were the answers the mission numbers?
+        Was each passphrase just the mission number (1 for mission 1, 2 for mission 2, …)?
       </p>
       <div className="ob-modal-actions">
         <button
@@ -651,7 +652,7 @@ export function PassphraseDonePrompt({ d }) {
             );
           }}
         >
-          Yes, the mission numbers
+          Yes, use the mission numbers
         </button>
         <button
           type="button"
@@ -661,7 +662,7 @@ export function PassphraseDonePrompt({ d }) {
             d.showPassphrases();
           }}
         >
-          No, I’ll add the answers
+          No, enter them one by one
         </button>
       </div>
       {error ? <p className="small pp-error" role="alert">{error}</p> : null}

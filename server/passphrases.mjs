@@ -290,7 +290,8 @@ export function createPassphraseService({ db, fetchImpl = fetch, now = () => Dat
       SELECT a.*,
         (SELECT COUNT(*) FROM votes v WHERE v.answer_id = a.id AND v.vote = 'confirm') AS confirms,
         (SELECT COUNT(*) FROM votes v WHERE v.answer_id = a.id AND v.vote = 'wrong') AS wrongs,
-        (SELECT vote FROM votes v WHERE v.answer_id = a.id AND v.user_id = ?) AS my_vote
+        (SELECT vote FROM votes v WHERE v.answer_id = a.id AND v.user_id = ?) AS my_vote,
+        (SELECT COUNT(*) FROM votes v WHERE v.answer_id = a.id AND v.user_id != a.submitted_by) AS others_votes
       FROM answers a WHERE a.banner_id = ?
       ORDER BY a.mission_index, a.step_index, a.status, confirms DESC, a.submitted_at`).all(identity?.userId ?? "", bannerId);
     return {
@@ -317,6 +318,7 @@ export function createPassphraseService({ db, fetchImpl = fetch, now = () => Dat
           myVote: row.my_vote ?? null,
           mine: Boolean(identity && row.submitted_by === identity.userId),
           reviewed: row.approved_at !== null,
+          withdrawable: Boolean(identity && row.submitted_by === identity.userId && !row.others_votes),
         };
       }),
     };
@@ -397,6 +399,29 @@ export function createPassphraseService({ db, fetchImpl = fetch, now = () => Dat
       // Moderation notices retry on their own; a failure never fails the submit.
     }
     return { ids: results, ...listAnswers(bannerId, identity) };
+  }
+
+  // Take back your own answers (e.g. "they're all the mission number" by mistake),
+  // as long as nobody else has voted on them yet.
+  function withdraw(bannerId, identity, body) {
+    const ids = Array.isArray(body?.answerIds) ? body.answerIds.filter(Number.isInteger) : [];
+    if (!ids.length || ids.length > 400) {
+      throw new ApiError(400, "invalid_answers", "Say which answers to take back.");
+    }
+    const remove = db.prepare(`DELETE FROM answers WHERE id = ? AND banner_id = ? AND submitted_by = ?
+      AND NOT EXISTS (SELECT 1 FROM votes v WHERE v.answer_id = answers.id AND v.user_id != ?)`);
+    let removed = 0;
+    db.exec("BEGIN");
+    try {
+      for (const id of ids) {
+        removed += Number(remove.run(id, bannerId, identity.userId, identity.userId).changes);
+      }
+      db.exec("COMMIT");
+    } catch (error) {
+      db.exec("ROLLBACK");
+      throw error;
+    }
+    return { removed, ...listAnswers(bannerId, identity) };
   }
 
   function voteOn(answerId, identity, body) {
@@ -777,13 +802,16 @@ export function createPassphraseService({ db, fetchImpl = fetch, now = () => Dat
       }
       return listAnswers(bannerId, identity);
     }
-    match = /^\/banners\/([^/]+)\/(answers|author)$/.exec(path);
+    match = /^\/banners\/([^/]+)\/(answers|author|withdraw)$/.exec(path);
     if (match && method === "POST") {
       const bannerId = decodeURIComponent(match[1]);
       if (!BANNER_ID_PATTERN.test(bannerId)) {
         throw new ApiError(400, "invalid_banner", "Invalid banner id.");
       }
       const identity = await identify(headers.authorization);
+      if (match[2] === "withdraw") {
+        return withdraw(bannerId, identity, body);
+      }
       return match[2] === "answers" ? submit(bannerId, identity, body) : authorAction(bannerId, identity, body);
     }
     match = /^\/answers\/(\d+)\/vote$/.exec(path);

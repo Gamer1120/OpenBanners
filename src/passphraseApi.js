@@ -34,6 +34,8 @@ const bannerPath = (bannerId) => `/banners/${encodeURIComponent(bannerId)}`;
 export const getPassphrases = (bannerId) => call(bannerPath(bannerId));
 export const submitPassphrases = (bannerId, answers) =>
   call(`${bannerPath(bannerId)}/answers`, { method: "POST", body: { answers } });
+export const withdrawPassphrases = (bannerId, answerIds) =>
+  call(`${bannerPath(bannerId)}/withdraw`, { method: "POST", body: { answerIds } });
 export const voteOnPassphrase = (answerId, vote) =>
   call(`/answers/${answerId}/vote`, { method: "POST", body: { vote } });
 export const authorPassphraseAction = (bannerId, action) =>

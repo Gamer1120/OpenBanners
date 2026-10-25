@@ -52,6 +52,33 @@ test("mission-number answers show as soon as a moderator approves, and can be co
   assert.equal(voted.answers[0].myVote, "confirm");
 });
 
+test("you can take back your own answers until someone else votes on them", async () => {
+  const { service, as } = setup();
+  const filled = await service.handle("POST", "/banners/b1/answers", as("alice"), {
+    answers: [{ missionId: "m1", stepIndex: 1, kind: "number" }, { missionId: "m2", stepIndex: 0, kind: "number" }],
+  });
+  const [first, second] = filled.ids;
+  assert.ok(filled.answers.every((answer) => answer.withdrawable));
+  service.moderation.decide(second, "approve");
+  await service.handle("POST", `/answers/${second}/vote`, as("bob"), { vote: "confirm" });
+  // bob can't take back alice's answer
+  assert.equal((await service.handle("POST", "/banners/b1/withdraw", as("bob"), { answerIds: [first] })).removed, 0);
+  const after = await service.handle("POST", "/banners/b1/withdraw", as("alice"), { answerIds: [first, second] });
+  assert.equal(after.removed, 1);
+  assert.deepEqual(after.answers.map((answer) => answer.id), [second]);
+  assert.equal(after.answers[0].withdrawable, false);
+  await assert.rejects(service.handle("POST", "/banners/b1/withdraw", as("alice"), { answerIds: [] }), { code: "invalid_answers" });
+});
+
+test("a waypoint in review still takes other suggestions", async () => {
+  const { service, as } = setup();
+  await service.handle("POST", "/banners/b1/answers", as("alice"), { answers: [{ missionId: "m1", stepIndex: 1, kind: "number" }] });
+  const next = await service.handle("POST", "/banners/b1/answers", as("bob"), {
+    answers: [{ missionId: "m1", stepIndex: 1, kind: "text", text: "Blue door" }],
+  });
+  assert.equal(next.answers.filter((answer) => answer.status === "pending").length, 2);
+});
+
 test("other answers stay hidden for 30 days, then go live", async () => {
   const { service, as, advance } = setup();
   await service.handle("POST", "/banners/b1/answers", as("alice"), {

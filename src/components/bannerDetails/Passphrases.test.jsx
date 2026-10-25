@@ -3,7 +3,8 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const submit = vi.fn(async () => ({ answers: [] }));
+const submit = vi.fn(async () => ({ ids: [7, 8], answers: [] }));
+const withdraw = vi.fn(async () => ({ removed: 2, answers: [] }));
 const saveSettings = vi.fn(async () => ({}));
 let askAfterDone = true;
 vi.mock("../../passphraseApi", async (importOriginal) => ({
@@ -12,6 +13,7 @@ vi.mock("../../passphraseApi", async (importOriginal) => ({
   useUserSettings: () => ({ status: "ready", settings: { askAfterDone }, loggedIn: true, save: saveSettings }),
   authorPassphraseAction: vi.fn(),
   voteOnPassphrase: vi.fn(),
+  withdrawPassphrases: (...args) => withdraw(...args),
 }));
 
 import { stepKey } from "../../passphraseApi";
@@ -99,6 +101,30 @@ describe("passphrase card", () => {
   });
 });
 
+describe("taking back and suggesting while in review", () => {
+  const mineNumber = { id: 7, missionId: "m1", missionIndex: 0, stepIndex: 1, kind: "number", status: "pending", answer: "1",
+    visibleAt: "2026-10-25T00:00:00Z", mine: true, withdrawable: true };
+
+  it("offers Undo for your own mission-number answers in the panel", async () => {
+    const user = userEvent.setup();
+    render(<PassphrasePanel d={d({ data: { answers: [mineNumber] } })} />);
+    expect(screen.getByText(/You said 1 answer is its mission/)).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Undo" }));
+    expect(withdraw).toHaveBeenCalledWith("b", [7]);
+  });
+
+  it("lets you take back your answer and suggest another one while it's in review", async () => {
+    const user = userEvent.setup();
+    render(<WaypointAnswer d={d({ data: { answers: [mineNumber] } })} missionId="m1" missionIndex={0} stepIndex={1} />);
+    expect(screen.getByText(/mission number, in review/)).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Suggest a different answer" }));
+    await user.type(screen.getByRole("textbox", { name: "Different answer for mission 1, waypoint 2" }), "Blue door{Enter}");
+    expect(submit).toHaveBeenCalledWith("b", [{ missionId: "m1", stepIndex: 1, kind: "text", text: "Blue door" }]);
+    await user.click(screen.getByRole("button", { name: "Take back" }));
+    expect(withdraw).toHaveBeenCalledWith("b", [7]);
+  });
+});
+
 describe("answer at the waypoint", () => {
   it("saves a typed answer for that waypoint only", async () => {
     const user = userEvent.setup();
@@ -152,6 +178,10 @@ describe("after marking the banner done", () => {
       { missionId: "m1", stepIndex: 1, kind: "number" },
       { missionId: "m2", stepIndex: 0, kind: "number" },
     ]);
+    // Said yes by mistake? Undo takes them back.
+    expect(screen.getByRole("dialog", { name: "Thanks!" })).toHaveTextContent("2 answers are filled in");
+    await user.click(screen.getByRole("button", { name: "Undo" }));
+    expect(withdraw).toHaveBeenCalledWith("b", [7, 8]);
     expect(screen.queryByRole("dialog")).toBeNull();
   });
 

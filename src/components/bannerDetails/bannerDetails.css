@@ -581,3 +581,16 @@
   display: block;
   margin-top: 6px;
 }
+
+/* "Take back" / "Undo" inside a passphrase note line */
+.btn.pp-undo {
+  min-height: 0;
+  height: auto;
+  padding: 0 6px;
+  font-size: inherit;
+  vertical-align: baseline;
+}
+
+.pp-undo-row {
+  align-items: center;
+}

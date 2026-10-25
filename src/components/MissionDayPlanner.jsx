@@ -2,7 +2,8 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Add, ArrowDownward, ArrowUpward, Close, DragIndicator, EventNote, Layers, MyLocation, OpenInNew, Search, Share, SwapVert } from "@mui/icons-material";
 import { BANNERGRESS_AUTH_REQUEST_EVENT, useBannergressAuth } from "../bannergressSync";
-import { buildIngressMissionUrl, formatLength, getBannerPictureUrl, getDistanceMeters } from "../bannerDisplay";
+import { buildIngressMissionUrl, formatLength, getDistanceMeters } from "../bannerDisplay";
+import BannerImage from "./BannerImage";
 import { buildOverlayPlanIntentUrl, isAndroidUserAgent, OVERLAY_FALLBACK_URL } from "../overlayLink";
 import {
   createPlan,
@@ -29,11 +30,10 @@ export default function MissionDayPlanner({ planId }) {
 }
 
 function BannerPickRow({ banner, onPick, busy }) {
-  const picture = getBannerPictureUrl(banner);
   return (
     <li>
       <button type="button" className="li sl mdp-banner" onClick={() => onPick(banner)} disabled={busy}>
-        <span className="mdp-thumb">{picture ? <img src={picture} alt="" loading="lazy" /> : null}</span>
+        <span className="mdp-thumb"><BannerImage banner={banner} mode="natural" /></span>
         <span className="txt">
           <span className="t">{(banner.title || "Untitled").trim()}</span>
           <span className="s">

@@ -7,6 +7,7 @@ import {
   submitPassphrases,
   useUserSettings,
   voteOnPassphrase,
+  withdrawPassphrases,
 } from "../../passphraseApi";
 import ObModal from "../ObModal";
 
@@ -45,8 +46,17 @@ function fillMissionNumbers(d, slots) {
   return submitPassphrases(
     d.items.id ?? d.bannerId,
     slots.map((slot) => ({ missionId: slot.missionId, stepIndex: slot.stepIndex, kind: "number" }))
-  ).then(d.passphrases.apply);
+  ).then((data) => {
+    d.passphrases.apply(data);
+    return data;
+  });
 }
+
+// Your own mission-number answers you can still take back (nobody else voted yet).
+const takeBackable = (pass) =>
+  (pass.data?.answers ?? []).filter((answer) => answer.mine && answer.kind === "number" && answer.withdrawable);
+
+const takeBack = (d, ids) => withdrawPassphrases(d.items.id ?? d.bannerId, ids).then(d.passphrases.apply);
 
 function LiveAnswers({ d, answers, missionId, missionIndex, stepIndex }) {
   const pass = d.passphrases;
@@ -137,7 +147,37 @@ function AddAnswer({ d, missionId, missionIndex, stepIndex, suggest = false, ope
   const [error, setError] = useState("");
   const [askRest, setAskRest] = useState(false);
   const [sent, setSent] = useState("");
+  const [filledIds, setFilledIds] = useState(null);
   const label = `${suggest ? "Different answer" : "Answer"} for mission ${missionIndex + 1}, waypoint ${stepIndex + 1}`;
+
+  if (filledIds?.length) {
+    return (
+      <div className="wp-ans-note">
+        Filled in {filledIds.length} more as the mission number.{" "}
+        <button
+          type="button"
+          className="btn text sl sm pp-undo"
+          disabled={busy}
+          onClick={() => {
+            setBusy(true);
+            takeBack(d, filledIds).then(
+              () => {
+                setFilledIds(null);
+                setBusy(false);
+              },
+              (e) => {
+                setError(e.message);
+                setBusy(false);
+              }
+            );
+          }}
+        >
+          Undo
+        </button>
+        {error ? <span className="pp-error" role="alert"> {error}</span> : null}
+      </div>
+    );
+  }
 
   if (sent && !open) {
     return <div className="wp-ans-note">{sent}</div>;
@@ -159,7 +199,11 @@ function AddAnswer({ d, missionId, missionIndex, stepIndex, suggest = false, ope
             onClick={() => {
               setBusy(true);
               fillMissionNumbers(d, rest).then(
-                () => setAskRest(false),
+                (data) => {
+                  setAskRest(false);
+                  setBusy(false);
+                  setFilledIds(data?.ids ?? null);
+                },
                 (e) => {
                   setError(e.message);
                   setBusy(false);
@@ -276,10 +320,21 @@ export function WaypointAnswer({ d, missionId, missionIndex, stepIndex }) {
               : answer.reviewed
               ? ` · visible from ${longDate(answer.visibleAt)}, unless the author objects`
               : ` · in review, visible from ${longDate(answer.visibleAt)} at the earliest`}
+          {answer.mine && answer.withdrawable ? (
+            <>
+              {" · "}
+              <button type="button" className="btn text sl sm pp-undo" onClick={() => takeBack(d, [answer.id])}>
+                Take back
+              </button>
+            </>
+          ) : null}
         </div>
       ))}
       {!live.length && !pending.length ? (
         <AddAnswer d={d} missionId={missionId} missionIndex={missionIndex} stepIndex={stepIndex} />
+      ) : null}
+      {!live.length && pending.length ? (
+        <AddAnswer d={d} missionId={missionId} missionIndex={missionIndex} stepIndex={stepIndex} suggest />
       ) : null}
     </div>
   );
@@ -448,6 +503,32 @@ export function PassphrasePanel({ d }) {
             </button>
           </div>
         ) : null}
+        {pass.status === "ready" && takeBackable(pass).length ? (
+          <div className="pp-actions pp-undo-row">
+            <span className="small muted">
+              You said {takeBackable(pass).length === 1 ? "1 answer is its" : `${takeBackable(pass).length} answers are their`} mission
+              number.
+            </span>
+            <button
+              type="button"
+              className="btn text sl"
+              disabled={busy}
+              onClick={() => {
+                setBusy(true);
+                setError("");
+                takeBack(d, takeBackable(pass).map((answer) => answer.id)).then(
+                  () => setBusy(false),
+                  (e) => {
+                    setError(e.message);
+                    setBusy(false);
+                  }
+                );
+              }}
+            >
+              Undo
+            </button>
+          </div>
+        ) : null}
         {error ? <p className="small pp-error" role="alert">{error}</p> : null}
         {pass.isAuthor ? <AuthorTools d={d} /> : null}
       </div>
@@ -465,6 +546,7 @@ export function PassphraseDonePrompt({ d }) {
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [filledIds, setFilledIds] = useState(null);
   const previous = useRef(undefined);
   const listType = d.isLoading ? undefined : d.effectiveListType ?? null;
 
@@ -499,7 +581,45 @@ export function PassphraseDonePrompt({ d }) {
   const close = () => {
     setOpen(false);
     setError("");
+    setFilledIds(null);
   };
+  if (filledIds) {
+    return (
+      <ObModal title="Thanks!" onClose={close} labelId="pp-done-title">
+        <p>
+          {filledIds.length === 1 ? "1 answer is" : `${filledIds.length} answers are`} filled in as the mission number. A
+          moderator checks them before they show.
+        </p>
+        <div className="ob-modal-actions">
+          <button type="button" className="btn filled sl" onClick={close}>
+            Done
+          </button>
+          <button
+            type="button"
+            className="btn tonal sl"
+            disabled={busy}
+            onClick={() => {
+              setBusy(true);
+              setError("");
+              takeBack(d, filledIds).then(
+                () => {
+                  setBusy(false);
+                  close();
+                },
+                (e) => {
+                  setBusy(false);
+                  setError(e.message);
+                }
+              );
+            }}
+          >
+            Undo
+          </button>
+        </div>
+        {error ? <p className="small pp-error" role="alert">{error}</p> : null}
+      </ObModal>
+    );
+  }
   const slots = passphraseSlots(d);
   const missing = slots.filter((slot) => !slot.live && !slot.pending);
 
@@ -520,9 +640,9 @@ export function PassphraseDonePrompt({ d }) {
             setBusy(true);
             setError("");
             fillMissionNumbers(d, missing).then(
-              () => {
+              (data) => {
                 setBusy(false);
-                close();
+                setFilledIds(data?.ids ?? []);
               },
               (e) => {
                 setBusy(false);

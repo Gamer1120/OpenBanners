@@ -64,12 +64,22 @@ import {
   joinBannerTogetherLiveRoom,
 } from "../bannerTogetherLiveApi";
 import { createBannerTogetherPeerMeshSession } from "../bannerTogetherPeerMesh";
+import { getLanguage, t, tk, tn } from "../i18n";
 
 const RESULT_PAGE_SIZE = 24;
 const MAX_ROOM_PARTICIPANTS = 8;
 const ROOM_MAX_AGE_MS = 4 * 60 * 60 * 1000;
-const CACHE_WRITE_WARNING =
-  "This browser could not cache all comparison data, so a reload may need to fetch it again.";
+const CACHE_WRITE_WARNING = tk(
+  "This browser could not cache all comparison data, so a reload may need to fetch it again."
+);
+
+// Peer connection states shown on the participant chips.
+const PEER_STATE_LABELS = {
+  connecting: tk("connecting"),
+  connected: tk("connected"),
+  disconnected: tk("disconnected"),
+  left: tk("left"),
+};
 
 const STATUS_COLORS = {
   todo: "warning",
@@ -114,7 +124,7 @@ function getPlaceLabel(place, fallbackPlaceId) {
 }
 
 function formatDateTime(value) {
-  return new Intl.DateTimeFormat(undefined, {
+  return new Intl.DateTimeFormat(getLanguage(), {
     dateStyle: "medium",
     timeStyle: "short",
   }).format(new Date(value));
@@ -125,20 +135,21 @@ function formatSnapshotAge(value, now = Date.now()) {
   const ageMinutes = Math.floor(ageMs / (60 * 1000));
 
   if (ageMinutes < 1) {
-    return "less than a minute old";
+    return t("less than a minute old");
   }
 
   if (ageMinutes < 60) {
-    return `${ageMinutes} ${ageMinutes === 1 ? "minute" : "minutes"} old`;
+    return tn("{count} minute old", "{count} minutes old", ageMinutes);
   }
 
   const ageHours = Math.floor(ageMinutes / 60);
   const remainingMinutes = ageMinutes % 60;
-  const hourLabel = `${ageHours} ${ageHours === 1 ? "hour" : "hours"}`;
 
   return remainingMinutes === 0
-    ? `${hourLabel} old`
-    : `${hourLabel} ${remainingMinutes} minutes old`;
+    ? tn("{count} hour old", "{count} hours old", ageHours)
+    : tn("{count} hour {minutes} minutes old", "{count} hours {minutes} minutes old", ageHours, {
+        minutes: remainingMinutes,
+      });
 }
 
 function getMembershipCount(membership) {
@@ -149,7 +160,7 @@ function getMembershipCount(membership) {
 }
 
 function getPeerLabel(participantId, snapshot = null) {
-  return snapshot?.agentName || `Participant ${participantId.slice(0, 4)}`;
+  return snapshot?.agentName || t("Participant {id}", { id: participantId.slice(0, 4) });
 }
 
 function isPeerSnapshotAvailable(snapshot, peerState) {
@@ -172,11 +183,11 @@ function toCardListType(status) {
 }
 
 function getStatusLabel(status) {
-  return (
-    BANNER_TOGETHER_GROUP_STATUS_OPTIONS.find(
-      (option) => option.value === status
-    )?.label ?? status
-  );
+  const label = BANNER_TOGETHER_GROUP_STATUS_OPTIONS.find(
+    (option) => option.value === status
+  )?.label;
+
+  return label ? t(label) : status;
 }
 
 function getDeferredDeliveryCount(delivery) {
@@ -196,19 +207,19 @@ function MembershipChips({ membership }) {
       <Chip
         size="small"
         color="warning"
-        label={`${membership.lists.todo.length} to do`}
+        label={t("{count} to do", { count: membership.lists.todo.length })}
         sx={{ borderRadius: 1 }}
       />
       <Chip
         size="small"
         color="success"
-        label={`${membership.lists.done.length} done`}
+        label={t("{count} done", { count: membership.lists.done.length })}
         sx={{ borderRadius: 1 }}
       />
       <Chip
         size="small"
         color="error"
-        label={`${membership.lists.blacklist.length} hidden`}
+        label={t("{count} hidden", { count: membership.lists.blacklist.length })}
         sx={{ borderRadius: 1 }}
       />
     </Stack>
@@ -272,7 +283,7 @@ export default function BannerTogetherLivePage({ placeId, roomId = null }) {
     cacheWriteFailuresRef.current[source] = !succeeded;
     setCacheWarning(
       Object.values(cacheWriteFailuresRef.current).some(Boolean)
-        ? CACHE_WRITE_WARNING
+        ? t(CACHE_WRITE_WARNING)
         : ""
     );
   };
@@ -312,7 +323,7 @@ export default function BannerTogetherLivePage({ placeId, roomId = null }) {
 
         console.error("Couldn't load Banner Together place.", error);
         setPlaceStatus("error");
-        setPlaceError("This Bannergress place could not be loaded.");
+        setPlaceError(t("This Bannergress place could not be loaded."));
       });
 
     return () => {
@@ -406,7 +417,7 @@ export default function BannerTogetherLivePage({ placeId, roomId = null }) {
       setCatalogError(
         error instanceof Error
           ? error.message
-          : "The place banner catalog could not be loaded."
+          : t("The place banner catalog could not be loaded.")
       );
     });
 
@@ -509,7 +520,7 @@ export default function BannerTogetherLivePage({ placeId, roomId = null }) {
       setMembershipError(
         error instanceof Error
           ? error.message
-          : "The private banner lists could not be loaded."
+          : t("The private banner lists could not be loaded.")
       );
     });
 
@@ -561,7 +572,7 @@ export default function BannerTogetherLivePage({ placeId, roomId = null }) {
     } catch (error) {
       setRoomStatus("error");
       setRoomError(
-        error instanceof Error ? error.message : "This live room link is invalid."
+        error instanceof Error ? error.message : t("This live room link is invalid.")
       );
       return undefined;
     }
@@ -584,8 +595,8 @@ export default function BannerTogetherLivePage({ placeId, roomId = null }) {
           location.hash
             ? error instanceof Error
               ? error.message
-              : "This live room invite is invalid."
-            : "Room access is not stored on this device. Open the invite link again."
+              : t("This live room invite is invalid.")
+            : t("Room access is not stored on this device. Open the invite link again.")
         );
       }
 
@@ -653,7 +664,7 @@ export default function BannerTogetherLivePage({ placeId, roomId = null }) {
           setRoomError(
             error instanceof Error
               ? error.message
-              : "The live room could not be rejoined."
+              : t("The live room could not be rejoined.")
           );
         }
       });
@@ -757,7 +768,7 @@ export default function BannerTogetherLivePage({ placeId, roomId = null }) {
               message:
                 error instanceof Error
                   ? error.message
-                  : "A peer snapshot could not be decrypted.",
+                  : t("A peer snapshot could not be decrypted."),
             });
           }
         }
@@ -770,7 +781,7 @@ export default function BannerTogetherLivePage({ placeId, roomId = null }) {
         setSessionReady(false);
         setFeedback({
           severity: "info",
-          message: "The live connection expired and is rejoining privately.",
+          message: t("The live connection expired and is rejoining privately."),
         });
         setRoomStatus("reconnecting");
         setRoomReconnectToken((currentValue) => currentValue + 1);
@@ -782,7 +793,7 @@ export default function BannerTogetherLivePage({ placeId, roomId = null }) {
             message:
               error instanceof Error
                 ? error.message
-                : "A peer connection encountered an error.",
+                : t("A peer connection encountered an error."),
           });
         }
       },
@@ -813,7 +824,7 @@ export default function BannerTogetherLivePage({ placeId, roomId = null }) {
           setRoomError(
             error instanceof Error
               ? error.message
-              : "The peer room could not be started."
+              : t("The peer room could not be started.")
           );
         }
       });
@@ -869,13 +880,15 @@ export default function BannerTogetherLivePage({ placeId, roomId = null }) {
           deferredCount > 0
             ? {
                 severity: "warning",
-                message: `The refreshed snapshot is retained for ${deferredCount} peer ${
-                  deferredCount === 1 ? "connection" : "connections"
-                } that are not ready yet.`,
+                message: tn(
+                  "The refreshed snapshot is retained for {count} peer connection that is not ready yet.",
+                  "The refreshed snapshot is retained for {count} peer connections that are not ready yet.",
+                  deferredCount
+                ),
               }
             : {
                 severity: "success",
-                message: "The refreshed list snapshot is now shared.",
+                message: t("The refreshed list snapshot is now shared."),
               }
         );
       }
@@ -888,7 +901,7 @@ export default function BannerTogetherLivePage({ placeId, roomId = null }) {
           message:
             error instanceof Error
               ? error.message
-              : "The refreshed list snapshot could not be shared.",
+              : t("The refreshed list snapshot could not be shared."),
         });
       }
     });
@@ -914,7 +927,7 @@ export default function BannerTogetherLivePage({ placeId, roomId = null }) {
     return [
       {
         id: access.participantId,
-        label: "You",
+        label: t("You"),
         lists: membership.lists,
       },
       ...Object.entries(remoteSnapshots)
@@ -983,7 +996,7 @@ export default function BannerTogetherLivePage({ placeId, roomId = null }) {
         error:
           error instanceof Error
             ? error.message
-            : "This group comparison is invalid.",
+            : t("This group comparison is invalid."),
       };
     }
   }, [access, catalog, catalogStatus, clauses, comparisonParticipants]);
@@ -1049,11 +1062,11 @@ export default function BannerTogetherLivePage({ placeId, roomId = null }) {
 
       try {
         await copyTextToClipboard(inviteUrl);
-        setFeedback({ severity: "success", message: "Live room invite copied." });
+        setFeedback({ severity: "success", message: t("Live room invite copied.") });
       } catch {
         setFeedback({
           severity: "warning",
-          message: "The room was created, but the invite could not be copied.",
+          message: t("The room was created, but the invite could not be copied."),
         });
       }
 
@@ -1069,7 +1082,7 @@ export default function BannerTogetherLivePage({ placeId, roomId = null }) {
         message:
           error instanceof Error
             ? error.message
-            : "The live room could not be created.",
+            : t("The live room could not be created."),
       });
     } finally {
       setOperation(null);
@@ -1131,7 +1144,7 @@ export default function BannerTogetherLivePage({ placeId, roomId = null }) {
       );
       setFeedback({
         severity: "success",
-        message: "Joined. Your lists are still private.",
+        message: t("Joined. Your lists are still private."),
       });
     } catch (error) {
       setFeedback({
@@ -1139,7 +1152,7 @@ export default function BannerTogetherLivePage({ placeId, roomId = null }) {
         message:
           error instanceof Error
             ? error.message
-            : "The live room could not be joined.",
+            : t("The live room could not be joined."),
       });
     } finally {
       setOperation(null);
@@ -1160,7 +1173,7 @@ export default function BannerTogetherLivePage({ placeId, roomId = null }) {
 
       if (nextEnabled) {
         if (!membership) {
-          throw new Error("Authenticate before sharing your lists.");
+          throw new Error(t("Authenticate before sharing your lists."));
         }
 
         const envelope = await encryptBannerTogetherLiveSnapshot({
@@ -1185,13 +1198,15 @@ export default function BannerTogetherLivePage({ placeId, roomId = null }) {
           deferredCount > 0
             ? {
                 severity: "warning",
-                message: `Sharing is enabled. ${deferredCount} peer ${
-                  deferredCount === 1 ? "connection is" : "connections are"
-                } not ready yet and will receive the snapshot after connecting.`,
+                message: tn(
+                  "Sharing is enabled. {count} peer connection is not ready yet and will receive the snapshot after connecting.",
+                  "Sharing is enabled. {count} peer connections are not ready yet and will receive the snapshot after connecting.",
+                  deferredCount
+                ),
               }
             : {
                 severity: "success",
-                message: "Your lists are now shared with connected room members.",
+                message: t("Your lists are now shared with connected room members."),
               }
         );
       } else {
@@ -1206,13 +1221,15 @@ export default function BannerTogetherLivePage({ placeId, roomId = null }) {
           deferredCount > 0
             ? {
                 severity: "warning",
-                message: `You stopped sharing. ${deferredCount} disconnected ${
-                  deferredCount === 1 ? "peer" : "peers"
-                } will receive the withdrawal if they reconnect.`,
+                message: tn(
+                  "You stopped sharing. {count} disconnected peer will receive the withdrawal if they reconnect.",
+                  "You stopped sharing. {count} disconnected peers will receive the withdrawal if they reconnect.",
+                  deferredCount
+                ),
               }
             : {
                 severity: "info",
-                message: "You stopped sharing your lists.",
+                message: t("You stopped sharing your lists."),
               }
         );
       }
@@ -1222,7 +1239,7 @@ export default function BannerTogetherLivePage({ placeId, roomId = null }) {
         message:
           error instanceof Error
             ? error.message
-            : "Your sharing setting could not be changed.",
+            : t("Your sharing setting could not be changed."),
       });
     } finally {
       setOperation(null);
@@ -1270,15 +1287,17 @@ export default function BannerTogetherLivePage({ placeId, roomId = null }) {
               severity: deferredCount > 0 ? "warning" : "success",
               message:
                 deferredCount > 0
-                  ? `Offline sharing is enabled. ${deferredCount} peer ${
-                      deferredCount === 1 ? "connection is" : "connections are"
-                    } not ready to receive the retained snapshot yet.`
-                  : "Current room members can keep comparing your shared lists if you go offline.",
+                  ? tn(
+                      "Offline sharing is enabled. {count} peer connection is not ready to receive the retained snapshot yet.",
+                      "Offline sharing is enabled. {count} peer connections are not ready to receive the retained snapshot yet.",
+                      deferredCount
+                    )
+                  : t("Current room members can keep comparing your shared lists if you go offline."),
             }
           : {
               severity: "info",
               message:
-                "Your shared lists will be removed from comparisons when you go offline.",
+                t("Your shared lists will be removed from comparisons when you go offline."),
             }
       );
     } catch (error) {
@@ -1287,7 +1306,7 @@ export default function BannerTogetherLivePage({ placeId, roomId = null }) {
         message:
           error instanceof Error
             ? error.message
-            : "Your offline sharing setting could not be changed.",
+            : t("Your offline sharing setting could not be changed."),
       });
     } finally {
       setOperation(null);
@@ -1310,9 +1329,9 @@ export default function BannerTogetherLivePage({ placeId, roomId = null }) {
           roomSecret: access.roomSecret,
         })
       );
-      setFeedback({ severity: "success", message: "Live room invite copied." });
+      setFeedback({ severity: "success", message: t("Live room invite copied.") });
     } catch {
-      setFeedback({ severity: "error", message: "The invite could not be copied." });
+      setFeedback({ severity: "error", message: t("The invite could not be copied.") });
     } finally {
       setOperation(null);
     }
@@ -1365,7 +1384,7 @@ export default function BannerTogetherLivePage({ placeId, roomId = null }) {
     <div className="ob-page bt-page">
       <BannerTogetherHeader
         placeLabel={getPlaceLabel(place, placeId)}
-        subtitle={roomId ? "Live peer room" : "Start a live peer room"}
+        subtitle={roomId ? t("Live peer room") : t("Start a live peer room")}
       />
 
       {placeError ? (
@@ -1383,7 +1402,7 @@ export default function BannerTogetherLivePage({ placeId, roomId = null }) {
               component={Link}
               to={`/lists/together/${encodeURIComponent(placeId)}`}
             >
-              Start new
+              {t("Start new")}
             </Button>
           }
           sx={{ mb: 2, maxWidth: 960 }}
@@ -1416,13 +1435,12 @@ export default function BannerTogetherLivePage({ placeId, roomId = null }) {
                 )
               }
             >
-              Authenticate
+              {t("Authenticate")}
             </Button>
           }
           sx={{ mb: 2, maxWidth: 960 }}
         >
-          Authenticate with Bannergress when you want to compare or share your
-          Todo, Done, and Hide lists.
+          {t("Authenticate with Bannergress when you want to compare or share your Todo, Done, and Hide lists.")}
         </Alert>
       ) : null}
 
@@ -1436,7 +1454,7 @@ export default function BannerTogetherLivePage({ placeId, roomId = null }) {
                 setMembershipReloadToken((currentValue) => currentValue + 1)
               }
             >
-              Retry
+              {t("Retry")}
             </Button>
           }
           sx={{ mb: 2, maxWidth: 960 }}
@@ -1455,7 +1473,7 @@ export default function BannerTogetherLivePage({ placeId, roomId = null }) {
                 setCatalogReloadToken((currentValue) => currentValue + 1)
               }
             >
-              Retry
+              {t("Retry")}
             </Button>
           }
           sx={{ mb: 2, maxWidth: 960 }}
@@ -1475,17 +1493,17 @@ export default function BannerTogetherLivePage({ placeId, roomId = null }) {
           <CircularProgress size={22} />
           <Typography variant="body2" color="text.secondary">
             {roomStatus === "reconnecting"
-              ? "Rejoining live room..."
+              ? t("Rejoining live room...")
               : membershipStatus === "loading" ||
                   membershipStatus === "refreshing"
-                ? `Loading private lists${
-                    membershipProgress ? ` (${membershipProgress})` : ""
-                  }...`
+                ? membershipProgress
+                  ? t("Loading private lists ({count})...", { count: membershipProgress })
+                  : t("Loading private lists...")
                 : catalogStatus === "loading" || catalogStatus === "refreshing"
-                  ? `Loading place catalog${
-                      catalog.length ? ` (${catalog.length})` : ""
-                    }...`
-                  : "Loading place..."}
+                  ? catalog.length
+                    ? t("Loading place catalog ({count})...", { count: catalog.length })
+                    : t("Loading place catalog...")
+                  : t("Loading place...")}
           </Typography>
         </Stack>
       ) : null}
@@ -1507,18 +1525,15 @@ export default function BannerTogetherLivePage({ placeId, roomId = null }) {
                 catalogStatus === "refreshing"
               }
             >
-              Refresh lists
+              {t("Refresh lists")}
             </Button>
           }
           sx={{ mb: 2, maxWidth: 960 }}
         >
-          Using browser-cached comparison data from{" "}
-          {formatDateTime(cachedComparisonCapturedAt)} ({
-            formatSnapshotAge(
-              cachedComparisonCapturedAt,
-              cacheAgeNow
-            )
-          }).
+          {t("Using browser-cached comparison data from {date} ({age}).", {
+            date: formatDateTime(cachedComparisonCapturedAt),
+            age: formatSnapshotAge(cachedComparisonCapturedAt, cacheAgeNow),
+          })}
         </Alert>
       ) : null}
 
@@ -1544,10 +1559,10 @@ export default function BannerTogetherLivePage({ placeId, roomId = null }) {
               <GroupsRoundedIcon color="primary" />
               <Box>
                 <Typography variant="subtitle1" component="h2">
-                  New peer room
+                  {t("New peer room")}
                 </Typography>
                 <Typography variant="body2" color="text.secondary">
-                  Up to {MAX_ROOM_PARTICIPANTS} people
+                  {t("Up to {count} people", { count: MAX_ROOM_PARTICIPANTS })}
                 </Typography>
               </Box>
             </Stack>
@@ -1564,12 +1579,11 @@ export default function BannerTogetherLivePage({ placeId, roomId = null }) {
               onClick={handleCreateRoom}
               sx={{ minHeight: 44 }}
             >
-              Create and copy invite
+              {t("Create and copy invite")}
             </Button>
           </Stack>
           <Alert severity="info" sx={{ mt: 2 }}>
-            Creating a room does not share your lists. Keep this tab open while
-            other people join.
+            {t("Creating a room does not share your lists. Keep this tab open while other people join.")}
           </Alert>
         </Paper>
       ) : null}
@@ -1594,10 +1608,10 @@ export default function BannerTogetherLivePage({ placeId, roomId = null }) {
           >
             <Box>
               <Typography variant="subtitle1" component="h2">
-                Join live room
+                {t("Join live room")}
               </Typography>
               <Typography variant="body2" color="text.secondary">
-                Your Bannergress lists remain private after joining.
+                {t("Your Bannergress lists remain private after joining.")}
               </Typography>
             </Box>
             <Button
@@ -1613,12 +1627,11 @@ export default function BannerTogetherLivePage({ placeId, roomId = null }) {
               onClick={handleJoinRoom}
               sx={{ minHeight: 44 }}
             >
-              Join room
+              {t("Join room")}
             </Button>
           </Stack>
           <Alert severity="warning" sx={{ mt: 2 }}>
-            Anyone holding the invite can join and decrypt data that room members
-            explicitly share while connected.
+            {t("Anyone holding the invite can join and decrypt data that room members explicitly share while connected.")}
           </Alert>
         </Paper>
       ) : null}
@@ -1645,17 +1658,17 @@ export default function BannerTogetherLivePage({ placeId, roomId = null }) {
               <SecurityRoundedIcon color="primary" />
               <Box>
                 <Typography variant="subtitle1" component="h2">
-                  Live peer room
+                  {t("Live peer room")}
                 </Typography>
                 <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
                   <Chip
                     size="small"
-                    label={`${connectedPeerCount + 1} connected`}
+                    label={t("{count} connected", { count: connectedPeerCount + 1 })}
                     sx={{ borderRadius: 1 }}
                   />
                   <Chip
                     size="small"
-                    label={`Expires ${formatDateTime(access.expiresAt)}`}
+                    label={t("Expires {date}", { date: formatDateTime(access.expiresAt) })}
                     sx={{ borderRadius: 1 }}
                   />
                 </Stack>
@@ -1669,12 +1682,12 @@ export default function BannerTogetherLivePage({ placeId, roomId = null }) {
                 disabled={operation !== null}
                 sx={{ minHeight: 44 }}
               >
-                Copy invite
+                {t("Copy invite")}
               </Button>
-              <Tooltip title="Leave room">
+              <Tooltip title={t("Leave room")}>
                 <span>
                   <IconButton
-                    aria-label="Leave live room"
+                    aria-label={t("Leave live room")}
                     color="error"
                     onClick={handleLeaveRoom}
                     disabled={operation !== null}
@@ -1713,10 +1726,10 @@ export default function BannerTogetherLivePage({ placeId, roomId = null }) {
                         membershipStatus !== "ready" ||
                         operation !== null
                       }
-                      inputProps={{ "aria-label": "Share my lists" }}
+                      inputProps={{ "aria-label": t("Share my lists") }}
                     />
                   }
-                  label="Share my lists"
+                  label={t("Share my lists")}
                 />
                 <FormControlLabel
                   control={
@@ -1732,40 +1745,46 @@ export default function BannerTogetherLivePage({ placeId, roomId = null }) {
                         operation !== null
                       }
                       inputProps={{
-                        "aria-label": "Continue sharing while offline",
+                        "aria-label": t("Continue sharing while offline"),
                       }}
                     />
                   }
-                  label="Continue sharing while offline"
+                  label={t("Continue sharing while offline")}
                 />
               </Stack>
               <MembershipChips membership={membership} />
             </Box>
             <Typography variant="body2" color="text.secondary">
               {shareEnabled
-                ? `${getMembershipCount(membership)} list entries shared peer to peer${
-                    shareWhileOffline
-                      ? "; current peers can keep them if you go offline"
-                      : ""
-                  }`
-                : "Your list snapshot is not being sent"}
+                ? shareWhileOffline
+                  ? tn(
+                      "{count} list entry shared peer to peer; current peers can keep it if you go offline",
+                      "{count} list entries shared peer to peer; current peers can keep them if you go offline",
+                      getMembershipCount(membership)
+                    )
+                  : tn(
+                      "{count} list entry shared peer to peer",
+                      "{count} list entries shared peer to peer",
+                      getMembershipCount(membership)
+                    )
+                : t("Your list snapshot is not being sent")}
             </Typography>
           </Stack>
 
           <Divider sx={{ my: 2 }} />
           <Typography variant="subtitle2" sx={{ mb: 1 }}>
-            Participants
+            {t("Participants")}
           </Typography>
           <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
             <Chip
               label={`${
-                localAgentName ? `You (${localAgentName})` : "You"
+                localAgentName ? t("You ({agent})", { agent: localAgentName }) : t("You")
               } - ${
                 shareEnabled
                   ? shareWhileOffline
-                    ? "sharing, including offline"
-                    : "sharing"
-                  : "private"
+                    ? t("sharing, including offline")
+                    : t("sharing")
+                  : t("private")
               }`}
               color={shareEnabled ? "success" : "default"}
               sx={{ borderRadius: 1, maxWidth: "100%" }}
@@ -1784,9 +1803,9 @@ export default function BannerTogetherLivePage({ placeId, roomId = null }) {
                   label={`${getPeerLabel(participantId, peerSnapshot)} - ${
                     peerSharing
                       ? peerState === "connected"
-                        ? "sharing"
-                        : "sharing offline"
-                      : peerState
+                        ? t("sharing")
+                        : t("sharing offline")
+                      : t(PEER_STATE_LABELS[peerState] ?? peerState)
                   }`}
                   color={peerSharing ? "success" : "default"}
                   sx={{ borderRadius: 1, maxWidth: "100%" }}
@@ -1817,15 +1836,18 @@ export default function BannerTogetherLivePage({ placeId, roomId = null }) {
                     color="text.secondary"
                     sx={{ overflowWrap: "anywhere" }}
                   >
-                    {getPeerLabel(participantId, peerSnapshot)}: {" "}
-                    {peerSnapshot.lists.todo.length} to do, {" "}
-                    {peerSnapshot.lists.done.length} done, {" "}
-                    {peerSnapshot.lists.blacklist.length} hidden
-                    {peerState === "connected"
-                      ? ""
-                      : ` (offline snapshot from ${formatDateTime(
-                          peerSnapshot.capturedAt
-                        )})`}
+                    {t(
+                      peerState === "connected"
+                        ? "{agent}: {todo} to do, {done} done, {hidden} hidden"
+                        : "{agent}: {todo} to do, {done} done, {hidden} hidden (offline snapshot from {date})",
+                      {
+                        agent: getPeerLabel(participantId, peerSnapshot),
+                        todo: peerSnapshot.lists.todo.length,
+                        done: peerSnapshot.lists.done.length,
+                        hidden: peerSnapshot.lists.blacklist.length,
+                        date: formatDateTime(peerSnapshot.capturedAt),
+                      }
+                    )}
                   </Typography>
                 );
               })}
@@ -1834,7 +1856,7 @@ export default function BannerTogetherLivePage({ placeId, roomId = null }) {
 
           {knownPeerIds.length === 0 ? (
             <Alert severity="info" sx={{ mt: 2 }}>
-              Waiting for other people. Keep this tab open and send the invite.
+              {t("Waiting for other people. Keep this tab open and send the invite.")}
             </Alert>
           ) : null}
         </Paper>
@@ -1844,8 +1866,7 @@ export default function BannerTogetherLivePage({ placeId, roomId = null }) {
       membershipStatus === "ready" &&
       comparisonParticipants.length < 2 ? (
         <Alert severity="info" sx={{ mb: 3, maxWidth: 960 }}>
-          A connected participant needs to enable list sharing before comparisons
-          appear.
+          {t("A connected participant needs to enable list sharing before comparisons appear.")}
         </Alert>
       ) : null}
 
@@ -1862,7 +1883,7 @@ export default function BannerTogetherLivePage({ placeId, roomId = null }) {
           }}
         >
           <Typography variant="subtitle1" component="h2" sx={{ mb: 2 }}>
-            Compare shared list states
+            {t("Compare shared list states")}
           </Typography>
           <BannerTogetherGroupComparisonBuilder
             participants={comparisonParticipants}
@@ -1884,35 +1905,35 @@ export default function BannerTogetherLivePage({ placeId, roomId = null }) {
       !comparison.error ? (
         <Box>
           <Typography variant="h6" component="h2" sx={{ mb: 2 }}>
-            Matching banners
+            {t("Matching banners")}
           </Typography>
 
           {comparison.missingMatchingCatalogCount > 0 ? (
             <Alert severity="warning" sx={{ mb: 2, maxWidth: 960 }}>
-              {comparison.missingMatchingCatalogCount} {" "}
-              {comparison.missingMatchingCatalogCount === 1
-                ? "shared list entry matches"
-                : "shared list entries match"} {" "}
-              this comparison but cannot be shown because {" "}
-              {comparison.missingMatchingCatalogCount === 1 ? "it is" : "they are"} {" "}
-              missing from the current place catalog.
+              {tn(
+                "{count} shared list entry matches this comparison but cannot be shown because it is missing from the current place catalog.",
+                "{count} shared list entries match this comparison but cannot be shown because they are missing from the current place catalog.",
+                comparison.missingMatchingCatalogCount
+              )}
             </Alert>
           ) : comparison.missingCatalogCount > 0 ? (
             <Alert severity="info" sx={{ mb: 2, maxWidth: 960 }}>
-              {comparison.missingCatalogCount} shared list {" "}
-              {comparison.missingCatalogCount === 1 ? "entry is" : "entries are"} {" "}
-              no longer available in this place catalog.
+              {tn(
+                "{count} shared list entry is no longer available in this place catalog.",
+                "{count} shared list entries are no longer available in this place catalog.",
+                comparison.missingCatalogCount
+              )}
             </Alert>
           ) : null}
 
           {comparison.results.length === 0 ? (
             <Alert severity="info" sx={{ maxWidth: 960 }}>
               {comparison.missingMatchingCatalogCount > 0
-                ? "No matching catalog cards are available."
-                : "No banners match this comparison."}
+                ? t("No matching catalog cards are available.")
+                : t("No banners match this comparison.")}
             </Alert>
           ) : (
-            <div className="bt-grid" role="list" aria-label="Matching banners">
+            <div className="bt-grid" role="list" aria-label={t("Matching banners")}>
               {visibleResults.map((result) => (
                 <div key={result.id} className="bt-result" role="listitem">
                   <Stack direction="row" spacing={0.75} useFlexGap flexWrap="wrap">
@@ -1953,7 +1974,7 @@ export default function BannerTogetherLivePage({ placeId, roomId = null }) {
               }
               sx={{ minHeight: 44, mt: 2 }}
             >
-              Show more
+              {t("Show more")}
             </Button>
           ) : null}
         </Box>

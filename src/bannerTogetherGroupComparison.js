@@ -1,3 +1,5 @@
+import { t, tk } from "./i18n";
+
 export const BANNER_TOGETHER_GROUP_STATUSES = Object.freeze([
   "todo",
   "done",
@@ -6,10 +8,10 @@ export const BANNER_TOGETHER_GROUP_STATUSES = Object.freeze([
 ]);
 
 export const BANNER_TOGETHER_GROUP_STATUS_OPTIONS = Object.freeze([
-  Object.freeze({ value: "todo", label: "To do" }),
-  Object.freeze({ value: "done", label: "Done" }),
-  Object.freeze({ value: "hidden", label: "Hide" }),
-  Object.freeze({ value: "unlisted", label: "Not listed" }),
+  Object.freeze({ value: "todo", label: tk("To do") }),
+  Object.freeze({ value: "done", label: tk("Done") }),
+  Object.freeze({ value: "hidden", label: tk("Hide") }),
+  Object.freeze({ value: "unlisted", label: tk("Not listed") }),
 ]);
 
 export const BANNER_TOGETHER_GROUP_PRESET_IDS = Object.freeze({
@@ -32,13 +34,13 @@ const NOT_HIDDEN_STATUSES = BANNER_TOGETHER_GROUP_STATUSES.filter(
 );
 
 const PRESET_LABELS = Object.freeze({
-  [BANNER_TOGETHER_GROUP_PRESET_IDS.EVERYONE_TODO]: "Everyone to-do",
+  [BANNER_TOGETHER_GROUP_PRESET_IDS.EVERYONE_TODO]: tk("Everyone to-do"),
   [BANNER_TOGETHER_GROUP_PRESET_IDS.MY_TODO_OTHERS_UNLISTED]:
-    "My to-do, everyone else not listed",
+    tk("My to-do, everyone else not listed"),
   [BANNER_TOGETHER_GROUP_PRESET_IDS.MY_TODO_NOBODY_ELSE_HIDDEN]:
-    "My to-do, nobody else hidden",
+    tk("My to-do, nobody else hidden"),
   [BANNER_TOGETHER_GROUP_PRESET_IDS.AT_LEAST_TWO_TODO]:
-    "At least two to-do",
+    tk("At least two to-do"),
 });
 
 function validateIdentifier(value, kind, maxLength) {
@@ -225,7 +227,7 @@ export function normalizeBannerTogetherGroupClauses(participants, clauses) {
   );
 
   if (!Array.isArray(clauses) || clauses.length === 0) {
-    throw new Error("Choose at least one Banner Together comparison alternative.");
+    throw new Error(t("Choose at least one Banner Together comparison alternative."));
   }
 
   return clauses.map((clause) => {

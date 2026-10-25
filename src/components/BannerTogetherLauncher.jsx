@@ -4,6 +4,7 @@ import { ChevronRight, Groups, LocationCity, Place } from "@mui/icons-material";
 import { getPlaceLongName, readCachedCity, searchPlaces } from "../cityPlace";
 import { getFlagForPlace } from "./CountryFlags";
 import { useScopePlaces } from "./useScopePlaces";
+import { t, tn } from "../i18n";
 
 function togetherPath(place) {
   return `/lists/together/${encodeURIComponent(place.id)}`;
@@ -28,7 +29,7 @@ function PlaceRow({ place }) {
           <span className="t">{getPlaceLongName(place)}</span>
           <span className="s">
             {place.formattedAddress}
-            {Number.isFinite(place.numberOfBanners) ? ` · ${place.numberOfBanners} banners` : ""}
+            {Number.isFinite(place.numberOfBanners) ? ` · ${tn("{count} banner", "{count} banners", place.numberOfBanners)}` : ""}
           </span>
         </span>
         <ChevronRight className="muted" />
@@ -93,15 +94,15 @@ export default function BannerTogetherLauncher() {
         <div className="grow">
           <h2 id="bt-launch-title">Banner Together</h2>
           <p className="small muted">
-            Plan a banner day with friends. Start a live room for a place, share the
-            invite link and compare everyone’s To do, Done and Hidden lists. Your lists
-            stay private until you join.
+            {t(
+              "Plan a banner day with friends. Start a live room for a place, share the invite link and compare everyone’s To do, Done and Hidden lists. Your lists stay private until you join."
+            )}
           </p>
         </div>
       </div>
 
       {yourPlaces.length > 0 ? (
-        <ul className="ob-list bt-places" aria-label="Your places">
+        <ul className="ob-list bt-places" aria-label={t("Your places")}>
           {yourPlaces.map((place) => (
             <PlaceRow key={place.id} place={place} />
           ))}
@@ -112,27 +113,27 @@ export default function BannerTogetherLauncher() {
         <input
           type="search"
           autoComplete="off"
-          placeholder="Search a city or region"
-          aria-label="Place for Banner Together"
+          placeholder={t("Search a city or region")}
+          aria-label={t("Place for Banner Together")}
           value={query}
           onChange={(event) => setQuery(event.target.value)}
         />
       </div>
-      {status === "loading" ? <p className="small muted">Searching…</p> : null}
+      {status === "loading" ? <p className="small muted">{t("Searching…")}</p> : null}
       {status === "error" ? (
-        <p className="small muted">Places are unavailable right now.</p>
+        <p className="small muted">{t("Places are unavailable right now.")}</p>
       ) : null}
       {status === "done" && places.length === 0 ? (
-        <p className="small muted">No places match “{trimmed}”.</p>
+        <p className="small muted">{t("No places match “{query}”.", { query: trimmed })}</p>
       ) : null}
       {places.length > 0 ? (
-        <ul className="ob-list bt-places" aria-label="Places">
+        <ul className="ob-list bt-places" aria-label={t("Places")}>
           {places.map((place) => (
             <PlaceRow key={place.id} place={place} />
           ))}
         </ul>
       ) : null}
-      <p className="small muted">Got an invite link? Just open it, it brings you to the room.</p>
+      <p className="small muted">{t("Got an invite link? Just open it, it brings you to the room.")}</p>
     </section>
   );
 }

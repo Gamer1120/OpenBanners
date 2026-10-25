@@ -1,3 +1,5 @@
+import { t } from "../i18n";
+
 export const PORTALS_PER_MISSION = 6;
 export const DEFAULT_MISSION_COUNT = 12;
 export const MINIMUM_MISSION_COUNT = 6;
@@ -213,12 +215,14 @@ export function parseUmmMissionSet(text, fileName = "imported-banner.json") {
     parsedMissionSet = JSON.parse(text);
   } catch (error) {
     throw new Error(
-      error instanceof Error ? `Invalid JSON: ${error.message}` : "Invalid JSON."
+      error instanceof Error
+        ? t("Invalid JSON: {details}", { details: error.message })
+        : t("Invalid JSON.")
     );
   }
 
   if (!parsedMissionSet || typeof parsedMissionSet !== "object") {
-    throw new Error("The imported file must contain a JSON object.");
+    throw new Error(t("The imported file must contain a JSON object."));
   }
 
   const importedMissions = Array.isArray(parsedMissionSet.missions)
@@ -226,7 +230,7 @@ export function parseUmmMissionSet(text, fileName = "imported-banner.json") {
     : null;
 
   if (!importedMissions || importedMissions.length === 0) {
-    throw new Error("The imported UMM file does not contain any missions.");
+    throw new Error(t("The imported UMM file does not contain any missions."));
   }
 
   importSummary.importedMissionCount = importedMissions.length;
@@ -319,12 +323,12 @@ export function parseUmmMissionSet(text, fileName = "imported-banner.json") {
   );
 
   if (sortedPortals.length === 0) {
-    throw new Error("The imported UMM file does not contain any usable portals.");
+    throw new Error(t("The imported UMM file does not contain any usable portals."));
   }
 
   if (initialMissionCount === 0) {
     throw new Error(
-      "This banner does not contain enough unique portals to build a reroute with 6 missions."
+      t("This banner does not contain enough unique portals to build a reroute with 6 missions.")
     );
   }
 

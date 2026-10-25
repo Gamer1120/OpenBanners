@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { Key } from "@mui/icons-material";
 import { useBannergressAuth } from "../bannergressSync";
 import { getMyPassphraseNotices } from "../passphraseApi";
+import { getLanguage, t, tn } from "../i18n";
 
 // Tells a logged-in, verified author that passphrase answers were suggested
 // for their banners, so they can publish or object before they show.
@@ -35,10 +36,14 @@ export default function AuthorPassphraseNotice() {
       <Key />
       <div className="grow">
         <b>
-          Passphrase answers were suggested for {pending.length === 1 ? "one of your banners" : `${pending.length} of your banners`}
+          {tn(
+            "Passphrase answers were suggested for one of your banners",
+            "Passphrase answers were suggested for {count} of your banners",
+            pending.length
+          )}
         </b>
         <span className="small">
-          They show after 30 days unless you object. Open the banner’s Missions tab to publish or stop them.
+          {t("They show after 30 days unless you object. Open the banner’s Missions tab to publish or stop them.")}
         </span>
         <ul className="ob-author-list">
           {pending.map((item) => (
@@ -46,8 +51,10 @@ export default function AuthorPassphraseNotice() {
               <Link to={`/banner/${encodeURIComponent(item.bannerId)}`}>{item.title || item.bannerId}</Link>
               <span className="small">
                 {" "}
-                · {item.count} answer{item.count > 1 ? "s" : ""}, from{" "}
-                {new Date(item.visibleAt).toLocaleDateString(undefined, { day: "numeric", month: "long" })}
+                ·{" "}
+                {tn("{count} answer, from {date}", "{count} answers, from {date}", item.count, {
+                  date: new Date(item.visibleAt).toLocaleDateString(getLanguage(), { day: "numeric", month: "long" }),
+                })}
               </span>
             </li>
           ))}

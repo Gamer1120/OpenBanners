@@ -1,4 +1,5 @@
 import { generateReroute } from "./routeGenerator";
+import { tk } from "../i18n";
 
 let activeChildWorkers = [];
 
@@ -118,14 +119,15 @@ function runSingleThread(draft, now) {
       message:
         error instanceof Error
           ? error.message
-          : "The reroute couldn't be generated.",
+          : tk("The reroute couldn't be generated."),
+      i18n: error?.i18n ?? null,
     });
   }
 }
 
 function runParallel(draft, now, workerCount) {
   const progressByWorkerId = new Map();
-  const errorMessages = new Map();
+  const errors = new Map();
   let settled = false;
   let finishedWorkerCount = 0;
 
@@ -136,12 +138,13 @@ function runParallel(draft, now, workerCount) {
 
     settled = true;
     terminateChildWorkers();
+    const error = Array.from(errors.values()).find(
+      ({ message }) => typeof message === "string" && message.trim()
+    );
     self.postMessage({
       type: "error",
-      message:
-        Array.from(errorMessages.values()).find(
-          (message) => typeof message === "string" && message.trim()
-        ) ?? "The reroute couldn't be generated.",
+      message: error?.message ?? tk("The reroute couldn't be generated."),
+      i18n: error?.i18n ?? null,
     });
   };
 
@@ -183,7 +186,7 @@ function runParallel(draft, now, workerCount) {
       }
 
       finishedWorkerCount += 1;
-      errorMessages.set(workerId, message.message);
+      errors.set(workerId, { message: message.message, i18n: message.i18n });
       finishWithErrorIfNeeded();
     };
 
@@ -193,10 +196,9 @@ function runParallel(draft, now, workerCount) {
       }
 
       finishedWorkerCount += 1;
-      errorMessages.set(
-        workerId,
-        "A parallel reroute worker failed before it could finish."
-      );
+      errors.set(workerId, {
+        message: tk("A parallel reroute worker failed before it could finish."),
+      });
       finishWithErrorIfNeeded();
     };
 

@@ -10,6 +10,7 @@ import {
   withdrawPassphrases,
 } from "../../passphraseApi";
 import ObModal from "../ObModal";
+import { getLanguage, t, tn } from "../../i18n";
 
 // Flow: answers live at their own waypoint (see, confirm, add one, save as you
 // go). The Missions tab card only says how many are known and asks the one
@@ -17,7 +18,7 @@ import ObModal from "../ObModal";
 // Typing the mission number at a waypoint asks the same question.
 
 const longDate = (iso) =>
-  new Date(iso).toLocaleDateString(undefined, { day: "numeric", month: "long", year: "numeric" });
+  new Date(iso).toLocaleDateString(getLanguage(), { day: "numeric", month: "long", year: "numeric" });
 
 const requestLogin = () => window.dispatchEvent(new Event(BANNERGRESS_AUTH_REQUEST_EVENT));
 
@@ -81,7 +82,7 @@ function LiveAnswers({ d, answers, missionId, missionIndex, stepIndex }) {
     return (
       <button type="button" className="btn text sl wp-act" onClick={() => setShown(true)}>
         <Visibility fontSize="small" />
-        Show answer{answers.length > 1 ? "s" : ""}
+        {answers.length > 1 ? t("Show answers") : t("Show answer")}
       </button>
     );
   }
@@ -91,17 +92,17 @@ function LiveAnswers({ d, answers, missionId, missionIndex, stepIndex }) {
         <div className="wp-ans" key={answer.id}>
           <span className="wp-ans-text">{answer.answer}</span>
           <span className="wp-ans-meta">
-            {answer.source === "author" ? "From the author" : answer.kind === "number" ? "Mission number" : "Suggested"}
-            {answer.confirms ? ` · ${answer.confirms} confirmed` : ""}
-            {answer.wrongs ? ` · ${answer.wrongs} say it’s wrong` : ""}
+            {answer.source === "author" ? t("From the author") : answer.kind === "number" ? t("Mission number") : t("Suggested")}
+            {answer.confirms ? ` · ${t("{count} confirmed", { count: answer.confirms })}` : ""}
+            {answer.wrongs ? ` · ${t("{count} say it’s wrong", { count: answer.wrongs })}` : ""}
           </span>
           <span className="wp-ans-votes">
             <button
               type="button"
               className="icon-btn sl sm"
               aria-pressed={answer.myVote === "confirm"}
-              aria-label={`This answer is right: ${answer.answer}`}
-              title="It's right"
+              aria-label={t("This answer is right: {answer}", { answer: answer.answer })}
+              title={t("It's right")}
               onClick={() => vote(answer, "confirm")}
             >
               <Check />
@@ -110,8 +111,8 @@ function LiveAnswers({ d, answers, missionId, missionIndex, stepIndex }) {
               type="button"
               className="icon-btn sl sm"
               aria-pressed={answer.myVote === "wrong"}
-              aria-label={`This answer is wrong: ${answer.answer}`}
-              title="It's wrong"
+              aria-label={t("This answer is wrong: {answer}", { answer: answer.answer })}
+              title={t("It's wrong")}
               onClick={() => vote(answer, "wrong")}
             >
               <Close />
@@ -148,12 +149,15 @@ function AddAnswer({ d, missionId, missionIndex, stepIndex, suggest = false, ope
   const [askRest, setAskRest] = useState(false);
   const [sent, setSent] = useState("");
   const [filledIds, setFilledIds] = useState(null);
-  const label = `${suggest ? "Different answer" : "Answer"} for mission ${missionIndex + 1}, waypoint ${stepIndex + 1}`;
+  const place = { mission: missionIndex + 1, waypoint: stepIndex + 1 };
+  const label = suggest
+    ? t("Different answer for mission {mission}, waypoint {waypoint}", place)
+    : t("Answer for mission {mission}, waypoint {waypoint}", place);
 
   if (filledIds?.length) {
     return (
       <div className="wp-ans-note">
-        Filled in {filledIds.length} more as the mission number.{" "}
+        {t("Filled in {count} more as the mission number.", { count: filledIds.length })}{" "}
         <button
           type="button"
           className="btn text sl sm pp-undo"
@@ -172,7 +176,7 @@ function AddAnswer({ d, missionId, missionIndex, stepIndex, suggest = false, ope
             );
           }}
         >
-          Undo
+          {t("Undo")}
         </button>
         {error ? <span className="pp-error" role="alert"> {error}</span> : null}
       </div>
@@ -189,8 +193,8 @@ function AddAnswer({ d, missionId, missionIndex, stepIndex, suggest = false, ope
       return null;
     }
     return (
-      <div className="wp-ask" role="group" aria-label="Fill in the rest">
-        <span className="wp-ans-note">That’s the mission number. Are the other passphrases also just their mission number?</span>
+      <div className="wp-ask" role="group" aria-label={t("Fill in the rest")}>
+        <span className="wp-ans-note">{t("That’s the mission number. Are the other passphrases also just their mission number?")}</span>
         <span className="pp-actions">
           <button
             type="button"
@@ -211,10 +215,10 @@ function AddAnswer({ d, missionId, missionIndex, stepIndex, suggest = false, ope
               );
             }}
           >
-            Yes, fill in the other {rest.length}
+            {t("Yes, fill in the other {count}", { count: rest.length })}
           </button>
           <button type="button" className="btn text sl" onClick={() => setAskRest(false)}>
-            No
+            {t("No")}
           </button>
         </span>
         {error ? <span className="wp-ans-note" role="alert">{error}</span> : null}
@@ -230,7 +234,7 @@ function AddAnswer({ d, missionId, missionIndex, stepIndex, suggest = false, ope
         onClick={() => (pass.loggedIn ? setOpen(true) : requestLogin())}
       >
         <Add fontSize="small" />
-        {suggest ? "Suggest a different answer" : "Add answer"}
+        {suggest ? t("Suggest a different answer") : t("Add answer")}
       </button>
     );
   }
@@ -253,7 +257,7 @@ function AddAnswer({ d, missionId, missionIndex, stepIndex, suggest = false, ope
         setOpen(false);
         setText("");
         setAskRest(isNumber && !suggest);
-        setSent(suggest ? (pass.isAuthor ? "Thanks! Your answer is visible now." : "Thanks! Your answer is in review.") : "");
+        setSent(suggest ? (pass.isAuthor ? t("Thanks! Your answer is visible now.") : t("Thanks! Your answer is in review.")) : "");
       },
       (e) => {
         setError(e.message);
@@ -271,18 +275,18 @@ function AddAnswer({ d, missionId, missionIndex, stepIndex, suggest = false, ope
         autoComplete="off"
         autoFocus
         aria-label={label}
-        placeholder={suggest ? "The right answer" : "The answer"}
+        placeholder={suggest ? t("The right answer") : t("The answer")}
         value={text}
         onChange={(event) => setText(event.target.value)}
       />
       <button type="submit" className="btn tonal sl" disabled={busy || !text.trim()}>
-        Save
+        {t("Save")}
       </button>
       <button
         type="button"
         className="icon-btn sl sm"
-        aria-label="Cancel"
-        title="Cancel"
+        aria-label={t("Cancel")}
+        title={t("Cancel")}
         onClick={() => {
           setOpen(false);
           setText("");
@@ -312,19 +316,20 @@ export function WaypointAnswer({ d, missionId, missionIndex, stepIndex }) {
       ) : null}
       {pending.map((answer) => (
         <div className="wp-ans-note" key={answer.id}>
-          {answer.answer !== null ? <b>{answer.answer}</b> : "Answer suggested"}
+          {answer.answer !== null ? <b>{answer.answer}</b> : t("Answer suggested")}
+          {" · "}
           {pass.isAuthor
-            ? " · waiting for you to publish it"
+            ? t("waiting for you to publish it")
             : answer.kind === "number"
-              ? " · mission number, in review"
+              ? t("mission number, in review")
               : answer.reviewed
-              ? ` · visible from ${longDate(answer.visibleAt)}, unless the author objects`
-              : ` · in review, visible from ${longDate(answer.visibleAt)} at the earliest`}
+              ? t("visible from {date}, unless the author objects", { date: longDate(answer.visibleAt) })
+              : t("in review, visible from {date} at the earliest", { date: longDate(answer.visibleAt) })}
           {answer.mine && answer.withdrawable ? (
             <>
               {" · "}
               <button type="button" className="btn text sl sm pp-undo" onClick={() => takeBack(d, [answer.id])}>
-                Take back
+                {t("Take back")}
               </button>
             </>
           ) : null}
@@ -356,11 +361,12 @@ function AuthorTools({ d }) {
       (e) => setError(e.message)
     );
   };
-  const where = (answer) => `Mission ${answer.missionIndex + 1}, waypoint ${answer.stepIndex + 1}`;
+  const where = (answer) =>
+    t("Mission {mission}, waypoint {waypoint}", { mission: answer.missionIndex + 1, waypoint: answer.stepIndex + 1 });
 
   return (
     <div className="pp-author">
-      <b>You’re an author of this banner</b>
+      <b>{t("You’re an author of this banner")}</b>
       {pending.length ? (
         <ul className="pp-pending">
           {pending.map((answer) => (
@@ -369,41 +375,41 @@ function AuthorTools({ d }) {
                 <span className="small muted">{where(answer)}</span>
                 <br />
                 {answer.answer}
-                <span className="small muted"> · shows on {longDate(answer.visibleAt)}</span>
+                <span className="small muted"> · {t("shows on {date}", { date: longDate(answer.visibleAt) })}</span>
               </span>
               <button type="button" className="btn tonal sl" onClick={() => act({ action: "approve", answerId: answer.id })}>
-                Publish
+                {t("Publish")}
               </button>
               <button type="button" className="btn text sl" onClick={() => act({ action: "delete", answerId: answer.id })}>
-                Delete
+                {t("Delete")}
               </button>
             </li>
           ))}
         </ul>
       ) : null}
       {confirming ? (
-        <div className="pp-confirm" role="alertdialog" aria-label="Don't publish passphrases">
+        <div className="pp-confirm" role="alertdialog" aria-label={t("Don't publish passphrases")}>
           <p className="small">
             {confirming === "all"
-              ? "This deletes the answers on all your banners for good, and nobody can add new ones."
-              : "This deletes the answers on this banner for good, and nobody can add new ones."}
+              ? t("This deletes the answers on all your banners for good, and nobody can add new ones.")
+              : t("This deletes the answers on this banner for good, and nobody can add new ones.")}
           </p>
           <div className="pp-actions">
             <button type="button" className="btn filled sl pp-danger" onClick={() => act({ action: "object", scope: confirming })}>
-              Delete and block
+              {t("Delete and block")}
             </button>
             <button type="button" className="btn text sl" onClick={() => setConfirming("")}>
-              Cancel
+              {t("Cancel")}
             </button>
           </div>
         </div>
       ) : (
         <div className="pp-actions">
           <button type="button" className="btn outlined sl" onClick={() => setConfirming("banner")}>
-            Don’t publish for this banner
+            {t("Don’t publish for this banner")}
           </button>
           <button type="button" className="btn outlined sl" onClick={() => setConfirming("all")}>
-            Don’t publish for any of my banners
+            {t("Don’t publish for any of my banners")}
           </button>
         </div>
       )}
@@ -429,12 +435,12 @@ export function PassphrasePanel({ d }) {
 
   if (pass.blocked) {
     return (
-      <section className="pp-panel" aria-label="Passphrases">
+      <section className="pp-panel" aria-label={t("Passphrases")}>
         <Key />
         <div className="grow small">
           {pass.blocked === "author"
-            ? "The author asked not to publish passphrases for their banners."
-            : "The author asked not to publish passphrases for this banner."}
+            ? t("The author asked not to publish passphrases for their banners.")
+            : t("The author asked not to publish passphrases for this banner.")}
           {pass.isAuthor ? (
             <button
               type="button"
@@ -446,7 +452,7 @@ export function PassphrasePanel({ d }) {
                 }).then(pass.apply)
               }
             >
-              Allow answers again
+              {t("Allow answers again")}
             </button>
           ) : null}
         </div>
@@ -471,44 +477,48 @@ export function PassphrasePanel({ d }) {
   };
 
   return (
-    <section className="pp-panel" aria-label="Passphrases">
+    <section className="pp-panel" aria-label={t("Passphrases")}>
       <Key />
       <div className="grow">
-        <b>Passphrases</b>
+        <b>{t("Passphrases")}</b>
         <div className="small muted">
           {pass.status === "error"
-            ? "Couldn’t load the answers."
+            ? t("Couldn’t load the answers.")
             : pass.status === "loading" && !pass.data
-              ? "Loading…"
-              : `${known} of ${slots.length} answer${slots.length > 1 ? "s" : ""} known${waiting ? ` · ${waiting} waiting` : ""}`}
+              ? t("Loading…")
+              : `${tn("{known} of {count} answer known", "{known} of {count} answers known", slots.length, { known: String(known) })}${
+                  waiting ? ` · ${t("{count} waiting", { count: waiting })}` : ""
+                }`}
         </div>
         {pass.status === "ready" && fresh && open.length ? (
           <div className="pp-ask">
             <span className="small">
-              On many banners the passphrase is just the mission number: 1 for mission 1, 2 for mission 2, and so on. Is
-              that the case here?
+              {t("On many banners the passphrase is just the mission number: 1 for mission 1, 2 for mission 2, and so on. Is that the case here?")}
             </span>
             <div className="pp-actions">
               <button type="button" className="btn tonal sl" disabled={busy} onClick={fill}>
-                Yes, use the mission numbers
+                {t("Yes, use the mission numbers")}
               </button>
               <button type="button" className="btn text sl" onClick={d.showPassphrases}>
-                No, enter them one by one
+                {t("No, enter them one by one")}
               </button>
             </div>
           </div>
         ) : pass.status === "ready" && open.length ? (
           <div className="pp-actions">
             <button type="button" className="btn text sl pp-show" onClick={d.showPassphrases}>
-              Show the {open.length} without an answer
+              {t("Show the {count} without an answer", { count: open.length })}
             </button>
           </div>
         ) : null}
         {pass.status === "ready" && takeBackable(pass).length ? (
           <div className="pp-actions pp-undo-row">
             <span className="small muted">
-              You said {takeBackable(pass).length === 1 ? "1 answer is its" : `${takeBackable(pass).length} answers are their`} mission
-              number.
+              {tn(
+                "You said {count} answer is its mission number.",
+                "You said {count} answers are their mission number.",
+                takeBackable(pass).length
+              )}
             </span>
             <button
               type="button"
@@ -526,7 +536,7 @@ export function PassphrasePanel({ d }) {
                 );
               }}
             >
-              Undo
+              {t("Undo")}
             </button>
           </div>
         ) : null}
@@ -586,14 +596,17 @@ export function PassphraseDonePrompt({ d }) {
   };
   if (filledIds) {
     return (
-      <ObModal title="Thanks!" onClose={close} labelId="pp-done-title">
+      <ObModal title={t("Thanks!")} onClose={close} labelId="pp-done-title">
         <p>
-          {filledIds.length === 1 ? "1 answer is" : `${filledIds.length} answers are`} filled in as the mission number. A
-          moderator checks them before they show.
+          {tn(
+            "{count} answer is filled in as the mission number. A moderator checks it before it shows.",
+            "{count} answers are filled in as the mission number. A moderator checks them before they show.",
+            filledIds.length
+          )}
         </p>
         <div className="ob-modal-actions">
           <button type="button" className="btn filled sl" onClick={close}>
-            Done
+            {t("Done")}
           </button>
           <button
             type="button"
@@ -614,7 +627,7 @@ export function PassphraseDonePrompt({ d }) {
               );
             }}
           >
-            Undo
+            {t("Undo")}
           </button>
         </div>
         {error ? <p className="small pp-error" role="alert">{error}</p> : null}
@@ -625,12 +638,19 @@ export function PassphraseDonePrompt({ d }) {
   const missing = slots.filter((slot) => !slot.live && !slot.pending);
 
   return (
-    <ObModal title="Nice, banner done!" onClose={close} labelId="pp-done-title">
+    <ObModal title={t("Nice, banner done!")} onClose={close} labelId="pp-done-title">
       <p>
         {slots.length === 1
-          ? "It asked for a passphrase."
-          : `It asked for ${slots.length} passphrases${missing.length < slots.length ? `, and ${missing.length} answers aren’t known yet` : ""}.`}{" "}
-        Was each passphrase just the mission number (1 for mission 1, 2 for mission 2, …)?
+          ? t("It asked for a passphrase.")
+          : missing.length < slots.length
+            ? tn(
+                "It asked for {total} passphrases, and {count} answer isn’t known yet.",
+                "It asked for {total} passphrases, and {count} answers aren’t known yet.",
+                missing.length,
+                { total: slots.length }
+              )
+            : t("It asked for {count} passphrases.", { count: slots.length })}{" "}
+        {t("Was each passphrase just the mission number (1 for mission 1, 2 for mission 2, …)?")}
       </p>
       <div className="ob-modal-actions">
         <button
@@ -652,7 +672,7 @@ export function PassphraseDonePrompt({ d }) {
             );
           }}
         >
-          Yes, use the mission numbers
+          {t("Yes, use the mission numbers")}
         </button>
         <button
           type="button"
@@ -662,7 +682,7 @@ export function PassphraseDonePrompt({ d }) {
             d.showPassphrases();
           }}
         >
-          No, enter them one by one
+          {t("No, enter them one by one")}
         </button>
       </div>
       {error ? <p className="small pp-error" role="alert">{error}</p> : null}
@@ -675,10 +695,10 @@ export function PassphraseDonePrompt({ d }) {
             close();
           }}
         >
-          Don’t ask again
+          {t("Don’t ask again")}
         </button>
         <button type="button" className="btn text sl" onClick={close}>
-          Not now
+          {t("Not now")}
         </button>
       </div>
     </ObModal>

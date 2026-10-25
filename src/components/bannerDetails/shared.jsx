@@ -41,6 +41,7 @@ import { useBannerPassphrases } from "../../passphraseApi";
 import {
   formatEvent,
   formatMissionNumbers,
+  listJoins,
   getActionCounts,
   getLastChecked,
   getMissionTypes,
@@ -52,16 +53,17 @@ import {
   MISSION_TYPE_LABELS,
   plannedOfflineTone,
 } from "../../bannerFacts";
+import { getLanguage, t, tk, tn } from "../../i18n";
 
 const OBJECTIVES = {
-  hack: "Hack",
-  captureOrUpgrade: "Capture or upgrade",
-  createLink: "Create link",
-  createField: "Create field",
-  installMod: "Install mod",
-  takePhoto: "Take photo",
-  viewWaypoint: "View waypoint",
-  enterPassphrase: "Enter passphrase",
+  hack: tk("Hack"),
+  captureOrUpgrade: tk("Capture or upgrade"),
+  createLink: tk("Create link"),
+  createField: tk("Create field"),
+  installMod: tk("Install mod"),
+  takePhoto: tk("Take photo"),
+  viewWaypoint: tk("View waypoint"),
+  enterPassphrase: tk("Enter passphrase"),
 };
 // Checkered flag (Material "sports_score"), inline so it doesn't depend on emoji fonts.
 export const FINISH_FLAG_SVG =
@@ -95,7 +97,9 @@ export function formatDuration(milliseconds) {
     return null;
   }
 
-  return minutes < 60 ? `${minutes} min` : `${Math.floor(minutes / 60)} h ${minutes % 60} min`;
+  return minutes < 60
+    ? t("{minutes} min", { minutes })
+    : t("{hours} h {minutes} min", { hours: Math.floor(minutes / 60), minutes: minutes % 60 });
 }
 
 export function isMissionOffline(mission) {
@@ -163,7 +167,7 @@ export function getFinish(missions) {
       const position = getStepPosition(step);
 
       if (position && step?.poi?.type !== "unavailable") {
-        return { position, title: step?.poi?.title || "Last portal", missionIndex, stepIndex };
+        return { position, title: step?.poi?.title || t("Last portal"), missionIndex, stepIndex };
       }
     }
   }
@@ -234,7 +238,12 @@ export function MissionMosaic({ banner, missions, colors, large = false }) {
     <div
       className={`mosaic${large ? " large" : ""}`}
       role="img"
-      aria-label={`Banner artwork: ${count} mission tiles, ${width} per row.`}
+      aria-label={tn(
+        "Banner artwork: {count} mission tile, {width} per row.",
+        "Banner artwork: {count} mission tiles, {width} per row.",
+        count,
+        { width }
+      )}
       style={{ "--w": width, "--rows": rows }}
     >
       {cells}
@@ -261,14 +270,14 @@ export function BannerLightbox({ banner, missions, colors, onClose }) {
 
   // Portal to <body>: inside the page the hero's stacking context let the tabs draw over it.
   return createPortal(
-    <div className="bp-lightbox" role="dialog" aria-modal="true" aria-label="Banner artwork"
+    <div className="bp-lightbox" role="dialog" aria-modal="true" aria-label={t("Banner artwork")}
       onClick={(event) => {
         // React bubbles portal clicks to the enlarge button, which would reopen it.
         event.stopPropagation();
         onClose();
       }}
     >
-      <button type="button" className="bp-lightbox-close" aria-label="Close">
+      <button type="button" className="bp-lightbox-close" aria-label={t("Close")}>
         ×
       </button>
       <div className="bp-lightbox-body">
@@ -288,7 +297,7 @@ export function EnlargeableArt({ banner, missions, colors, children }) {
       <button
         type="button"
         className="bp-enlarge"
-        aria-label="Enlarge banner artwork"
+        aria-label={t("Enlarge banner artwork")}
         onClick={() => setOpen(true)}
       >
         {children}
@@ -302,7 +311,7 @@ export function EnlargeableArt({ banner, missions, colors, children }) {
 
 export function MissionItem({ mission, index, color, selected, expanded, onToggle, itemRef, showType = false, renderAnswer = null }) {
   const steps = getSteps(mission);
-  const typeLabel = showType && mission?.type ? MISSION_TYPE_LABELS[mission.type] ?? mission.type : "";
+  const typeLabel = showType && mission?.type ? t(MISSION_TYPE_LABELS[mission.type] ?? mission.type) : "";
   const offline = isMissionOffline(mission);
   const duration = formatDuration(mission.averageDurationMilliseconds);
   const firstPosition = getStepPosition(steps[0]);
@@ -335,26 +344,26 @@ export function MissionItem({ mission, index, color, selected, expanded, onToggl
           </span>
           <span className="mtxt">
             <span className="mtitle">
-              <span className="sr">Mission {index + 1}: </span>
-              {mission.title || `Mission ${index + 1}`}
+              <span className="sr">{t("Mission {number}:", { number: index + 1 })} </span>
+              {mission.title || t("Mission {number}", { number: index + 1 })}
             </span>
             <span className="mmeta">
               {offline ? (
                 <span className="chip mini bad">
                   <CloudOff />
-                  Offline
+                  {t("Offline")}
                 </span>
               ) : null}
               {passphrases ? (
                 <span className="chip mini warn">
                   <Key />
-                  {passphrases > 1 ? `${passphrases} passphrases` : "Passphrase"}
+                  {passphrases > 1 ? tn("{count} passphrase", "{count} passphrases", passphrases) : t("Passphrase")}
                 </span>
               ) : null}
               {typeLabel ? <span>{typeLabel}</span> : null}
               {Number.isFinite(length) && length > 0 ? <span>{formatLength(length)}</span> : null}
               {duration ? <span>{duration}</span> : null}
-              <span>{steps.length} waypoints</span>
+              <span>{tn("{count} waypoint", "{count} waypoints", steps.length)}</span>
             </span>
           </span>
           <ExpandMore className="chev" />
@@ -365,8 +374,8 @@ export function MissionItem({ mission, index, color, selected, expanded, onToggl
             href={buildIngressMissionUrl(mission.id)}
             target="_blank"
             rel="noopener noreferrer"
-            aria-label={`Open mission ${index + 1} in Ingress`}
-            title="Open in Ingress"
+            aria-label={t("Open mission {number} in Ingress", { number: index + 1 })}
+            title={t("Open in Ingress")}
           >
             <OpenInNew />
           </a>
@@ -377,10 +386,10 @@ export function MissionItem({ mission, index, color, selected, expanded, onToggl
             href={buildGeoUrl(
               firstPosition[0],
               firstPosition[1],
-              steps[0]?.poi?.title || mission.title || `Mission ${index + 1}`
+              steps[0]?.poi?.title || mission.title || t("Mission {number}", { number: index + 1 })
             )}
-            aria-label={`Open the start of mission ${index + 1} in your maps app`}
-            title="Open start in maps app"
+            aria-label={t("Open the start of mission {number} in your maps app", { number: index + 1 })}
+            title={t("Open start in maps app")}
           >
             <Place />
           </a>
@@ -393,20 +402,20 @@ export function MissionItem({ mission, index, color, selected, expanded, onToggl
               {mission.description}
             </p>
           ) : null}
-          <ol className="wps" aria-label={`Waypoints of mission ${index + 1}`}>
+          <ol className="wps" aria-label={t("Waypoints of mission {number}", { number: index + 1 })}>
             {steps.map((step, stepIndex) => {
               const poi = step?.poi ?? {};
               const position = getStepPosition(step);
               const unavailable = poi.type === "unavailable";
-              const objective = OBJECTIVES[step?.objective] ?? step?.objective ?? "Visit";
-              const title = poi.title || "Hidden waypoint";
+              const objective = OBJECTIVES[step?.objective] ? t(OBJECTIVES[step.objective]) : step?.objective ?? t("Visit");
+              const title = poi.title || t("Hidden waypoint");
               const content = (
                 <>
                   <span className="oi">{stepIndex + 1}</span>
                   <span className="wt">
                     <span className="wn">
                       {title}
-                      {unavailable ? <span className="sr"> (no longer in Ingress)</span> : null}
+                      {unavailable ? <span className="sr"> {t("(no longer in Ingress)")}</span> : null}
                     </span>
                     <span className="wo">
                       {isPassphraseStep(step) ? <Key aria-hidden="true" /> : null}
@@ -425,7 +434,7 @@ export function MissionItem({ mission, index, color, selected, expanded, onToggl
                     <a
                       className="sl"
                       href={buildGeoUrl(position[0], position[1], title)}
-                      aria-label={`${objective} at ${title}, open in maps app`}
+                      aria-label={t("{objective} at {title}, open in maps app", { objective, title })}
                     >
                       {content}
                     </a>
@@ -446,7 +455,7 @@ export function MissionItem({ mission, index, color, selected, expanded, onToggl
                 rel="noopener noreferrer"
               >
                 <OpenInNew fontSize="small" />
-                Open in Ingress
+                {t("Open in Ingress")}
               </a>
               <a
                 className="btn outlined sl"
@@ -455,7 +464,7 @@ export function MissionItem({ mission, index, color, selected, expanded, onToggl
                 rel="noopener noreferrer"
               >
                 <OpenInNew fontSize="small" />
-                View on Intel
+                {t("View on Intel")}
               </a>
             </div>
           ) : null}
@@ -519,7 +528,9 @@ export function RouteMap({
       whenReady={({ target }) => onReady(target)}
     >
       <TileLayer
-        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors. This website is NOT affiliated with Bannergress in any way!'
+        attribution={t("© {osm} contributors. This website is NOT affiliated with Bannergress in any way!", {
+          osm: '<a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+        })}
         url="https://tile.openstreetmap.org/{z}/{x}/{y}.png"
       />
       {connectors.map((connector) => (
@@ -552,7 +563,7 @@ export function RouteMap({
                 return null;
               }
 
-              const title = step?.poi?.title || "Waypoint";
+              const title = step?.poi?.title || t("Waypoint");
 
               return (
                 <CircleMarker
@@ -568,11 +579,11 @@ export function RouteMap({
                 >
                   <Popup>
                     <div>
-                      <div>Mission {missionIndex + 1}</div>
+                      <div>{t("Mission {number}", { number: missionIndex + 1 })}</div>
                       <div>
                         {stepIndex + 1}. {title}
                       </div>
-                      <a href={buildGeoUrl(position[0], position[1], title)}>Open in maps app</a>
+                      <a href={buildGeoUrl(position[0], position[1], title)}>{t("Open in maps app")}</a>
                     </div>
                   </Popup>
                 </CircleMarker>
@@ -587,7 +598,7 @@ export function RouteMap({
           return null;
         }
 
-        const title = step?.poi?.title || "Waypoint";
+        const title = step?.poi?.title || t("Waypoint");
 
         return (
           <Marker key={`wp-${stepIndex}`} position={position} icon={waypointIcon} title={title}>
@@ -596,7 +607,7 @@ export function RouteMap({
                 <div>
                   {stepIndex + 1}. {title}
                 </div>
-                <a href={buildGeoUrl(position[0], position[1], title)}>Open in maps app</a>
+                <a href={buildGeoUrl(position[0], position[1], title)}>{t("Open in maps app")}</a>
               </div>
             </Popup>
           </Marker>
@@ -611,7 +622,7 @@ export function RouteMap({
             key={`start-${missions[index]?.id ?? index}`}
             position={position}
             icon={startIcons[index]}
-            title={`Mission ${index + 1}: ${missions[index]?.title ?? ""}`}
+            title={t("Mission {number}: {title}", { number: index + 1, title: missions[index]?.title ?? "" })}
             zIndexOffset={index === 0 ? 1000 : 500 - index}
             eventHandlers={{ click: () => onSelectMission(index) }}
           />
@@ -621,17 +632,17 @@ export function RouteMap({
           key="finish"
           position={finish.position}
           icon={finishIcon}
-          title={`Finish: ${finish.title}`}
+          title={t("Finish: {title}", { title: finish.title })}
           zIndexOffset={1500}
         >
           <Popup>
             <div>
               <div>
-                <b>Finish</b> · mission {finish.missionIndex + 1}
+                <b>{t("Finish")}</b> · {t("mission {number}", { number: finish.missionIndex + 1 })}
               </div>
               <div>{finish.title}</div>
               <a href={buildGeoUrl(finish.position[0], finish.position[1], finish.title)}>
-                Open in maps app
+                {t("Open in maps app")}
               </a>
             </div>
           </Popup>
@@ -654,8 +665,8 @@ export function isLiveMap(map) {
   return Boolean(map && (map._mapPane || typeof map.getPane !== "function"));
 }
 export const ORDER_LABELS = {
-  sequential: "In sequence",
-  anyOrder: "Any order",
+  sequential: tk("In sequence"),
+  anyOrder: tk("Any order"),
 };
 
 export function getOrderLabel(type) {
@@ -663,7 +674,7 @@ export function getOrderLabel(type) {
     return "";
   }
 
-  return ORDER_LABELS[type] ?? String(type);
+  return ORDER_LABELS[type] ? t(ORDER_LABELS[type]) : String(type);
 }
 
 // All state, loading and map handling of the banner page; the designs only lay it out.
@@ -720,7 +731,7 @@ export function useBannerDetails({ tabs = true } = {}) {
             setItems(result);
           } else {
             setItems({});
-            setError("Couldn't load this banner.");
+            setError(t("Couldn't load this banner."));
           }
         }
       } catch (fetchError) {
@@ -728,7 +739,7 @@ export function useBannerDetails({ tabs = true } = {}) {
 
         if (!ignore) {
           setItems({});
-          setError("Couldn't load this banner. Please try again.");
+          setError(t("Couldn't load this banner. Please try again."));
         }
       } finally {
         if (!ignore) {
@@ -871,7 +882,7 @@ export function useBannerDetails({ tabs = true } = {}) {
         setIsLocatingUser(false);
 
         if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
-          setLocationError("Couldn't determine your location.");
+          setLocationError(t("Couldn't determine your location."));
           return;
         }
 
@@ -881,7 +892,7 @@ export function useBannerDetails({ tabs = true } = {}) {
         }
       },
       () => {
-        setLocationError("Couldn't determine your location. Please check browser location access.");
+        setLocationError(t("Couldn't determine your location. Please check browser location access."));
         setIsLocatingUser(false);
       },
       { enableHighAccuracy: true, maximumAge: 10000, timeout: 10000 }
@@ -948,25 +959,27 @@ export function useBannerDetails({ tabs = true } = {}) {
     warning: typeof items.warning === "string" ? items.warning.trim() : "",
     address: typeof items.formattedAddress === "string" ? items.formattedAddress.trim() : "",
     startPlaceId: typeof items.startPlaceId === "string" ? items.startPlaceId.trim() : "",
-    orderLabel: missionTypes.length > 1 ? "Mixed" : getOrderLabel(missionTypes[0]?.key || items.type),
+    orderLabel: missionTypes.length > 1 ? t("Mixed") : getOrderLabel(missionTypes[0]?.key || items.type),
     missionTypes,
     actionCounts: getActionCounts(missions),
     uniqueLabel: missions.length ? `${uniques.count}${uniques.hidden ? "+" : ""}` : null,
     lastCheckedLabel: lastChecked
-      ? new Date(`${lastChecked}T12:00:00`).toLocaleDateString(undefined, {
+      ? new Date(`${lastChecked}T12:00:00`).toLocaleDateString(getLanguage(), {
           day: "numeric",
           month: "long",
           year: "numeric",
         })
       : null,
     startToFinishLabel: startToFinish !== null ? formatLength(startToFinish) : null,
-    eventLabel: formatEvent(items.eventStartDate, items.eventEndDate),
+    eventLabel: formatEvent(items.eventStartDate, items.eventEndDate, getLanguage()),
     passphraseMissions,
     passphrases,
     submittedCount: Number(items.numberOfSubmittedMissions) || 0,
     distanceLabel: formatLength(items.lengthMeters),
-    durationLabel: totalDuration === null ? (missions.length ? "Missing data" : null) : formatDuration(totalDuration),
-    perKmLabel: perKm !== null ? perKm.toFixed(1) : null,
+    durationLabel: totalDuration === null ? (missions.length ? t("Missing data") : null) : formatDuration(totalDuration),
+    perKmLabel: perKm !== null
+      ? perKm.toLocaleString(getLanguage(), { minimumFractionDigits: 1, maximumFractionDigits: 1 })
+      : null,
   };
 }
 
@@ -978,30 +991,33 @@ export function AddressLink({ d }) {
       <Link
         to={`/browse/${encodeURIComponent(d.startPlaceId)}`}
         onClick={() => resetBrowseState(getBrowseStateScope({ placeId: d.startPlaceId }))}
-        title="Browse banners in this place"
+        title={t("Browse banners in this place")}
       >
         {d.address}
       </Link>
     );
   }
 
-  return <span>{d.address || "Address unavailable"}</span>;
+  return <span>{d.address || t("Address unavailable")}</span>;
 }
 
 // Authors as plain text links ("by A, B and C"), faction shown as a coloured dot.
-export function Byline({ d, prefix = "by", className = "" }) {
+// The sentence and the list joins ("and") follow the user's language.
+export function Byline({ d, prefix, className = "" }) {
   if (!d.authors.length) {
     return null;
   }
 
-  const last = d.authors.length - 1;
+  const template = prefix === undefined ? t("by {authors}") : prefix ? `${prefix} {authors}` : "{authors}";
+  const [before, after = ""] = template.split("{authors}");
+  const joins = listJoins(d.authors.length);
 
   return (
     <p className={`bp-byline ${className}`.trim()}>
-      {prefix ? <span>{prefix} </span> : null}
+      {before ? <span>{before}</span> : null}
       {d.authors.map((author, index) => (
         <React.Fragment key={`${author.name}-${author.faction || "unknown"}`}>
-          {index > 0 ? (index === last ? " and " : ", ") : null}
+          {joins[index] || null}
           <Link
             className={`by-a sl fx-${author.faction || "unknown"}`}
             to={`/agent/${encodeURIComponent(author.name)}`}
@@ -1011,6 +1027,7 @@ export function Byline({ d, prefix = "by", className = "" }) {
           </Link>
         </React.Fragment>
       ))}
+      {after ? <span>{after}</span> : null}
     </p>
   );
 }
@@ -1033,7 +1050,7 @@ export function BannerTitle({ d, className = "bp-title" }) {
       {d.isLoading ? (
         <Skeleton width="70%" sx={{ bgcolor: "rgba(255,255,255,0.15)" }} />
       ) : (
-        d.items.title || "Banner"
+        d.items.title || t("Banner")
       )}
     </h1>
   );
@@ -1044,7 +1061,7 @@ export function ErrorAlert({ d }) {
     <div className="ob-alert bad" role="alert">
       <div className="grow">{d.error}</div>
       <button type="button" className="btn text sl" onClick={d.retry}>
-        Retry
+        {t("Retry")}
       </button>
     </div>
   );
@@ -1066,7 +1083,7 @@ export function StatusAlerts({ d }) {
           <EventIcon />
           <div className="grow">
             <b>{d.eventLabel}</b>
-            <span className="small">This banner was made for an event.</span>
+            <span className="small">{t("This banner was made for an event.")}</span>
           </div>
         </div>
       ) : null}
@@ -1076,13 +1093,22 @@ export function StatusAlerts({ d }) {
           <div className="grow">
             <b>
               {disabledCount >= missionCount
-                ? `This banner is offline – all ${missionCount} missions are disabled`
-                : `${disabledCount} of ${missionCount} missions are offline`}
+                ? tn(
+                    "This banner is offline – its {count} mission is disabled",
+                    "This banner is offline – all {count} missions are disabled",
+                    missionCount
+                  )
+                : tn(
+                    "{disabled} of {count} mission is offline",
+                    "{disabled} of {count} missions are offline",
+                    missionCount,
+                    { disabled: disabledCount }
+                  )}
             </b>
             <span className="small">
               {disabledCount >= missionCount
-                ? "You can’t complete it in Ingress any more. The route is kept here for reference."
-                : "The banner can’t be fully completed until these missions are back."}
+                ? t("You can’t complete it in Ingress any more. The route is kept here for reference.")
+                : t("The banner can’t be fully completed until these missions are back.")}
             </span>
           </div>
         </div>
@@ -1091,7 +1117,7 @@ export function StatusAlerts({ d }) {
         <div className="ob-alert warn" role="note">
           <Warning />
           <div className="grow">
-            <b>Bannergress warning</b>
+            <b>{t("Bannergress warning")}</b>
             <span className="small desc">{d.warning}</span>
           </div>
         </div>
@@ -1102,11 +1128,13 @@ export function StatusAlerts({ d }) {
           <HourglassTop />
           <div className="grow">
             <b>
-              {d.submittedCount === 1
-                ? "1 mission is waiting for Niantic"
-                : `${d.submittedCount} missions are waiting for Niantic`}
+              {tn(
+                "{count} mission is waiting for Niantic",
+                "{count} missions are waiting for Niantic",
+                d.submittedCount
+              )}
             </b>
-            <span className="small">Submitted, but not live in Ingress yet.</span>
+            <span className="small">{t("Submitted, but not live in Ingress yet.")}</span>
           </div>
         </div>
       ) : null}
@@ -1115,14 +1143,15 @@ export function StatusAlerts({ d }) {
           <Warning />
           <div className="grow">
             <b>
-              Goes offline on{" "}
-              {new Date(d.items.plannedOfflineDate).toLocaleDateString(undefined, {
-                day: "numeric",
-                month: "long",
-                year: "numeric",
+              {t("Goes offline on {date}", {
+                date: new Date(d.items.plannedOfflineDate).toLocaleDateString(getLanguage(), {
+                  day: "numeric",
+                  month: "long",
+                  year: "numeric",
+                }),
               })}
             </b>
-            <span className="small">The author has planned to take this banner down.</span>
+            <span className="small">{t("The author has planned to take this banner down.")}</span>
           </div>
         </div>
       ) : null}
@@ -1139,8 +1168,13 @@ export function PassphraseAlert({ d }) {
   const indexes = entries.map((entry) => entry.index);
   const title =
     indexes.length === d.missions.length && indexes.length > 1
-      ? "Every mission asks for a passphrase"
-      : `${formatMissionNumbers(indexes)} ${indexes.length > 1 ? "ask" : "asks"} for a passphrase`;
+      ? t("Every mission asks for a passphrase")
+      : tn(
+          "Mission {numbers} asks for a passphrase",
+          "Missions {numbers} ask for a passphrase",
+          indexes.length,
+          { numbers: formatMissionNumbers(indexes, false) }
+        );
 
   return (
     <div className="ob-alert warn" role="note">
@@ -1169,20 +1203,20 @@ export function ListActions({ d }) {
 export function KeyNumbers({ d, keys = ["distance", "missions", "time", "perKm"], className = "stats" }) {
   const wait = (value) => (d.isLoading ? "…" : value ?? "?");
   const all = {
-    distance: ["Distance", wait(d.distanceLabel)],
-    missions: ["Missions", wait(d.missionCount)],
-    time: ["Est. time", wait(d.durationLabel)],
-    perKm: ["Missions / km", wait(d.perKmLabel)],
-    order: ["Order", wait(d.orderLabel || null)],
-    waypoints: ["Waypoints", wait(d.waypointCount)],
-    offline: ["Offline", wait(d.disabledCount)],
-    uniques: ["Unique portals", wait(d.uniqueLabel)],
-    straight: ["Start to finish", wait(d.startToFinishLabel)],
-    lastChecked: ["Last checked", wait(d.lastCheckedLabel)],
+    distance: [t("Distance"), wait(d.distanceLabel)],
+    missions: [t("Missions"), wait(d.missionCount)],
+    time: [t("Est. time"), wait(d.durationLabel)],
+    perKm: [t("Missions / km"), wait(d.perKmLabel)],
+    order: [t("Order"), wait(d.orderLabel || null)],
+    waypoints: [t("Waypoints"), wait(d.waypointCount)],
+    offline: [t("Offline"), wait(d.disabledCount)],
+    uniques: [t("Unique portals"), wait(d.uniqueLabel)],
+    straight: [t("Start to finish"), wait(d.startToFinishLabel)],
+    lastChecked: [t("Last checked"), wait(d.lastCheckedLabel)],
   };
 
   return (
-    <div className={className} role="list" aria-label="Key numbers">
+    <div className={className} role="list" aria-label={t("Key numbers")}>
       {keys.filter((key) => !(key === "straight" && !d.isLoading && !d.startToFinishLabel)).map((key) => (
         <div className={`stat stat-${key}`} role="listitem" key={key}>
           <span className="k">{all[key][0]}</span>
@@ -1204,7 +1238,7 @@ export function Description({ d, className = "desc" }) {
   }
 
   if (!d.items.description) {
-    return <p className={className}>No banner description is available.</p>;
+    return <p className={className}>{t("No banner description is available.")}</p>;
   }
 
   return <SimpleMarkdown text={d.items.description} className={className} />;
@@ -1222,7 +1256,7 @@ export function BannergressLink({ d, className = "small", button = false }) {
         target="_blank"
         rel="noopener noreferrer"
       >
-        View on Bannergress
+        {t("View on Bannergress")}
       </a>
     );
   }
@@ -1234,7 +1268,7 @@ export function BannergressLink({ d, className = "small", button = false }) {
         target="_blank"
         rel="noopener noreferrer"
       >
-        View on Bannergress
+        {t("View on Bannergress")}
       </a>
     </p>
   );
@@ -1244,13 +1278,15 @@ export function MissionsHeader({ d }) {
   return (
     <div>
       <h2 className="ob-h2" style={{ fontSize: 18 }}>
-        {d.missionCount} missions
+        {tn("{count} mission", "{count} missions", d.missionCount)}
       </h2>
       <p className="small muted">
-        {d.waypointCount} waypoints
-        {d.orderLabel ? ` · ${d.orderLabel.toLowerCase()}` : ""}
-        {d.disabledCount > 0 ? ` · ${d.disabledCount} offline` : ""}
-        {d.passphraseMissions?.length ? ` · ${d.passphraseMissions.length} with a passphrase` : ""}
+        {tn("{count} waypoint", "{count} waypoints", d.waypointCount)}
+        {d.orderLabel ? ` · ${d.orderLabel.toLocaleLowerCase(getLanguage())}` : ""}
+        {d.disabledCount > 0 ? ` · ${tn("{count} offline", "{count} offline", d.disabledCount)}` : ""}
+        {d.passphraseMissions?.length
+          ? ` · ${tn("{count} with a passphrase", "{count} with a passphrase", d.passphraseMissions.length)}`
+          : ""}
       </p>
     </div>
   );
@@ -1258,7 +1294,7 @@ export function MissionsHeader({ d }) {
 
 export function MissionList({ d }) {
   return (
-    <ol className="mlist" aria-label="Missions in order">
+    <ol className="mlist" aria-label={t("Missions in order")}>
       {d.missions.map((mission, index) => (
         <MissionItem
           key={mission.id ?? index}
@@ -1323,7 +1359,7 @@ export function MapSection({ d, className = "", sheet = true, onShowInList, chil
       className={`bp-map ${className}`.trim()}
       ref={d.mapContainerRef}
       hidden={!d.showMap}
-      aria-label="Route map"
+      aria-label={t("Route map")}
     >
       {d.showMap && !d.error ? (
         <RouteMap
@@ -1346,8 +1382,8 @@ export function MapSection({ d, className = "", sheet = true, onShowInList, chil
         <button
           type="button"
           className="icon-btn sl"
-          aria-label="Show my location"
-          title="Show my location"
+          aria-label={t("Show my location")}
+          title={t("Show my location")}
           disabled={d.isLocatingUser}
           onClick={d.handleLocate}
         >
@@ -1356,8 +1392,8 @@ export function MapSection({ d, className = "", sheet = true, onShowInList, chil
         <button
           type="button"
           className="icon-btn sl"
-          aria-label="Show whole route"
-          title="Show whole route"
+          aria-label={t("Show whole route")}
+          title={t("Show whole route")}
           onClick={() => {
             d.setSelectedMission(-1);
             d.fitRoute();
@@ -1368,7 +1404,7 @@ export function MapSection({ d, className = "", sheet = true, onShowInList, chil
       </div>
       {d.isLoading || d.locationError ? (
         <div className="bp-note" role={d.locationError ? "alert" : undefined}>
-          {d.locationError || "Loading map details..."}
+          {d.locationError || t("Loading map details...")}
         </div>
       ) : null}
       {sheetShown ? (
@@ -1385,14 +1421,14 @@ export function MapSection({ d, className = "", sheet = true, onShowInList, chil
                   target="_blank"
                   rel="noopener noreferrer"
                 >
-                  Open in Ingress
+                  {t("Open in Ingress")}
                 </a>
               ) : null}
               <button
                 type="button"
                 className="icon-btn sl"
-                aria-label="Show in list"
-                title="Show in list"
+                aria-label={t("Show in list")}
+                title={t("Show in list")}
                 onClick={() => showInList(d.selectedMission)}
               >
                 <FormatListNumbered />
@@ -1402,15 +1438,17 @@ export function MapSection({ d, className = "", sheet = true, onShowInList, chil
           {d.selected && d.passphraseMissions?.some((entry) => entry.index === d.selectedMission) ? (
             <div className="small bp-sheet-pass">
               <Key />
-              Asks for a passphrase: look around on site for the answer
+              {t("Asks for a passphrase: look around on site for the answer")}
             </div>
           ) : null}
           {d.selected ? null : (
             <>
               <b>
-                Whole route · {d.missionCount} missions · {d.distanceLabel}
+                {tn("Whole route · {count} mission · {distance}", "Whole route · {count} missions · {distance}", d.missionCount, {
+                  distance: d.distanceLabel,
+                })}
               </b>
-              <div className="small muted">Tap a numbered marker to see that mission</div>
+              <div className="small muted">{t("Tap a numbered marker to see that mission")}</div>
             </>
           )}
         </div>
@@ -1420,9 +1458,9 @@ export function MapSection({ d, className = "", sheet = true, onShowInList, chil
 }
 
 // Mobile Overview / Missions / Map tabs (Map hidden on desktop, where the map is beside).
-export function DetailTabs({ d, labels = { overview: "Overview", missions: "Missions", map: "Map" }, className = "" }) {
+export function DetailTabs({ d, labels = { overview: tk("Overview"), missions: tk("Missions"), map: tk("Map") }, className = "" }) {
   return (
-    <div className={`bp-tabs ${className}`.trim()} role="tablist" aria-label="Banner detail sections">
+    <div className={`bp-tabs ${className}`.trim()} role="tablist" aria-label={t("Banner detail sections")}>
       {Object.entries(labels).map(([key, label]) => (
         <button
           key={key}
@@ -1433,7 +1471,7 @@ export function DetailTabs({ d, labels = { overview: "Overview", missions: "Miss
           disabled={key === "map" && Boolean(d.error)}
           onClick={() => d.setTab(key)}
         >
-          {label}
+          {t(label)}
         </button>
       ))}
     </div>
@@ -1449,20 +1487,20 @@ export function BannerDetailsList({ d }) {
     return null;
   }
 
-  const rows = [["Waypoints", d.waypointCount]];
+  const rows = [[t("Waypoints"), d.waypointCount]];
   if (d.startToFinishLabel) {
-    rows.push(["Start to finish", d.startToFinishLabel]);
+    rows.push([t("Start to finish"), d.startToFinishLabel]);
   }
   if (d.lastCheckedLabel) {
-    rows.push(["Last checked", d.lastCheckedLabel]);
+    rows.push([t("Last checked"), d.lastCheckedLabel]);
   }
-  const groups = [["Actions", d.actionCounts]];
+  const groups = [[t("Actions"), d.actionCounts]];
   if (d.missionTypes.length > 1) {
-    groups.push(["Mission types", d.missionTypes]);
+    groups.push([t("Mission types"), d.missionTypes]);
   }
 
   return (
-    <section className="bp-facts" aria-label="Banner details list">
+    <section className="bp-facts" aria-label={t("Banner details list")}>
       <dl>
         {rows.map(([label, value]) => (
           <div className="bp-fact" key={label}>

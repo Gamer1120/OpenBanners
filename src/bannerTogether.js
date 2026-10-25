@@ -1,3 +1,5 @@
+import { t } from "./i18n";
+
 export const BANNER_TOGETHER_HASH_PREFIX = "#banner-together=";
 export const BANNER_TOGETHER_MAX_BANNER_IDS = 1000;
 export const BANNER_TOGETHER_MAX_HASH_LENGTH = 16 * 1024;
@@ -279,13 +281,13 @@ async function encodePayload(payload) {
   }
 
   throw new Error(
-    "This snapshot invite is too large to share reliably. Choose a more specific place."
+    t("This snapshot invite is too large to share reliably. Choose a more specific place.")
   );
 }
 
 async function decodePayload(encodedPayload) {
   if (typeof encodedPayload !== "string") {
-    throw new Error("Invite hash is invalid.");
+    throw new Error(t("Invite hash is invalid."));
   }
 
   const separatorIndex = encodedPayload.indexOf(".");
@@ -300,7 +302,7 @@ async function decodePayload(encodedPayload) {
 
   if (encoding === "gzip") {
     if (typeof globalThis.DecompressionStream !== "function") {
-      throw new Error("This browser cannot decompress the invite payload.");
+      throw new Error(t("This browser cannot decompress the invite payload."));
     }
 
     try {
@@ -368,11 +370,11 @@ function validateParsedPayload(payload, now) {
   const createdAtTimestamp = new Date(normalizedPayload.createdAt).getTime();
 
   if (createdAtTimestamp - now > BANNER_TOGETHER_FUTURE_TOLERANCE_MS) {
-    throw new Error("Invite snapshot timestamp is in the future.");
+    throw new Error(t("Invite snapshot timestamp is in the future."));
   }
 
   if (now - createdAtTimestamp > BANNER_TOGETHER_MAX_AGE_MS) {
-    throw new Error("Invite snapshot has expired.");
+    throw new Error(t("Invite snapshot has expired."));
   }
 
   return normalizedPayload;

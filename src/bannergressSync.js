@@ -1,4 +1,5 @@
 import { useSyncExternalStore } from "react";
+import { getLanguage, t } from "./i18n";
 
 export const BANNERGRESS_SYNC_STORAGE_KEY = "openbanners-bannergress-sync";
 export const BANNERGRESS_SYNC_CHANGE_EVENT =
@@ -63,7 +64,12 @@ export function withTimeout(task, timeoutMs, label = "request") {
       controller?.abort();
       reject(
         Object.assign(
-          new Error(`Bannergress ${label} timed out after ${Math.round(timeoutMs / 1000)} s.`),
+          new Error(
+            t("Bannergress {label} timed out after {seconds} s.", {
+              label,
+              seconds: Math.round(timeoutMs / 1000),
+            })
+          ),
           { code: "TIMEOUT" }
         )
       );
@@ -638,9 +644,11 @@ export function serializeBannergressPendingAuth(pendingAuth) {
 export async function buildBannergressAuthorizationUrl() {
   if (!isBannergressAuthSupportedOrigin()) {
     throw new Error(
-      `Bannergress auth is currently only enabled on ${BANNERGRESS_OIDC_CONFIGURATION.supportedHostnames
-        .map((hostname) => `https://${hostname}/`)
-        .join(", ")}`
+      t("Bannergress auth is currently only enabled on {hosts}", {
+        hosts: BANNERGRESS_OIDC_CONFIGURATION.supportedHostnames
+          .map((hostname) => `https://${hostname}/`)
+          .join(", "),
+      })
     );
   }
 
@@ -715,7 +723,7 @@ async function refreshBannergressAuthData(currentAuthData) {
     if (loadBannergressAuthData().refreshToken === payload.refreshToken) {
       clearBannergressAuthData();
     }
-    throw Object.assign(new Error("Bannergress token refresh failed."), {
+    throw Object.assign(new Error(t("Bannergress token refresh failed.")), {
       status: response.status,
       result,
     });
@@ -803,13 +811,13 @@ async function assertAuthenticatedResponse(response) {
   if (response.status === 401 || response.status === 403) {
     clearBannergressAuthData();
 
-    throw Object.assign(new Error("Authenticate with Bannergress again."), {
+    throw Object.assign(new Error(t("Authenticate with Bannergress again.")), {
       code: "AUTH_REQUIRED",
       status: response.status,
     });
   }
 
-  throw Object.assign(new Error("Bannergress request failed."), {
+  throw Object.assign(new Error(t("Bannergress request failed.")), {
     code: "REQUEST_FAILED",
     status: response.status,
   });
@@ -850,7 +858,7 @@ async function requestSyncAccessToken() {
     }
 
     if (!Number.isFinite(error?.status)) {
-      throw Object.assign(new Error("Couldn't reach Bannergress."), {
+      throw Object.assign(new Error(t("Couldn't reach Bannergress.")), {
         code: "NETWORK",
         cause: error,
       });
@@ -863,13 +871,13 @@ async function requestSyncAccessToken() {
 function syncRequestError(response) {
   if (response.status === 401 || response.status === 403) {
     clearBannergressAuthData();
-    return Object.assign(new Error("Authenticate with Bannergress again."), {
+    return Object.assign(new Error(t("Authenticate with Bannergress again.")), {
       code: "AUTH_REQUIRED",
       status: response.status,
     });
   }
 
-  return Object.assign(new Error(`Bannergress answered ${response.status}.`), {
+  return Object.assign(new Error(t("Bannergress answered {status}.", { status: response.status })), {
     code: "REQUEST_FAILED",
     status: response.status,
   });
@@ -891,7 +899,7 @@ async function requestSyncPage(url, accessToken, timeoutMs) {
         throw error;
       }
 
-      throw Object.assign(new Error("Couldn't reach Bannergress."), {
+      throw Object.assign(new Error(t("Couldn't reach Bannergress.")), {
         code: "NETWORK",
         cause: error,
       });
@@ -910,7 +918,7 @@ async function requestSyncPage(url, accessToken, timeoutMs) {
         throw error;
       }
 
-      throw Object.assign(new Error("Unexpected Bannergress sync response."), {
+      throw Object.assign(new Error(t("Unexpected Bannergress sync response.")), {
         code: "SYNC_FAILED",
         status: response.status,
       });
@@ -952,7 +960,7 @@ async function runBannergressSync({
 
   if (!accessToken) {
     syncDebug("No usable Bannergress token.");
-    throw Object.assign(new Error("Authenticate with Bannergress first."), {
+    throw Object.assign(new Error(t("Authenticate with Bannergress first.")), {
       code: "AUTH_REQUIRED",
     });
   }
@@ -1008,7 +1016,7 @@ async function runBannergressSync({
       const result = answer.result;
 
       if (!Array.isArray(result)) {
-        throw Object.assign(new Error("Unexpected Bannergress sync response."), {
+        throw Object.assign(new Error(t("Unexpected Bannergress sync response.")), {
           code: "SYNC_FAILED",
           status: answer.status,
         });
@@ -1150,7 +1158,7 @@ export function formatBannergressSyncTime(syncedAt) {
     return null;
   }
 
-  return new Intl.DateTimeFormat(undefined, {
+  return new Intl.DateTimeFormat(getLanguage(), {
     dateStyle: "medium",
     timeStyle: "short",
   }).format(date);

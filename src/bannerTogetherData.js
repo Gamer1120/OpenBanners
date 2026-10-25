@@ -4,6 +4,7 @@ import {
   loadBannergressAuthData,
   requestBannergressAccessToken,
 } from "./bannergressSync";
+import { t } from "./i18n";
 
 export const BANNER_TOGETHER_PAGE_SIZE = 100;
 export const BANNER_TOGETHER_PAGE_CONCURRENCY = 4;
@@ -37,7 +38,7 @@ const CATALOG_ATTRIBUTES = [
 ];
 
 function createAbortError() {
-  return Object.assign(new Error("Banner Together request was cancelled."), {
+  return Object.assign(new Error(t("Banner Together request was cancelled.")), {
     name: "AbortError",
   });
 }
@@ -50,7 +51,7 @@ function throwIfAborted(signal) {
 
 function createAuthRequiredError() {
   return Object.assign(
-    new Error("Authenticate with Bannergress to compare banner lists."),
+    new Error(t("Authenticate with Bannergress to compare banner lists.")),
     { code: "AUTH_REQUIRED" }
   );
 }
@@ -787,7 +788,7 @@ async function fetchBannerTogetherPages({
     ).filter((offset) => offset <= BANNER_TOGETHER_MAX_BANNERS);
 
     if (offsets.length === 0) {
-      throw new Error("Banner Together pagination exceeded the safe page limit.");
+      throw new Error(t("Banner Together pagination exceeded the safe page limit."));
     }
 
     const windowController = new AbortController();
@@ -812,7 +813,7 @@ async function fetchBannerTogetherPages({
         const page = readPage(pageResult);
 
         if (!Array.isArray(page) || page.length > BANNER_TOGETHER_PAGE_SIZE) {
-          throw new Error("Bannergress returned an invalid Banner Together page.");
+          throw new Error(t("Bannergress returned an invalid Banner Together page."));
         }
 
         onPage(page, pageResult.offset);
@@ -858,18 +859,18 @@ export async function fetchBannerTogetherCatalog(
       }
 
       if (!response.ok) {
-        throw new Error("Bannergress could not load the place banner catalog.");
+        throw new Error(t("Bannergress could not load the place banner catalog."));
       }
 
       if (parseError || !Array.isArray(page)) {
-        throw new Error("Bannergress returned an unexpected banner catalog.");
+        throw new Error(t("Bannergress returned an unexpected banner catalog."));
       }
 
       return page;
     },
     onPage: (page, offset) => {
       if (offset >= BANNER_TOGETHER_MAX_BANNERS && page.length > 0) {
-        throw new Error("The place banner catalog exceeded the safe page limit.");
+        throw new Error(t("The place banner catalog exceeded the safe page limit."));
       }
 
       page.forEach((banner) => {
@@ -951,18 +952,18 @@ export async function fetchBannerTogetherMembership(
         }
 
         if (!response.ok) {
-          throw new Error("Bannergress could not load the private banner lists.");
+          throw new Error(t("Bannergress could not load the private banner lists."));
         }
 
         if (parseError || !Array.isArray(page)) {
-          throw new Error("Bannergress returned unexpected private list data.");
+          throw new Error(t("Bannergress returned unexpected private list data."));
         }
 
         return page;
       },
       onPage: (page, offset) => {
         if (offset >= BANNER_TOGETHER_MAX_BANNERS && page.length > 0) {
-          throw new Error("The private banner lists exceeded the safe page limit.");
+          throw new Error(t("The private banner lists exceeded the safe page limit."));
         }
 
         page.forEach((banner) => {
@@ -977,7 +978,7 @@ export async function fetchBannerTogetherMembership(
             returnedListType !== requestedListType
           ) {
             throw new Error(
-              "Bannergress returned overlapping private list memberships. Refresh and try again."
+              t("Bannergress returned overlapping private list memberships. Refresh and try again.")
             );
           }
 
@@ -985,7 +986,7 @@ export async function fetchBannerTogetherMembership(
 
           if (previousListType && previousListType !== requestedListType) {
             throw new Error(
-              "Bannergress returned overlapping private list memberships. Refresh and try again."
+              t("Bannergress returned overlapping private list memberships. Refresh and try again.")
             );
           }
 
@@ -993,7 +994,7 @@ export async function fetchBannerTogetherMembership(
 
           if (listTypeByBannerId.size > BANNER_TOGETHER_MAX_BANNERS) {
             throw new Error(
-              "The private banner lists exceeded the safe page limit."
+              t("The private banner lists exceeded the safe page limit.")
             );
           }
         });

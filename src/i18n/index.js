@@ -109,7 +109,7 @@ export function setLanguageChoice(next) {
 }
 
 function fill(text, vars) {
-  return vars ? text.replace(/\{(\w+)\}/g, (all, name) => (vars[name] ?? vars[name] === 0 ? String(vars[name]) : all)) : text;
+  return vars ? text.replace(/\{(\w+)\}/g, (all, name) => (vars[name] != null ? String(vars[name]) : all)) : text;
 }
 
 // Marks a text for translation without translating it yet: for module-level

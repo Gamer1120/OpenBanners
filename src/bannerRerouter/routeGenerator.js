@@ -8,6 +8,7 @@ import {
   normalizeMissionCount,
   normalizeRouteOptions,
 } from "./umm";
+import { t, tk } from "../i18n";
 
 const EARTH_RADIUS_METERS = 6371000;
 const DEFAULT_MISSIONS = 12;
@@ -89,7 +90,7 @@ function calculateDistanceMeters(portalA, portalB) {
 
 function formatDistance(distanceMeters) {
   if (!Number.isFinite(distanceMeters)) {
-    return "Unavailable";
+    return tk("Unavailable");
   }
 
   if (distanceMeters < 1000) {
@@ -439,7 +440,7 @@ function getRouteDistanceMode(routeOptions = DEFAULT_ROUTE_OPTIONS) {
 }
 
 function getRouteDistanceModeLabel(routeOptions = DEFAULT_ROUTE_OPTIONS) {
-  return routeUsesPathDistance(routeOptions) ? "Path" : "Loop";
+  return routeUsesPathDistance(routeOptions) ? tk("Path") : tk("Loop");
 }
 
 function routeMatchesLoopClosure(portals, routeOptions = DEFAULT_ROUTE_OPTIONS) {
@@ -460,10 +461,26 @@ function routeRequiresStrictLoopClosure(routeOptions = DEFAULT_ROUTE_OPTIONS) {
 
 function buildStrictLoopClosureErrorMessage(requiresHardDistanceBounds = false) {
   if (requiresHardDistanceBounds) {
-    return "No reroute could satisfy the strict loop-closure requirement while staying within the hard minimum/maximum distance constraints.";
+    return t("No reroute could satisfy the strict loop-closure requirement while staying within the hard minimum/maximum distance constraints.");
   }
 
-  return "No reroute could satisfy the strict loop-closure requirement.";
+  return t("No reroute could satisfy the strict loop-closure requirement.");
+}
+
+// The workers have no translations loaded, so an error with values carries its
+// English text and values; the page translates it with translateRerouteError().
+function translatableError(text, vars) {
+  const error = new Error(t(text, vars));
+  error.i18n = { text, vars };
+  return error;
+}
+
+export function translateRerouteError(message, i18n) {
+  if (i18n && typeof i18n.text === "string") {
+    return t(i18n.text, i18n.vars);
+  }
+
+  return t(message);
 }
 
 function routeMatchesHardDistanceBounds(distanceMeters, targets) {
@@ -4284,7 +4301,7 @@ export function generateReroute(
   } = {}
 ) {
   if (!draft) {
-    throw new Error("Import a banner before generating a reroute.");
+    throw new Error(t("Import a banner before generating a reroute."));
   }
 
   const missionCount = normalizeMissionCount(
@@ -4304,8 +4321,9 @@ export function generateReroute(
   );
 
   if (allPortals.length < targetPortalCount) {
-    throw new Error(
-      `You need at least ${targetPortalCount} imported portals for a ${missionCount}-mission reroute.`
+    throw translatableError(
+      tk("You need at least {portals} imported portals for a {missions}-mission reroute."),
+      { portals: targetPortalCount, missions: missionCount }
     );
   }
 
@@ -4315,7 +4333,7 @@ export function generateReroute(
     routeOptions.minLoopDistanceMeters > routeOptions.maxLoopDistanceMeters
   ) {
     throw new Error(
-      "Minimum route distance must be less than or equal to maximum route distance."
+      t("Minimum route distance must be less than or equal to maximum route distance.")
     );
   }
 
@@ -4324,7 +4342,7 @@ export function generateReroute(
     allPortals[0];
 
   if (!startPortal) {
-    throw new Error("Select a valid start portal before generating a reroute.");
+    throw new Error(t("Select a valid start portal before generating a reroute."));
   }
 
   const endPortal =
@@ -4334,11 +4352,11 @@ export function generateReroute(
         null;
 
   if (draft.selectedEndPortalKey != null && !endPortal) {
-    throw new Error("Select a valid end portal before generating a reroute.");
+    throw new Error(t("Select a valid end portal before generating a reroute."));
   }
 
   if (endPortal && endPortal.portalKey === startPortal.portalKey) {
-    throw new Error("Start portal and end portal must be different.");
+    throw new Error(t("Start portal and end portal must be different."));
   }
 
   const reservedPortalKeySet = new Set(
@@ -4351,8 +4369,9 @@ export function generateReroute(
   }
 
   if (reservedPortalKeySet.size > targetPortalCount) {
-    throw new Error(
-      `The start portal, end portal, and required portals need ${reservedPortalKeySet.size} route slots, but a ${missionCount}-mission reroute only has ${targetPortalCount}.`
+    throw translatableError(
+      tk("The start portal, end portal, and required portals need {slots} route slots, but a {missions}-mission reroute only has {portals}."),
+      { slots: reservedPortalKeySet.size, missions: missionCount, portals: targetPortalCount }
     );
   }
 
@@ -4697,7 +4716,7 @@ export function generateReroute(
     throw new Error(
       strictLoopClosureRequired && bestHardDistanceRoute
         ? buildStrictLoopClosureErrorMessage(true)
-        : "No reroute could satisfy the hard minimum/maximum distance constraints."
+        : t("No reroute could satisfy the hard minimum/maximum distance constraints.")
     );
   }
 
@@ -4706,7 +4725,7 @@ export function generateReroute(
   }
 
   if (!finalRoute || finalRoute.length !== targetPortalCount) {
-    throw new Error("The reroute couldn't be generated from this portal pool.");
+    throw new Error(t("The reroute couldn't be generated from this portal pool."));
   }
 
   const finalRouteDistance = getRouteDistanceMeters(finalRoute, routeOptions);
@@ -4716,7 +4735,7 @@ export function generateReroute(
     !routeMatchesHardDistanceBounds(finalRouteDistance, targets)
   ) {
     throw new Error(
-      "No reroute could satisfy the hard minimum/maximum distance constraints."
+      t("No reroute could satisfy the hard minimum/maximum distance constraints.")
     );
   }
 
@@ -4782,7 +4801,7 @@ export function buildRouteHistoryEntry(
   const nextLabel =
     typeof label === "string" && label.trim()
       ? label.trim()
-      : `Reroute ${(draft.routeHistory?.length ?? 0) + 1}`;
+      : t("Reroute {number}", { number: (draft.routeHistory?.length ?? 0) + 1 });
 
   return {
     id: `history-${now}`,
@@ -4849,7 +4868,7 @@ export function restoreDraftFromHistoryEntry(draft, entry, now = Date.now()) {
 
 export function buildUmmMissionSet(route, draft) {
   if (!route) {
-    throw new Error("Generate a reroute before exporting it.");
+    throw new Error(t("Generate a reroute before exporting it."));
   }
 
   return {

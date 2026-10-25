@@ -1,3 +1,5 @@
+import { t } from "./i18n";
+
 export const BANNER_TOGETHER_LIVE_VERSION = 3;
 export const BANNER_TOGETHER_LIVE_INVITE_VERSION = 1;
 export const BANNER_TOGETHER_LIVE_HASH_PREFIX = "#banner-together-live=";
@@ -223,11 +225,11 @@ function validateSnapshotAge(capturedAt, now) {
   const timestamp = new Date(capturedAt).getTime();
 
   if (timestamp - now > FUTURE_TOLERANCE_MS) {
-    throw new Error("Live room snapshot timestamp is in the future.");
+    throw new Error(t("Live room snapshot timestamp is in the future."));
   }
 
   if (now - timestamp > BANNER_TOGETHER_LIVE_MAX_AGE_MS) {
-    throw new Error("Live room snapshot has expired.");
+    throw new Error(t("Live room snapshot has expired."));
   }
 }
 
@@ -738,7 +740,7 @@ export function parseBannerTogetherLiveInviteHash(
     typeof hash !== "string" ||
     !hash.startsWith(BANNER_TOGETHER_LIVE_HASH_PREFIX)
   ) {
-    throw new Error("Live room invite has an invalid fragment prefix.");
+    throw new Error(t("Live room invite has an invalid fragment prefix."));
   }
 
   const parts = hash.slice(BANNER_TOGETHER_LIVE_HASH_PREFIX.length).split(".");
@@ -747,7 +749,7 @@ export function parseBannerTogetherLiveInviteHash(
     parts.length !== 2 ||
     parts[0] !== `v${BANNER_TOGETHER_LIVE_INVITE_VERSION}`
   ) {
-    throw new Error("Live room invite has an unsupported format.");
+    throw new Error(t("Live room invite has an unsupported format."));
   }
 
   return {
@@ -790,7 +792,7 @@ function normalizeAccess(access, now) {
   const expiresAt = new Date(normalized.expiresAt).getTime();
 
   if (expiresAt <= now) {
-    throw new Error("Live room access has expired.");
+    throw new Error(t("Live room access has expired."));
   }
 
   if (expiresAt - now > BANNER_TOGETHER_LIVE_MAX_AGE_MS + FUTURE_TOLERANCE_MS) {
@@ -879,7 +881,7 @@ function normalizePendingJoin(pendingJoin, now) {
   const expiresAt = new Date(normalized.expiresAt).getTime();
 
   if (expiresAt <= now) {
-    throw new Error("Pending live room join has expired.");
+    throw new Error(t("Pending live room join has expired."));
   }
 
   if (expiresAt - now > BANNER_TOGETHER_LIVE_MAX_AGE_MS + FUTURE_TOLERANCE_MS) {

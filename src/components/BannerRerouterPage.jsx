@@ -49,12 +49,14 @@ import {
   generateReroute,
   getActivePortals,
   restoreDraftFromHistoryEntry,
+  translateRerouteError,
 } from "../bannerRerouter/routeGenerator";
 import {
   clearBannerRerouterState,
   updateBannerRerouterState,
   useBannerRerouterState,
 } from "../bannerRerouterStore";
+import { getLanguage, t, tk, tn } from "../i18n";
 
 const DEFAULT_MAP_CENTER = [52.221058, 6.893297];
 const PORTAL_LIST_LIMIT = 120;
@@ -64,15 +66,15 @@ const TILE_ATTRIBUTION = "&copy; OpenStreetMap contributors";
 const LOOP_CLOSURE_OPTIONS = [
   {
     value: LOOP_CLOSURE_MODE_STRICT,
-    label: "Strict loop",
+    label: tk("Strict loop"),
   },
   {
     value: LOOP_CLOSURE_MODE_PREFER,
-    label: "Prefer loop",
+    label: tk("Prefer loop"),
   },
   {
     value: LOOP_CLOSURE_MODE_NO_LOOP,
-    label: "No loop",
+    label: tk("No loop"),
   },
 ];
 const compactActionButtonBaseSx = {
@@ -146,10 +148,10 @@ const portalActionButtonStyles = {
 
 function formatTimestamp(timestamp) {
   if (!Number.isFinite(timestamp)) {
-    return "Unknown time";
+    return t("Unknown time");
   }
 
-  return new Intl.DateTimeFormat(undefined, {
+  return new Intl.DateTimeFormat(getLanguage(), {
     dateStyle: "medium",
     timeStyle: "short",
   }).format(timestamp);
@@ -243,20 +245,35 @@ function getRouteSummaryDistanceLabel(summary) {
     summary?.distanceLabel ??
     summary?.loopDistanceLabel ??
     summary?.pathDistanceLabel ??
-    "Distance unavailable"
+    tk("Distance unavailable")
   );
 }
 
-function getRouteSummaryTargetWindowTypeLabel(summary) {
-  return (
-    summary?.targetWindowTypeLabel ??
-    `${getRouteSummaryDistanceModeLabel(summary).toLowerCase()} distance`
-  );
+function formatRouteSummaryDistance(summary) {
+  const distance = t(getRouteSummaryDistanceLabel(summary));
+
+  return getRouteSummaryDistanceModeLabel(summary) === "Path"
+    ? t("Path {distance}", { distance })
+    : t("Loop {distance}", { distance });
+}
+
+function formatRouteSummaryDescription(summary) {
+  const values = {
+    start: summary.startPortalTitle,
+    end: summary.endPortalTitle,
+    averageHop: t(summary.averageHopLabel),
+    longestHop: t(summary.maxHopLabel),
+    window: summary.targetWindowLabel,
+  };
+
+  return getRouteSummaryDistanceModeLabel(summary) === "Path"
+    ? t("Starts at {start} and ends at {end}. Average hop {averageHop}, longest hop {longestHop}, target path distance window {window}.", values)
+    : t("Starts at {start} and ends at {end}. Average hop {averageHop}, longest hop {longestHop}, target loop distance window {window}.", values);
 }
 
 function formatElapsedDuration(milliseconds) {
   if (!Number.isFinite(milliseconds) || milliseconds <= 0) {
-    return "0s";
+    return t("{seconds}s", { seconds: 0 });
   }
 
   const totalSeconds = Math.max(1, Math.round(milliseconds / 1000));
@@ -264,33 +281,36 @@ function formatElapsedDuration(milliseconds) {
   const seconds = totalSeconds % 60;
 
   if (minutes <= 0) {
-    return `${totalSeconds}s`;
+    return t("{seconds}s", { seconds: totalSeconds });
   }
 
-  return `${minutes}m ${String(seconds).padStart(2, "0")}s`;
+  return t("{minutes}m {seconds}s", {
+    minutes,
+    seconds: String(seconds).padStart(2, "0"),
+  });
 }
 
 function buildGenerationStatusLines(routeOptions, elapsedMilliseconds) {
   const normalizedRouteOptions = normalizeRouteOptions(routeOptions);
   const detailLines = [
-    "Generating reroutes...",
+    t("Generating reroutes..."),
   ];
 
   if (normalizedRouteOptions.loopClosureMode === LOOP_CLOSURE_MODE_STRICT) {
-    detailLines.push("Strict loop closure is enabled, so the generator is testing extra closing variants.");
+    detailLines.push(t("Strict loop closure is enabled, so the generator is testing extra closing variants."));
   } else if (normalizedRouteOptions.loopClosureMode === LOOP_CLOSURE_MODE_NO_LOOP) {
-    detailLines.push("No-loop mode is enabled, so the generator is building an open route instead of forcing a return to the start.");
+    detailLines.push(t("No-loop mode is enabled, so the generator is building an open route instead of forcing a return to the start."));
   }
 
   if (
     Number.isFinite(normalizedRouteOptions.minLoopDistanceMeters) ||
     Number.isFinite(normalizedRouteOptions.maxLoopDistanceMeters)
   ) {
-    detailLines.push("Hard distance limits are enabled, which adds more candidate checks.");
+    detailLines.push(t("Hard distance limits are enabled, which adds more candidate checks."));
   }
 
   if (elapsedMilliseconds >= 5000) {
-    detailLines.push("Still exploring route variants. Tight constraints can take longer, especially with strict loop closure or required portals.");
+    detailLines.push(t("Still exploring route variants. Tight constraints can take longer, especially with strict loop closure or required portals."));
   }
 
   return detailLines;
@@ -301,24 +321,48 @@ function buildCandidateProgressLabel(progress) {
     return null;
   }
 
+  const language = getLanguage();
+  const considered = progress.consideredCandidateCount.toLocaleString(language);
   const uniqueCandidateText = Number.isFinite(progress.uniqueCandidateCount)
-    ? ` Found ${progress.uniqueCandidateCount.toLocaleString()} unique ${
-        progress.uniqueCandidateCount === 1 ? "route" : "routes"
-      } so far.`
+    ? tn(
+        "Found {count} unique route so far.",
+        "Found {count} unique routes so far.",
+        progress.uniqueCandidateCount,
+        { count: progress.uniqueCandidateCount.toLocaleString(language) }
+      )
     : "";
 
   if (
     Number.isFinite(progress.totalCandidateCount) &&
     progress.totalCandidateCount > 0
   ) {
-    return `Considered ${progress.consideredCandidateCount.toLocaleString()} of ${progress.totalCandidateCount.toLocaleString()} candidate routes so far.${uniqueCandidateText}`;
+    return [
+      tn(
+        "Considered {considered} of {count} candidate route so far.",
+        "Considered {considered} of {count} candidate routes so far.",
+        progress.totalCandidateCount,
+        { considered, count: progress.totalCandidateCount.toLocaleString(language) }
+      ),
+      uniqueCandidateText,
+    ].filter(Boolean).join(" ");
   }
+
+  const consideredText = tn(
+    "Considered {count} candidate route so far.",
+    "Considered {count} candidate routes so far.",
+    progress.consideredCandidateCount,
+    { count: considered }
+  );
 
   if (progress.isContinuingUniqueSearch) {
-    return `Considered ${progress.consideredCandidateCount.toLocaleString()} candidate routes so far.${uniqueCandidateText} Still searching new unique route variants until you cancel or the search runs out of new options.`;
+    return [
+      consideredText,
+      uniqueCandidateText,
+      t("Still searching new unique route variants until you cancel or the search runs out of new options."),
+    ].filter(Boolean).join(" ");
   }
 
-  return `Considered ${progress.consideredCandidateCount.toLocaleString()} candidate routes so far.${uniqueCandidateText}`;
+  return [consideredText, uniqueCandidateText].filter(Boolean).join(" ");
 }
 
 function buildSearchWorkerLabel(progress) {
@@ -326,9 +370,12 @@ function buildSearchWorkerLabel(progress) {
     return null;
   }
 
-  return `Using ${progress.shardCount.toLocaleString()} parallel search ${
-    progress.shardCount === 1 ? "worker" : "workers"
-  }.`;
+  return tn(
+    "Using {count} parallel search worker.",
+    "Using {count} parallel search workers.",
+    progress.shardCount,
+    { count: progress.shardCount.toLocaleString(getLanguage()) }
+  );
 }
 
 function buildDraftFromImport(importedDraft, now = Date.now()) {
@@ -363,7 +410,7 @@ function readLocalFileText(file) {
       resolve(typeof fileReader.result === "string" ? fileReader.result : "");
     };
     fileReader.onerror = () => {
-      reject(new Error("The selected file couldn't be read."));
+      reject(new Error(t("The selected file couldn't be read.")));
     };
     fileReader.readAsText(file);
   });
@@ -828,7 +875,7 @@ export default function BannerRerouterPage() {
       setImportError(
         error instanceof Error
           ? error.message
-          : "The banner couldn't be imported."
+          : t("The banner couldn't be imported.")
       );
     } finally {
       setIsImporting(false);
@@ -923,7 +970,7 @@ export default function BannerRerouterPage() {
       }
 
       setActionError(
-        errorMessage || "The reroute couldn't be generated."
+        errorMessage || t("The reroute couldn't be generated.")
       );
       finishGenerationState();
     };
@@ -949,11 +996,13 @@ export default function BannerRerouterPage() {
             return;
           }
 
-          handleGenerationError(message.message);
+          handleGenerationError(
+            translateRerouteError(message.message, message.i18n)
+          );
         };
         worker.onerror = () => {
           handleGenerationError(
-            "The reroute worker failed before it could finish."
+            t("The reroute worker failed before it could finish.")
           );
         };
         worker.postMessage({
@@ -984,7 +1033,7 @@ export default function BannerRerouterPage() {
         handleGenerationError(
           error instanceof Error
             ? error.message
-            : "The reroute couldn't be generated."
+            : t("The reroute couldn't be generated.")
         );
       }
     }, 0);
@@ -1112,7 +1161,7 @@ export default function BannerRerouterPage() {
       downloadUmmMissionSet(currentRoute, activeDraft);
     } catch (error) {
       setActionError(
-        error instanceof Error ? error.message : "The reroute couldn't be exported."
+        error instanceof Error ? error.message : t("The reroute couldn't be exported.")
       );
     }
   };
@@ -1149,7 +1198,7 @@ export default function BannerRerouterPage() {
         ref={fileInputRef}
         type="file"
         accept=".json,.umm,.txt"
-        aria-label="Import banner UMM file"
+        aria-label={t("Import banner UMM file")}
         data-testid="rerouter-file-input"
         disabled={isWorkspaceBusy}
         hidden
@@ -1173,15 +1222,13 @@ export default function BannerRerouterPage() {
             alignItems={{ xs: "flex-start", md: "center" }}
           >
             <Box>
-              <Typography variant="h4">Banner Rerouter</Typography>
+              <Typography variant="h4">{t("Banner Rerouter")}</Typography>
               <Typography
                 variant="body1"
                 color="text.secondary"
                 sx={{ maxWidth: 780, mt: 1 }}
               >
-                Import an existing banner from an Ultimate Mission Maker (UMM) export, choose a start portal, optional
-                end portal, and mission count, generate a reroute, and export the result back to
-                UMM. All data you import stays on your machine and is not sent to OpenBanners and will never be. This tool works best when you import a very large banner or multiple banners, and then make a smaller banner out of it, since the tool uses portals from the imported banner(s) for rerouting.
+                {t("Import an existing banner from an Ultimate Mission Maker (UMM) export, choose a start portal, optional end portal, and mission count, generate a reroute, and export the result back to UMM. All data you import stays on your machine and is not sent to OpenBanners and will never be. This tool works best when you import a very large banner or multiple banners, and then make a smaller banner out of it, since the tool uses portals from the imported banner(s) for rerouting.")}
               </Typography>
             </Box>
             <Stack direction={{ xs: "column", sm: "row" }} spacing={1.25}>
@@ -1191,7 +1238,7 @@ export default function BannerRerouterPage() {
                 onClick={openImportPicker}
                 disabled={isWorkspaceBusy}
               >
-                {activeDraft ? "Import another banner" : "Import banner UMM"}
+                {activeDraft ? t("Import another banner") : t("Import banner UMM")}
               </Button>
               {activeDraft ? (
                 <Button
@@ -1201,7 +1248,7 @@ export default function BannerRerouterPage() {
                   onClick={handleResetWorkspace}
                   disabled={isWorkspaceBusy}
                 >
-                  Clear workspace
+                  {t("Clear workspace")}
                 </Button>
               ) : null}
             </Stack>
@@ -1216,17 +1263,16 @@ export default function BannerRerouterPage() {
           aria-labelledby="rerouter-reset-workspace-title"
         >
           <DialogTitle id="rerouter-reset-workspace-title">
-            Clear workspace?
+            {t("Clear workspace?")}
           </DialogTitle>
           <DialogContent>
             <DialogContentText>
-              This removes the imported banner, the current reroute, and the saved
-              route history from this local workspace.
+              {t("This removes the imported banner, the current reroute, and the saved route history from this local workspace.")}
             </DialogContentText>
           </DialogContent>
           <DialogActions>
             <Button onClick={handleCloseResetWorkspaceDialog} color="inherit">
-              Cancel
+              {t("Cancel")}
             </Button>
             <Button
               onClick={handleConfirmResetWorkspace}
@@ -1234,7 +1280,7 @@ export default function BannerRerouterPage() {
               variant="contained"
               startIcon={<DeleteOutline />}
             >
-              Clear workspace
+              {t("Clear workspace")}
             </Button>
           </DialogActions>
         </Dialog>
@@ -1256,7 +1302,7 @@ export default function BannerRerouterPage() {
             }}
           >
             <Stack spacing={1} aria-live="polite" alignItems="center">
-              <Typography fontWeight={700}>Generating reroute locally...</Typography>
+              <Typography fontWeight={700}>{t("Generating reroute locally...")}</Typography>
               {searchWorkerLabel ? (
                 <Typography variant="body2">{searchWorkerLabel}</Typography>
               ) : null}
@@ -1271,10 +1317,16 @@ export default function BannerRerouterPage() {
               {generationProgress &&
               Number.isFinite(generationProgress.rejectedCandidateCount) ? (
                 <Typography variant="body2" color="text.secondary">
-                  Rejected {generationProgress.rejectedCandidateCount.toLocaleString()}{" "}
-                  candidate
-                  {generationProgress.rejectedCandidateCount === 1 ? "" : "s"} so
-                  far.
+                  {tn(
+                    "Rejected {count} candidate so far.",
+                    "Rejected {count} candidates so far.",
+                    generationProgress.rejectedCandidateCount,
+                    {
+                      count: generationProgress.rejectedCandidateCount.toLocaleString(
+                        getLanguage()
+                      ),
+                    }
+                  )}
                 </Typography>
               ) : null}
               {generationProgress &&
@@ -1312,8 +1364,9 @@ export default function BannerRerouterPage() {
                 alignItems={{ xs: "flex-start", sm: "center" }}
               >
                 <Typography variant="body2" color="text.secondary">
-                  Elapsed {formatElapsedDuration(generationElapsedMs)}. You can
-                  keep this page open or cancel generation to change the draft.
+                  {t("Elapsed {time}. You can keep this page open or cancel generation to change the draft.", {
+                    time: formatElapsedDuration(generationElapsedMs),
+                  })}
                 </Typography>
                 <Button
                   size="small"
@@ -1321,7 +1374,7 @@ export default function BannerRerouterPage() {
                   color="inherit"
                   onClick={handleCancelRouteGeneration}
                 >
-                  Cancel generation
+                  {t("Cancel generation")}
                 </Button>
               </Stack>
             </Stack>
@@ -1355,23 +1408,36 @@ export default function BannerRerouterPage() {
                       {activeDraft.metadata?.title || "Rerouted Banner"}
                     </Typography>
                     <Typography color="text.secondary" sx={{ mt: 0.5 }}>
-                      Imported from {activeDraft.source?.fileName || "UMM file"} on{" "}
-                      {formatTimestamp(activeDraft.source?.importedAt)}
+                      {t("Imported from {file} on {date}", {
+                        file: activeDraft.source?.fileName || t("UMM file"),
+                        date: formatTimestamp(activeDraft.source?.importedAt),
+                      })}
                     </Typography>
                   </Box>
                   <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
                     <Chip
-                      label={`${activeDraft.importSummary?.importedMissionCount ?? 0} imported missions`}
+                      label={tn(
+                        "{count} imported mission",
+                        "{count} imported missions",
+                        activeDraft.importSummary?.importedMissionCount ?? 0
+                      )}
                     />
                     <Chip
-                      label={`${activeDraft.importSummary?.uniquePortalCount ?? 0} unique portals`}
+                      label={tn(
+                        "{count} unique portal",
+                        "{count} unique portals",
+                        activeDraft.importSummary?.uniquePortalCount ?? 0
+                      )}
                     />
-                    <Chip label={`${activePortalCount} active portals`} color="primary" />
+                    <Chip
+                      label={tn("{count} active portal", "{count} active portals", activePortalCount)}
+                      color="primary"
+                    />
                     {disabledPortalCount > 0 ? (
-                      <Chip label={`${disabledPortalCount} disabled`} />
+                      <Chip label={t("{count} disabled", { count: disabledPortalCount })} />
                     ) : null}
                     {requiredPortalSelectionCount > 0 ? (
-                      <Chip label={`${requiredPortalSelectionCount} required`} />
+                      <Chip label={t("{count} required", { count: requiredPortalSelectionCount })} />
                     ) : null}
                   </Stack>
                   {(activeDraft.importedMissionSet?.missionSetDescription ?? "").trim() ? (
@@ -1390,9 +1456,9 @@ export default function BannerRerouterPage() {
                 }}
               >
                 <Stack spacing={2}>
-                  <Typography variant="h6">Reroute settings</Typography>
+                  <Typography variant="h6">{t("Reroute settings")}</Typography>
                   <TextField
-                    label="Banner title"
+                    label={t("Banner title")}
                     value={activeDraft.metadata?.title ?? ""}
                     onChange={(event) =>
                       handleMetadataFieldChange("title", event.target.value)
@@ -1401,7 +1467,7 @@ export default function BannerRerouterPage() {
                     fullWidth
                   />
                   <TextField
-                    label="Banner description"
+                    label={t("Banner description")}
                     value={activeDraft.metadata?.description ?? ""}
                     onChange={(event) =>
                       handleMetadataFieldChange("description", event.target.value)
@@ -1420,7 +1486,7 @@ export default function BannerRerouterPage() {
                   >
                     <TextField
                       select
-                      label="Banner length"
+                      label={t("Banner length")}
                       value={activeDraft.metadata?.missionCount ?? ""}
                       onChange={(event) =>
                         handleMetadataFieldChange(
@@ -1429,17 +1495,17 @@ export default function BannerRerouterPage() {
                         )
                       }
                       disabled={isGeneratingRoute}
-                      helperText="Mission counts stay in Ingress banner increments of six."
+                      helperText={t("Mission counts stay in Ingress banner increments of six.")}
                     >
                       {missionCountOptions.map((missionCount) => (
                         <MenuItem key={missionCount} value={missionCount}>
-                          {missionCount} missions
+                          {tn("{count} mission", "{count} missions", missionCount)}
                         </MenuItem>
                       ))}
                     </TextField>
                     <TextField
                       select
-                      label="Start portal"
+                      label={t("Start portal")}
                       value={activeDraft.selectedStartPortalKey ?? ""}
                       onChange={(event) =>
                         replaceActiveDraft((draft) => ({
@@ -1449,7 +1515,7 @@ export default function BannerRerouterPage() {
                         }))
                       }
                       disabled={isGeneratingRoute}
-                      helperText="The reroute is anchored to this portal."
+                      helperText={t("The reroute is anchored to this portal.")}
                     >
                       {sortedStartPortals.map((portal) => (
                         <MenuItem key={portal.portalKey} value={portal.portalKey}>
@@ -1459,7 +1525,7 @@ export default function BannerRerouterPage() {
                     </TextField>
                     <TextField
                       select
-                      label="End portal"
+                      label={t("End portal")}
                       value={activeDraft.selectedEndPortalKey ?? ""}
                       onChange={(event) =>
                         replaceActiveDraft((draft) => ({
@@ -1469,7 +1535,7 @@ export default function BannerRerouterPage() {
                         }))
                       }
                       disabled={isGeneratingRoute}
-                      helperText="Optional. If set, this portal must be the final portal in the reroute."
+                      helperText={t("Optional. If set, this portal must be the final portal in the reroute.")}
                     >
                       <MenuItem value="">-</MenuItem>
                       {sortedEndPortals.map((portal) => (
@@ -1487,7 +1553,7 @@ export default function BannerRerouterPage() {
                     }}
                   >
                     <TextField
-                      label="Minimum distance (km)"
+                      label={t("Minimum distance (km)")}
                       type="number"
                       value={distanceInputs.min}
                       onChange={(event) => {
@@ -1508,10 +1574,10 @@ export default function BannerRerouterPage() {
                         step: 0.1,
                       }}
                       disabled={isGeneratingRoute}
-                      helperText="Optional hard route-distance floor."
+                      helperText={t("Optional hard route-distance floor.")}
                     />
                     <TextField
-                      label="Maximum distance (km)"
+                      label={t("Maximum distance (km)")}
                       type="number"
                       value={distanceInputs.max}
                       onChange={(event) => {
@@ -1532,11 +1598,11 @@ export default function BannerRerouterPage() {
                         step: 0.1,
                       }}
                       disabled={isGeneratingRoute}
-                      helperText="Optional hard route-distance ceiling."
+                      helperText={t("Optional hard route-distance ceiling.")}
                     />
                     <TextField
                       select
-                      label="Loop closure"
+                      label={t("Loop closure")}
                       value={routeOptions.loopClosureMode}
                       onChange={(event) =>
                         handleRouteOptionChange(
@@ -1545,34 +1611,36 @@ export default function BannerRerouterPage() {
                         )
                       }
                       disabled={isGeneratingRoute}
-                      helperText="Choose whether the reroute should close back near the start or stay open."
+                      helperText={t("Choose whether the reroute should close back near the start or stay open.")}
                     >
                       {LOOP_CLOSURE_OPTIONS.map((option) => (
                         <MenuItem key={option.value} value={option.value}>
-                          {option.label}
+                          {t(option.label)}
                         </MenuItem>
                       ))}
                     </TextField>
                   </Box>
                   {hasInvalidDistanceWindow ? (
                     <Alert severity="warning">
-                      Maximum distance must be greater than or equal to minimum
-                      distance.
+                      {t("Maximum distance must be greater than or equal to minimum distance.")}
                     </Alert>
                   ) : null}
                   {hasTooManyRequiredPortals ? (
                     <Alert severity="warning">
-                      The current start portal, end portal, and required portals
-                      need {reservedPortalSelectionCount} route slots, but a{" "}
-                      {activeDraft.metadata?.missionCount}-mission reroute only has{" "}
-                      {requiredPortalCount}.
+                      {t("The current start portal, end portal, and required portals need {slots} route slots, but a {missions}-mission reroute only has {portals}.", {
+                        slots: reservedPortalSelectionCount,
+                        missions: activeDraft.metadata?.missionCount,
+                        portals: requiredPortalCount,
+                      })}
                     </Alert>
                   ) : null}
                   {!hasEnoughPortals ? (
                     <Alert severity="warning">
-                      This reroute needs {requiredPortalCount} imported portals for{" "}
-                      {activeDraft.metadata?.missionCount} missions, but only{" "}
-                      {activePortalCount} are currently available.
+                      {t("This reroute needs {portals} imported portals for {missions} missions, but only {available} are currently available.", {
+                        portals: requiredPortalCount,
+                        missions: activeDraft.metadata?.missionCount,
+                        available: activePortalCount,
+                      })}
                     </Alert>
                   ) : null}
                   <Stack direction={{ xs: "column", sm: "row" }} spacing={1.25}>
@@ -1588,7 +1656,7 @@ export default function BannerRerouterPage() {
                       onClick={handleGenerateRoute}
                       disabled={!canGenerateRoute}
                     >
-                      {isGeneratingRoute ? "Generating reroute..." : "Generate reroute"}
+                      {isGeneratingRoute ? t("Generating reroute...") : t("Generate reroute")}
                     </Button>
                     <Button
                       variant="outlined"
@@ -1597,7 +1665,7 @@ export default function BannerRerouterPage() {
                       onClick={handleExportCurrentRoute}
                       disabled={!currentRoute || isGeneratingRoute}
                     >
-                      Export current UMM
+                      {t("Export current UMM")}
                     </Button>
                   </Stack>
                 </Stack>
@@ -1625,11 +1693,15 @@ export default function BannerRerouterPage() {
                     sx={{ width: "100%", pr: 1 }}
                   >
                     <Box>
-                      <Typography variant="h6">Route history</Typography>
+                      <Typography variant="h6">{t("Route history")}</Typography>
                     </Box>
                     <Chip
                       icon={<History />}
-                      label={`${historyEntries.length} saved reroutes`}
+                      label={tn(
+                        "{count} saved reroute",
+                        "{count} saved reroutes",
+                        historyEntries.length
+                      )}
                     />
                   </Stack>
                 </AccordionSummary>
@@ -1665,7 +1737,7 @@ export default function BannerRerouterPage() {
                                 onClick={() => handleRestoreHistoryEntry(entry)}
                                 disabled={isGeneratingRoute}
                               >
-                                Restore
+                                {t("Restore")}
                               </Button>
                               <Button
                                 size="small"
@@ -1675,7 +1747,7 @@ export default function BannerRerouterPage() {
                                 onClick={() => downloadUmmMissionSet(entry.route, activeDraft)}
                                 disabled={isGeneratingRoute}
                               >
-                                Export
+                                {t("Export")}
                               </Button>
                               <Button
                                 size="small"
@@ -1685,22 +1757,30 @@ export default function BannerRerouterPage() {
                                 onClick={() => handleDeleteHistoryEntry(entry.id)}
                                 disabled={isGeneratingRoute}
                               >
-                                Delete
+                                {t("Delete")}
                               </Button>
                             </Stack>
                           </Stack>
                           <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
-                            <Chip label={`${entry.summary?.portalCount ?? 0} portals`} />
-                            <Chip label={`${entry.summary?.missionCount ?? 0} missions`} />
                             <Chip
-                              label={
-                                `${getRouteSummaryDistanceModeLabel(
-                                  entry.summary
-                                )} ${getRouteSummaryDistanceLabel(entry.summary)}`
-                              }
+                              label={tn(
+                                "{count} portal",
+                                "{count} portals",
+                                entry.summary?.portalCount ?? 0
+                              )}
                             />
                             <Chip
-                              label={`Target fit ${formatPercentage(entry.summary?.targetFitScore)}`}
+                              label={tn(
+                                "{count} mission",
+                                "{count} missions",
+                                entry.summary?.missionCount ?? 0
+                              )}
+                            />
+                            <Chip label={formatRouteSummaryDistance(entry.summary)} />
+                            <Chip
+                              label={t("Target fit {fit}", {
+                                fit: formatPercentage(entry.summary?.targetFitScore),
+                              })}
                             />
                           </Stack>
                         </Stack>
@@ -1708,7 +1788,7 @@ export default function BannerRerouterPage() {
                     ))}
                     {historyEntries.length === 0 ? (
                       <Typography color="text.secondary">
-                        No reroutes have been generated yet.
+                        {t("No reroutes have been generated yet.")}
                       </Typography>
                     ) : null}
                   </Stack>
@@ -1737,23 +1817,27 @@ export default function BannerRerouterPage() {
                     sx={{ width: "100%", pr: 1 }}
                   >
                     <Box>
-                      <Typography variant="h6">Imported portal pool</Typography>
+                      <Typography variant="h6">{t("Imported portal pool")}</Typography>
                     </Box>
-                    <Chip label={`${filteredPortals.length} matching portals`} />
+                    <Chip
+                      label={tn(
+                        "{count} matching portal",
+                        "{count} matching portals",
+                        filteredPortals.length
+                      )}
+                    />
                   </Stack>
                 </AccordionSummary>
                 <AccordionDetails sx={{ pt: 0 }}>
                   <Stack spacing={2}>
                     <Typography color="text.secondary">
-                      Require a portal to force it into the reroute. Disable keeps
-                      it visible but excludes it from routing, and delete removes it
-                      from this local workspace.
+                      {t("Require a portal to force it into the reroute. Disable keeps it visible but excludes it from routing, and delete removes it from this local workspace.")}
                     </Typography>
                     <TextField
-                      label="Search portals"
+                      label={t("Search portals")}
                       value={portalQuery}
                       onChange={(event) => setPortalQuery(event.target.value)}
-                      placeholder="Search by portal title or imported mission"
+                      placeholder={t("Search by portal title or imported mission")}
                       disabled={isGeneratingRoute}
                       fullWidth
                     />
@@ -1787,7 +1871,9 @@ export default function BannerRerouterPage() {
                                     color="text.secondary"
                                     sx={{ mt: 0.5 }}
                                   >
-                                    Imported mission {(portal.sourceMissionIndex ?? 0) + 1}
+                                    {t("Imported mission {number}", {
+                                      number: (portal.sourceMissionIndex ?? 0) + 1,
+                                    })}
                                     {portal.sourceMissionTitle
                                       ? ` • ${portal.sourceMissionTitle}`
                                       : ""}
@@ -1799,10 +1885,10 @@ export default function BannerRerouterPage() {
                                     color={isRequired ? "primary" : "default"}
                                     label={
                                       isRequired
-                                        ? "Required"
+                                        ? t("Required")
                                         : isDisabled
-                                          ? "Disabled"
-                                          : "Active"
+                                          ? t("Disabled")
+                                          : t("Active")
                                     }
                                   />
                                 </Stack>
@@ -1811,9 +1897,11 @@ export default function BannerRerouterPage() {
                                 <Button
                                   size="small"
                                   variant={isRequired ? "contained" : "outlined"}
-                                  aria-label={`${
-                                    isRequired ? "Unrequire" : "Require"
-                                  } ${portal.title}`}
+                                  aria-label={
+                                    isRequired
+                                      ? t("Unrequire {portal}", { portal: portal.title })
+                                      : t("Require {portal}", { portal: portal.title })
+                                  }
                                   onClick={() =>
                                     handleTogglePortalRequired(portal.portalKey)
                                   }
@@ -1826,14 +1914,16 @@ export default function BannerRerouterPage() {
                                       : null),
                                   }}
                                 >
-                                  {isRequired ? "Required" : "Require"}
+                                  {isRequired ? t("Required") : t("Require")}
                                 </Button>
                                 <Button
                                   size="small"
                                   variant={isDisabled ? "contained" : "outlined"}
-                                  aria-label={`${
-                                    isDisabled ? "Enable" : "Disable"
-                                  } ${portal.title}`}
+                                  aria-label={
+                                    isDisabled
+                                      ? t("Enable {portal}", { portal: portal.title })
+                                      : t("Disable {portal}", { portal: portal.title })
+                                  }
                                   onClick={() =>
                                     handleTogglePortalDisabled(portal.portalKey)
                                   }
@@ -1846,12 +1936,12 @@ export default function BannerRerouterPage() {
                                       : null),
                                   }}
                                 >
-                                  {isDisabled ? "Disabled" : "Disable"}
+                                  {isDisabled ? t("Disabled") : t("Disable")}
                                 </Button>
                                 <Button
                                   size="small"
                                   variant="outlined"
-                                  aria-label={`Delete ${portal.title}`}
+                                  aria-label={t("Delete {portal}", { portal: portal.title })}
                                   onClick={() => handleDeletePortal(portal.portalKey)}
                                   disabled={isGeneratingRoute}
                                   sx={{
@@ -1859,7 +1949,7 @@ export default function BannerRerouterPage() {
                                     ...portalActionButtonStyles.delete.idleSx,
                                   }}
                                 >
-                                  Delete
+                                  {t("Delete")}
                                 </Button>
                               </Stack>
                             </Stack>
@@ -1868,13 +1958,14 @@ export default function BannerRerouterPage() {
                       })}
                       {filteredPortals.length > PORTAL_LIST_LIMIT ? (
                         <Typography variant="body2" color="text.secondary">
-                          Showing the first {PORTAL_LIST_LIMIT} matching portals.
-                          Narrow the search to inspect a smaller subset.
+                          {t("Showing the first {count} matching portals. Narrow the search to inspect a smaller subset.", {
+                            count: PORTAL_LIST_LIMIT,
+                          })}
                         </Typography>
                       ) : null}
                       {filteredPortals.length === 0 ? (
                         <Typography color="text.secondary">
-                          No portals match the current filter.
+                          {t("No portals match the current filter.")}
                         </Typography>
                       ) : null}
                     </Stack>
@@ -1893,11 +1984,11 @@ export default function BannerRerouterPage() {
                 }}
               >
                 <Box sx={{ p: 2.5, pb: 1.5 }}>
-                  <Typography variant="h6">Preview map</Typography>
+                  <Typography variant="h6">{t("Preview map")}</Typography>
                   <Typography color="text.secondary" sx={{ mt: 0.5 }}>
                     {currentRoute
-                      ? "The current reroute preview is rendered locally."
-                      : "Generate a reroute to preview the updated mission flow."}
+                      ? t("The current reroute preview is rendered locally.")
+                      : t("Generate a reroute to preview the updated mission flow.")}
                   </Typography>
                 </Box>
                 <Divider />
@@ -1941,21 +2032,25 @@ export default function BannerRerouterPage() {
                     alignItems={{ xs: "flex-start", sm: "center" }}
                     sx={{ width: "100%", pr: 1 }}
                   >
-                    <Typography variant="h6">Current reroute</Typography>
+                    <Typography variant="h6">{t("Current reroute")}</Typography>
                     {currentRoute ? (
                       <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
-                        <Chip label={`${currentRoute.summary.portalCount} portals`} />
-                        <Chip label={`${currentRoute.summary.missionCount} missions`} />
                         <Chip
-                          label={`${getRouteSummaryDistanceModeLabel(
-                            currentRoute.summary
-                          )} ${getRouteSummaryDistanceLabel(currentRoute.summary)}`}
+                          label={tn("{count} portal", "{count} portals", currentRoute.summary.portalCount)}
                         />
-                        <Chip label={`Tail ${currentRoute.summary.tailGapLabel}`} />
-                        <Chip label={`Target fit ${currentRoute.summary.targetFitLabel}`} />
+                        <Chip
+                          label={tn("{count} mission", "{count} missions", currentRoute.summary.missionCount)}
+                        />
+                        <Chip label={formatRouteSummaryDistance(currentRoute.summary)} />
+                        <Chip
+                          label={t("Tail {gap}", { gap: t(currentRoute.summary.tailGapLabel) })}
+                        />
+                        <Chip
+                          label={t("Target fit {fit}", { fit: currentRoute.summary.targetFitLabel })}
+                        />
                       </Stack>
                     ) : (
-                      <Typography color="text.secondary">No active reroute</Typography>
+                      <Typography color="text.secondary">{t("No active reroute")}</Typography>
                     )}
                   </Stack>
                 </AccordionSummary>
@@ -1963,12 +2058,7 @@ export default function BannerRerouterPage() {
                   {currentRoute ? (
                     <Stack spacing={1.5}>
                       <Typography color="text.secondary">
-                        Starts at {currentRoute.summary.startPortalTitle} and ends at{" "}
-                        {currentRoute.summary.endPortalTitle}. Average hop{" "}
-                        {currentRoute.summary.averageHopLabel}, longest hop{" "}
-                        {currentRoute.summary.maxHopLabel}, target{" "}
-                        {getRouteSummaryTargetWindowTypeLabel(currentRoute.summary)}{" "}
-                        window {currentRoute.summary.targetWindowLabel}.
+                        {formatRouteSummaryDescription(currentRoute.summary)}
                       </Typography>
                       <Stack spacing={1}>
                         {currentRoute.missions.map((mission) => (
@@ -1994,8 +2084,7 @@ export default function BannerRerouterPage() {
                     </Stack>
                   ) : (
                     <Typography color="text.secondary">
-                      No reroute is active yet. Import a banner and generate a
-                      reroute.
+                      {t("No reroute is active yet. Import a banner and generate a reroute.")}
                     </Typography>
                   )}
                 </AccordionDetails>

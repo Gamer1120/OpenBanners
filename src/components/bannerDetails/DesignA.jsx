@@ -24,6 +24,7 @@ import {
   StatusAlerts,
   useBannerDetails,
 } from "./shared";
+import { t } from "../../i18n";
 
 const LONG_DESCRIPTION = 240;
 
@@ -42,7 +43,7 @@ export default function DesignA() {
       <section
         className={`bp-pane${d.effectiveListType ? ` ls-${d.effectiveListType}` : ""}`}
         hidden={!d.showPane}
-        aria-label="Banner details"
+        aria-label={t("Banner details")}
       >
         <header className="bp-hero a-hero">
           <BannerImage banner={d.items} mode="backdrop" className="bp-hero-bg" />
@@ -70,7 +71,7 @@ export default function DesignA() {
         ) : (
           <>
             <div className="bp-view" role="tabpanel" hidden={d.paneTab !== "overview"}>
-              <section className="a-about" aria-label="About">
+              <section className="a-about" aria-label={t("About")}>
                 <Description
                   d={d}
                   className={`desc${isLong && !aboutOpen ? " a-clamp" : ""}`}
@@ -82,7 +83,7 @@ export default function DesignA() {
                     aria-expanded={aboutOpen}
                     onClick={() => setAboutOpen((open) => !open)}
                   >
-                    {aboutOpen ? "Show less" : "Read more"}
+                    {aboutOpen ? t("Show less") : t("Read more")}
                   </button>
                 ) : null}
               </section>

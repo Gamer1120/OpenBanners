@@ -11,6 +11,7 @@ import {
   validateBannerTogetherLiveRoomId,
   validateBannerTogetherLiveSequence,
 } from "./bannerTogetherLiveCrypto";
+import { t } from "./i18n";
 
 export const BANNER_TOGETHER_LIVE_DATA_CHANNEL_LABEL =
   "openbanners-banner-together-live-v1";
@@ -507,7 +508,7 @@ function normalizeParticipantIds(participantIds, ownParticipantId) {
 
 function defaultPeerConnectionFactory(configuration) {
   if (typeof globalThis.RTCPeerConnection !== "function") {
-    throw new Error("This browser does not support WebRTC peer connections.");
+    throw new Error(t("This browser does not support WebRTC peer connections."));
   }
 
   return new globalThis.RTCPeerConnection(configuration);

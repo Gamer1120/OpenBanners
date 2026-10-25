@@ -1,3 +1,5 @@
+import { getLanguage, t } from "./i18n";
+
 export const BANNERGRESS_ORIGIN = "https://api.bannergress.com";
 
 export function getBannerPictureUrl(banner) {
@@ -13,12 +15,17 @@ export function formatLength(lengthMeters) {
     return "?";
   }
 
+  // No digit grouping: "1234 km" as before, with the user's decimal separator.
+  const number = (value) => value.toLocaleString(getLanguage(), { useGrouping: false, maximumFractionDigits: 1 });
+
   if (meters < 1000) {
-    return `${Math.round(meters)} m`;
+    return t("{distance} m", { distance: number(Math.round(meters)) });
   }
 
   const kilometers = meters / 1000;
-  return `${kilometers < 10 ? Math.round(kilometers * 10) / 10 : Math.round(kilometers)} km`;
+  return t("{distance} km", {
+    distance: number(kilometers < 10 ? Math.round(kilometers * 10) / 10 : Math.round(kilometers)),
+  });
 }
 
 export function getMissionsPerKm(banner) {

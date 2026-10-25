@@ -1,18 +1,19 @@
 import React from "react";
 import { Alert, Button, CircularProgress, Snackbar } from "@mui/material";
 import { useMarkDoneFromLink } from "../markDoneFromLink";
+import { t, tk } from "../i18n";
 
 const MESSAGES = {
-  working: { severity: "info", text: "Marking this banner as done…" },
+  working: { severity: "info", text: tk("Marking this banner as done…") },
   "needs-auth": {
     severity: "warning",
-    text: "Sign in with Bannergress to mark this banner as done.",
+    text: tk("Sign in with Bannergress to mark this banner as done."),
   },
-  done: { severity: "success", text: "Marked as done." },
-  error: { severity: "error", text: "Couldn't mark this banner as done." },
+  done: { severity: "success", text: tk("Marked as done.") },
+  error: { severity: "error", text: tk("Couldn't mark this banner as done.") },
   unavailable: {
     severity: "warning",
-    text: "Marking as done only works on openbanners.org.",
+    text: tk("Marking as done only works on openbanners.org."),
   },
 };
 
@@ -32,10 +33,10 @@ export default function MarkDoneNotice({ bannerId }) {
     action = (
       <>
         <Button color="inherit" size="small" onClick={signIn}>
-          Sign in
+          {t("Sign in")}
         </Button>
         <Button color="inherit" size="small" onClick={cancel}>
-          Cancel
+          {t("Cancel")}
         </Button>
       </>
     );
@@ -43,10 +44,10 @@ export default function MarkDoneNotice({ bannerId }) {
     action = (
       <>
         <Button color="inherit" size="small" onClick={() => void retry()}>
-          Retry
+          {t("Retry")}
         </Button>
         <Button color="inherit" size="small" onClick={cancel}>
-          Cancel
+          {t("Cancel")}
         </Button>
       </>
     );
@@ -71,7 +72,7 @@ export default function MarkDoneNotice({ bannerId }) {
         role={status === "needs-auth" || status === "error" ? "alert" : "status"}
         sx={{ width: "100%", alignItems: "center" }}
       >
-        {message.text}
+        {t(message.text)}
       </Alert>
     </Snackbar>
   );

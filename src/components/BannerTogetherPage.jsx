@@ -34,6 +34,7 @@ import {
   getSharedTodoBanners,
   parseBannerTogetherInviteHash,
 } from "../bannerTogether";
+import { getLanguage, t, tn } from "../i18n";
 
 const TODO_PAGE_SIZE = 100;
 const MAX_TODO_PAGES = 50;
@@ -55,7 +56,7 @@ function sortBannersByTitle(banners) {
 }
 
 function formatSnapshotTime(createdAt) {
-  return new Intl.DateTimeFormat(undefined, {
+  return new Intl.DateTimeFormat(getLanguage(), {
     dateStyle: "medium",
     timeStyle: "short",
   }).format(new Date(createdAt));
@@ -76,7 +77,7 @@ function copyTextToClipboard(text) {
 
   try {
     if (!document.execCommand("copy")) {
-      throw new Error("Copy failed.");
+      throw new Error(t("Copy failed."));
     }
 
     return Promise.resolve();
@@ -89,7 +90,7 @@ function copyTextToClipboard(text) {
 
 function createAuthRequiredError() {
   return Object.assign(
-    new Error("Authenticate with Bannergress to compare to-do lists."),
+    new Error(t("Authenticate with Bannergress to compare to-do lists.")),
     { code: "AUTH_REQUIRED" }
   );
 }
@@ -106,7 +107,7 @@ async function fetchTodoBannersForPlace(
   }
 
   if (signal?.aborted) {
-    throw Object.assign(new Error("Banner Together request was cancelled."), {
+    throw Object.assign(new Error(t("Banner Together request was cancelled.")), {
       name: "AbortError",
     });
   }
@@ -146,13 +147,13 @@ async function fetchTodoBannersForPlace(
     }
 
     if (response.ok === false) {
-      throw new Error("Bannergress could not load this to-do list.");
+      throw new Error(t("Bannergress could not load this to-do list."));
     }
 
     const page = await response.json();
 
     if (!Array.isArray(page)) {
-      throw new Error("Bannergress returned an unexpected to-do list.");
+      throw new Error(t("Bannergress returned an unexpected to-do list."));
     }
 
     page.forEach((banner) => {
@@ -178,7 +179,7 @@ async function fetchTodoBannersForPlace(
     offset += page.length;
   }
 
-  throw new Error("The Bannergress to-do list exceeded the safe page limit.");
+  throw new Error(t("The Bannergress to-do list exceeded the safe page limit."));
 }
 
 export function LegacyBannerTogetherPage({ placeId }) {
@@ -217,7 +218,7 @@ export function LegacyBannerTogetherPage({ placeId }) {
       setInviteState({
         status: "invalid",
         invite: null,
-        error: "This Banner Together invite is not valid.",
+        error: t("This Banner Together invite is not valid."),
       });
       return undefined;
     }
@@ -231,7 +232,7 @@ export function LegacyBannerTogetherPage({ placeId }) {
         }
 
         if (invite.placeId !== placeId) {
-          throw new Error("This invite belongs to a different place.");
+          throw new Error(t("This invite belongs to a different place."));
         }
 
         setInviteState({ status: "guest", invite, error: "" });
@@ -244,7 +245,7 @@ export function LegacyBannerTogetherPage({ placeId }) {
             error:
               error instanceof Error
                 ? error.message
-                : "This Banner Together invite is not valid.",
+                : t("This Banner Together invite is not valid."),
           });
         }
       });
@@ -264,7 +265,7 @@ export function LegacyBannerTogetherPage({ placeId }) {
     fetch(`https://api.bannergress.com/places/${encodeURIComponent(placeId)}`)
       .then(async (response) => {
         if (response.ok === false) {
-          throw new Error("Place not found.");
+          throw new Error(t("Place not found."));
         }
 
         return response.json();
@@ -276,7 +277,7 @@ export function LegacyBannerTogetherPage({ placeId }) {
           setValidatedPlaceId(placeId);
         } else if (!ignore) {
           setPlaceStatus("error");
-          setPlaceError("This Bannergress place could not be loaded.");
+          setPlaceError(t("This Bannergress place could not be loaded."));
         }
       })
       .catch((error) => {
@@ -284,7 +285,7 @@ export function LegacyBannerTogetherPage({ placeId }) {
 
         if (!ignore) {
           setPlaceStatus("error");
-          setPlaceError("This Bannergress place could not be loaded.");
+          setPlaceError(t("This Bannergress place could not be loaded."));
         }
       });
 
@@ -362,7 +363,7 @@ export function LegacyBannerTogetherPage({ placeId }) {
         setLoadError(
           error instanceof Error
             ? error.message
-            : "The to-do list could not be loaded."
+            : t("The to-do list could not be loaded.")
         );
       });
 
@@ -414,7 +415,7 @@ export function LegacyBannerTogetherPage({ placeId }) {
       await copyTextToClipboard(inviteUrl);
       setCopyStatus({
         severity: "success",
-        message: "Snapshot invite copied.",
+        message: t("Snapshot invite copied."),
       });
     } catch (error) {
       setCopyStatus({
@@ -422,7 +423,7 @@ export function LegacyBannerTogetherPage({ placeId }) {
         message:
           error instanceof Error
             ? error.message
-            : "The invite could not be copied.",
+            : t("The invite could not be copied."),
       });
     } finally {
       setIsCreatingInvite(false);
@@ -442,7 +443,7 @@ export function LegacyBannerTogetherPage({ placeId }) {
       await copyTextToClipboard(resultUrl);
       setCopyStatus({
         severity: "success",
-        message: "Shared result link copied.",
+        message: t("Shared result link copied."),
       });
     } catch (error) {
       setCopyStatus({
@@ -450,7 +451,7 @@ export function LegacyBannerTogetherPage({ placeId }) {
         message:
           error instanceof Error
             ? error.message
-            : "The result link could not be copied.",
+            : t("The result link could not be copied."),
       });
     } finally {
       setIsCreatingInvite(false);
@@ -461,7 +462,7 @@ export function LegacyBannerTogetherPage({ placeId }) {
     <div className="ob-page bt-page">
       <BannerTogetherHeader
         placeLabel={placeLabel}
-        subtitle={isGuest ? "Shared to-do banners" : "Create a to-do snapshot invite"}
+        subtitle={isGuest ? t("Shared to-do banners") : t("Create a to-do snapshot invite")}
       />
 
       {placeError ? (
@@ -479,7 +480,7 @@ export function LegacyBannerTogetherPage({ placeId }) {
               component={Link}
               to={`/lists/together/${encodeURIComponent(placeId)}`}
             >
-              Start new
+              {t("Start new")}
             </Button>
           }
           sx={{ mb: 2, maxWidth: 900 }}
@@ -511,34 +512,36 @@ export function LegacyBannerTogetherPage({ placeId }) {
               <GroupRoundedIcon color="primary" />
               <Box>
                 <Typography variant="subtitle1" component="h2">
-                  {isGuest ? "Comparison" : "Your snapshot"}
+                  {isGuest ? t("Comparison") : t("Your snapshot")}
                 </Typography>
                 <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
                   {isGuest ? (
                     <>
                       <Chip
                         size="small"
-                        label={`${inviteState.invite?.bannerIds.length ?? 0} in invite`}
+                        label={t("{count} in invite", {
+                          count: inviteState.invite?.bannerIds.length ?? 0,
+                        })}
                         sx={{ borderRadius: 1 }}
                       />
                       <Chip
                         size="small"
-                        label={`Snapshot ${formatSnapshotTime(
-                          inviteState.invite.createdAt
-                        )}`}
+                        label={t("Snapshot {time}", {
+                          time: formatSnapshotTime(inviteState.invite.createdAt),
+                        })}
                         sx={{ borderRadius: 1 }}
                       />
                       <Chip
                         size="small"
                         color="primary"
-                        label={`${displayedBanners.length} shared`}
+                        label={t("{count} shared", { count: displayedBanners.length })}
                         sx={{ borderRadius: 1 }}
                       />
                     </>
                   ) : (
                     <Chip
                       size="small"
-                      label={`${ownTodoBanners.length} to do`}
+                      label={t("{count} to do", { count: ownTodoBanners.length })}
                       sx={{ borderRadius: 1 }}
                     />
                   )}
@@ -553,10 +556,10 @@ export function LegacyBannerTogetherPage({ placeId }) {
               flexWrap="wrap"
               alignItems="center"
             >
-              <Tooltip title="Refresh my to-do list">
+              <Tooltip title={t("Refresh my to-do list")}>
                 <span>
                   <IconButton
-                    aria-label="Refresh my to-do list"
+                    aria-label={t("Refresh my to-do list")}
                     onClick={() =>
                       setReloadToken((currentValue) => currentValue + 1)
                     }
@@ -588,7 +591,7 @@ export function LegacyBannerTogetherPage({ placeId }) {
                     disabled={loadStatus !== "ready" || isCreatingInvite}
                     sx={{ minHeight: 44 }}
                   >
-                    Copy result link
+                    {t("Copy result link")}
                   </Button>
                   <Button
                     variant="outlined"
@@ -596,7 +599,7 @@ export function LegacyBannerTogetherPage({ placeId }) {
                     to={`/browse/${encodeURIComponent(placeId)}`}
                     sx={{ minHeight: 44 }}
                   >
-                    Browse place
+                    {t("Browse place")}
                   </Button>
                 </>
               ) : (
@@ -613,7 +616,7 @@ export function LegacyBannerTogetherPage({ placeId }) {
                   disabled={!canCopyInvite || isCreatingInvite}
                   sx={{ minHeight: 44 }}
                 >
-                  Copy snapshot invite
+                  {t("Copy snapshot invite")}
                 </Button>
               )}
             </Stack>
@@ -623,22 +626,29 @@ export function LegacyBannerTogetherPage({ placeId }) {
             <>
               <Divider sx={{ my: 2 }} />
               <Alert severity="warning">
-                {`Anyone with this link can see your complete to-do list for this place (${ownTodoBanners.length} banner IDs). A copied snapshot cannot be revoked.`}
+                {tn(
+                  "Anyone with this link can see your complete to-do list for this place ({count} banner ID). A copied snapshot cannot be revoked.",
+                  "Anyone with this link can see your complete to-do list for this place ({count} banner IDs). A copied snapshot cannot be revoked.",
+                  ownTodoBanners.length
+                )}
               </Alert>
             </>
           ) : null}
 
           {isGuest && loadStatus === "ready" ? (
             <Alert severity="warning" sx={{ mt: 2 }}>
-              The inviter controls the snapshot. Copying a result link shares every
-              matching banner ID.
+              {t(
+                "The inviter controls the snapshot. Copying a result link shares every matching banner ID."
+              )}
             </Alert>
           ) : null}
 
           {!isGuest && inviteHasTooManyBanners ? (
             <Alert severity="error" sx={{ mt: 2 }}>
-              Snapshot invites support at most {BANNER_TOGETHER_MAX_BANNER_IDS} to-do
-              banners. Choose a more specific place.
+              {t(
+                "Snapshot invites support at most {count} to-do banners. Choose a more specific place.",
+                { count: BANNER_TOGETHER_MAX_BANNER_IDS }
+              )}
             </Alert>
           ) : null}
 
@@ -662,12 +672,12 @@ export function LegacyBannerTogetherPage({ placeId }) {
                 )
               }
             >
-              Authenticate
+              {t("Authenticate")}
             </Button>
           }
           sx={{ mb: 3, maxWidth: 900 }}
         >
-          Authenticate with Bannergress in the top bar to compare to-do lists.
+          {t("Authenticate with Bannergress in the top bar to compare to-do lists.")}
         </Alert>
       ) : null}
 
@@ -680,7 +690,7 @@ export function LegacyBannerTogetherPage({ placeId }) {
               startIcon={<RefreshRoundedIcon />}
               onClick={() => setReloadToken((currentValue) => currentValue + 1)}
             >
-              Retry
+              {t("Retry")}
             </Button>
           }
           sx={{ mb: 3, maxWidth: 900 }}
@@ -696,7 +706,7 @@ export function LegacyBannerTogetherPage({ placeId }) {
         <Stack direction="row" spacing={1.5} alignItems="center" sx={{ mb: 3 }}>
           <CircularProgress size={22} />
           <Typography variant="body2" color="text.secondary">
-            Loading to-do banners...
+            {t("Loading to-do banners...")}
           </Typography>
         </Stack>
       ) : null}
@@ -704,19 +714,19 @@ export function LegacyBannerTogetherPage({ placeId }) {
       {loadStatus === "ready" && inviteState.status !== "invalid" ? (
         <Box>
           <Typography variant="h6" component="h2" sx={{ mb: 2 }}>
-            {isGuest ? "Shared to-do banners" : "To-do banners in this place"}
+            {isGuest ? t("Shared to-do banners") : t("To-do banners in this place")}
           </Typography>
 
           {displayedBanners.length === 0 ? (
             <Alert severity="info" sx={{ maxWidth: 900 }}>
               {isGuest
-                ? "You do not share any to-do banners in this place."
-                : "You have no to-do banners in this place."}
+                ? t("You do not share any to-do banners in this place.")
+                : t("You have no to-do banners in this place.")}
             </Alert>
           ) : (
             <BannerWall
               banners={visibleBanners}
-              label={isGuest ? "Shared to-do banners" : "To-do banners in this place"}
+              label={isGuest ? t("Shared to-do banners") : t("To-do banners in this place")}
             />
           )}
 
@@ -733,7 +743,7 @@ export function LegacyBannerTogetherPage({ placeId }) {
               }
               sx={{ mt: 2 }}
             >
-              Show more
+              {t("Show more")}
             </Button>
           ) : null}
         </Box>

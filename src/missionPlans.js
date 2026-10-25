@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { call } from "./passphraseApi";
 import { BANNERGRESS_ORIGIN } from "./bannerDisplay";
 import { toPrefixQuery } from "./components/BrowseBannerList";
+import { t } from "./i18n";
 
 // Mission Day plans (server/passphrases.mjs /plans): pick missions from one or
 // more banners and put them in your own order. Anyone with the link edits it.
@@ -49,7 +50,7 @@ export async function fetchActiveMissionDays() {
   url.searchParams.set("limit", "50");
   const response = await fetch(url);
   if (!response.ok) {
-    throw new Error("Bannergress didn't answer.");
+    throw new Error(t("Bannergress didn't answer."));
   }
   return response.json();
 }
@@ -62,7 +63,7 @@ export async function searchBanners(query) {
   url.searchParams.set("limit", "20");
   const response = await fetch(url);
   if (!response.ok) {
-    throw new Error("Bannergress didn't answer.");
+    throw new Error(t("Bannergress didn't answer."));
   }
   return response.json();
 }
@@ -73,7 +74,7 @@ export function fetchBannerWithMissions(bannerId) {
   if (!bannerCache.has(bannerId)) {
     const request = fetch(`${BANNERGRESS_ORIGIN}/bnrs/${encodeURIComponent(bannerId)}`).then((response) => {
       if (!response.ok) {
-        throw new Error("Couldn't load this banner from Bannergress.");
+        throw new Error(t("Couldn't load this banner from Bannergress."));
       }
       return response.json();
     });
@@ -112,7 +113,7 @@ export function missionsOf(banner) {
       return {
         id: mission?.id,
         number: index + 1,
-        title: mission?.title || `Mission ${index + 1}`,
+        title: mission?.title || t("Mission {number}", { number: index + 1 }),
         picture: mission?.picture || "",
         steps: Object.keys(mission?.steps ?? {}).length,
         lengthMeters: mission?.lengthMeters ?? null,

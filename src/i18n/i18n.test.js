@@ -12,6 +12,7 @@ describe("i18n", () => {
     __setCatalogForTests("nl", { "Log in": "Inloggen", "{count} missions": { one: "{count} missie", other: "{count} missies" } });
     expect(t("Log in")).toBe("Inloggen");
     expect(t("Not translated {x}", { x: 1 })).toBe("Not translated 1");
+    expect(t("{n} shared", { n: 0 })).toBe("0 shared");
     expect(tn("{count} mission", "{count} missions", 1)).toBe("1 missie");
     expect(tn("{count} mission", "{count} missions", 3)).toBe("3 missies");
     __setCatalogForTests("en", {});

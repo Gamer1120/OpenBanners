@@ -1,4 +1,5 @@
 import { generateReroute } from "./routeGenerator";
+import { tk } from "../i18n";
 
 self.onmessage = (event) => {
   const { type, draft, now, workerId, seedOffset } = event.data ?? {};
@@ -33,7 +34,8 @@ self.onmessage = (event) => {
       message:
         error instanceof Error
           ? error.message
-          : "The reroute couldn't be generated.",
+          : tk("The reroute couldn't be generated."),
+      i18n: error?.i18n ?? null,
     });
   }
 };

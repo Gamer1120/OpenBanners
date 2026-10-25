@@ -6,6 +6,7 @@ import {
   validateBannerTogetherLiveRoomId,
   validateBannerTogetherLiveRoomVerifier,
 } from "./bannerTogetherLiveCrypto";
+import { t } from "./i18n";
 
 export const BANNER_TOGETHER_LIVE_API_BASE_PATH =
   "/_openbanners/banner-together/v3/rooms";
@@ -113,30 +114,30 @@ function normalizeIdentity(roomVerifier, participantId, participantVerifier) {
 
 function getErrorFallback(status) {
   if (status === 400) {
-    return ["LIVE_ROOM_INVALID_REQUEST", "The live room request was invalid."];
+    return ["LIVE_ROOM_INVALID_REQUEST", t("The live room request was invalid.")];
   }
 
   if (status === 401 || status === 403) {
-    return ["LIVE_ROOM_ACCESS_DENIED", "This browser cannot access that live room."];
+    return ["LIVE_ROOM_ACCESS_DENIED", t("This browser cannot access that live room.")];
   }
 
   if (status === 404) {
-    return ["LIVE_ROOM_NOT_FOUND", "This live room does not exist or has expired."];
+    return ["LIVE_ROOM_NOT_FOUND", t("This live room does not exist or has expired.")];
   }
 
   if (status === 409) {
-    return ["LIVE_ROOM_EVENTS_EXPIRED", "Live room signaling events expired."];
+    return ["LIVE_ROOM_EVENTS_EXPIRED", t("Live room signaling events expired.")];
   }
 
   if (status === 410) {
-    return ["LIVE_ROOM_GONE", "This live room has ended."];
+    return ["LIVE_ROOM_GONE", t("This live room has ended.")];
   }
 
   if (status === 429) {
-    return ["LIVE_ROOM_RATE_LIMITED", "Too many live room requests were made."];
+    return ["LIVE_ROOM_RATE_LIMITED", t("Too many live room requests were made.")];
   }
 
-  return ["LIVE_ROOM_REQUEST_FAILED", "The live room service request failed."];
+  return ["LIVE_ROOM_REQUEST_FAILED", t("The live room service request failed.")];
 }
 
 async function readOptionalError(response) {
@@ -213,7 +214,7 @@ async function liveFetch(
     }
 
     throw new BannerTogetherLiveApiError(
-      "The live room signaling service could not be reached.",
+      t("The live room signaling service could not be reached."),
       { code: "LIVE_ROOM_NETWORK_ERROR" }
     );
   }

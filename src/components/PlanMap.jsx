@@ -3,6 +3,7 @@ import L from "leaflet";
 import { CircleMarker, MapContainer, Marker, Polyline, Popup, TileLayer, useMap } from "react-leaflet";
 import { buildIngressMissionUrl, formatLength, getDistanceMeters } from "../bannerDisplay";
 import { missionColors } from "./bannerDetails/shared";
+import { t } from "../i18n";
 
 // Map of a Mission Day plan, drawn like the banner page's map. Your planned
 // missions stand out in their rainbow colour (by number in the banner) with a
@@ -82,7 +83,9 @@ export default function PlanMap({ missions, items, here, flyRequest, onToggle })
   return (
     <MapContainer center={[52.22, 6.89]} zoom={13} scrollWheelZoom style={{ height: "100%", width: "100%" }}>
       <TileLayer
-        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors. Not affiliated with Bannergress.'
+        attribution={`&copy; ${t("{osm} contributors. Not affiliated with Bannergress.", {
+          osm: '<a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+        })}`}
         url="https://tile.openstreetmap.org/{z}/{x}/{y}.png"
       />
       <FitOnce points={points} fitKey={fitKey} />
@@ -152,18 +155,24 @@ export default function PlanMap({ missions, items, here, flyRequest, onToggle })
               <div className="mdp-popup">
                 <b>{mission.shortTitle}</b>
                 <span>
-                  #{mission.number} of {mission.bannerTitle}
+                  {t("#{number} of {banner}", { number: mission.number, banner: mission.bannerTitle })}
                   {mission.lengthMeters ? ` · ${formatLength(mission.lengthMeters)}` : ""}
-                  {distance !== null ? ` · ${formatLength(distance)} from you` : ""}
+                  {distance !== null ? ` · ${t("{length} from you", { length: formatLength(distance) })}` : ""}
                 </span>
-                <span>{planned ? `Number ${planned.index + 1} in the order${planned.done ? " · done" : ""}` : "Not in the plan"}</span>
+                <span>
+                  {planned
+                    ? planned.done
+                      ? t("Number {number} in the order · done", { number: planned.index + 1 })
+                      : t("Number {number} in the order", { number: planned.index + 1 })
+                    : t("Not in the plan")}
+                </span>
                 {onToggle ? (
                   <button type="button" className={`btn ${planned ? "text" : "filled"} sl`} onClick={() => onToggle(mission)}>
-                    {planned ? "Take out of the plan" : "Add to the plan"}
+                    {planned ? t("Take out of the plan") : t("Add to the plan")}
                   </button>
                 ) : null}
                 <a className="mdp-popup-link" href={buildIngressMissionUrl(mission.id)}>
-                  Open in Ingress
+                  {t("Open in Ingress")}
                 </a>
               </div>
             </Popup>

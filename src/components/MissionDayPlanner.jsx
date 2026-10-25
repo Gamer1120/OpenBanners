@@ -19,6 +19,7 @@ import {
   usePlan,
 } from "../missionPlans";
 import PlanMap from "./PlanMap";
+import { t, tn } from "../i18n";
 import "./MissionDayPlanner.css";
 
 const MIN_QUERY = 2;
@@ -35,9 +36,9 @@ function BannerPickRow({ banner, onPick, busy }) {
       <button type="button" className="li sl mdp-banner" onClick={() => onPick(banner)} disabled={busy}>
         <span className="mdp-thumb"><BannerImage banner={banner} mode="natural" /></span>
         <span className="txt">
-          <span className="t">{(banner.title || "Untitled").trim()}</span>
+          <span className="t">{(banner.title || t("Untitled")).trim()}</span>
           <span className="s">
-            {banner.numberOfMissions ?? "?"} missions
+            {banner.numberOfMissions != null ? tn("{count} mission", "{count} missions", banner.numberOfMissions) : t("? missions")}
             {banner.formattedAddress ? ` · ${banner.formattedAddress}` : ""}
           </span>
         </span>
@@ -79,17 +80,17 @@ function BannerSearch({ onPick, busy, autoFocus = false }) {
         <input
           type="search"
           value={query}
-          placeholder="Search for a banner"
-          aria-label="Search for a banner"
+          placeholder={t("Search for a banner")}
+          aria-label={t("Search for a banner")}
           autoFocus={autoFocus}
           onChange={(event) => setQuery(event.target.value)}
         />
       </label>
-      {results.status === "loading" && !results.banners.length ? <p className="small muted">Searching…</p> : null}
-      {results.status === "error" ? <p className="small pp-error">Search didn’t work. Try again.</p> : null}
-      {results.status === "ready" && !results.banners.length ? <p className="small muted">No banners found.</p> : null}
+      {results.status === "loading" && !results.banners.length ? <p className="small muted">{t("Searching…")}</p> : null}
+      {results.status === "error" ? <p className="small pp-error">{t("Search didn’t work. Try again.")}</p> : null}
+      {results.status === "ready" && !results.banners.length ? <p className="small muted">{t("No banners found.")}</p> : null}
       {results.banners.length ? (
-        <ul className="ob-list" aria-label="Search results">
+        <ul className="ob-list" aria-label={t("Search results")}>
           {results.banners.map((banner) => (
             <BannerPickRow key={banner.id} banner={banner} onPick={onPick} busy={busy} />
           ))}
@@ -137,17 +138,16 @@ function PlannerStart() {
 
   return (
     <div className="ob-page mdp">
-      <h1 className="ob-h1">Mission Day planner</h1>
+      <h1 className="ob-h1">{t("Mission Day planner")}</h1>
       <p className="small muted">
-        Pick the missions you want to do, put them in your order and share the plan. Everyone with the link can
-        change it.
-        {loggedIn ? "" : " Log in with Bannergress to start a plan."}
+        {t("Pick the missions you want to do, put them in your order and share the plan. Everyone with the link can change it.")}
+        {loggedIn ? "" : ` ${t("Log in with Bannergress to start a plan.")}`}
       </p>
       {error ? <p className="small pp-error" role="alert">{error}</p> : null}
 
       {recent.length ? (
         <section aria-labelledby="mdp-recent">
-          <h2 className="ob-h2" id="mdp-recent">Your plans</h2>
+          <h2 className="ob-h2" id="mdp-recent">{t("Your plans")}</h2>
           <ul className="ob-list">
             {recent.map((entry) => (
               <li key={entry.id} className="mdp-recent">
@@ -158,16 +158,16 @@ function PlannerStart() {
                   <span className="txt">
                     <span className="t">{entry.title}</span>
                     <span className="s">
-                      {entry.missions} {entry.missions === 1 ? "mission" : "missions"} planned
-                      {entry.readOnly ? " · view only" : ""}
+                      {tn("{count} mission planned", "{count} missions planned", entry.missions)}
+                      {entry.readOnly ? ` · ${t("view only")}` : ""}
                     </span>
                   </span>
                 </Link>
                 <button
                   type="button"
                   className="icon-btn sl"
-                  aria-label={`Remove ${entry.title} from this list`}
-                  title="Remove from this list (the plan itself stays)"
+                  aria-label={t("Remove {plan} from this list", { plan: entry.title })}
+                  title={t("Remove from this list (the plan itself stays)")}
                   onClick={() => {
                     forgetPlan(entry.id);
                     setRecent(readRecentPlans());
@@ -182,14 +182,14 @@ function PlannerStart() {
       ) : null}
 
       <section aria-labelledby="mdp-active">
-        <h2 className="ob-h2" id="mdp-active">Active Mission Days</h2>
-        {active.status === "loading" ? <p className="small muted">Loading…</p> : null}
-        {active.status === "error" ? <p className="small muted">Couldn’t load the Mission Days from Bannergress.</p> : null}
+        <h2 className="ob-h2" id="mdp-active">{t("Active Mission Days")}</h2>
+        {active.status === "loading" ? <p className="small muted">{t("Loading…")}</p> : null}
+        {active.status === "error" ? <p className="small muted">{t("Couldn’t load the Mission Days from Bannergress.")}</p> : null}
         {active.status === "ready" && !active.banners.length ? (
-          <p className="small muted">No Mission Day is on right now. Search for its banner instead.</p>
+          <p className="small muted">{t("No Mission Day is on right now. Search for its banner instead.")}</p>
         ) : null}
         {active.banners.length ? (
-          <ul className="ob-list" aria-label="Active Mission Days">
+          <ul className="ob-list" aria-label={t("Active Mission Days")}>
             {active.banners.map((banner) => (
               <BannerPickRow key={banner.id} banner={banner} onPick={start} busy={busy} />
             ))}
@@ -198,7 +198,7 @@ function PlannerStart() {
       </section>
 
       <section aria-labelledby="mdp-find">
-        <h2 className="ob-h2" id="mdp-find">Find a banner</h2>
+        <h2 className="ob-h2" id="mdp-find">{t("Find a banner")}</h2>
         <BannerSearch onPick={start} busy={busy} />
       </section>
     </div>
@@ -381,24 +381,34 @@ function OverlayStart({ plan }) {
     return null;
   }
   const android = isAndroidUserAgent(navigator.userAgent);
+  const count = open || plan.items.length;
+  // One sentence with the Overlay link in the middle.
+  const [beforeLink, afterLink] = t(
+    "On Android, open this plan in the {app} (or share the plan link with it) to walk it as one route; missions get ticked off here as you go."
+  ).split("{app}");
   return (
     <div className="mdp-overlay">
       {android ? (
         <a className="btn filled sl" href={buildOverlayPlanIntentUrl(plan.id, window.location.origin)}>
           <Layers fontSize="small" />
-          Start in OpenBanners Overlay
+          {t("Start in OpenBanners Overlay")}
         </a>
       ) : null}
       <span className="small muted">
         {android
-          ? `Follows the ${open || plan.items.length} ${open === 1 ? "mission" : "missions"} still to do as one route${
-              plan.readOnly ? "." : " and ticks them off here as you go."
-            }`
-          : "On Android, open this plan in the "}
+          ? plan.readOnly
+            ? tn("Follows the {count} mission still to do as one route.", "Follows the {count} missions still to do as one route.", count)
+            : tn(
+                "Follows the {count} mission still to do as one route and ticks it off here as you go.",
+                "Follows the {count} missions still to do as one route and ticks them off here as you go.",
+                count
+              )
+          : null}
         {android ? null : (
           <>
+            {beforeLink}
             <a href={OVERLAY_FALLBACK_URL} target="_blank" rel="noopener noreferrer">OpenBanners Overlay</a>
-            {" "}(or share the plan link with it) to walk it as one route; missions get ticked off here as you go.
+            {afterLink}
           </>
         )}
       </span>
@@ -443,16 +453,16 @@ function PlanEditor({ planId }) {
   if (status === "loading") {
     return (
       <div className="ob-page mdp">
-        <p className="small muted">Loading the plan…</p>
+        <p className="small muted">{t("Loading the plan…")}</p>
       </div>
     );
   }
   if (status === "error") {
     return (
       <div className="ob-page mdp">
-        <h1 className="ob-h1">Mission Day planner</h1>
+        <h1 className="ob-h1">{t("Mission Day planner")}</h1>
         <div className="ob-alert bad" role="alert">{error}</div>
-        <Link className="btn tonal sl" to="/planner">Start a new plan</Link>
+        <Link className="btn tonal sl" to="/planner">{t("Start a new plan")}</Link>
       </div>
     );
   }
@@ -479,12 +489,21 @@ function PlanEditor({ planId }) {
     const url = planUrl(readOnly ? plan.viewId : plan.id);
     if (navigator.share) {
       navigator
-        .share({ title: plan.title, text: `${plan.title} – Mission Day plan${readOnly ? " (view only)" : ""}`, url })
+        .share({
+          title: plan.title,
+          text: readOnly
+            ? t("{title} – Mission Day plan (view only)", { title: plan.title })
+            : t("{title} – Mission Day plan", { title: plan.title }),
+          url,
+        })
         .catch(() => {});
       return;
     }
     navigator.clipboard.writeText(url).then(
-      () => setMessage(readOnly ? "Read-only link copied. People with it can look, not change." : "Edit link copied. Everyone with it can change the plan."),
+      () =>
+        setMessage(
+          readOnly ? t("Read-only link copied. People with it can look, not change.") : t("Edit link copied. Everyone with it can change the plan.")
+        ),
       () => setMessage(url)
     );
   };
@@ -504,7 +523,7 @@ function PlanEditor({ planId }) {
         ) : (
           <input
             className="mdp-title ob-h1"
-            aria-label="Plan name"
+            aria-label={t("Plan name")}
             value={title ?? plan.title}
             maxLength={120}
             onChange={(event) => setTitle(event.target.value)}
@@ -519,35 +538,35 @@ function PlanEditor({ planId }) {
           onClick={() => (ro ? share(true) : setSharing((open) => !open))}
         >
           <Share fontSize="small" />
-          Share
+          {t("Share")}
         </button>
       </div>
       {sharing ? (
-        <div className="mdp-share" role="group" aria-label="Share the plan">
+        <div className="mdp-share" role="group" aria-label={t("Share the plan")}>
           <button type="button" className="li sl" onClick={() => share(false)}>
             <span className="txt">
-              <span className="t">Edit link</span>
-              <span className="s">Everyone with it can change the plan</span>
+              <span className="t">{t("Edit link")}</span>
+              <span className="s">{t("Everyone with it can change the plan")}</span>
             </span>
           </button>
           <button type="button" className="li sl" onClick={() => share(true)}>
             <span className="txt">
-              <span className="t">Read-only link</span>
-              <span className="s">People with it can look at the plan, not change it</span>
+              <span className="t">{t("Read-only link")}</span>
+              <span className="s">{t("People with it can look at the plan, not change it")}</span>
             </span>
           </button>
         </div>
       ) : null}
       <p className="small muted">
-        {plan.items.length} {plan.items.length === 1 ? "mission" : "missions"} planned
-        {doneCount ? ` · ${doneCount} done` : ""}
-        {walk > 0 ? ` · about ${formatLength(walk)} including the walks between missions` : ""}.{" "}
-        {ro ? "You’re looking at a read-only link, so you can’t change this plan." : "Everyone with the edit link can change this plan."}
+        {tn("{count} mission planned", "{count} missions planned", plan.items.length)}
+        {doneCount ? ` · ${t("{count} done", { count: doneCount })}` : ""}
+        {walk > 0 ? ` · ${t("about {length} including the walks between missions", { length: formatLength(walk) })}` : ""}.{" "}
+        {ro ? t("You’re looking at a read-only link, so you can’t change this plan.") : t("Everyone with the edit link can change this plan.")}
       </p>
       {message ? <p className="small mdp-msg" role="status">{message}</p> : null}
       <OverlayStart plan={plan} />
 
-      <section className="mdp-mapbox" aria-label="Map of the missions">
+      <section className="mdp-mapbox" aria-label={t("Map of the missions")}>
         <div className="mdp-map">
           <PlanMap
             missions={[...missionById.values()]}
@@ -565,7 +584,7 @@ function PlanEditor({ planId }) {
         </div>
         <div className="mdp-map-bar">
           <span className="small muted">
-            <span className="mdp-key in" /> in the plan <span className="mdp-key" /> not{ro ? "" : " yet · tap a start to add it"}
+            <span className="mdp-key in" /> {t("in the plan")} <span className="mdp-key" /> {ro ? t("not") : t("not yet · tap a start to add it")}
           </span>
           <button
             type="button"
@@ -576,19 +595,19 @@ function PlanEditor({ planId }) {
             }}
           >
             <MyLocation fontSize="small" />
-            {location.state === "finding" ? "Finding you…" : "Near me"}
+            {location.state === "finding" ? t("Finding you…") : t("Near me")}
           </button>
         </div>
         {location.state === "denied" ? (
-          <p className="small muted">Your browser didn’t share your location.</p>
+          <p className="small muted">{t("Your browser didn’t share your location.")}</p>
         ) : null}
       </section>
 
       <section aria-labelledby="mdp-plan">
-        <h2 className="ob-h2" id="mdp-plan">{ro ? "Order" : "Your order"}</h2>
+        <h2 className="ob-h2" id="mdp-plan">{ro ? t("Order") : t("Your order")}</h2>
         {!plan.items.length ? (
           <p className="small muted">
-            {ro ? "No missions planned yet." : "Add missions from the banners below. They show up here in the order you add them."}
+            {ro ? t("No missions planned yet.") : t("Add missions from the banners below. They show up here in the order you add them.")}
           </p>
         ) : (
           <ol className="mdp-plan" ref={sort.listRef}>
@@ -604,7 +623,7 @@ function PlanEditor({ planId }) {
                     {ro ? null : (
                       <span
                         className="mdp-handle"
-                        title="Drag to move"
+                        title={t("Drag to move")}
                         aria-hidden="true"
                         {...sort.handleProps(index)}
                       >
@@ -614,19 +633,19 @@ function PlanEditor({ planId }) {
                     <span className="mdp-pos">{index + 1}</span>
                     <MissionPicture mission={mission} />
                     <span className="txt">
-                      <span className="t" title={mission?.title}>{mission?.shortTitle ?? "Loading…"}</span>
+                      <span className="t" title={mission?.title}>{mission?.shortTitle ?? t("Loading…")}</span>
                       <span className="s">
-                        {mission ? `#${mission.number} of ${mission.bannerTitle}` : ""}
-                        {mission?.offline ? " · offline" : ""}
-                        {mission?.reversed ? " · reversed" : ""}
+                        {mission ? t("#{number} of {banner}", { number: mission.number, banner: mission.bannerTitle }) : ""}
+                        {mission?.offline ? ` · ${t("offline")}` : ""}
+                        {mission?.reversed ? ` · ${t("reversed")}` : ""}
                       </span>
                     </span>
-                    <label className="mdp-done" title="Done">
+                    <label className="mdp-done" title={t("Done")}>
                       <input
                         type="checkbox"
                         checked={item.done}
                         disabled={ro}
-                        aria-label={`Mark ${mission?.title ?? "mission"} done`}
+                        aria-label={mission?.title ? t("Mark {mission} done", { mission: mission.title }) : t("Mark mission done")}
                         onChange={(event) => run([{ op: "done", missionId: item.missionId, done: event.target.checked }])}
                       />
                     </label>
@@ -634,8 +653,8 @@ function PlanEditor({ planId }) {
                       <a
                         className="icon-btn sl"
                         href={buildIngressMissionUrl(item.missionId)}
-                        aria-label={`Open ${mission?.title ?? "this mission"} in Ingress`}
-                        title="Open in Ingress"
+                        aria-label={mission?.title ? t("Open {mission} in Ingress", { mission: mission.title }) : t("Open this mission in Ingress")}
+                        title={t("Open in Ingress")}
                       >
                         <OpenInNew fontSize="small" />
                       </a>
@@ -644,8 +663,12 @@ function PlanEditor({ planId }) {
                           type="button"
                           className={`icon-btn sl${item.reversed ? " on" : ""}`}
                           aria-pressed={Boolean(item.reversed)}
-                          aria-label={item.reversed ? "Walk in the normal order" : "Walk in reverse order"}
-                          title={item.reversed ? "Reversed: walked from the last portal to the first. Tap for the normal order." : "Walk in reverse order (any-order mission)"}
+                          aria-label={item.reversed ? t("Walk in the normal order") : t("Walk in reverse order")}
+                          title={
+                            item.reversed
+                              ? t("Reversed: walked from the last portal to the first. Tap for the normal order.")
+                              : t("Walk in reverse order (any-order mission)")
+                          }
                           onClick={() => run([{ op: "reverse", missionId: item.missionId, reversed: !item.reversed }])}
                         >
                           <SwapVert fontSize="small" />
@@ -656,7 +679,7 @@ function PlanEditor({ planId }) {
                           <button
                             type="button"
                             className="icon-btn sl"
-                            aria-label="Move up"
+                            aria-label={t("Move up")}
                             data-arrow=""
                             disabled={index === 0}
                             onClick={() => run([{ op: "move", missionId: item.missionId, index: index - 1 }])}
@@ -666,7 +689,7 @@ function PlanEditor({ planId }) {
                           <button
                             type="button"
                             className="icon-btn sl"
-                            aria-label="Move down"
+                            aria-label={t("Move down")}
                             data-arrow=""
                             disabled={index === plan.items.length - 1}
                             onClick={() => run([{ op: "move", missionId: item.missionId, index: index + 1 }])}
@@ -676,7 +699,7 @@ function PlanEditor({ planId }) {
                           <button
                             type="button"
                             className="icon-btn sl"
-                            aria-label="Take out of the plan"
+                            aria-label={t("Take out of the plan")}
                             onClick={() => run([{ op: "remove", missionId: item.missionId }])}
                           >
                             <Close fontSize="small" />
@@ -686,7 +709,7 @@ function PlanEditor({ planId }) {
                     </span>
                   </div>
                   {gaps[index] !== null && gaps[index] !== undefined && index < plan.items.length - 1 ? (
-                    <span className="mdp-gap small muted">↓ {formatLength(gaps[index])} to the next start</span>
+                    <span className="mdp-gap small muted">{t("↓ {length} to the next start", { length: formatLength(gaps[index]) })}</span>
                   ) : null}
                 </li>
               );
@@ -708,7 +731,7 @@ function PlanEditor({ planId }) {
           <section key={bannerId} className="mdp-source" aria-label={entry?.banner?.title ?? bannerId}>
             <div className="ob-sec-head">
               <h2 className="ob-h2">
-                <Link to={`/banner/${encodeURIComponent(bannerId)}`}>{entry?.banner?.title ?? "Loading…"}</Link>
+                <Link to={`/banner/${encodeURIComponent(bannerId)}`}>{entry?.banner?.title ?? t("Loading…")}</Link>
               </h2>
               {ro ? null : (
                 <span className="mdp-source-tools">
@@ -718,15 +741,15 @@ function PlanEditor({ planId }) {
                     disabled={!open.length}
                     onClick={() => run(open.map((mission) => ({ op: "add", bannerId, missionId: mission.id })))}
                   >
-                    Add all
+                    {t("Add all")}
                   </button>
                   <button
                     type="button"
                     className="btn text sl"
                     onClick={() => run([{ op: "removeBanner", bannerId }])}
-                    title="Take this banner and its missions out of the plan"
+                    title={t("Take this banner and its missions out of the plan")}
                   >
-                    Remove
+                    {t("Remove")}
                   </button>
                 </span>
               )}
@@ -762,13 +785,13 @@ function PlanEditor({ planId }) {
       })}
 
       {ro ? null : (
-        <section aria-label="Add a banner">
+        <section aria-label={t("Add a banner")}>
           {addingBanner ? (
             <>
               <div className="ob-sec-head">
-                <h2 className="ob-h2">Add a banner</h2>
+                <h2 className="ob-h2">{t("Add a banner")}</h2>
                 <button type="button" className="btn text sl" onClick={() => setAddingBanner(false)}>
-                  Done
+                  {t("Done")}
                 </button>
               </div>
               <BannerSearch
@@ -782,7 +805,7 @@ function PlanEditor({ planId }) {
           ) : (
             <button type="button" className="btn tonal sl" onClick={() => setAddingBanner(true)}>
               <Add fontSize="small" />
-              Add another banner
+              {t("Add another banner")}
             </button>
           )}
         </section>

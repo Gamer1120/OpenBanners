@@ -3,22 +3,24 @@
 // mission types, start-to-finish distance and a time that admits missing data.
 // Pure helpers over the Bannergress banner DTO; see bannerFacts.test.js.
 
+import { getLanguage, t, tk, tn } from "./i18n";
+
 export const OBJECTIVE_LABELS = {
-  hack: "Hack",
-  captureOrUpgrade: "Capture or upgrade",
-  createLink: "Create link",
-  createField: "Create field",
-  installMod: "Install mod",
-  takePhoto: "Take photo",
-  viewWaypoint: "View waypoint",
-  enterPassphrase: "Enter passphrase",
-  hidden: "Hidden",
+  hack: tk("Hack"),
+  captureOrUpgrade: tk("Capture or upgrade"),
+  createLink: tk("Create link"),
+  createField: tk("Create field"),
+  installMod: tk("Install mod"),
+  takePhoto: tk("Take photo"),
+  viewWaypoint: tk("View waypoint"),
+  enterPassphrase: tk("Enter passphrase"),
+  hidden: tk("Hidden"),
 };
 
 export const MISSION_TYPE_LABELS = {
-  sequential: "In sequence",
-  anyOrder: "Any order",
-  hidden: "Hidden",
+  sequential: tk("In sequence"),
+  anyOrder: tk("Any order"),
+  hidden: tk("Hidden"),
 };
 
 function stepsOf(mission) {
@@ -61,7 +63,7 @@ export function getActionCounts(missions) {
       counts.set(key, (counts.get(key) ?? 0) + 1);
     }
   }
-  return [...counts].map(([key, count]) => ({ key, label: OBJECTIVE_LABELS[key] ?? key, count }));
+  return [...counts].map(([key, count]) => ({ key, label: OBJECTIVE_LABELS[key] ? t(OBJECTIVE_LABELS[key]) : key, count }));
 }
 
 // [{ key, label, count }] of the missions' own types.
@@ -74,7 +76,7 @@ export function getMissionTypes(missions) {
   }
   return [...counts].map(([key, count]) => ({
     key,
-    label: MISSION_TYPE_LABELS[key] ?? key,
+    label: MISSION_TYPE_LABELS[key] ? t(MISSION_TYPE_LABELS[key]) : key,
     count,
   }));
 }
@@ -146,7 +148,9 @@ export function formatEvent(start, end, locale) {
       month: "long",
       year: "numeric",
     });
-  return !end || end === start ? `Event on ${fmt(start)}` : `Event from ${fmt(start)} to ${fmt(end)}`;
+  return !end || end === start
+    ? t("Event on {date}", { date: fmt(start) })
+    : t("Event from {start} to {end}", { start: fmt(start), end: fmt(end) });
 }
 
 // "bad" when the planned offline date has passed, "warn" within 14 days, "" otherwise.
@@ -175,9 +179,37 @@ export function getPassphraseMissions(missions) {
     .filter((entry) => entry.steps.length);
 }
 
+// The separators before each of `count` list items in the user's language
+// ("", ", ", " and " in English), so JSX lists can join links the same way.
+export function listJoins(count) {
+  const language = getLanguage();
+  // en-GB: no comma before "and", as the English texts always had.
+  const parts = new Intl.ListFormat(language === "en" ? "en-GB" : language, { type: "conjunction" }).formatToParts(
+    Array.from({ length: count }, (_, index) => String(index))
+  );
+  const joins = Array(count).fill("");
+  let pending = "";
+  let item = 0;
+  for (const part of parts) {
+    if (part.type === "element") {
+      joins[item++] = pending;
+      pending = "";
+    } else {
+      pending += part.value;
+    }
+  }
+  return joins;
+}
+
+function formatList(items) {
+  const joins = listJoins(items.length);
+  return items.map((value, index) => joins[index] + value).join("");
+}
+
 // "Mission 4", "Missions 2 and 5", "Missions 1, 3 and 6", "Missions 2–30"
-// (1-based; runs of three or more become a range).
-export function formatMissionNumbers(indexes) {
+// (1-based; runs of three or more become a range). `withWord` false gives just
+// the numbers ("1, 3 and 6") for a sentence that has its own "Mission(s)".
+export function formatMissionNumbers(indexes, withWord = true) {
   const numbers = [...indexes].sort((a, b) => a - b).map((index) => index + 1);
   const parts = [];
   for (let i = 0; i < numbers.length; ) {
@@ -192,9 +224,6 @@ export function formatMissionNumbers(indexes) {
     }
     i = j + 1;
   }
-  const plural = numbers.length > 1 ? "Missions" : "Mission";
-  if (parts.length === 1) {
-    return `${plural} ${parts[0]}`;
-  }
-  return `${plural} ${parts.slice(0, -1).join(", ")} and ${parts[parts.length - 1]}`;
+  const list = formatList(parts);
+  return withWord ? tn("Mission {numbers}", "Missions {numbers}", numbers.length, { numbers: list }) : list;
 }

@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { EditNote } from "@mui/icons-material";
 import { MAX_NOTE_LENGTH, useBannerNote } from "../../bannerNotes";
+import { t } from "../../i18n";
 
 // Your own notes on a banner, only while logged in. Most banners have none, so
 // without a note there is only an "Add a private note" button next to
@@ -22,7 +23,7 @@ export function AddNoteButton({ notes }) {
   return (
     <button type="button" className="btn tonal sl bn-add" onClick={() => notes.setDraft("")}>
       <EditNote fontSize="small" />
-      Add a private note
+      {t("Add a private note")}
     </button>
   );
 }
@@ -51,15 +52,15 @@ export default function BannerNotes({ notes }) {
   };
 
   return (
-    <section className="pp-panel bn-panel" aria-label="My notes">
+    <section className="pp-panel bn-panel" aria-label={t("My notes")}>
       <EditNote />
       <div className="grow">
-        <b>My notes</b>
+        <b>{t("My notes")}</b>
         {editing ? (
           <>
             <textarea
               className="pp-input bn-input"
-              aria-label="My notes"
+              aria-label={t("My notes")}
               value={draft}
               maxLength={MAX_NOTE_LENGTH}
               rows={4}
@@ -68,10 +69,10 @@ export default function BannerNotes({ notes }) {
             />
             <div className="pp-actions">
               <button type="button" className="btn filled sl" disabled={busy} onClick={save}>
-                {busy ? "Saving…" : "Save"}
+                {busy ? t("Saving…") : t("Save")}
               </button>
               <button type="button" className="btn text sl" disabled={busy} onClick={() => setDraft(null)}>
-                Cancel
+                {t("Cancel")}
               </button>
             </div>
           </>
@@ -79,11 +80,11 @@ export default function BannerNotes({ notes }) {
           <>
             <p className="bn-text">{notes.text}</p>
             <button type="button" className="btn text sl" onClick={() => setDraft(notes.text)}>
-              Edit
+              {t("Edit")}
             </button>
           </>
         )}
-        <span className="small muted bn-private">Only you can see these.</span>
+        <span className="small muted bn-private">{t("Only you can see these.")}</span>
         {error ? <p className="small pp-error" role="alert">{error}</p> : null}
       </div>
     </section>

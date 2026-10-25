@@ -1,6 +1,7 @@
 import React from "react";
 import { Box, Button, CircularProgress, Skeleton, Stack, Typography } from "@mui/material";
 import { updateBannergressBannerListType } from "../bannergressSync";
+import { t, tk } from "../i18n";
 
 // Light (design X) theme: outlined M3 segmented look; dark keeps the original tints.
 const LIGHT_IDLE_SX = {
@@ -16,7 +17,7 @@ const LIGHT_IDLE_SX = {
 const bannerListActions = [
   {
     listType: "todo",
-    label: "To do",
+    label: tk("To do"),
     activeSx: {
       color: "#2f2200",
       bgcolor: "#f2b63d",
@@ -37,7 +38,7 @@ const bannerListActions = [
   },
   {
     listType: "done",
-    label: "Done",
+    label: tk("Done"),
     activeSx: {
       color: "#efffe7",
       bgcolor: "#2f6a38",
@@ -58,7 +59,7 @@ const bannerListActions = [
   },
   {
     listType: "blacklist",
-    label: "Hide",
+    label: tk("Hide"),
     activeSx: {
       color: "#fff1f1",
       bgcolor: "#7a2b2b",
@@ -194,8 +195,8 @@ export default function BannergressListActions({
       console.error("Couldn't update Bannergress list type.", error);
       setListActionError(
         error?.status === 401 || error?.status === 403
-          ? "Authenticate again."
-          : "Update failed."
+          ? t("Authenticate again.")
+          : t("Update failed.")
       );
     } finally {
       setPendingListType(null);
@@ -261,7 +262,7 @@ export default function BannergressListActions({
               {isPending ? (
                 <CircularProgress size={18} color="inherit" />
               ) : (
-                action.label
+                t(action.label)
               )}
             </Button>
           );

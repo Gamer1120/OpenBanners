@@ -1,6 +1,7 @@
 import React, { useMemo } from "react";
 import MissionStepMarker from "./MissionStepMarker";
 import { Polyline } from "react-leaflet";
+import { t } from "../i18n";
 
 function compressPolylinePositions(positions, maxPoints) {
   if (positions.length <= maxPoints) {
@@ -51,7 +52,7 @@ function Mission({
             title:
               typeof poi.title === "string" && poi.title.length > 0
                 ? poi.title
-                : `Mission ${missionNumber} step ${index + 1}`,
+                : t("Mission {mission} step {step}", { mission: missionNumber, step: index + 1 }),
             latitude,
             longitude,
           },

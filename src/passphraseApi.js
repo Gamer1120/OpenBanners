@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { requestBannergressAccessToken, useBannergressAuth } from "./bannergressSync";
+import { t } from "./i18n";
 
 // Client for server/passphrases.mjs. The Bannergress token goes along only so
 // the server can ask Bannergress who you are; it never stores it.
@@ -21,7 +22,7 @@ export async function call(path, { method = "GET", body, authenticate = true } =
   });
   const result = await response.json().catch(() => null);
   if (!response.ok || !result) {
-    throw Object.assign(new Error(result?.message || "Couldn't reach the passphrase service."), {
+    throw Object.assign(new Error(result?.message || t("Couldn't reach the passphrase service.")), {
       code: result?.error,
       status: response.status,
     });

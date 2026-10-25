@@ -26,6 +26,7 @@ import {
   getBannerTogetherGroupPresetOptions,
   normalizeBannerTogetherGroupParticipantIdentities,
 } from "../bannerTogetherGroupComparison";
+import { t, tn } from "../i18n";
 
 const CUSTOM_PRESET_ID = "custom";
 const STATUS_COLORS = {
@@ -87,7 +88,7 @@ function StatusSelect({ label, value, onChange }) {
           BANNER_TOGETHER_GROUP_STATUS_OPTIONS.filter((option) =>
             selected.includes(option.value)
           )
-            .map((option) => option.label)
+            .map((option) => t(option.label))
             .join(", ")
         }
         sx={{ minHeight: 44 }}
@@ -113,13 +114,13 @@ function StatusSelect({ label, value, onChange }) {
                 flexShrink: 0,
               }}
             />
-            <ListItemText primary={option.label} />
+            <ListItemText primary={t(option.label)} />
           </MenuItem>
         ))}
       </Select>
       {!hasSelection ? (
         <FormHelperText id={helperTextId}>
-          Choose at least one status.
+          {t("Choose at least one status.")}
         </FormHelperText>
       ) : null}
     </FormControl>
@@ -175,7 +176,7 @@ export default function BannerTogetherGroupComparisonBuilder({
 
   const getParticipantLabel = (participant) =>
     participant.id === localParticipantId
-      ? `${participant.label} (you)`
+      ? t("{name} (you)", { name: participant.label })
       : participant.label;
 
   return (
@@ -192,12 +193,12 @@ export default function BannerTogetherGroupComparisonBuilder({
           size="small"
           sx={{ maxWidth: { sm: 420 }, minWidth: { sm: 300 } }}
         >
-          <InputLabel id={presetLabelId}>Comparison</InputLabel>
+          <InputLabel id={presetLabelId}>{t("Comparison")}</InputLabel>
           <Select
             id={presetSelectId}
             labelId={presetLabelId}
             value={selectedPresetId}
-            label="Comparison"
+            label={t("Comparison")}
             onChange={(event) => {
               if (event.target.value !== CUSTOM_PRESET_ID) {
                 onChange(
@@ -213,18 +214,16 @@ export default function BannerTogetherGroupComparisonBuilder({
           >
             {presetOptions.map((option) => (
               <MenuItem key={option.id} value={option.id} sx={{ minHeight: 44 }}>
-                {option.label}
+                {t(option.label)}
               </MenuItem>
             ))}
             <MenuItem value={CUSTOM_PRESET_ID} disabled sx={{ minHeight: 44 }}>
-              Custom
+              {t("Custom")}
             </MenuItem>
           </Select>
         </FormControl>
         <Chip
-          label={`${normalizedResultCount} ${
-            normalizedResultCount === 1 ? "banner" : "banners"
-          }`}
+          label={tn("{count} banner", "{count} banners", normalizedResultCount)}
           color="primary"
           sx={{
             borderRadius: 1,
@@ -235,7 +234,7 @@ export default function BannerTogetherGroupComparisonBuilder({
 
       {safeClauses.length === 0 ? (
         <Typography role="alert" variant="body2" color="error" sx={{ mb: 1.5 }}>
-          Choose at least one comparison alternative.
+          {t("Choose at least one comparison alternative.")}
         </Typography>
       ) : null}
 
@@ -248,7 +247,7 @@ export default function BannerTogetherGroupComparisonBuilder({
               color="text.secondary"
               sx={{ fontWeight: 700 }}
             >
-              OR
+              {t("OR")}
             </Typography>
           </Divider>
         }
@@ -257,7 +256,9 @@ export default function BannerTogetherGroupComparisonBuilder({
           <Box
             key={`group-comparison-clause-${clauseIndex}`}
             role="group"
-            aria-label={`Comparison alternative ${clauseIndex + 1}`}
+            aria-label={t("Comparison alternative {number}", {
+              number: clauseIndex + 1,
+            })}
             sx={{
               border: 1,
               borderColor: "divider",
@@ -273,14 +274,14 @@ export default function BannerTogetherGroupComparisonBuilder({
               sx={{ mb: 1.5 }}
             >
               <Typography variant="subtitle2">
-                Alternative {clauseIndex + 1}
+                {t("Alternative {number}", { number: clauseIndex + 1 })}
               </Typography>
-              <Tooltip title="Remove alternative">
+              <Tooltip title={t("Remove alternative")}>
                 <Box component="span" sx={{ display: "inline-flex" }}>
                   <IconButton
-                    aria-label={`Remove comparison alternative ${
-                      clauseIndex + 1
-                    }`}
+                    aria-label={t("Remove comparison alternative {number}", {
+                      number: clauseIndex + 1,
+                    })}
                     disabled={safeClauses.length === 1}
                     onClick={() =>
                       onChange(
@@ -306,7 +307,7 @@ export default function BannerTogetherGroupComparisonBuilder({
                       color="text.secondary"
                       sx={{ alignSelf: "center", fontWeight: 700 }}
                     >
-                      AND
+                      {t("AND")}
                     </Typography>
                   ) : null}
                   <StatusSelect
@@ -342,7 +343,7 @@ export default function BannerTogetherGroupComparisonBuilder({
         }
         sx={{ minHeight: 44, mt: 2, width: { xs: "100%", sm: "auto" } }}
       >
-        Add alternative
+        {t("Add alternative")}
       </Button>
     </Box>
   );

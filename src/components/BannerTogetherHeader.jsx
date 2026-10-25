@@ -1,5 +1,6 @@
 import React from "react";
 import { Link } from "react-router-dom";
+import { t } from "../i18n";
 
 // Shared header for the Banner Together screens (they live under Lists).
 export default function BannerTogetherHeader({ placeLabel, subtitle }) {
@@ -7,7 +8,7 @@ export default function BannerTogetherHeader({ placeLabel, subtitle }) {
     <header className="ob-sec-head bt-head">
       <div style={{ minWidth: 0 }}>
         <nav className="crumbs" aria-label="Banner Together">
-          <Link to="/lists">Lists</Link>
+          <Link to="/lists">{t("Lists")}</Link>
           <span aria-hidden="true">›</span>
           <Link to="/lists/together">Banner Together</Link>
         </nav>

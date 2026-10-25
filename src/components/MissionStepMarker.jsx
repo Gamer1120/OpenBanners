@@ -1,6 +1,7 @@
 import React, { memo, useMemo } from "react";
 import { Popup, Marker } from "react-leaflet";
 import L from "leaflet";
+import { t } from "../i18n";
 
 function MissionStepMarker({
   portalName,
@@ -46,14 +47,14 @@ function MissionStepMarker({
         {interactive ? (
           <Popup>
             <div>
-              {isFirst && <div>Mission Number: {missionNumber}</div>}
+              {isFirst && <div>{t("Mission Number: {number}", { number: missionNumber })}</div>}
               <div>{portalName}</div>
               <a
                 href={`https://www.google.com/maps/dir/?api=1&destination=${latitude},${longitude}`}
                 target="_blank"
                 rel="noopener noreferrer"
               >
-                Navigate to portal
+                {t("Navigate to portal")}
               </a>
             </div>
           </Popup>

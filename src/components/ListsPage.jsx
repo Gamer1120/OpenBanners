@@ -17,12 +17,13 @@ import {
   useBannergressSync,
   withTimeout,
 } from "../bannergressSync";
+import { t, tk } from "../i18n";
 
 const LISTS = [
-  { key: "todo", label: "To do" },
-  { key: "done", label: "Done" },
-  { key: "blacklist", label: "Hidden" },
-  { key: "yours", label: "Yours" },
+  { key: "todo", label: tk("To do") },
+  { key: "done", label: tk("Done") },
+  { key: "blacklist", label: tk("Hidden") },
+  { key: "yours", label: tk("Yours") },
 ];
 const BANNERGRESS_ACCOUNT_URL = "https://bannergress.com/account";
 const BANNERGRESS_CREATE_URL = "https://bannergress.com/new-banner";
@@ -84,11 +85,11 @@ function syncCountsNow({ force = false } = {}) {
 
 export function describeSyncError(error) {
   if (error?.code === "TIMEOUT") {
-    return "timed out";
+    return t("timed out");
   }
 
   if (error?.code === "NETWORK") {
-    return "no connection";
+    return t("no connection");
   }
 
   if (Number.isFinite(error?.status)) {
@@ -218,10 +219,10 @@ export default function ListsPage() {
           setHasMore(false);
           setError(
             loadError?.code === "AUTH"
-              ? "Your Bannergress sign-in expired. Sign in again."
+              ? t("Your Bannergress sign-in expired. Sign in again.")
               : loadError?.code === "NO_AGENT"
                 ? "NO_AGENT"
-                : "Couldn't load this list. Please try again."
+                : t("Couldn't load this list. Please try again.")
           );
         }
       })
@@ -274,22 +275,31 @@ export default function ListsPage() {
     itemCount: banners.length,
   });
 
+  // Sentences with a link in the middle: one key each, split at the link.
+  const [accountBeforeLink, accountAfterLink] = t(
+    "Your banners are the ones made from your agent’s missions. Link your agent on your {link}, then come back here."
+  ).split("{link}");
+  const [createBeforeLink, createAfterLink] = t(
+    "Made missions in Ingress? {link} and it shows up here."
+  ).split("{link}");
+
   return (
     <div className="ob-page">
       <div className="ob-sec-head">
         <div>
-          <h1 className="ob-h1">Your lists</h1>
+          <h1 className="ob-h1">{t("Your lists")}</h1>
           <p className="small muted">
-            Your Bannergress lists
             {syncState?.syncedAt
-              ? ` · synced ${formatBannergressSyncTime(syncState.syncedAt)}`
-              : ""}
+              ? t("Your Bannergress lists · synced {time}", {
+                  time: formatBannergressSyncTime(syncState.syncedAt),
+                })
+              : t("Your Bannergress lists")}
           </p>
         </div>
       </div>
 
       <div className="toolbar">
-        <div className="seg lists-seg" role="group" aria-label="List">
+        <div className="seg lists-seg" role="group" aria-label={t("List")}>
           {LISTS.map((list) => (
             <button
               type="button"
@@ -298,7 +308,7 @@ export default function ListsPage() {
               aria-pressed={!togetherOpen && listType === list.key}
               onClick={() => setListType(list.key)}
             >
-              {list.label}
+              {t(list.label)}
             </button>
           ))}
           <button
@@ -307,7 +317,7 @@ export default function ListsPage() {
             aria-pressed={togetherOpen}
             onClick={() => navigate("/lists/together")}
           >
-            Together
+            {t("Together")}
           </button>
         </div>
         <span className="grow" />
@@ -319,8 +329,10 @@ export default function ListsPage() {
         <div className="ob-alert bad lists-sync-error" role="alert">
           <div className="grow">
             {countsAuthError
-              ? "Your Bannergress sign-in expired."
-              : `Couldn’t load your lists from Bannergress (${describeSyncError(countsError)}).`}
+              ? t("Your Bannergress sign-in expired.")
+              : t("Couldn’t load your lists from Bannergress ({reason}).", {
+                  reason: describeSyncError(countsError),
+                })}
           </div>
           <button
             type="button"
@@ -331,7 +343,7 @@ export default function ListsPage() {
                 : setCountsAttempt((attempt) => attempt + 1)
             }
           >
-            {countsAuthError ? "Sign in again" : "Retry"}
+            {countsAuthError ? t("Sign in again") : t("Retry")}
           </button>
         </div>
       ) : null}
@@ -343,9 +355,9 @@ export default function ListsPage() {
             <Login />
           </span>
           <div className="grow">
-            <b>Sign in to see your lists</b>
+            <b>{t("Sign in to see your lists")}</b>
             <span className="small">
-              To do, Done and Hidden come from your Bannergress account.
+              {t("To do, Done and Hidden come from your Bannergress account.")}
             </span>
             <div className="acts">
               <button
@@ -356,7 +368,7 @@ export default function ListsPage() {
                   window.dispatchEvent(new Event(BANNERGRESS_AUTH_REQUEST_EVENT))
                 }
               >
-                Sign in with Bannergress
+                {t("Sign in with Bannergress")}
               </button>
             </div>
           </div>
@@ -366,14 +378,13 @@ export default function ListsPage() {
           {error === "NO_AGENT" ? (
             <div className="ob-alert" role="note">
               <div className="grow">
-                <b>Link your Ingress agent first</b>
+                <b>{t("Link your Ingress agent first")}</b>
                 <span className="small">
-                  Your banners are the ones made from your agent’s missions. Link your
-                  agent on your{" "}
+                  {accountBeforeLink}
                   <a href={BANNERGRESS_ACCOUNT_URL} target="_blank" rel="noreferrer">
-                    Bannergress account page
+                    {t("Bannergress account page")}
                   </a>
-                  , then come back here.
+                  {accountAfterLink}
                 </span>
               </div>
             </div>
@@ -383,28 +394,28 @@ export default function ListsPage() {
             </div>
           ) : null}
           {loading ? (
-            <BannerWall banners={[]} skeletonCount={8} label="Loading list" />
+            <BannerWall banners={[]} skeletonCount={8} label={t("Loading list")} />
           ) : banners.length === 0 && !error ? (
             listType === "yours" ? (
               <div className="ob-alert">
                 <div className="grow">
-                  <b>You haven’t created any banners yet</b>
+                  <b>{t("You haven’t created any banners yet")}</b>
                   <span className="small">
-                    Made missions in Ingress?{" "}
+                    {createBeforeLink}
                     <a href={BANNERGRESS_CREATE_URL} target="_blank" rel="noreferrer">
-                      Create the banner on Bannergress
-                    </a>{" "}
-                    and it shows up here.
+                      {t("Create the banner on Bannergress")}
+                    </a>
+                    {createAfterLink}
                   </span>
                 </div>
               </div>
             ) : (
-              <div className="ob-alert">Nothing on this list yet.</div>
+              <div className="ob-alert">{t("Nothing on this list yet.")}</div>
             )
           ) : viewMode === "compact" ? (
-            <BannerRows banners={banners} loadingMore={loadingMore} label="List banners" />
+            <BannerRows banners={banners} loadingMore={loadingMore} label={t("List banners")} />
           ) : (
-            <BannerWall banners={banners} loadingMore={loadingMore} label="List banners" />
+            <BannerWall banners={banners} loadingMore={loadingMore} label={t("List banners")} />
           )}
           {hasMore ? <div ref={sentinelRef} style={{ height: 1 }} /> : null}
         </>

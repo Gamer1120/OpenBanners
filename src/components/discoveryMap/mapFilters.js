@@ -1,18 +1,19 @@
+import { tk } from "../../i18n";
 export const MISSION_OPTIONS = Object.freeze([
-  { id: "any", label: "Any missions" },
+  { id: "any", label: tk("Any missions") },
   ...[6, 12, 18, 24, 30].map((min) => ({ id: `${min}+`, label: `${min}+`, min })),
 ]);
 
 export const STATUS_OPTIONS = Object.freeze([
-  { id: "all", label: "All" },
-  { id: "todo", label: "To do only" },
-  { id: "hideDone", label: "Hide Done" },
+  { id: "all", label: tk("All") },
+  { id: "todo", label: tk("To do only") },
+  { id: "hideDone", label: tk("Hide Done") },
 ]);
 
 // "< 5 km" … "< 20 km", plus a custom min–max range. Always km.
 export function distanceOptions() {
   return [
-    { id: "any", label: "Any distance" },
+    { id: "any", label: tk("Any distance") },
     ...[5, 10, 15, 20].map((max) => ({ id: `lt${max}`, label: `< ${max} km`, max })),
     { id: "custom", label: "Custom" },
   ];
@@ -131,7 +132,7 @@ function customDistanceLabel({ distMin, distMax }) {
     return `< ${distMax} km`;
   }
 
-  return "Any distance";
+  return tk("Any distance");
 }
 
 export function filterSummary(filters) {

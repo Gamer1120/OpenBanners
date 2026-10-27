@@ -196,6 +196,8 @@
   "Delete": "삭제",
   "Delete and block": "삭제 및 차단",
   "Delete {portal}": "{portal} 삭제",
+  "Details": "상세",
+  "Details for {title}": "{title} 상세 정보",
   "Didn’t work? Get a new link": "안 되나요? 새 링크 받기",
   "Different answer for mission {mission}, waypoint {waypoint}": "미션 {mission}, 웨이포인트 {waypoint}의 다른 답",
   "Disable": "비활성화",

@@ -19,49 +19,77 @@ function prefersReducedMotion() {
   return Boolean(window.matchMedia?.("(prefers-reduced-motion: reduce)").matches);
 }
 
-// One banner: thumb, title, length · missions · walk, status. The whole card is
-// the link to the banner page; when it isn't the selected one yet, a tap (click)
-// selects it instead of opening it.
+// One banner: thumb, title, length · missions · walk, status. Tapping (clicking)
+// the card only selects it; the "Details" button in its bottom-right corner opens
+// the banner page. The button is a sibling of the card button laid over it (no
+// nested interactive elements); an invisible copy of its label in the foot row
+// keeps the status chip clear of it.
 const RowCard = memo(function RowCard({ banner, selected, onSelect, onHover, onKeyDown, itemRef }) {
   const missions = Number(banner.numberOfMissions);
   const minutes = walkingMinutes(banner.lengthMeters);
+  const details = (
+    <>
+      {t("Details")}
+      <span className="mv-rc-details-chev" aria-hidden="true">
+        ›
+      </span>
+    </>
+  );
+
+  const hover = onHover
+    ? {
+        onMouseEnter: () => onHover(banner.id),
+        onMouseLeave: () => onHover(null),
+        onFocus: () => onHover(banner.id),
+        onBlur: () => onHover(null),
+      }
+    : null;
 
   return (
-    <li className="mv-rc-item" ref={itemRef} data-banner-id={banner.id}>
-      <Link
-        to={`/banner/${banner.id}`}
+    <li className="mv-rc-item" ref={itemRef} data-banner-id={banner.id} {...hover}>
+      <button
+        type="button"
         className={`mv-rc${selected ? " on" : ""}`}
         aria-current={selected ? "true" : undefined}
-        onClick={(event) => {
+        onClick={() => {
           if (!selected) {
-            event.preventDefault();
             onSelect(banner.id);
           }
         }}
-        onMouseEnter={onHover ? () => onHover(banner.id) : undefined}
-        onMouseLeave={onHover ? () => onHover(null) : undefined}
-        onFocus={onHover ? () => onHover(banner.id) : undefined}
-        onBlur={onHover ? () => onHover(null) : undefined}
         onKeyDown={onKeyDown}
       >
         <BannerImage banner={banner} className="mv-rc-thumb" minAspect={THUMB_ASPECT} />
         <span className="mv-rc-body">
-          <span className="mv-rc-title">{banner.title}</span>
-          <span className="mv-rc-stats">
-            {formatLength(banner.lengthMeters)}
-            {" · "}
-            {Number.isFinite(missions) ? tn("{count} mission", "{count} missions", missions) : t("? missions")}
-            {minutes !== null ? (
-              <>
-                {" · "}
-                {t("{time} walk", { time: `~${formatMinutes(minutes)}` })}
-              </>
-            ) : null}
+          <span className="mv-rc-text">
+            <span className="mv-rc-title">{banner.title}</span>
+            <span className="mv-rc-stats">
+              {formatLength(banner.lengthMeters)}
+              {" · "}
+              {Number.isFinite(missions) ? tn("{count} mission", "{count} missions", missions) : t("? missions")}
+              {minutes !== null ? (
+                <>
+                  {" · "}
+                  {t("{time} walk", { time: `~${formatMinutes(minutes)}` })}
+                </>
+              ) : null}
+            </span>
           </span>
           <span className="mv-rc-foot">
             <StatusChip status={banner._status} />
+            <span className="mv-rc-details mv-rc-details-space" aria-hidden="true">
+              {details}
+            </span>
           </span>
         </span>
+      </button>
+      <Link
+        to={`/banner/${banner.id}`}
+        className="mv-rc-details"
+        aria-label={t("Details for {title}", { title: banner.title })}
+        draggable={false}
+        onClick={(event) => event.stopPropagation()}
+      >
+        {details}
       </Link>
     </li>
   );
@@ -437,8 +465,8 @@ export function BannerCarousel({
 }
 
 // Desktop: the same cards as a list beside the map. Hover/focus lights up the
-// dot, a click selects (route), a second click opens the banner. Arrow keys
-// move between the cards.
+// dot, a click selects (route), the card's Details button opens the banner.
+// Arrow keys move between the cards.
 export function BannerSideList({
   items,
   moreCount,

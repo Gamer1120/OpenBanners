@@ -211,6 +211,8 @@
   "Delete": "Видалити",
   "Delete and block": "Видалити й заблокувати",
   "Delete {portal}": "Видалити {portal}",
+  "Details": "Докладніше",
+  "Details for {title}": "Докладніше про «{title}»",
   "Didn’t work? Get a new link": "Не спрацювало? Отримати нове посилання",
   "Different answer for mission {mission}, waypoint {waypoint}": "Інша відповідь для місії {mission}, точка {waypoint}",
   "Disable": "Вимкнути",

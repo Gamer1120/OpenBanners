@@ -201,6 +201,8 @@
   "Delete": "Verwijderen",
   "Delete and block": "Verwijderen en blokkeren",
   "Delete {portal}": "{portal} verwijderen",
+  "Details": "Details",
+  "Details for {title}": "Details van {title}",
   "Didn’t work? Get a new link": "Werkte het niet? Vraag een nieuwe link",
   "Different answer for mission {mission}, waypoint {waypoint}": "Ander antwoord voor missie {mission}, waypoint {waypoint}",
   "Disable": "Uitschakelen",

@@ -201,6 +201,8 @@
   "Delete": "Supprimer",
   "Delete and block": "Supprimer et bloquer",
   "Delete {portal}": "Supprimer {portal}",
+  "Details": "Détails",
+  "Details for {title}": "Détails de {title}",
   "Didn’t work? Get a new link": "Ça n’a pas marché ? Obtenir un nouveau lien",
   "Different answer for mission {mission}, waypoint {waypoint}": "Autre réponse pour la mission {mission}, point de passage {waypoint}",
   "Disable": "Désactiver",

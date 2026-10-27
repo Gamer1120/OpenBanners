@@ -429,6 +429,10 @@
   contain: content;
 }
 
+.mv-rc-item {
+  position: relative;
+}
+
 .mv-rc {
   display: flex;
   align-items: center;
@@ -436,7 +440,7 @@
   box-sizing: border-box;
   width: 100%;
   height: 90px;
-  padding: 7px 12px 7px 8px;
+  padding: 3px 12px 3px 8px;
   border: 1px solid var(--mv-line);
   border-radius: 16px;
   background: var(--mv-bg);
@@ -474,8 +478,18 @@
   flex: 1;
   min-width: 0;
   flex-direction: column;
+  align-self: stretch;
+  gap: 1px;
+}
+
+/* Title + stats, centred in the space above the foot row. */
+.mv-rc-text {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  flex-direction: column;
   justify-content: center;
-  gap: 2px;
+  gap: 1px;
 }
 
 .mv-rc-title {
@@ -483,25 +497,85 @@
   overflow: hidden;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
-  font: 600 14px/1.2 var(--mv-font);
+  font: 600 14px/1.15 var(--mv-font);
 }
 
 .mv-rc-stats {
   overflow: hidden;
   color: var(--mv-muted);
   font-size: 12px;
-  line-height: 16px;
+  line-height: 15px;
   white-space: nowrap;
   text-overflow: ellipsis;
 }
 
+/* Status chip on the left; on the right the space the Details button covers. */
 .mv-rc-foot {
   display: flex;
-  min-height: 0;
+  flex: none;
+  align-items: center;
+  gap: 8px;
+  height: 32px;
 }
 
-.mv-rc-foot:empty {
-  display: none;
+.mv-rc-foot .mv-chip {
+  min-width: 0;
+  overflow: hidden;
+}
+
+/* The card's "Details ›" button: a link laid over the card's bottom-right
+   corner (card border 1px + padding), 32px tall with a 40px touch target. */
+.mv-rc-details {
+  position: absolute;
+  right: 13px;
+  bottom: 4px;
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 3px;
+  box-sizing: border-box;
+  height: 32px;
+  padding: 0 10px 0 12px;
+  border-radius: 16px;
+  background: color-mix(in srgb, var(--mv-accent) 16%, transparent);
+  color: var(--mv-accent);
+  font: 600 13px/1 var(--mv-font);
+  text-decoration: none;
+  white-space: nowrap;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-user-drag: none;
+}
+
+.mv-rc-details::before {
+  content: "";
+  position: absolute;
+  inset: -4px -4px -4px -4px;
+}
+
+.mv-rc-details:hover {
+  background: color-mix(in srgb, var(--mv-accent) 26%, transparent);
+}
+
+.mv-rc-details:active {
+  background: color-mix(in srgb, var(--mv-accent) 34%, transparent);
+}
+
+.mv-rc-details:focus-visible {
+  outline: 2px solid var(--mv-accent);
+  outline-offset: 2px;
+}
+
+.mv-rc-details-chev {
+  font-size: 17px;
+  line-height: 1;
+  transform: translateY(-1px);
+}
+
+.mv-rc-foot .mv-rc-details-space {
+  position: static;
+  margin-left: auto;
+  visibility: hidden;
 }
 
 .mv-rc-more {
@@ -590,7 +664,7 @@
   box-shadow: none;
 }
 
-.mv-side .mv-rc:hover {
+.mv-side .mv-rc-item:hover .mv-rc:not(.on) {
   border-color: rgba(255, 255, 255, 0.3);
 }
 

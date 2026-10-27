@@ -3934,10 +3934,13 @@ test("discovery map filters banners and lists those in view, with the route of t
 
   fireEvent.click(screen.getAllByTestId("marker-52.22-6.89")[0]);
 
-  const card = within(filteredRow).getByRole("link", { current: true });
+  const card = within(filteredRow).getByRole("button", { current: true });
   expect(within(card).getByText("Short Map Banner")).toBeInTheDocument();
   expect(within(card).getByText(/30 missions/)).toBeInTheDocument();
-  expect(card).toHaveAttribute("href", "/banner/map-short");
+  expect(within(filteredRow).getByRole("link", { name: "Details for Short Map Banner" })).toHaveAttribute(
+    "href",
+    "/banner/map-short"
+  );
   await waitFor(
     () => {
       expect(screen.getByText("Finish · End")).toBeInTheDocument();

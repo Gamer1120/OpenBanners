@@ -196,6 +196,8 @@
   "Delete": "削除",
   "Delete and block": "削除してブロック",
   "Delete {portal}": "{portal} を削除",
+  "Details": "詳細",
+  "Details for {title}": "{title}の詳細",
   "Didn’t work? Get a new link": "うまくいかない場合は新しいリンクを取得",
   "Different answer for mission {mission}, waypoint {waypoint}": "ミッション {mission}、ウェイポイント {waypoint} の別の答え",
   "Disable": "無効にする",

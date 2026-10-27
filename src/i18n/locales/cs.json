@@ -211,6 +211,8 @@
   "Delete": "Smazat",
   "Delete and block": "Smazat a zablokovat",
   "Delete {portal}": "Smazat {portal}",
+  "Details": "Detaily",
+  "Details for {title}": "Detaily: {title}",
   "Didn’t work? Get a new link": "Nefungovalo to? Získat nový odkaz",
   "Different answer for mission {mission}, waypoint {waypoint}": "Jiná odpověď pro misi {mission}, waypoint {waypoint}",
   "Disable": "Vypnout",

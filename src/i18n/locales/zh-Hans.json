@@ -196,6 +196,8 @@
   "Delete": "删除",
   "Delete and block": "删除并禁止",
   "Delete {portal}": "删除 {portal}",
+  "Details": "详情",
+  "Details for {title}": "{title}详情",
   "Didn’t work? Get a new link": "没成功？获取新链接",
   "Different answer for mission {mission}, waypoint {waypoint}": "任务 {mission} 航点 {waypoint} 的其他答案",
   "Disable": "停用",

@@ -1,5 +1,5 @@
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
-import { MemoryRouter } from "react-router-dom";
+import { MemoryRouter, Route, Routes, useParams } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import DiscoveryMap from "./DiscoveryMap";
 import { useBannerRoute } from "./bannerRoute";
@@ -222,14 +222,28 @@ describe("banners in view row (phone)", () => {
       <DiscoveryMap />
     </MemoryRouter>
   );
-  const cardTitles = () =>
+  function BannerPage() {
+    return <p>banner page {useParams().id}</p>;
+  }
+  // With the banner page routed, to see whether something navigated.
+  const routedUi = () => (
+    <MemoryRouter initialEntries={["/map"]}>
+      <Routes>
+        <Route path="/map" element={<DiscoveryMap />} />
+        <Route path="/banner/:id" element={<BannerPage />} />
+      </Routes>
+    </MemoryRouter>
+  );
+  // The cards are buttons (select); each has a separate Details link.
+  const cards = () =>
     within(screen.getByRole("region", { name: "Banners in view" }))
-      .getAllByRole("link")
-      .map((link) => link.querySelector(".mv-rc-title").textContent);
+      .getAllByRole("button")
+      .filter((button) => button.classList.contains("mv-rc") && !button.classList.contains("mv-rc-more"));
+  const cardTitles = () => cards().map((card) => card.querySelector(".mv-rc-title").textContent);
+  const card = (title) => cards().find((item) => item.querySelector(".mv-rc-title").textContent === title);
   const current = () =>
-    within(screen.getByRole("region", { name: "Banners in view" }))
-      .getAllByRole("link")
-      .find((link) => link.getAttribute("aria-current") === "true")
+    cards()
+      .find((item) => item.getAttribute("aria-current") === "true")
       ?.querySelector(".mv-rc-title").textContent;
 
   beforeEach(() => {
@@ -268,13 +282,14 @@ describe("banners in view row (phone)", () => {
     expect(current()).toBe("c");
   });
 
-  test("tapping a card focuses it, tapping the focused card opens it; focus survives a re-sort", () => {
+  test("tapping a card focuses it, tapping it again keeps it focused (no navigation); focus survives a re-sort", () => {
     setVm([mapBanner("a", 52.001, 6), mapBanner("b", 52.004, 6), mapBanner("c", 52.008, 6)], area(52, 6));
     const { rerender } = render(ui());
-    const link = (title) => screen.getAllByRole("link").find((item) => item.textContent.includes(title));
 
-    expect(link("c")).toHaveAttribute("href", "/banner/c");
-    fireEvent.click(link("c"));
+    expect(card("c")).not.toHaveAttribute("href");
+    fireEvent.click(card("c"));
+    expect(current()).toBe("c");
+    fireEvent.click(card("c"));
     expect(current()).toBe("c");
 
     // The map moved north: the order flips but c stays focused.
@@ -288,6 +303,40 @@ describe("banners in view row (phone)", () => {
     rerender(ui());
     expect(cardTitles()).toEqual(["a"]);
     expect(current()).toBe("a");
+  });
+
+  test("tapping the selected card doesn't open the banner; its Details button does", () => {
+    setVm([mapBanner("a", 52.001, 6), mapBanner("b", 52.004, 6)], area(52, 6));
+    render(routedUi());
+
+    expect(current()).toBe("a");
+    fireEvent.click(card("a"));
+    fireEvent.keyDown(card("a"), { key: "Enter" });
+    expect(screen.queryByText(/banner page/)).not.toBeInTheDocument();
+    expect(current()).toBe("a");
+
+    // Every card has one, the selected one or not.
+    expect(screen.getByRole("link", { name: "Details for a" })).toHaveAttribute("href", "/banner/a");
+    const details = screen.getByRole("link", { name: "Details for b" });
+    expect(details).toHaveAttribute("href", "/banner/b");
+    expect(details.closest(".mv-rc")).toBeNull();
+    fireEvent.click(details);
+    expect(screen.getByText("banner page b")).toBeInTheDocument();
+  });
+
+  test("the Details button doesn't select its card", () => {
+    setVm([mapBanner("a", 52.001, 6), mapBanner("b", 52.004, 6)], area(52, 6));
+    render(ui());
+    // Keep the page (React Router skips a click whose default was prevented).
+    const stay = (event) => event.preventDefault();
+    window.addEventListener("click", stay, true);
+
+    try {
+      fireEvent.click(screen.getByRole("link", { name: "Details for b" }));
+      expect(current()).toBe("a");
+    } finally {
+      window.removeEventListener("click", stay, true);
+    }
   });
 
   test("tapping a dot focuses its card", () => {
@@ -464,7 +513,6 @@ describe("banners in view row (phone)", () => {
     test("a dot or a half-hidden card scrolls just into view; a visible card or a tap without scrolling doesn't scroll", () => {
       setVm(fourBanners(), area(52, 6));
       render(ui());
-      const link = (title) => screen.getAllByRole("link").find((item) => item.textContent.includes(title));
 
       // c (212–312) is cut off on the right: brought in at the right edge.
       fireEvent.click(screen.getByTestId("marker-52.006,6"));
@@ -475,13 +523,13 @@ describe("banners in view row (phone)", () => {
       // b is fully visible: selected without scrolling; the touch selects nothing else.
       fireEvent.touchStart(scroller(), finger(150));
       fireEvent.touchEnd(scroller(), lift(150));
-      fireEvent.click(link("b"));
+      fireEvent.click(card("b"));
       act(() => vi.advanceTimersByTime(1000));
       expect(current()).toBe("b");
       expect(scrollTo).not.toHaveBeenCalled();
 
       // a (12–112) is cut off on the left.
-      fireEvent.click(link("a"));
+      fireEvent.click(card("a"));
       expect(current()).toBe("a");
       expect(scrollTo).toHaveBeenLastCalledWith({ left: 0, behavior: "smooth" });
     });
@@ -489,9 +537,8 @@ describe("banners in view row (phone)", () => {
     test("keeps the card order while the row is touched, then re-sorts and keeps the selected card in view", () => {
       setVm([mapBanner("a", 52.001, 6), mapBanner("b", 52.004, 6), mapBanner("c", 52.008, 6)], area(52, 6));
       const { rerender } = render(ui());
-      const link = (title) => screen.getAllByRole("link").find((item) => item.textContent.includes(title));
 
-      fireEvent.click(link("c"));
+      fireEvent.click(card("c"));
       expect(scrollTo).toHaveBeenLastCalledWith({ left: 74, behavior: "smooth" });
       scrollTo.mockClear();
 

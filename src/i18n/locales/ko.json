@@ -289,7 +289,7 @@
   "Imported portal pool": "가져온 포탈 목록",
   "In sequence": "순서대로",
   "Install OpenBanners": "OpenBanners 설치",
-  "Install app": "앱 설치",
+  "Install web app": "웹 앱 설치",
   "Install mod": "모드 설치",
   "Invalid JSON.": "잘못된 JSON입니다.",
   "Invalid JSON: {details}": "잘못된 JSON: {details}",

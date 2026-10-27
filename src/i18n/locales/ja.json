@@ -289,7 +289,7 @@
   "Imported portal pool": "インポートしたポータル一覧",
   "In sequence": "順番どおり",
   "Install OpenBanners": "OpenBanners をインストール",
-  "Install app": "アプリをインストール",
+  "Install web app": "Webアプリをインストール",
   "Install mod": "Mod を設置",
   "Invalid JSON.": "無効な JSON です。",
   "Invalid JSON: {details}": "無効な JSON: {details}",

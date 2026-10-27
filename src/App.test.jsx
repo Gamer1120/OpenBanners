@@ -1529,7 +1529,7 @@ test("top menu shows authenticate when bannergress auth has no valid session", a
   ).toBeInTheDocument();
 });
 
-test("top menu offers Install app instead of the old APK download", async () => {
+test("top menu offers Install web app instead of the old APK download", async () => {
   const user = userEvent.setup();
   renderWithProviders(
     <Routes>
@@ -1549,7 +1549,7 @@ test("top menu offers Install app instead of the old APK download", async () => 
   await user.click(screen.getByRole("button", { name: /more options/i }));
   expect(screen.queryByText(/download app/i)).not.toBeInTheDocument();
   expect(document.querySelector('a[href="/OpenBanners.apk"]')).toBeNull();
-  await user.click(await screen.findByRole("menuitem", { name: /install app/i }));
+  await user.click(await screen.findByRole("menuitem", { name: /install web app/i }));
   expect(
     await screen.findByRole("dialog", { name: /install openbanners/i })
   ).toBeInTheDocument();

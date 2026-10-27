@@ -499,7 +499,7 @@ export default function TopMenu({
                 <ListItemIcon>
                   <InstallMobile fontSize="small" />
                 </ListItemIcon>
-                <ListItemText>{t("Install app")}</ListItemText>
+                <ListItemText>{t("Install web app")}</ListItemText>
               </MenuItem>
             ) : null}
             <MenuItem

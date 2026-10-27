@@ -42,7 +42,14 @@
     </main>
     <script>
       const AUTH_STORAGE_KEY = "openbanners-bannergress-auth";
-      const AUTH_PENDING_STORAGE_KEY = "openbanners-bannergress-auth-pending";
+      // Must match BANNERGRESS_AUTH_PENDING_STORAGE_KEY in src/bannergressSync.js
+      // (src/bannergressAuthCallback.test.js checks). The second name is what
+      // this page used to read; still accepted, and cleared with the first.
+      const AUTH_PENDING_STORAGE_KEY = "openbanners:bannergress-auth-pending";
+      const AUTH_PENDING_STORAGE_KEYS = [
+        AUTH_PENDING_STORAGE_KEY,
+        "openbanners-bannergress-auth-pending",
+      ];
       const AUTH_COMPLETE_MESSAGE = "openbanners:bannergress-auth-complete";
       const AUTH_PENDING_WINDOW_NAME_PREFIX =
         "openbanners:bannergress-auth-pending:";
@@ -106,6 +113,24 @@
         } catch {}
       }
 
+      function readPendingValue(storage) {
+        for (const key of AUTH_PENDING_STORAGE_KEYS) {
+          const value = readStorageValue(storage, key);
+
+          if (value) {
+            return value;
+          }
+        }
+
+        return null;
+      }
+
+      function removePendingValue(storage) {
+        for (const key of AUTH_PENDING_STORAGE_KEYS) {
+          removeStorageValue(storage, key);
+        }
+      }
+
       function parseJson(value) {
         if (typeof value !== "string") {
           return null;
@@ -150,12 +175,9 @@
       }
 
       function loadPendingAuth() {
-        const localValue = readStorageValue(
-          window.localStorage,
-          AUTH_PENDING_STORAGE_KEY
-        );
+        const localValue = readPendingValue(window.localStorage);
         const openerStorage = getOpenerLocalStorage();
-        const openerValue = readStorageValue(openerStorage, AUTH_PENDING_STORAGE_KEY);
+        const openerValue = readPendingValue(openerStorage);
         const pendingAuth =
           parseJson(localValue) ??
           parseJson(openerValue) ??
@@ -178,8 +200,8 @@
 
         writeStorageValue(window.localStorage, AUTH_STORAGE_KEY, serializedValue);
         writeStorageValue(openerStorage, AUTH_STORAGE_KEY, serializedValue);
-        removeStorageValue(window.localStorage, AUTH_PENDING_STORAGE_KEY);
-        removeStorageValue(openerStorage, AUTH_PENDING_STORAGE_KEY);
+        removePendingValue(window.localStorage);
+        removePendingValue(openerStorage);
         window.name = "";
       }
 
@@ -284,8 +306,8 @@
 
         if (pendingAuth.state !== state) {
           const message = "The Bannergress sign-in state did not match.";
-          removeStorageValue(window.localStorage, AUTH_PENDING_STORAGE_KEY);
-          removeStorageValue(getOpenerLocalStorage(), AUTH_PENDING_STORAGE_KEY);
+          removePendingValue(window.localStorage);
+          removePendingValue(getOpenerLocalStorage());
           window.name = "";
           notifyOpener({ success: false, message });
           setStatus("Bannergress sign-in failed", message);
@@ -337,8 +359,8 @@
             error instanceof Error
               ? error.message
               : "Bannergress sign-in could not be completed.";
-          removeStorageValue(window.localStorage, AUTH_PENDING_STORAGE_KEY);
-          removeStorageValue(getOpenerLocalStorage(), AUTH_PENDING_STORAGE_KEY);
+          removePendingValue(window.localStorage);
+          removePendingValue(getOpenerLocalStorage());
           window.name = "";
           notifyOpener({ success: false, message });
           setStatus("Bannergress sign-in failed", message);

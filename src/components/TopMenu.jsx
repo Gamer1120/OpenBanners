@@ -12,7 +12,7 @@ import {
   AccountCircleOutlined,
   AltRoute,
   EventNote,
-  Download,
+  InstallMobile,
   GitHub,
   Login,
   MoreVert,
@@ -20,6 +20,8 @@ import {
   Translate,
 } from "@mui/icons-material";
 import SettingsDialog from "./SettingsDialog";
+import InstallAppDialog from "./InstallAppDialog";
+import { promptInstall, useInstallMode } from "../pwaInstall";
 import { useLocation, useNavigate } from "react-router-dom";
 import {
   BANNERGRESS_AUTH_COMPLETE_MESSAGE,
@@ -51,38 +53,16 @@ function debugLog(...args) {
   console.log("[OpenBanners TopMenu]", ...args);
 }
 
-function isAndroidUserAgent() {
-  return /Android/i.test(window.navigator?.userAgent ?? "");
-}
-
-function isRunningInAndroidApp() {
-  const userAgent = window.navigator?.userAgent ?? "";
-  const isStandalone =
-    (typeof window.matchMedia === "function" &&
-      window.matchMedia("(display-mode: standalone)").matches) ||
-    window.navigator?.standalone === true;
-  const launchedFromAndroidApp =
-    typeof document !== "undefined" &&
-    document.referrer.startsWith("android-app://");
-
-  return (
-    isStandalone ||
-    /\bwv\b/i.test(userAgent) ||
-    /OpenBannersApp/i.test(userAgent) ||
-    launchedFromAndroidApp
-  );
-}
-
 export default function TopMenu({
   onRerouterClick,
   onTitleClick,
   title = "",
 }) {
   const authSupportedOrigin = isBannergressAuthSupportedOrigin();
-  const shouldShowAndroidDownloadButton =
-    isAndroidUserAgent() && !isRunningInAndroidApp();
+  const installMode = useInstallMode();
   const [feedback, setFeedback] = useState(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [installHelpMode, setInstallHelpMode] = useState(null);
   const [authStatus, setAuthStatus] = useState(null);
   const [moreMenuAnchor, setMoreMenuAnchor] = useState(null);
   const [isCheckingAuth, setIsCheckingAuth] = useState(authSupportedOrigin);
@@ -426,6 +406,20 @@ export default function TopMenu({
       : t(authButtonLabel);
   const closeMoreMenu = () => setMoreMenuAnchor(null);
 
+  const handleInstallClick = async () => {
+    closeMoreMenu();
+
+    if (installMode === "prompt") {
+      const outcome = await promptInstall();
+
+      if (outcome !== "unavailable") {
+        return;
+      }
+    }
+
+    setInstallHelpMode(installMode === "prompt" ? "manual" : installMode);
+  };
+
   return (
     <>
       <header className="ob-bar">
@@ -497,17 +491,12 @@ export default function TopMenu({
               </ListItemIcon>
               <ListItemText>{t("Mission Day planner")}</ListItemText>
             </MenuItem>
-            {shouldShowAndroidDownloadButton ? (
-              <MenuItem
-                component="a"
-                href="/OpenBanners.apk"
-                download="OpenBanners.apk"
-                onClick={closeMoreMenu}
-              >
+            {installMode !== "installed" ? (
+              <MenuItem onClick={handleInstallClick}>
                 <ListItemIcon>
-                  <Download fontSize="small" />
+                  <InstallMobile fontSize="small" />
                 </ListItemIcon>
-                <ListItemText>{t("Download App")}</ListItemText>
+                <ListItemText>{t("Install app")}</ListItemText>
               </MenuItem>
             ) : null}
             <MenuItem
@@ -549,6 +538,9 @@ export default function TopMenu({
         </div>
       </header>
       {settingsOpen ? <SettingsDialog onClose={() => setSettingsOpen(false)} /> : null}
+      {installHelpMode ? (
+        <InstallAppDialog mode={installHelpMode} onClose={() => setInstallHelpMode(null)} />
+      ) : null}
       <Snackbar
         open={Boolean(feedback)}
         autoHideDuration={4500}

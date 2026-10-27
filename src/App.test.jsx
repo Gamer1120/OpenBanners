@@ -1529,6 +1529,32 @@ test("top menu shows authenticate when bannergress auth has no valid session", a
   ).toBeInTheDocument();
 });
 
+test("top menu offers Install app instead of the old APK download", async () => {
+  const user = userEvent.setup();
+  renderWithProviders(
+    <Routes>
+      <Route
+        path="*"
+        element={
+          <TopMenu
+            onBrowseClick={vi.fn()}
+            onTitleClick={vi.fn()}
+            onSearch={vi.fn()}
+          />
+        }
+      />
+    </Routes>
+  );
+
+  await user.click(screen.getByRole("button", { name: /more options/i }));
+  expect(screen.queryByText(/download app/i)).not.toBeInTheDocument();
+  expect(document.querySelector('a[href="/OpenBanners.apk"]')).toBeNull();
+  await user.click(await screen.findByRole("menuitem", { name: /install app/i }));
+  expect(
+    await screen.findByRole("dialog", { name: /install openbanners/i })
+  ).toBeInTheDocument();
+});
+
 test("top menu shows authenticated when bannergress auth is stored locally", async () => {
   const syncSpy = vi
     .spyOn(bannergressSync, "requestBannergressSyncData")

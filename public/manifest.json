@@ -1,32 +1,43 @@
 {
+  "id": "/",
+  "name": "OpenBanners",
   "short_name": "OpenBanners",
-  "name": "Open-source front-end for banners",
+  "description": "Find, plan and walk Ingress mission banners.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "theme_color": "#16161c",
+  "background_color": "#16161c",
+  "categories": [
+    "games",
+    "navigation",
+    "travel"
+  ],
   "icons": [
     {
-      "src": "favicon.ico",
-      "sizes": "64x64 48x48 32x32 24x24 16x16",
-      "type": "image/x-icon"
-    },
-    {
-      "src": "favicon.svg",
-      "type": "image/svg+xml",
-      "sizes": "any"
-    },
-    {
-      "src": "logo192.png",
+      "src": "/logo192.png",
       "type": "image/png",
       "sizes": "192x192",
       "purpose": "any"
     },
     {
-      "src": "logo512.png",
+      "src": "/logo512.png",
       "type": "image/png",
       "sizes": "512x512",
       "purpose": "any"
+    },
+    {
+      "src": "/maskable-512.png",
+      "type": "image/png",
+      "sizes": "512x512",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/favicon.svg",
+      "type": "image/svg+xml",
+      "sizes": "any",
+      "purpose": "any"
     }
-  ],
-  "start_url": ".",
-  "display": "standalone",
-  "theme_color": "#f8f7fc",
-  "background_color": "#f8f7fc"
+  ]
 }

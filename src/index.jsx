@@ -8,6 +8,9 @@ import "./m3.css";
 import { useThemeMode } from "./themeMode";
 import App from "./App";
 import { i18nReady, useT } from "./i18n";
+import { registerServiceWorker } from "./pwaInstall";
+
+registerServiceWorker();
 
 function ThemedApp() {
   const { resolvedMode } = useThemeMode();

@@ -1555,6 +1555,49 @@ test("top menu offers Install app instead of the old APK download", async () => 
   ).toBeInTheDocument();
 });
 
+test("top menu opens the OpenBanners Overlay download dialog with its three sources", async () => {
+  const user = userEvent.setup();
+  renderWithProviders(
+    <Routes>
+      <Route
+        path="*"
+        element={
+          <TopMenu
+            onBrowseClick={vi.fn()}
+            onTitleClick={vi.fn()}
+            onSearch={vi.fn()}
+          />
+        }
+      />
+    </Routes>
+  );
+
+  await user.click(screen.getByRole("button", { name: /more options/i }));
+  await user.click(
+    await screen.findByRole("menuitem", { name: /download openbanners overlay/i })
+  );
+  const dialog = await screen.findByRole("dialog", { name: /download openbanners overlay/i });
+  const hrefs = within(dialog)
+    .getAllByRole("link")
+    .map((link) => {
+      expect(link).toHaveAttribute("target", "_blank");
+      expect(link.getAttribute("rel")).toMatch(/noopener/);
+      return link.getAttribute("href");
+    });
+  expect(hrefs).toEqual([
+    "https://groups.google.com/g/openbanners-overlay",
+    "https://play.google.com/apps/testing/org.openbanners.overlay",
+    "https://f-droid.org/packages/org.openbanners.overlay/",
+    "https://github.com/Gamer1120/OpenBanners-overlay/releases/latest",
+  ]);
+  expect(within(dialog).getByText("Google Play")).toBeInTheDocument();
+  expect(within(dialog).getByText("F-Droid")).toBeInTheDocument();
+  expect(within(dialog).getByText(/wait about 2 minutes/i)).toBeInTheDocument();
+
+  await user.click(within(dialog).getByRole("button", { name: /close/i }));
+  expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+});
+
 test("top menu shows authenticated when bannergress auth is stored locally", async () => {
   const syncSpy = vi
     .spyOn(bannergressSync, "requestBannergressSyncData")

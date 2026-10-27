@@ -11,6 +11,7 @@ import {
 import {
   AccountCircleOutlined,
   AltRoute,
+  Download,
   EventNote,
   InstallMobile,
   GitHub,
@@ -21,6 +22,7 @@ import {
 } from "@mui/icons-material";
 import SettingsDialog from "./SettingsDialog";
 import InstallAppDialog from "./InstallAppDialog";
+import OverlayDownloadDialog from "./OverlayDownloadDialog";
 import { promptInstall, useInstallMode } from "../pwaInstall";
 import { useLocation, useNavigate } from "react-router-dom";
 import {
@@ -63,6 +65,7 @@ export default function TopMenu({
   const [feedback, setFeedback] = useState(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [installHelpMode, setInstallHelpMode] = useState(null);
+  const [overlayDownloadOpen, setOverlayDownloadOpen] = useState(false);
   const [authStatus, setAuthStatus] = useState(null);
   const [moreMenuAnchor, setMoreMenuAnchor] = useState(null);
   const [isCheckingAuth, setIsCheckingAuth] = useState(authSupportedOrigin);
@@ -502,6 +505,17 @@ export default function TopMenu({
             <MenuItem
               onClick={() => {
                 closeMoreMenu();
+                setOverlayDownloadOpen(true);
+              }}
+            >
+              <ListItemIcon>
+                <Download fontSize="small" />
+              </ListItemIcon>
+              <ListItemText>{t("Download OpenBanners Overlay")}</ListItemText>
+            </MenuItem>
+            <MenuItem
+              onClick={() => {
+                closeMoreMenu();
                 navigate("/translate");
               }}
             >
@@ -541,6 +555,7 @@ export default function TopMenu({
       {installHelpMode ? (
         <InstallAppDialog mode={installHelpMode} onClose={() => setInstallHelpMode(null)} />
       ) : null}
+      {overlayDownloadOpen ? <OverlayDownloadDialog onClose={() => setOverlayDownloadOpen(false)} /> : null}
       <Snackbar
         open={Boolean(feedback)}
         autoHideDuration={4500}

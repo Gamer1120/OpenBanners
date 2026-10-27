@@ -18,11 +18,13 @@ import {
   Login,
   MoreVert,
   Settings as SettingsIcon,
+  Telegram,
   Translate,
 } from "@mui/icons-material";
 import SettingsDialog from "./SettingsDialog";
 import InstallAppDialog from "./InstallAppDialog";
 import OverlayDownloadDialog from "./OverlayDownloadDialog";
+import TelegramJoinDialog from "./TelegramJoinDialog";
 import { promptInstall, useInstallMode } from "../pwaInstall";
 import { useLocation, useNavigate } from "react-router-dom";
 import {
@@ -66,6 +68,7 @@ export default function TopMenu({
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [installHelpMode, setInstallHelpMode] = useState(null);
   const [overlayDownloadOpen, setOverlayDownloadOpen] = useState(false);
+  const [telegramJoinOpen, setTelegramJoinOpen] = useState(false);
   const [authStatus, setAuthStatus] = useState(null);
   const [moreMenuAnchor, setMoreMenuAnchor] = useState(null);
   const [isCheckingAuth, setIsCheckingAuth] = useState(authSupportedOrigin);
@@ -516,6 +519,17 @@ export default function TopMenu({
             <MenuItem
               onClick={() => {
                 closeMoreMenu();
+                setTelegramJoinOpen(true);
+              }}
+            >
+              <ListItemIcon>
+                <Telegram fontSize="small" />
+              </ListItemIcon>
+              <ListItemText>{t("Join on Telegram")}</ListItemText>
+            </MenuItem>
+            <MenuItem
+              onClick={() => {
+                closeMoreMenu();
                 navigate("/translate");
               }}
             >
@@ -556,6 +570,7 @@ export default function TopMenu({
         <InstallAppDialog mode={installHelpMode} onClose={() => setInstallHelpMode(null)} />
       ) : null}
       {overlayDownloadOpen ? <OverlayDownloadDialog onClose={() => setOverlayDownloadOpen(false)} /> : null}
+      {telegramJoinOpen ? <TelegramJoinDialog onClose={() => setTelegramJoinOpen(false)} /> : null}
       <Snackbar
         open={Boolean(feedback)}
         autoHideDuration={4500}

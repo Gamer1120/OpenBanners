@@ -1555,6 +1555,36 @@ test("top menu offers Install web app instead of the old APK download", async ()
   ).toBeInTheDocument();
 });
 
+test("top menu opens Join on Telegram, which says when it isn't set up yet", async () => {
+  const user = userEvent.setup();
+  global.fetch.mockImplementation((url) =>
+    Promise.resolve(
+      String(url) === "/_openbanners/telegram/v1/status"
+        ? { ok: true, status: 200, json: async () => ({ enabled: false, bot: "OpenBannersBot" }) }
+        : { ok: false, status: 404, json: async () => ({}) }
+    )
+  );
+  renderWithProviders(
+    <Routes>
+      <Route
+        path="*"
+        element={
+          <TopMenu
+            onBrowseClick={vi.fn()}
+            onTitleClick={vi.fn()}
+            onSearch={vi.fn()}
+          />
+        }
+      />
+    </Routes>
+  );
+
+  await user.click(screen.getByRole("button", { name: /more options/i }));
+  await user.click(await screen.findByRole("menuitem", { name: /join on telegram/i }));
+  const dialog = await screen.findByRole("dialog", { name: /join on telegram/i });
+  expect(await within(dialog).findByText(/isn’t available yet/i)).toBeInTheDocument();
+});
+
 test("top menu opens the OpenBanners Overlay download dialog with its three sources", async () => {
   const user = userEvent.setup();
   renderWithProviders(

@@ -31,4 +31,15 @@ chown node:node /data
   done
 ) &
 
+# "Join on Telegram": one-time codes in memory and the @OpenBannersBot invite
+# bot (OPENBANNERS_JOIN_* from env_file /etc/openbanners/telegram-join-prod.env).
+# Off until OPENBANNERS_JOIN_CHATS is set; no data on disk.
+(
+  while :; do
+    OPENBANNERS_JOIN_PORT=8791 \
+      su-exec node node /usr/share/nginx/server/telegram-join.mjs || true
+    sleep 5
+  done
+) &
+
 exec nginx -g "daemon off;"

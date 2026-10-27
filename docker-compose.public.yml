@@ -14,6 +14,8 @@ services:
       - /var/lib/openbanners-passphrases-prod:/data
     env_file:
       - /etc/openbanners/passphrases-prod.env
+      # "Join on Telegram" bot (@OpenBannersBot) and its chats.
+      - /etc/openbanners/telegram-join-prod.env
     labels:
       com.centurylinklabs.watchtower.enable: "true"
       com.centurylinklabs.watchtower.scope: "openbanners-public"

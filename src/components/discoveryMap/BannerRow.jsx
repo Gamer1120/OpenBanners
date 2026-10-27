@@ -117,16 +117,20 @@ function useItemRefs() {
   return [refs, refFor];
 }
 
-// Phone: a horizontal, snapping row of cards above the bottom bar. The card in
-// the middle is the selected banner; swiping only changes the selection and
-// never moves the map.
+// Phone: a horizontal, freely scrolling row of cards above the bottom bar.
+// Swiping only changes the selection and never moves the map.
 //
 // The finger owns the row: while it is down nothing selects, scrolls or
-// re-sorts the cards. Once the row has come to rest (scrollend, or no scroll
-// event for SETTLE_MS without a finger on it) the middle card is selected; that
-// selection never scrolls the row again (it is already in the middle). Cards
-// re-sorted meanwhile (map moved, more banners loaded) are applied
-// REORDER_GRACE_MS later, keeping the selected card in the middle.
+// re-sorts the cards, and the row is never nudged after it is let go: it stays
+// wherever the momentum leaves it. Once a user scroll has come to rest
+// (scrollend, or no scroll event for SETTLE_MS without a finger on it) the card
+// nearest the middle is selected; at the very start that is the first card, at
+// the very end the last one. Cards re-sorted meanwhile (map moved, more banners
+// loaded) are applied REORDER_GRACE_MS later.
+//
+// The row scrolls by itself only to bring the selected card into view when it
+// was picked elsewhere (a dot, a tapped card half off-screen) or the cards were
+// re-sorted, and then just far enough (like scrollIntoView "nearest").
 export function BannerCarousel({
   items,
   moreCount,
@@ -148,8 +152,10 @@ export function BannerCarousel({
   const thawTimer = useRef(null);
   const focusRef = useRef(focusId);
   const touching = useRef(false);
+  // A finger was lifted and the row hasn't settled since (momentum may follow).
+  const lifted = useRef(false);
   // Only a scroll the user made selects a card (not one that new cards, a
-  // re-sort or a programmatic scroll caused).
+  // re-sort or a programmatic scroll caused, nor a tap without any scroll).
   const userScrolled = useRef(false);
   // The id the row selected itself by coming to rest on it.
   const rowPicked = useRef(null);
@@ -165,9 +171,10 @@ export function BannerCarousel({
   focusRef.current = focusId;
   shownRef.current = shown;
 
-  // Bring the selected card to the middle: smoothly when the selection changed
-  // (a dot or a side card was tapped), at once when the cards were re-sorted
-  // under it or the row (re)appeared. Never while a finger is on the row.
+  // Bring the selected card into view, as little as needed: smoothly when the
+  // selection changed elsewhere (a dot or a half-hidden card was tapped), at
+  // once when the cards were re-sorted or the row (re)appeared. Never while a
+  // finger is on the row, and never for a card the row itself came to rest on.
   useLayoutEffect(() => {
     const scroller = scrollerRef.current;
     const card = focusId ? itemRefs.current.get(focusId) : null;
@@ -186,9 +193,31 @@ export function BannerCarousel({
       return;
     }
 
-    const target = card.offsetLeft + card.offsetWidth / 2 - scroller.clientWidth / 2;
+    // Picked elsewhere: whatever the row was doing is no longer a user scroll.
+    userScrolled.current = false;
+    lifted.current = false;
 
-    if (Math.abs(scroller.scrollLeft - target) < 2) {
+    const padding = parseFloat(window.getComputedStyle(scroller).paddingLeft) || 0;
+    const from = card.offsetLeft - padding;
+    const to = card.offsetLeft + card.offsetWidth + padding - scroller.clientWidth;
+    const left = scroller.scrollLeft;
+    let target = null;
+
+    if (left > from + 1 || (to > from && left < from - 1)) {
+      // Cut off on the left (or wider than the row): align its left edge.
+      target = from;
+    } else if (to <= from && left < to - 1) {
+      // Cut off on the right: align its right edge.
+      target = to;
+    }
+
+    if (target === null) {
+      return;
+    }
+
+    target = Math.max(0, target);
+
+    if (Math.abs(target - left) < 1) {
       return;
     }
 
@@ -208,19 +237,30 @@ export function BannerCarousel({
     []
   );
 
-  const settle = () => {
-    const scroller = scrollerRef.current;
-    clearTimeout(settleTimer.current);
+  // The card the row is resting on: the first one at the start, the last one
+  // at the end, else the one nearest the middle.
+  const restingCard = (scroller) => {
+    const cards = shownRef.current.map((banner) => [banner.id, itemRefs.current.get(banner.id)]).filter(([, el]) => el);
 
-    if (!scroller || touching.current) {
-      return;
+    if (!cards.length) {
+      return null;
+    }
+
+    const max = scroller.scrollWidth - scroller.clientWidth;
+
+    if (scroller.scrollLeft <= 1) {
+      return cards[0][0];
+    }
+
+    if (max > 1 && scroller.scrollLeft >= max - 1) {
+      return cards[cards.length - 1][0];
     }
 
     const middle = scroller.scrollLeft + scroller.clientWidth / 2;
     let best = null;
     let bestDistance = Infinity;
 
-    for (const [id, element] of itemRefs.current) {
+    for (const [id, element] of cards) {
       const distance = Math.abs(element.offsetLeft + element.offsetWidth / 2 - middle);
 
       if (distance < bestDistance) {
@@ -229,19 +269,26 @@ export function BannerCarousel({
       }
     }
 
+    // (On the "+N more" card nothing else is close: keep the selection.)
+    return bestDistance < scroller.clientWidth / 2 ? best : null;
+  };
+
+  const settle = () => {
+    const scroller = scrollerRef.current;
+    clearTimeout(settleTimer.current);
+
+    if (!scroller || touching.current) {
+      return;
+    }
+
     const byUser = userScrolled.current;
     userScrolled.current = false;
+    lifted.current = false;
 
-    if (best && best !== focusRef.current) {
-      const card = focusRef.current ? itemRefs.current.get(focusRef.current) : null;
+    if (byUser) {
+      const best = restingCard(scroller);
 
-      if (!byUser) {
-        // The cards moved under the row (not the user): put the selected one back.
-        if (card) {
-          scroller.scrollLeft = card.offsetLeft + card.offsetWidth / 2 - scroller.clientWidth / 2;
-        }
-      } else if (bestDistance < scroller.clientWidth / 2) {
-        // (On the "+N more" card nothing else is close: keep the selection.)
+      if (best && best !== focusRef.current) {
         rowPicked.current = best;
         onFocus(best);
       }
@@ -259,7 +306,7 @@ export function BannerCarousel({
     settleTimer.current = setTimeout(() => settleRef.current(), SETTLE_MS);
   };
 
-  // scrollend (where supported) settles right when the snap has finished.
+  // scrollend (where supported) settles right when the momentum has run out.
   useEffect(() => {
     const scroller = scrollerRef.current;
 
@@ -272,8 +319,17 @@ export function BannerCarousel({
     return () => {
       scroller.removeEventListener("scrollend", onScrollEnd);
       touching.current = false;
+      lifted.current = false;
     };
   }, [folded]);
+
+  const onScroll = () => {
+    if (touching.current || lifted.current) {
+      userScrolled.current = true;
+    }
+
+    scheduleSettle();
+  };
 
   const onUserScroll = () => {
     userScrolled.current = true;
@@ -281,7 +337,7 @@ export function BannerCarousel({
 
   const onTouchDown = () => {
     touching.current = true;
-    userScrolled.current = true;
+    lifted.current = false;
     clearTimeout(settleTimer.current);
     clearTimeout(thawTimer.current);
     setFrozen((current) => current ?? shownRef.current);
@@ -293,8 +349,9 @@ export function BannerCarousel({
     }
 
     touching.current = false;
-    // Momentum and the snap keep scrolling and push this further out; a tap
-    // without any scroll still ends the freeze.
+    lifted.current = true;
+    // Momentum keeps scrolling and pushes this further out; a tap without any
+    // scroll still ends the freeze.
     scheduleSettle();
   };
 
@@ -357,7 +414,7 @@ export function BannerCarousel({
       <ul
         className="mv-row-scroll"
         ref={scrollerRef}
-        onScroll={scheduleSettle}
+        onScroll={onScroll}
         onWheel={onUserScroll}
         onKeyDown={onUserScroll}
         onTouchStart={onTouchDown}

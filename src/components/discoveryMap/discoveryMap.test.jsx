@@ -354,25 +354,29 @@ describe("banners in view row (phone)", () => {
   });
 
   describe("swiping", () => {
-    // Layout for jsdom: the row is 100 px wide, each card 100 px at its index.
+    // Layout for jsdom: the row is 250 px wide with 12 px padding, each card 100 px at its index.
     const restore = [];
     const stub = (proto, name, get) => {
       restore.push([proto, name, Object.getOwnPropertyDescriptor(proto, name)]);
       Object.defineProperty(proto, name, { configurable: true, get });
     };
     const isCard = (element) => element.classList.contains("mv-rc-item");
+    const isRow = (element) => element.classList.contains("mv-row-scroll");
     let scrollTo;
 
     beforeEach(() => {
       vi.useFakeTimers();
       stub(HTMLElement.prototype, "offsetLeft", function () {
-        return isCard(this) ? [...this.parentNode.children].indexOf(this) * 100 : 0;
+        return isCard(this) ? 12 + [...this.parentNode.children].indexOf(this) * 100 : 0;
       });
       stub(HTMLElement.prototype, "offsetWidth", function () {
         return isCard(this) ? 100 : 0;
       });
       stub(Element.prototype, "clientWidth", function () {
-        return this.classList.contains("mv-row-scroll") ? 100 : 0;
+        return isRow(this) ? 250 : 0;
+      });
+      stub(Element.prototype, "scrollWidth", function () {
+        return isRow(this) ? 24 + this.children.length * 100 : 0;
       });
       scrollTo = vi.fn(function ({ left }) {
         this.scrollLeft = left;
@@ -399,15 +403,31 @@ describe("banners in view row (phone)", () => {
       scroller().scrollLeft = left;
       fireEvent.scroll(scroller());
     };
+    // A swipe: finger down, the row scrolls to left, finger up, momentum ends.
+    const swipeTo = (left, { scrollend = true } = {}) => {
+      fireEvent.touchStart(scroller(), finger(300));
+      scrollRowTo(left);
+      fireEvent.touchEnd(scroller(), lift(200));
+      if (scrollend) {
+        fireEvent(scroller(), new Event("scrollend"));
+      }
+    };
+    const fourBanners = () => [
+      mapBanner("a", 52.001, 6),
+      mapBanner("b", 52.004, 6),
+      mapBanner("c", 52.006, 6),
+      mapBanner("d", 52.008, 6),
+    ];
 
-    test("a pause mid-drag selects nothing; resting on a card selects it without scrolling the row", () => {
-      setVm([mapBanner("a", 52.001, 6), mapBanner("b", 52.004, 6), mapBanner("c", 52.008, 6)], area(52, 6));
+    test("free scroll: a pause mid-drag selects nothing; the card nearest the middle is selected where the row stops, and the row stays put", () => {
+      setVm(fourBanners(), area(52, 6));
       render(ui());
       expect(current()).toBe("a");
 
       fireEvent.touchStart(scroller(), finger(300));
-      scrollRowTo(100);
-      // The finger rests on b for a while: the row must not take over.
+      // Released mid-card: the middle (185) is on b.
+      scrollRowTo(60);
+      // The finger rests for a while: the row must not take over.
       act(() => vi.advanceTimersByTime(1000));
       expect(current()).toBe("a");
 
@@ -415,29 +435,64 @@ describe("banners in view row (phone)", () => {
       act(() => vi.advanceTimersByTime(200));
       expect(current()).toBe("b");
       expect(scrollTo).not.toHaveBeenCalled();
-      expect(scroller().scrollLeft).toBe(100);
+      expect(scroller().scrollLeft).toBe(60);
 
-      // scrollend settles at once.
-      fireEvent.touchStart(scroller(), finger(300));
-      scrollRowTo(200);
-      fireEvent.touchEnd(scroller(), lift(200));
-      fireEvent(scroller(), new Event("scrollend"));
+      // Momentum ending mid-card (middle 225 is on c): selected, not snapped.
+      swipeTo(100);
       expect(current()).toBe("c");
+      expect(scroller().scrollLeft).toBe(100);
+      act(() => vi.advanceTimersByTime(1000));
+      expect(scrollTo).not.toHaveBeenCalled();
+      expect(scroller().scrollLeft).toBe(100);
+    });
+
+    test("at the end of the row the last card is selected, at the start the first", () => {
+      setVm(fourBanners(), area(52, 6));
+      render(ui());
+
+      // Fully scrolled (424 - 250): the middle is on c, but d can't come further.
+      swipeTo(174);
+      expect(current()).toBe("d");
+
+      // Back at the start: the middle is on b, but a is the one at the start.
+      swipeTo(0, { scrollend: false });
+      act(() => vi.advanceTimersByTime(200));
+      expect(current()).toBe("a");
+      expect(scrollTo).not.toHaveBeenCalled();
+    });
+
+    test("a dot or a half-hidden card scrolls just into view; a visible card or a tap without scrolling doesn't scroll", () => {
+      setVm(fourBanners(), area(52, 6));
+      render(ui());
+      const link = (title) => screen.getAllByRole("link").find((item) => item.textContent.includes(title));
+
+      // c (212–312) is cut off on the right: brought in at the right edge.
+      fireEvent.click(screen.getByTestId("marker-52.006,6"));
+      expect(current()).toBe("c");
+      expect(scrollTo).toHaveBeenLastCalledWith({ left: 74, behavior: "smooth" });
+      scrollTo.mockClear();
+
+      // b is fully visible: selected without scrolling; the touch selects nothing else.
+      fireEvent.touchStart(scroller(), finger(150));
+      fireEvent.touchEnd(scroller(), lift(150));
+      fireEvent.click(link("b"));
+      act(() => vi.advanceTimersByTime(1000));
+      expect(current()).toBe("b");
       expect(scrollTo).not.toHaveBeenCalled();
 
-      // A dot still brings its card to the middle, smoothly.
-      fireEvent.click(screen.getByTestId("marker-52.001,6"));
+      // a (12–112) is cut off on the left.
+      fireEvent.click(link("a"));
       expect(current()).toBe("a");
       expect(scrollTo).toHaveBeenLastCalledWith({ left: 0, behavior: "smooth" });
     });
 
-    test("keeps the card order while the row is touched, then re-sorts around the selected card", () => {
+    test("keeps the card order while the row is touched, then re-sorts and keeps the selected card in view", () => {
       setVm([mapBanner("a", 52.001, 6), mapBanner("b", 52.004, 6), mapBanner("c", 52.008, 6)], area(52, 6));
       const { rerender } = render(ui());
       const link = (title) => screen.getAllByRole("link").find((item) => item.textContent.includes(title));
 
       fireEvent.click(link("c"));
-      expect(scrollTo).toHaveBeenLastCalledWith({ left: 200, behavior: "smooth" });
+      expect(scrollTo).toHaveBeenLastCalledWith({ left: 74, behavior: "smooth" });
       scrollTo.mockClear();
 
       fireEvent.touchStart(scroller(), finger(200));

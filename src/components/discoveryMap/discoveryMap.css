@@ -404,13 +404,11 @@
   display: flex;
   gap: 8px;
   margin: 0;
-  /* Room to centre the first and last card; the cards are what is left. */
-  padding: 2px max(8%, calc(50% - 200px)) 4px;
+  padding: 2px 12px 4px;
   list-style: none;
   overflow-x: auto;
   overscroll-behavior-x: contain;
-  /* No snap-stop: a flick glides over several cards and snaps at the end. */
-  scroll-snap-type: x mandatory;
+  /* A free scroll: no snapping, a flick glides as far as its momentum goes. */
   scrollbar-width: none;
   /* Horizontal swipes are the browser's; vertical ones are ours (fold). */
   touch-action: pan-x;
@@ -420,11 +418,10 @@
   display: none;
 }
 
-/* ~84% of the row (at most 400px), so the next card peeks out on both sides. */
+/* ~78% of the row (at most 360px), so the next cards show: it reads as a list. */
 .mv-row-scroll .mv-rc-item {
-  flex: 0 0 100%;
-  max-width: 400px;
-  scroll-snap-align: center;
+  flex: 0 0 78%;
+  max-width: 360px;
   contain: layout style;
 }
 

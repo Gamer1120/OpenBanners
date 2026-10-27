@@ -36,7 +36,7 @@ export default function OverlayDownloadDialog({ onClose }) {
         <ol className="ob-dl-steps small">
           <li>
             {t("Join the Google Group with the Google account you use on Google Play.")}
-            <ExternalButton href={OVERLAY_LINKS.googleGroup} variant="tonal">
+            <ExternalButton href={OVERLAY_LINKS.googleGroup} variant="filled">
               {t("Join the Google Group")}
             </ExternalButton>
           </li>

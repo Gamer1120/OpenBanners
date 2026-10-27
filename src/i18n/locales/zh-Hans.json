@@ -2,6 +2,9 @@
   "#{number} of {banner}": "{banner} 第 {number} 个",
   "&copy; {osm} contributors. This website is NOT affiliated with Bannergress in any way!": "&copy; {osm} 贡献者。本网站与 Bannergress 没有任何关联！",
   "(no longer in Ingress)": "（已不在 Ingress 中）",
+  "+{count} more · show list": {
+    "other": "还有 {count} 个 · 显示列表"
+  },
   "? missions": "? 个任务",
   "A connected participant needs to enable list sharing before comparisons appear.": "需要有已连接的参与者开启列表共享后，才会显示对比结果。",
   "A parallel reroute worker failed before it could finish.": "一个并行改线进程在完成前失败了。",
@@ -104,6 +107,7 @@
   "Banners": "横幅",
   "Banners Near Me": "我附近的横幅",
   "Banners created by {agent}.": "{agent} 创建的横幅。",
+  "Banners in view": "视野内的横幅",
   "Banners near you": "你附近的横幅",
   "Banners, cities or regions": "横幅、城市或地区",
   "Become a tester on Google Play": "在 Google Play 上成为测试人员",
@@ -131,7 +135,6 @@
   "Close": "关闭",
   "Close filters": "关闭筛选",
   "Close list": "关闭列表",
-  "Close route": "关闭路线",
   "Closest first, with filters": "最近的优先，可筛选",
   "Closest start point first.": "起点最近的优先。",
   "Compact banner view": "紧凑横幅视图",
@@ -250,6 +253,7 @@
   "Finish": "终点",
   "Finish · {title}": "终点 · {title}",
   "Finish: {title}": "终点：{title}",
+  "Fold the list": "收起列表",
   "Follow an OpenBanners banner mission by mission.": "逐个任务完成一个 OpenBanners 横幅。",
   "Follows the {count} missions still to do as one route and ticks them off here as you go.": {
     "other": "将剩余的 {count} 个待做任务作为一条路线进行，并在你完成时在这里勾选。"
@@ -590,7 +594,6 @@
   "See what’s around you": "看看你周围有什么",
   "Select a valid end portal before generating a reroute.": "生成改线前请选择有效的终点门户。",
   "Select a valid start portal before generating a reroute.": "生成改线前请选择有效的起点门户。",
-  "Selected banner": "所选横幅",
   "Send this banner to a friend": "把这个横幅发给朋友",
   "Settings": "设置",
   "Share": "分享",
@@ -605,6 +608,7 @@
   },
   "Shortest first": "最短优先",
   "Show": "显示",
+  "Show all in view": "显示视野内全部",
   "Show all {count} countries": {
     "other": "显示全部 {count} 个国家"
   },
@@ -622,6 +626,7 @@
   "Show my location": "显示我的位置",
   "Show offline banners": "显示已下线的横幅",
   "Show the banners closest to you": "显示离你最近的横幅",
+  "Show the list": "显示列表",
   "Show the {count} without an answer": "显示没有答案的 {count} 个",
   "Show whole route": "显示完整路线",
   "Show {count} banners": {
@@ -876,7 +881,6 @@
   "sharing offline": "离线共享",
   "sharing, including offline": "共享中，包括离线",
   "shows on {date}": "{date} 显示",
-  "tap one for its route": "点按查看其路线",
   "timed out": "已超时",
   "updated": "已更新",
   "view only": "仅查看",
@@ -993,7 +997,6 @@
   "{objective} at {title}, open in maps app": "在 {title} {objective}，在地图应用中打开",
   "{osm} contributors. Not affiliated with Bannergress.": "{osm} 贡献者。与 Bannergress 无关。",
   "{seconds}s": "{seconds}秒",
-  "{shown} of {total} in view": "视野内 {total} 个中的 {shown} 个",
   "{time} walk": "步行 {time}",
   "{title} – Mission Day plan": "{title} – 任务日计划",
   "{title} – Mission Day plan (view only)": "{title} – 任务日计划（仅查看）",

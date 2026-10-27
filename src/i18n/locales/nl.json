@@ -2,6 +2,10 @@
   "#{number} of {banner}": "#{number} van {banner}",
   "&copy; {osm} contributors. This website is NOT affiliated with Bannergress in any way!": "&copy; {osm}-bijdragers. Deze website is op GEEN ENKELE manier verbonden aan Bannergress!",
   "(no longer in Ingress)": "(niet meer in Ingress)",
+  "+{count} more · show list": {
+    "one": "+{count} meer · toon lijst",
+    "other": "+{count} meer · toon lijst"
+  },
   "? missions": "? missies",
   "A connected participant needs to enable list sharing before comparisons appear.": "Een verbonden deelnemer moet het delen van lijsten aanzetten voordat er vergelijkingen verschijnen.",
   "A parallel reroute worker failed before it could finish.": "Een parallelle reroute-worker is gestopt voordat hij klaar was.",
@@ -106,6 +110,7 @@
   "Banners": "Banners",
   "Banners Near Me": "Banners bij mij in de buurt",
   "Banners created by {agent}.": "Banners gemaakt door {agent}.",
+  "Banners in view": "Banners in beeld",
   "Banners near you": "Banners bij jou in de buurt",
   "Banners, cities or regions": "Banners, steden of regio's",
   "Become a tester on Google Play": "Tester worden op Google Play",
@@ -133,7 +138,6 @@
   "Close": "Sluiten",
   "Close filters": "Filters sluiten",
   "Close list": "Lijst sluiten",
-  "Close route": "Route sluiten",
   "Closest first, with filters": "Dichtstbijzijnde eerst, met filters",
   "Closest start point first.": "Dichtstbijzijnde startpunt eerst.",
   "Compact banner view": "Compacte bannerweergave",
@@ -254,6 +258,7 @@
   "Finish": "Eind",
   "Finish · {title}": "Eind · {title}",
   "Finish: {title}": "Eind: {title}",
+  "Fold the list": "Lijst inklappen",
   "Follow an OpenBanners banner mission by mission.": "Volg een OpenBanners-banner missie voor missie.",
   "Follows the {count} missions still to do as one route and ticks them off here as you go.": {
     "one": "Volgt de {count} missie die nog te doen is als één route en vinkt hem hier af terwijl je loopt.",
@@ -604,7 +609,6 @@
   "See what’s around you": "Kijk wat er bij jou in de buurt is",
   "Select a valid end portal before generating a reroute.": "Kies een geldige eindportal voordat je een nieuwe route genereert.",
   "Select a valid start portal before generating a reroute.": "Kies een geldige startportal voordat je een nieuwe route genereert.",
-  "Selected banner": "Geselecteerde banner",
   "Send this banner to a friend": "Stuur deze banner naar een vriend",
   "Settings": "Instellingen",
   "Share": "Delen",
@@ -620,6 +624,7 @@
   },
   "Shortest first": "Kortste eerst",
   "Show": "Tonen",
+  "Show all in view": "Alles in beeld tonen",
   "Show all {count} countries": {
     "one": "Alle {count} land tonen",
     "other": "Alle {count} landen tonen"
@@ -639,6 +644,7 @@
   "Show my location": "Mijn locatie tonen",
   "Show offline banners": "Offline banners tonen",
   "Show the banners closest to you": "Toon de banners het dichtst bij jou",
+  "Show the list": "Lijst tonen",
   "Show the {count} without an answer": "De {count} zonder antwoord tonen",
   "Show whole route": "Hele route tonen",
   "Show {count} banners": {
@@ -901,7 +907,6 @@
   "sharing offline": "offline delen",
   "sharing, including offline": "delen, ook offline",
   "shows on {date}": "verschijnt op {date}",
-  "tap one for its route": "tik er een aan voor de route",
   "timed out": "time-out",
   "updated": "bijgewerkt",
   "view only": "alleen bekijken",
@@ -1047,7 +1052,6 @@
   "{objective} at {title}, open in maps app": "{objective} bij {title}, openen in kaartenapp",
   "{osm} contributors. Not affiliated with Bannergress.": "{osm}-bijdragers. Niet verbonden aan Bannergress.",
   "{seconds}s": "{seconds}s",
-  "{shown} of {total} in view": "{shown} van {total} in beeld",
   "{time} walk": "{time} lopen",
   "{title} – Mission Day plan": "{title} – Mission Day-plan",
   "{title} – Mission Day plan (view only)": "{title} – Mission Day-plan (alleen bekijken)",

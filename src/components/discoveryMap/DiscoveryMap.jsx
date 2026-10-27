@@ -1,12 +1,11 @@
 import L from "leaflet";
 import { Marker, Polyline, Tooltip } from "react-leaflet";
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import useDiscoveryMap from "./useDiscoveryMap";
 import {
   DiscoveryBaseMap,
   LocateButton,
   MapStatusPill,
-  OpenBannerLink,
   StatusChip,
   clusterIcon,
   statusDotIcon,
@@ -23,7 +22,9 @@ import {
   normalizeMapFilters,
 } from "./mapFilters";
 import { useBannerRoute } from "./bannerRoute";
-import { clusterByPixels, formatMinutes, isInsideArea, walkingMinutes } from "./mapMath";
+import { clusterByPixels, isInsideArea } from "./mapMath";
+import { areaCenter, buildRow, keepFocus, sortByDistance } from "./rowModel";
+import { BannerCarousel, BannerSideList } from "./BannerRow";
 import { FINISH_FLAG_SVG, missionColors } from "../BannerDetailsPage";
 import { formatLength } from "../../bannerDisplay";
 import BannerImage from "../BannerImage";
@@ -36,20 +37,6 @@ const GROUPS = [
   { key: "distance", title: tk("Distance"), options: distanceOptions() },
   { key: "missions", title: tk("Number of missions"), options: MISSION_OPTIONS },
 ];
-
-// A translated sentence with one value in bold: template is t()/tn() output
-// that still holds the {name} placeholder.
-function BoldIn({ template, name, children }) {
-  const [before, after = ""] = template.split(`{${name}}`);
-
-  return (
-    <>
-      {before}
-      <b>{children}</b>
-      {after}
-    </>
-  );
-}
 
 function CustomDistance({ filters, onChange }) {
   const set = (key) => (event) => {
@@ -88,8 +75,37 @@ function CustomDistance({ filters, onChange }) {
     </div>
   );
 }
-// Room the filter chips take at the top when fitting a route.
+// Room the filter chips take at the top when fitting the map.
 const FILTERBAR_SPACE = 56;
+// The row sits this far above the bottom edge (clear of the OSM attribution).
+const ROW_BOTTOM = 18;
+// A swiped-to card loads its route once the row has rested on it this long.
+const ROUTE_DWELL_MS = 600;
+const ROW_FOLDED_STORAGE_KEY = "openbanners.mapRowFolded";
+// Same breakpoint as the navigation rail (m3.css): wider screens get the side list.
+const WIDE_QUERY = "(min-width: 840px)";
+
+function subscribeWide(callback) {
+  const query = window.matchMedia?.(WIDE_QUERY);
+  query?.addEventListener?.("change", callback);
+  return () => query?.removeEventListener?.("change", callback);
+}
+
+function useIsWide() {
+  return useSyncExternalStore(
+    subscribeWide,
+    () => Boolean(window.matchMedia?.(WIDE_QUERY).matches),
+    () => false
+  );
+}
+
+function readFolded() {
+  try {
+    return window.localStorage.getItem(ROW_FOLDED_STORAGE_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
 const CLUSTER_RADIUS_PX = 34;
 // Left over from the map prototypes switcher.
 const OLD_VARIANT_STORAGE_KEY = "openbanners.mapVariant";
@@ -226,58 +242,7 @@ function FilterSheet({ filters, onChange, onClose, focusKey, matchCount }) {
   );
 }
 
-// Route card thumbnail: 74 wide, at most 74 × 100; taller banners pan.
-const ROUTE_THUMB_ASPECT = 0.74;
-
-function RouteCard({ banner, routeStatus, onClose, cardRef }) {
-  const missions = Number(banner.numberOfMissions);
-  const minutes = walkingMinutes(banner.lengthMeters);
-
-  return (
-    <div className="mv-sheet mv-route-card" ref={cardRef} aria-label={t("Selected banner")}>
-      <BannerImage banner={banner} className="mv-route-thumb" minAspect={ROUTE_THUMB_ASPECT} />
-      <div className="mv-route-body">
-        <div className="mv-card-head">
-          <div className="mv-card-title">{banner.title}</div>
-          <button type="button" className="mv-btn icon ghost" aria-label={t("Close route")} onClick={onClose}>
-            ×
-          </button>
-        </div>
-        <div className="mv-route-stats">
-          <span>
-            <b>{formatLength(banner.lengthMeters)}</b>
-          </span>
-          <span>
-            <BoldIn
-              name="count"
-              template={tn("{count} mission", "{count} missions", Number.isFinite(missions) ? missions : 2, {
-                count: "{count}",
-              })}
-            >
-              {Number.isFinite(missions) ? missions : "?"}
-            </BoldIn>
-          </span>
-          {minutes !== null ? (
-            <span>
-              <BoldIn name="time" template={t("{time} walk")}>
-                ~{formatMinutes(minutes)}
-              </BoldIn>
-            </span>
-          ) : null}
-        </div>
-        <div className="mv-mini-row">
-          <StatusChip status={banner._status} />
-          {routeStatus === "loading" ? <span className="mv-muted">{t("Loading route…")}</span> : null}
-          {routeStatus === "error" ? <span className="mv-muted">{t("Couldn't load the route")}</span> : null}
-          <span className="mv-spacer" />
-          <OpenBannerLink banner={banner} />
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// A group that can't be split by zooming (same spot, or already zoomed in): pick one.
+// Banner list sheet: everything in view (from the "+N more" card).
 function ClusterSheet({ banners, onPick, onClose }) {
   const heading = tn("{count} banner here", "{count} banners here", banners.length);
 
@@ -318,26 +283,31 @@ function ClusterSheet({ banners, onPick, onClose }) {
 }
 
 // /map: status-coloured dots with filter chips; banners reload for whatever is in view.
-// Tapping a dot draws that banner's walking route and shows a compact card.
+// The banners in view are cards (phone: a swipeable row above the bottom bar,
+// desktop: a list beside the map), nearest to the map centre first. The selected
+// card's dot is enlarged and its walking route is drawn.
 export default function DiscoveryMap() {
   const vm = useDiscoveryMap();
   const { map, banners, liveArea } = vm;
+  const isWide = useIsWide();
   const [filters, setFilters] = useState(readStoredFilters);
   const [sheet, setSheet] = useState(null); // group key that opened the sheet
-  const [clusterList, setClusterList] = useState(null);
-  // Back from a banner reopens its card (the viewport itself is remembered
+  const [moreOpen, setMoreOpen] = useState(false);
+  // Back from a banner reselects its card (the viewport itself is remembered
   // in useDiscoveryMap).
   const { entryKey, restored } = useRestoredEntry("map");
-  const [selected, setSelected] = useState(restored?.selected ?? null);
-  const [cardHeight, setCardHeight] = useState(0);
-  const cardRef = useRef(null);
-  const routeState = useBannerRoute(selected?.id);
-  const route = routeState.data?.route ?? null;
-  const summary = filterSummary(filters);
+  const [focusId, setFocusId] = useState(restored?.focusId ?? restored?.selected?.id ?? null);
+  const [hoverId, setHoverId] = useState(null);
+  // Ids of a group of dots that zooming can't split: the row shows only those.
+  const [pinned, setPinned] = useState(null);
+  const [folded, setFolded] = useState(readFolded);
+  const [rowHeight, setRowHeight] = useState(0);
+  const rowRef = useRef(null);
+  const lastFocused = useRef(restored?.selected ?? null);
+  // Until the user picks a card (swipe, tap, dot), the nearest one is selected.
+  const userPicked = useRef(Boolean(focusId));
   const activeCount = countActiveMapFilters(filters);
-  const showCard = Boolean(selected) && !sheet && !clusterList;
-
-  useRememberEntry(entryKey, "map", { selected });
+  const summary = filterSummary(filters);
 
   useEffect(() => {
     try {
@@ -355,16 +325,105 @@ export default function DiscoveryMap() {
     }
   }, []);
 
-  // Floating controls and the route fit stay clear of the card.
-  useLayoutEffect(() => {
-    const card = cardRef.current;
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(ROW_FOLDED_STORAGE_KEY, folded ? "1" : "0");
+    } catch {
+      // Private mode: remembered for this visit.
+    }
+  }, [folded]);
 
-    if (!showCard || !card) {
-      setCardHeight(0);
+  const matching = useMemo(() => applyMapFilters(banners, filters), [banners, filters]);
+  const byId = useMemo(() => new globalThis.Map(matching.map((banner) => [banner.id, banner])), [matching]);
+  const matchingInView = useMemo(
+    () => (liveArea ? matching.filter((banner) => isInsideArea(banner, liveArea)) : matching),
+    [liveArea, matching]
+  );
+  const center = useMemo(() => areaCenter(liveArea), [liveArea]);
+  const sortedInView = useMemo(() => sortByDistance(matchingInView, center), [center, matchingInView]);
+  const groupList = useMemo(
+    () => (pinned ? sortedInView.filter((banner) => pinned.includes(banner.id)) : null),
+    [pinned, sortedInView]
+  );
+  const inGroup = Boolean(groupList?.length);
+  const rowList = inGroup ? groupList : sortedInView;
+  const row = useMemo(() => buildRow(rowList, focusId), [focusId, rowList]);
+
+  // The group ends once none of its banners are in view any more.
+  useEffect(() => {
+    if (pinned && !groupList?.length) {
+      setPinned(null);
+    }
+  }, [pinned, groupList]);
+
+  // Phone: some card is always the selected one. After the map moved or the
+  // filters changed, keep the one the user picked while it is still listed,
+  // else take the nearest. (While a new area loads, it may still arrive.)
+  useEffect(() => {
+    if (isWide || !rowList.length) {
+      return;
+    }
+
+    const listed = focusId && rowList.some((banner) => banner.id === focusId);
+
+    if (userPicked.current && !listed && vm.loading) {
+      return;
+    }
+
+    if (!listed) {
+      userPicked.current = false;
+    }
+
+    const next = userPicked.current ? keepFocus(focusId, rowList) : rowList[0].id;
+
+    if (next !== focusId) {
+      setFocusId(next);
+    }
+  }, [focusId, isWide, rowList, vm.loading]);
+
+  const focused = focusId ? (byId.get(focusId) ?? (lastFocused.current?.id === focusId ? lastFocused.current : null)) : null;
+  lastFocused.current = focused ?? lastFocused.current;
+
+  useRememberEntry(entryKey, "map", { focusId, selected: focused });
+
+  const rowVisible = !isWide && !sheet && !moreOpen && rowList.length > 0;
+  const rowOpen = rowVisible && !folded;
+  // What the map shows as selected: the middle card on phones (not while the
+  // row is folded or hidden), the clicked card on desktop.
+  const selected = isWide || rowOpen ? focused : null;
+  const selectedId = selected?.id ?? null;
+  const [routeId, setRouteId] = useState(null);
+
+  // Swiping through the row only loads the route of the card it rests on.
+  useEffect(() => {
+    if (!selectedId) {
+      setRouteId(null);
       return undefined;
     }
 
-    const measure = () => setCardHeight(card.offsetHeight);
+    if (isWide) {
+      setRouteId(selectedId);
+      return undefined;
+    }
+
+    const timer = setTimeout(() => setRouteId(selectedId), ROUTE_DWELL_MS);
+    return () => clearTimeout(timer);
+  }, [isWide, selectedId]);
+
+  const routeState = useBannerRoute(routeId && routeId === selectedId ? routeId : null);
+  const route = routeId === selectedId ? (routeState.data?.route ?? null) : null;
+  const routeStatus = selectedId && routeId === selectedId ? routeState.status : "idle";
+
+  // Floating controls stay clear of the row.
+  useLayoutEffect(() => {
+    const element = rowRef.current;
+
+    if (!rowVisible || !element) {
+      setRowHeight(0);
+      return undefined;
+    }
+
+    const measure = () => setRowHeight(element.offsetHeight);
     measure();
 
     if (typeof ResizeObserver === "undefined") {
@@ -372,48 +431,21 @@ export default function DiscoveryMap() {
     }
 
     const observer = new ResizeObserver(measure);
-    observer.observe(card);
+    observer.observe(element);
     return () => observer.disconnect();
-  }, [showCard, selected?.id]);
+  }, [rowVisible, folded]);
 
-  useEffect(() => {
-    if (!map?.flyToBounds || !route?.allPositions.length) {
-      return;
-    }
+  const controlsBottom = rowVisible ? rowHeight + ROW_BOTTOM : 0;
 
-    const bottom = window.innerWidth >= 900 ? 24 : (cardRef.current?.offsetHeight ?? 150) + 34;
-    map.flyToBounds(L.latLngBounds(route.allPositions), {
-      paddingTopLeft: [28, FILTERBAR_SPACE + 16],
-      paddingBottomRight: [28, bottom],
-      maxZoom: 18,
-      duration: 0.7,
-    });
-  }, [map, route]);
-
-  const matching = useMemo(() => applyMapFilters(banners, filters), [banners, filters]);
-  const matchingInView = useMemo(
-    () => (liveArea ? matching.filter((banner) => isInsideArea(banner, liveArea)) : matching),
-    [liveArea, matching]
-  );
-  const inViewCount = useMemo(
-    () => (liveArea ? banners.filter((banner) => isInsideArea(banner, liveArea)).length : banners.length),
-    [banners, liveArea]
-  );
-  // The selected banner stays on the map when a new search or filter drops it.
-  const shownBanners = useMemo(
-    () => (selected && !matching.some((banner) => banner.id === selected.id) ? [...matching, selected] : matching),
-    [matching, selected]
-  );
-  const controlsBottom = showCard ? cardHeight + 26 : 0;
   // Nearby dots merge into a count bubble so a zoomed-out map stays readable.
+  // Selection and hover are drawn as separate markers on top, so the dots don't
+  // change (or re-render) while swiping.
   const clusters = useMemo(() => {
-    const others = shownBanners.filter((banner) => banner.id !== selected?.id);
-
     if (!map?.project) {
-      return others.map((banner) => ({ key: banner.id, banners: [banner] }));
+      return matching.map((banner) => ({ key: banner.id, banners: [banner] }));
     }
 
-    const items = others.map((banner) => {
+    const items = matching.map((banner) => {
       const pixel = map.project([banner._latitude, banner._longitude], vm.zoom);
       return { x: pixel.x, y: pixel.y, banner };
     });
@@ -422,8 +454,26 @@ export default function DiscoveryMap() {
       key: cluster.items[0].banner.id,
       banners: cluster.items.map((item) => item.banner),
     }));
-  }, [map, selected?.id, shownBanners, vm.zoom]);
-  // Zoom in until the group splits; if zooming can't split it, list its banners.
+  }, [map, matching, vm.zoom]);
+
+  const selectBanner = useCallback(
+    (id) => {
+      userPicked.current = true;
+      setMoreOpen(false);
+      setFolded(false);
+      setFocusId(id);
+
+      if (pinned && !pinned.includes(id)) {
+        setPinned(null);
+      }
+    },
+    [pinned]
+  );
+  const selectRef = useRef(selectBanner);
+  selectRef.current = selectBanner;
+
+  // Zoom in until the group splits; if zooming can't split it, its banners
+  // become the row.
   const openCluster = (members) => {
     if (!map?.flyToBounds) {
       return;
@@ -448,7 +498,7 @@ export default function DiscoveryMap() {
       return;
     }
 
-    // Find the first zoom level where the group splits; otherwise show the list.
+    // Find the first zoom level where the group splits; otherwise list the group.
     for (let zoomLevel = map.getZoom() + 1; zoomLevel <= maxZoom; zoomLevel += 1) {
       if (splitsAt(zoomLevel)) {
         map.flyTo(bounds.getCenter(), zoomLevel, { duration: 0.5 });
@@ -456,61 +506,101 @@ export default function DiscoveryMap() {
       }
     }
 
-    setSelected(null);
-    setClusterList(members);
+    showGroup(members);
+  };
+  const showGroup = (members) => {
+    const first = sortByDistance(members, center)[0];
+    userPicked.current = true;
+    setPinned(members.map((banner) => banner.id));
+    setMoreOpen(false);
+    setFolded(false);
+    setFocusId(first?.id ?? null);
+  };
+  const openClusterRef = useRef(openCluster);
+  openClusterRef.current = openCluster;
+
+  const markers = useMemo(
+    () =>
+      clusters.map(({ key, banners: members }) => {
+        if (members.length > 1) {
+          return (
+            <Marker
+              key={`c:${key}`}
+              position={[
+                members.reduce((sum, banner) => sum + banner._latitude, 0) / members.length,
+                members.reduce((sum, banner) => sum + banner._longitude, 0) / members.length,
+              ]}
+              icon={clusterIcon(members)}
+              zIndexOffset={members.length}
+              title={tn("{count} banner", "{count} banners", members.length)}
+              eventHandlers={{ click: () => openClusterRef.current(members) }}
+            />
+          );
+        }
+
+        const banner = members[0];
+
+        return (
+          <Marker
+            key={banner.id}
+            position={[banner._latitude, banner._longitude]}
+            icon={statusDotIcon(banner._status)}
+            eventHandlers={{ click: () => selectRef.current(banner.id) }}
+          >
+            {isWide ? (
+              <Tooltip direction="top" offset={[0, -10]}>
+                {banner.title}
+              </Tooltip>
+            ) : null}
+          </Marker>
+        );
+      }),
+    [clusters, isWide]
+  );
+  const hovered = isWide && hoverId && hoverId !== selectedId ? byId.get(hoverId) : null;
+  const rowProps = {
+    items: row.items,
+    moreCount: row.moreCount,
+    count: rowList.length,
+    focusId,
+    onFocus: selectBanner,
+    onMore: () => setMoreOpen(true),
+    inGroup,
+    onExitGroup: () => setPinned(null),
+    routeStatus,
   };
 
   return (
-    <div className="mv-root">
+    <div className={`mv-root${isWide ? " wide" : ""}`}>
       <DiscoveryBaseMap
         vm={vm}
         onMapClick={() => {
-          setSelected(null);
-          setClusterList(null);
+          setMoreOpen(false);
+
+          if (isWide) {
+            setFocusId(null);
+          }
         }}
       >
+        {markers}
+        {hovered ? (
+          <Marker
+            key={`h:${hovered.id}`}
+            position={[hovered._latitude, hovered._longitude]}
+            icon={statusDotIcon(hovered._status, { hover: true })}
+            zIndexOffset={900}
+            interactive={false}
+          />
+        ) : null}
         {selected && !route ? (
           <Marker
-            key={selected.id}
+            key={`s:${selected.id}`}
             position={[selected._latitude, selected._longitude]}
             icon={statusDotIcon(selected._status, { selected: true })}
             zIndexOffset={1000}
+            interactive={false}
           />
         ) : null}
-        {clusters.map(({ key, banners: members }) => {
-          if (members.length > 1) {
-            return (
-              <Marker
-                key={`c:${key}`}
-                position={[
-                  members.reduce((sum, banner) => sum + banner._latitude, 0) / members.length,
-                  members.reduce((sum, banner) => sum + banner._longitude, 0) / members.length,
-                ]}
-                icon={clusterIcon(members, { dim: Boolean(selected) })}
-                zIndexOffset={members.length}
-                title={tn("{count} banner", "{count} banners", members.length)}
-                eventHandlers={{ click: () => openCluster(members) }}
-              />
-            );
-          }
-
-          const banner = members[0];
-
-          return (
-            <Marker
-              key={banner.id}
-              position={[banner._latitude, banner._longitude]}
-              icon={statusDotIcon(banner._status, { dim: Boolean(selected) })}
-              eventHandlers={{ click: () => setSelected(banner) }}
-            >
-              {!selected ? (
-                <Tooltip direction="top" offset={[0, -10]}>
-                  {banner.title}
-                </Tooltip>
-              ) : null}
-            </Marker>
-          );
-        })}
         {route ? <RouteLayer route={route} /> : null}
       </DiscoveryBaseMap>
 
@@ -547,33 +637,34 @@ export default function DiscoveryMap() {
           );
         })}
       </div>
-      <div className="mv-count" style={{ top: FILTERBAR_SPACE }} role="status">
-        {vm.loading && !vm.banners.length
-          ? t("Loading…")
-          : t("{shown} of {total} in view", { shown: matchingInView.length, total: inViewCount })}
-        {!vm.loading && !selected && matchingInView.length ? (
-          <span className="mv-count-hint"> · {t("tap one for its route")}</span>
-        ) : null}
-      </div>
+      {vm.loading && vm.banners.length ? (
+        <div className="mv-count" style={{ top: FILTERBAR_SPACE }} role="status">
+          {t("Loading…")}
+        </div>
+      ) : null}
       <LocateButton vm={vm} style={{ bottom: controlsBottom + 24 }} />
-      <MapStatusPill vm={vm} count={matching.length} emptyText={t("No matching banners here – zoom out or move the map")} bottom={controlsBottom + 16} />
+      <MapStatusPill
+        vm={vm}
+        count={matchingInView.length}
+        emptyText={t("No matching banners here – zoom out or move the map")}
+        bottom={controlsBottom + 16}
+      />
 
-      {showCard ? (
-        <RouteCard
-          banner={selected}
-          routeStatus={routeState.status}
-          onClose={() => setSelected(null)}
-          cardRef={cardRef}
+      {rowVisible ? (
+        <BannerCarousel
+          {...rowProps}
+          folded={folded}
+          onFold={() => setFolded(true)}
+          onUnfold={() => setFolded(false)}
+          rowRef={rowRef}
         />
       ) : null}
-      {clusterList && !sheet ? (
+      {isWide && rowList.length ? <BannerSideList {...rowProps} onHover={setHoverId} /> : null}
+      {moreOpen && !sheet ? (
         <ClusterSheet
-          banners={clusterList}
-          onClose={() => setClusterList(null)}
-          onPick={(banner) => {
-            setClusterList(null);
-            setSelected(banner);
-          }}
+          banners={rowList}
+          onClose={() => setMoreOpen(false)}
+          onPick={(banner) => selectBanner(banner.id)}
         />
       ) : null}
       {sheet ? (

@@ -2,6 +2,9 @@
   "#{number} of {banner}": "{banner} の #{number}",
   "&copy; {osm} contributors. This website is NOT affiliated with Bannergress in any way!": "&copy; {osm} の貢献者。このウェブサイトは Bannergress とは一切関係ありません!",
   "(no longer in Ingress)": "(Ingress から削除済み)",
+  "+{count} more · show list": {
+    "other": "他 {count} 件 · リストを表示"
+  },
   "? missions": "? ミッション",
   "A connected participant needs to enable list sharing before comparisons appear.": "比較を表示するには、接続中の参加者がリスト共有を有効にする必要があります。",
   "A parallel reroute worker failed before it could finish.": "並列リルートワーカーが完了前に失敗しました。",
@@ -104,6 +107,7 @@
   "Banners": "バナー",
   "Banners Near Me": "近くのバナー",
   "Banners created by {agent}.": "{agent} が作成したバナー。",
+  "Banners in view": "表示中のバナー",
   "Banners near you": "近くのバナー",
   "Banners, cities or regions": "バナー、都市、地域",
   "Become a tester on Google Play": "Google Play でテスターになる",
@@ -131,7 +135,6 @@
   "Close": "閉じる",
   "Close filters": "フィルターを閉じる",
   "Close list": "リストを閉じる",
-  "Close route": "ルートを閉じる",
   "Closest first, with filters": "近い順、フィルター付き",
   "Closest start point first.": "スタート地点が近い順。",
   "Compact banner view": "コンパクト表示",
@@ -250,6 +253,7 @@
   "Finish": "ゴール",
   "Finish · {title}": "ゴール · {title}",
   "Finish: {title}": "ゴール: {title}",
+  "Fold the list": "リストをたたむ",
   "Follow an OpenBanners banner mission by mission.": "OpenBanners のバナーをミッションごとにたどります。",
   "Follows the {count} missions still to do as one route and ticks them off here as you go.": {
     "other": "残りの {count} ミッションを1つのルートとしてたどり、進むにつれてここでチェックします。"
@@ -590,7 +594,6 @@
   "See what’s around you": "周辺を見る",
   "Select a valid end portal before generating a reroute.": "リルートを生成する前に有効な終了ポータルを選んでください。",
   "Select a valid start portal before generating a reroute.": "リルートを生成する前に有効な開始ポータルを選んでください。",
-  "Selected banner": "選択したバナー",
   "Send this banner to a friend": "このバナーを友だちに送る",
   "Settings": "設定",
   "Share": "共有",
@@ -605,6 +608,7 @@
   },
   "Shortest first": "短い順",
   "Show": "表示",
+  "Show all in view": "表示中のすべてを表示",
   "Show all {count} countries": {
     "other": "全 {count} か国を表示"
   },
@@ -622,6 +626,7 @@
   "Show my location": "現在地を表示",
   "Show offline banners": "オフラインのバナーを表示",
   "Show the banners closest to you": "いちばん近いバナーを表示",
+  "Show the list": "リストを表示",
   "Show the {count} without an answer": "答えのない {count} 件を表示",
   "Show whole route": "ルート全体を表示",
   "Show {count} banners": {
@@ -876,7 +881,6 @@
   "sharing offline": "オフライン共有中",
   "sharing, including offline": "共有中 (オフライン含む)",
   "shows on {date}": "{date} に表示",
-  "tap one for its route": "タップするとルートを表示",
   "timed out": "タイムアウト",
   "updated": "更新済み",
   "view only": "閲覧のみ",
@@ -993,7 +997,6 @@
   "{objective} at {title}, open in maps app": "{title} で {objective}、地図アプリで開く",
   "{osm} contributors. Not affiliated with Bannergress.": "{osm} の貢献者。Bannergress とは関係ありません。",
   "{seconds}s": "{seconds}秒",
-  "{shown} of {total} in view": "表示中 {shown} / {total}",
   "{time} walk": "徒歩 {time}",
   "{title} – Mission Day plan": "{title} – ミッションデイ・プラン",
   "{title} – Mission Day plan (view only)": "{title} – ミッションデイ・プラン (閲覧のみ)",

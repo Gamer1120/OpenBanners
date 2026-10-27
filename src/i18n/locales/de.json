@@ -2,6 +2,10 @@
   "#{number} of {banner}": "#{number} von {banner}",
   "&copy; {osm} contributors. This website is NOT affiliated with Bannergress in any way!": "&copy; {osm}-Mitwirkende. Diese Website ist in KEINER Weise mit Bannergress verbunden!",
   "(no longer in Ingress)": "(nicht mehr in Ingress)",
+  "+{count} more · show list": {
+    "one": "+{count} weiteres · Liste anzeigen",
+    "other": "+{count} weitere · Liste anzeigen"
+  },
   "? missions": "? Missionen",
   "A connected participant needs to enable list sharing before comparisons appear.": "Ein verbundener Teilnehmer muss das Teilen von Listen aktivieren, bevor Vergleiche erscheinen.",
   "A parallel reroute worker failed before it could finish.": "Ein paralleler Reroute-Worker ist vor dem Abschluss fehlgeschlagen.",
@@ -106,6 +110,7 @@
   "Banners": "Banner",
   "Banners Near Me": "Banner in meiner Nähe",
   "Banners created by {agent}.": "Banner von {agent}.",
+  "Banners in view": "Banner im Blick",
   "Banners near you": "Banner in deiner Nähe",
   "Banners, cities or regions": "Banner, Städte oder Regionen",
   "Become a tester on Google Play": "Bei Google Play Tester werden",
@@ -133,7 +138,6 @@
   "Close": "Schließen",
   "Close filters": "Filter schließen",
   "Close list": "Liste schließen",
-  "Close route": "Route schließen",
   "Closest first, with filters": "Nächste zuerst, mit Filtern",
   "Closest start point first.": "Nächster Startpunkt zuerst.",
   "Compact banner view": "Kompakte Banneransicht",
@@ -254,6 +258,7 @@
   "Finish": "Ende",
   "Finish · {title}": "Ende · {title}",
   "Finish: {title}": "Ende: {title}",
+  "Fold the list": "Liste einklappen",
   "Follow an OpenBanners banner mission by mission.": "Folge einem OpenBanners-Banner Mission für Mission.",
   "Follows the {count} missions still to do as one route and ticks them off here as you go.": {
     "one": "Folgt der {count} noch offenen Mission als eine Route und hakt sie hier unterwegs ab.",
@@ -604,7 +609,6 @@
   "See what’s around you": "Sieh, was es in deiner Nähe gibt",
   "Select a valid end portal before generating a reroute.": "Wähle ein gültiges Endportal, bevor du einen Reroute erzeugst.",
   "Select a valid start portal before generating a reroute.": "Wähle ein gültiges Startportal, bevor du einen Reroute erzeugst.",
-  "Selected banner": "Ausgewähltes Banner",
   "Send this banner to a friend": "Schick dieses Banner an einen Freund",
   "Settings": "Einstellungen",
   "Share": "Teilen",
@@ -620,6 +624,7 @@
   },
   "Shortest first": "Kürzeste zuerst",
   "Show": "Anzeigen",
+  "Show all in view": "Alle im Blick zeigen",
   "Show all {count} countries": {
     "one": "Alle {count} Länder zeigen",
     "other": "Alle {count} Länder zeigen"
@@ -639,6 +644,7 @@
   "Show my location": "Meinen Standort zeigen",
   "Show offline banners": "Offline-Banner anzeigen",
   "Show the banners closest to you": "Zeig die Banner in deiner Nähe",
+  "Show the list": "Liste anzeigen",
   "Show the {count} without an answer": "Die {count} ohne Antwort zeigen",
   "Show whole route": "Ganze Route zeigen",
   "Show {count} banners": {
@@ -901,7 +907,6 @@
   "sharing offline": "teilt offline",
   "sharing, including offline": "teilt, auch offline",
   "shows on {date}": "erscheint am {date}",
-  "tap one for its route": "tippe auf eins für seine Route",
   "timed out": "Zeitüberschreitung",
   "updated": "aktualisiert",
   "view only": "nur ansehen",
@@ -1047,7 +1052,6 @@
   "{objective} at {title}, open in maps app": "{objective} bei {title}, in Karten-App öffnen",
   "{osm} contributors. Not affiliated with Bannergress.": "{osm}-Mitwirkende. Nicht mit Bannergress verbunden.",
   "{seconds}s": "{seconds}s",
-  "{shown} of {total} in view": "{shown} von {total} im Blick",
   "{time} walk": "{time} zu Fuß",
   "{title} – Mission Day plan": "{title} – Mission-Day-Plan",
   "{title} – Mission Day plan (view only)": "{title} – Mission-Day-Plan (nur ansehen)",

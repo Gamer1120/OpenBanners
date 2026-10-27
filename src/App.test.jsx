@@ -3859,7 +3859,7 @@ test("shows a retryable error when banner details fail to load", async () => {
   consoleErrorSpy.mockRestore();
 });
 
-test("discovery map filters banners and shows the route card for a tapped banner", async () => {
+test("discovery map filters banners and lists those in view, with the route of the selected one", async () => {
   const mapBanner = (id, title, extra) => ({
     id,
     title,
@@ -3908,9 +3908,11 @@ test("discovery map filters banners and shows the route card for a tapped banner
     { route: "/map" }
   );
 
-  expect(await screen.findByText("Short Map Banner")).toBeInTheDocument();
-  expect(screen.getByText("Long Map Banner")).toBeInTheDocument();
-  expect(screen.getByText(/^2 of 2 in view/)).toBeInTheDocument();
+  const row = await screen.findByRole("region", { name: "Banners in view" });
+  expect(await within(row).findByText("Short Map Banner")).toBeInTheDocument();
+  expect(within(row).getByText("Long Map Banner")).toBeInTheDocument();
+  expect(within(row).getByText("2 banners here")).toBeInTheDocument();
+  expect(screen.queryByText(/in view/)).not.toBeInTheDocument();
   expect(screen.getAllByRole("button", { name: /^filters \(1 on\)$/i })).toHaveLength(1);
   expect(screen.queryByRole("radiogroup", { name: /map prototype/i })).not.toBeInTheDocument();
 
@@ -3921,28 +3923,36 @@ test("discovery map filters banners and shows the route card for a tapped banner
   expect(within(sheet).getAllByRole("radio").map((radio) => radio.textContent)).toEqual(
     expect.arrayContaining(["6+", "12+", "18+", "24+", "30+"])
   );
+  // The row makes way for the filter sheet.
+  expect(screen.queryByRole("region", { name: "Banners in view" })).not.toBeInTheDocument();
   fireEvent.click(within(sheet).getByRole("radio", { name: "30+" }));
   fireEvent.click(within(sheet).getByRole("button", { name: /show 1 banner$/i }));
 
-  expect(screen.getByText(/^1 of 2 in view/)).toBeInTheDocument();
+  const filteredRow = screen.getByRole("region", { name: "Banners in view" });
+  expect(within(filteredRow).getByText("1 banner here")).toBeInTheDocument();
   expect(screen.queryByText("Long Map Banner")).not.toBeInTheDocument();
 
-  fireEvent.click(screen.getByTestId("marker-52.22-6.89"));
+  fireEvent.click(screen.getAllByTestId("marker-52.22-6.89")[0]);
 
-  const card = await screen.findByLabelText("Selected banner");
+  const card = within(filteredRow).getByRole("link", { current: true });
   expect(within(card).getByText("Short Map Banner")).toBeInTheDocument();
-  expect(within(card).getByText(/missions/)).toBeInTheDocument();
-  expect(within(card).getByRole("link", { name: "Open" })).toHaveAttribute("href", "/banner/map-short");
-  await waitFor(() => {
-    expect(screen.getByText("Finish · End")).toBeInTheDocument();
-  });
+  expect(within(card).getByText(/30 missions/)).toBeInTheDocument();
+  expect(card).toHaveAttribute("href", "/banner/map-short");
+  await waitFor(
+    () => {
+      expect(screen.getByText("Finish · End")).toBeInTheDocument();
+    },
+    { timeout: 2500 }
+  );
   expect(global.fetch).toHaveBeenCalledWith(
     expect.stringContaining("/bnrs/map-short"),
     expect.anything()
   );
 
-  fireEvent.click(within(card).getByRole("button", { name: /close route/i }));
-  expect(screen.queryByLabelText("Selected banner")).not.toBeInTheDocument();
+  fireEvent.click(within(filteredRow).getByRole("button", { name: /fold the list/i }));
+  expect(screen.queryByRole("region", { name: "Banners in view" })).not.toBeInTheDocument();
+  expect(screen.queryByText("Finish · End")).not.toBeInTheDocument();
+  expect(screen.getByRole("button", { name: /show the list/i })).toHaveTextContent("1 banner");
 });
 
 test("updates banner metadata tags when banner details load", async () => {

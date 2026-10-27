@@ -43,6 +43,8 @@ For `/map`, discovery banner loading should render each fetched page immediately
 
 The `/map` marker toggle supports image markers and Bannergress-style dots; dot colors should continue to reflect the effective Bannergress list state.
 
+For `/map`, the banners in view (matching the filters) are cards sorted by distance from the map centre (`discoveryMap/BannerRow.jsx`, helpers in `rowModel.js`): on phones a scroll-snap row above the bottom bar whose middle card is the selected banner (enlarged dot; route after a 600 ms dwell; swiping never moves the map; foldable, remembered in localStorage), on screens 840 px and wider a list on the right (hover lights the dot, click selects, second click opens). Over 40 in view: the nearest 30 plus a "+N more · show list" card. Clusters that zooming can't split become the row.
+
 In `/map` dot marker mode, overlapping banners should cluster into numbered dots instead of being displaced with connector lines.
 
 When a `/map` dot marker cluster opens the disambiguation picker, render the choices as list-colored dots rather than banner thumbnails.

@@ -53,6 +53,12 @@
   transition: transform 140ms ease;
 }
 
+.mv-dot.hov span {
+  border-width: 3px;
+  box-shadow: 0 0 0 2.5px #fff, 0 0 0 7px color-mix(in srgb, var(--ring) 35%, transparent),
+    0 2px 8px rgba(0, 0, 0, 0.6);
+}
+
 .mv-dot.sel span {
   border-width: 4px;
   box-shadow: 0 0 0 3px #fff, 0 0 0 9px color-mix(in srgb, var(--ring) 40%, transparent),
@@ -317,45 +323,281 @@
   min-height: 22px;
 }
 
-/* selected banner: route card, above the OSM attribution */
-.mv-route-card {
+/* banners in view: phone row (carousel) above the bottom bar, desktop side list */
+.mv-row {
+  position: absolute;
+  left: 0;
+  right: 0;
   bottom: 18px;
-  display: flex;
-  gap: 12px;
-  align-items: stretch;
+  z-index: 1050;
+  pointer-events: none;
+  animation: mv-slide-up 220ms cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
-/* <BannerImage minAspect>: at most 74 × 100, tall banners pan */
-.mv-route-thumb {
-  flex: 0 0 74px;
-  align-self: center;
+.mv-row-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0 12px 6px;
+  pointer-events: none;
+}
+
+.mv-row-head > *,
+.mv-row-scroll {
+  pointer-events: auto;
+}
+
+.mv-row-head > .mv-spacer {
+  pointer-events: none;
+}
+
+.mv-row-count,
+.mv-row-note {
+  padding: 0 10px;
   border-radius: 12px;
+  background: rgba(14, 18, 22, 0.85);
+  color: #c6d0d7;
+  font: 500 12px/24px var(--mv-font);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.mv-row-note {
+  color: var(--mv-muted);
+}
+
+.mv-row-link {
+  height: 24px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 12px;
+  background: var(--mv-accent);
+  color: #06233a;
+  font: 600 12px/24px var(--mv-font);
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.mv-row-fold {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 28px;
+  padding: 0;
+  border: 1px solid var(--mv-line);
+  border-radius: 14px;
+  background: var(--mv-bg2);
+  color: var(--mv-text);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
+  cursor: pointer;
+}
+
+.mv-row-fold svg {
+  width: 20px;
+  height: 20px;
+  fill: currentColor;
+}
+
+.mv-row-scroll {
+  position: relative;
+  display: flex;
+  gap: 8px;
+  margin: 0;
+  padding: 2px 24px 4px;
+  list-style: none;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scroll-snap-type: x mandatory;
+  scrollbar-width: none;
+}
+
+.mv-row-scroll::-webkit-scrollbar {
+  display: none;
+}
+
+.mv-row-scroll .mv-rc-item {
+  flex: 0 0 calc(100% - 48px);
+  max-width: 440px;
+  scroll-snap-align: center;
+  scroll-snap-stop: always;
+}
+
+.mv-rc {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  box-sizing: border-box;
+  width: 100%;
+  height: 90px;
+  padding: 7px 12px 7px 8px;
+  border: 1px solid var(--mv-line);
+  border-radius: 16px;
+  background: var(--mv-bg);
+  color: var(--mv-text);
+  font: inherit;
+  text-align: left;
+  text-decoration: none;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.5);
+  cursor: pointer;
+  transition: border-color 150ms ease, background-color 150ms ease;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.mv-rc.on {
+  border-color: var(--mv-accent);
+  background: #16212b;
+  box-shadow: inset 0 0 0 1px var(--mv-accent), 0 2px 12px rgba(0, 0, 0, 0.5);
+}
+
+.mv-rc:focus-visible {
+  outline: 2px solid var(--mv-accent);
+  outline-offset: 2px;
+}
+
+/* <BannerImage minAspect>: at most 84 × 74, tall banners pan */
+.mv-rc-thumb {
+  flex: 0 0 84px;
+  align-self: center;
+  border-radius: 10px;
   background: #2a3138;
 }
 
-.mv-route-body {
+.mv-rc-body {
+  display: flex;
   flex: 1;
   min-width: 0;
+  flex-direction: column;
+  justify-content: center;
+  gap: 2px;
 }
 
-.mv-route-card .mv-card-title {
+.mv-rc-title {
   display: -webkit-box;
   overflow: hidden;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
+  font: 600 14px/1.2 var(--mv-font);
 }
 
-.mv-route-stats {
-  display: flex;
-  gap: 14px;
-  margin: 4px 0 8px;
+.mv-rc-stats {
+  overflow: hidden;
   color: var(--mv-muted);
-  font-size: 13px;
+  font-size: 12px;
+  line-height: 16px;
+  white-space: nowrap;
+  text-overflow: ellipsis;
 }
 
-.mv-route-stats b {
+.mv-rc-foot {
+  display: flex;
+  min-height: 0;
+}
+
+.mv-rc-foot:empty {
+  display: none;
+}
+
+.mv-rc-more {
+  justify-content: center;
+  border-style: dashed;
+  border-color: rgba(126, 200, 255, 0.5);
+  color: var(--mv-accent);
+  font: 600 14px/1.3 var(--mv-font);
+  text-align: center;
+}
+
+.mv-row-handle {
+  position: absolute;
+  left: 50%;
+  bottom: 18px;
+  z-index: 1050;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 36px;
+  padding: 0 16px;
+  border: 1px solid var(--mv-line);
+  border-radius: 18px;
+  background: var(--mv-bg2);
   color: var(--mv-text);
-  font-size: 15px;
+  font: 600 13px/1 var(--mv-font);
+  white-space: nowrap;
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.45);
+  transform: translateX(-50%);
+  cursor: pointer;
+}
+
+.mv-row-handle span {
+  color: var(--mv-accent);
+  font-size: 12px;
+}
+
+/* desktop: list beside the map */
+.mv-side {
+  position: absolute;
+  top: 56px;
+  right: 12px;
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  width: 340px;
+  max-height: calc(100% - 56px - 84px);
+  padding: 10px 8px 8px;
+  border: 1px solid var(--mv-line);
+  border-radius: 20px;
+  background: rgba(18, 23, 28, 0.95);
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.5);
+}
+
+.mv-side .mv-row-head {
+  margin: 0 6px 8px;
+}
+
+.mv-side .mv-row-count {
+  padding: 0;
+  background: none;
+  color: var(--mv-text);
+  font: 600 14px/24px var(--mv-font);
+}
+
+.mv-side .mv-row-note {
+  background: none;
+}
+
+.mv-side-list {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+  padding: 2px;
+  list-style: none;
+  overflow-y: auto;
+  scrollbar-width: thin;
+}
+
+.mv-side .mv-rc {
+  background: var(--mv-bg2);
+  box-shadow: none;
+}
+
+.mv-side .mv-rc:hover {
+  border-color: rgba(255, 255, 255, 0.3);
+}
+
+.mv-side .mv-rc.on {
+  background: #1a2733;
+  box-shadow: inset 0 0 0 1px var(--mv-accent);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mv-row,
+  .mv-sheet {
+    animation: none;
+  }
 }
 
 /* filter chips + sheet */
@@ -433,10 +675,6 @@
   overflow: hidden;
   text-overflow: ellipsis;
   pointer-events: none;
-}
-
-.mv-count-hint {
-  color: var(--mv-muted);
 }
 
 @media (min-width: 900px) {

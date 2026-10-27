@@ -2,6 +2,9 @@
   "#{number} of {banner}": "#{number} dari {banner}",
   "&copy; {osm} contributors. This website is NOT affiliated with Bannergress in any way!": "&copy; Kontributor {osm}. Situs ini sama sekali TIDAK terafiliasi dengan Bannergress!",
   "(no longer in Ingress)": "(sudah tidak ada di Ingress)",
+  "+{count} more · show list": {
+    "other": "+{count} lagi · lihat daftar"
+  },
   "? missions": "? misi",
   "A connected participant needs to enable list sharing before comparisons appear.": "Peserta yang terhubung perlu mengaktifkan berbagi daftar sebelum perbandingan muncul.",
   "A parallel reroute worker failed before it could finish.": "Salah satu worker rute ulang paralel gagal sebelum selesai.",
@@ -104,6 +107,7 @@
   "Banners": "Banner",
   "Banners Near Me": "Banner di dekatku",
   "Banners created by {agent}.": "Banner yang dibuat oleh {agent}.",
+  "Banners in view": "Banner yang terlihat",
   "Banners near you": "Banner di dekatmu",
   "Banners, cities or regions": "Banner, kota, atau wilayah",
   "Become a tester on Google Play": "Jadi penguji di Google Play",
@@ -131,7 +135,6 @@
   "Close": "Tutup",
   "Close filters": "Tutup filter",
   "Close list": "Tutup daftar",
-  "Close route": "Tutup rute",
   "Closest first, with filters": "Terdekat dulu, dengan filter",
   "Closest start point first.": "Titik awal terdekat dulu.",
   "Compact banner view": "Tampilan banner ringkas",
@@ -250,6 +253,7 @@
   "Finish": "Selesai",
   "Finish · {title}": "Akhir · {title}",
   "Finish: {title}": "Akhir: {title}",
+  "Fold the list": "Lipat daftar",
   "Follow an OpenBanners banner mission by mission.": "Ikuti banner OpenBanners misi demi misi.",
   "Follows the {count} missions still to do as one route and ticks them off here as you go.": {
     "other": "Mengikuti {count} misi yang belum dikerjakan sebagai satu rute dan mencentangnya di sini selama kamu jalan."
@@ -590,7 +594,6 @@
   "See what’s around you": "Lihat yang ada di sekitarmu",
   "Select a valid end portal before generating a reroute.": "Pilih portal akhir yang valid sebelum membuat rute ulang.",
   "Select a valid start portal before generating a reroute.": "Pilih portal awal yang valid sebelum membuat rute ulang.",
-  "Selected banner": "Banner terpilih",
   "Send this banner to a friend": "Kirim banner ini ke teman",
   "Settings": "Pengaturan",
   "Share": "Bagikan",
@@ -605,6 +608,7 @@
   },
   "Shortest first": "Terpendek dulu",
   "Show": "Tampilkan",
+  "Show all in view": "Tampilkan semua yang terlihat",
   "Show all {count} countries": {
     "other": "Tampilkan semua {count} negara"
   },
@@ -622,6 +626,7 @@
   "Show my location": "Tampilkan lokasiku",
   "Show offline banners": "Tampilkan banner offline",
   "Show the banners closest to you": "Tampilkan banner terdekat",
+  "Show the list": "Tampilkan daftar",
   "Show the {count} without an answer": "Tampilkan {count} yang belum ada jawabannya",
   "Show whole route": "Tampilkan seluruh rute",
   "Show {count} banners": {
@@ -876,7 +881,6 @@
   "sharing offline": "berbagi offline",
   "sharing, including offline": "berbagi, termasuk saat offline",
   "shows on {date}": "muncul pada {date}",
-  "tap one for its route": "ketuk salah satu untuk melihat rutenya",
   "timed out": "habis waktu",
   "updated": "diperbarui",
   "view only": "hanya lihat",
@@ -993,7 +997,6 @@
   "{objective} at {title}, open in maps app": "{objective} di {title}, buka di aplikasi peta",
   "{osm} contributors. Not affiliated with Bannergress.": "Kontributor {osm}. Tidak terafiliasi dengan Bannergress.",
   "{seconds}s": "{seconds}d",
-  "{shown} of {total} in view": "{shown} dari {total} terlihat",
   "{time} walk": "{time} jalan kaki",
   "{title} – Mission Day plan": "{title} – rencana Mission Day",
   "{title} – Mission Day plan (view only)": "{title} – rencana Mission Day (hanya lihat)",

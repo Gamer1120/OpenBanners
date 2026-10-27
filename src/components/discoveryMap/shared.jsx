@@ -14,13 +14,14 @@ function cachedIcon(key, create) {
   return iconCache.get(key);
 }
 
-export function statusDotIcon(status, { selected = false, dim = false } = {}) {
+// hover: the dot of the card under the pointer in the desktop list.
+export function statusDotIcon(status, { selected = false, hover = false, dim = false } = {}) {
   const style = getStatusStyle(status);
-  const size = selected ? 26 : 16;
+  const size = selected ? 26 : hover ? 22 : 16;
 
-  return cachedIcon(`dot:${status}:${selected}:${dim}`, () =>
+  return cachedIcon(`dot:${status}:${selected}:${hover}:${dim}`, () =>
     L.divIcon({
-      className: `mv-dot${selected ? " sel" : ""}${dim ? " dim" : ""}`,
+      className: `mv-dot${selected ? " sel" : ""}${hover ? " hov" : ""}${dim ? " dim" : ""}`,
       html: `<span style="--ring:${style.dot ?? style.ring}"></span>`,
       iconSize: [size, size],
       iconAnchor: [size / 2, size / 2],

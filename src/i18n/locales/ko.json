@@ -2,6 +2,9 @@
   "#{number} of {banner}": "{banner}의 {number}번",
   "&copy; {osm} contributors. This website is NOT affiliated with Bannergress in any way!": "&copy; {osm} 기여자. 이 웹사이트는 Bannergress와 전혀 관련이 없습니다!",
   "(no longer in Ingress)": "(Ingress에서 더 이상 제공되지 않음)",
+  "+{count} more · show list": {
+    "other": "{count}개 더 · 목록 보기"
+  },
   "? missions": "? 미션",
   "A connected participant needs to enable list sharing before comparisons appear.": "비교가 표시되려면 연결된 참가자가 목록 공유를 켜야 합니다.",
   "A parallel reroute worker failed before it could finish.": "병렬 리라우트 작업자가 완료 전에 실패했습니다.",
@@ -104,6 +107,7 @@
   "Banners": "배너",
   "Banners Near Me": "내 주변 배너",
   "Banners created by {agent}.": "{agent}이(가) 만든 배너입니다.",
+  "Banners in view": "보이는 배너",
   "Banners near you": "내 주변 배너",
   "Banners, cities or regions": "배너, 도시 또는 지역",
   "Become a tester on Google Play": "Google Play에서 테스터 되기",
@@ -131,7 +135,6 @@
   "Close": "닫기",
   "Close filters": "필터 닫기",
   "Close list": "목록 닫기",
-  "Close route": "경로 닫기",
   "Closest first, with filters": "가까운 순, 필터 적용",
   "Closest start point first.": "시작점이 가까운 순입니다.",
   "Compact banner view": "간단한 배너 보기",
@@ -250,6 +253,7 @@
   "Finish": "도착",
   "Finish · {title}": "도착 · {title}",
   "Finish: {title}": "도착: {title}",
+  "Fold the list": "목록 접기",
   "Follow an OpenBanners banner mission by mission.": "OpenBanners 배너를 미션별로 따라가세요.",
   "Follows the {count} missions still to do as one route and ticks them off here as you go.": {
     "other": "남은 미션 {count}개를 하나의 경로로 따라가며, 진행하는 대로 여기에서 체크합니다."
@@ -590,7 +594,6 @@
   "See what’s around you": "주변 둘러보기",
   "Select a valid end portal before generating a reroute.": "리라우트를 생성하기 전에 올바른 종료 포탈을 선택하세요.",
   "Select a valid start portal before generating a reroute.": "리라우트를 생성하기 전에 올바른 시작 포탈을 선택하세요.",
-  "Selected banner": "선택한 배너",
   "Send this banner to a friend": "친구에게 이 배너 보내기",
   "Settings": "설정",
   "Share": "공유",
@@ -605,6 +608,7 @@
   },
   "Shortest first": "짧은 순",
   "Show": "표시",
+  "Show all in view": "보이는 배너 모두 보기",
   "Show all {count} countries": {
     "other": "국가 {count}개 모두 보기"
   },
@@ -622,6 +626,7 @@
   "Show my location": "내 위치 표시",
   "Show offline banners": "오프라인 배너 표시",
   "Show the banners closest to you": "가장 가까운 배너 보기",
+  "Show the list": "목록 보기",
   "Show the {count} without an answer": "답이 없는 {count}개 보기",
   "Show whole route": "전체 경로 보기",
   "Show {count} banners": {
@@ -876,7 +881,6 @@
   "sharing offline": "오프라인 공유 중",
   "sharing, including offline": "공유 중(오프라인 포함)",
   "shows on {date}": "{date}에 표시",
-  "tap one for its route": "탭하면 경로 표시",
   "timed out": "시간 초과",
   "updated": "업데이트됨",
   "view only": "보기 전용",
@@ -993,7 +997,6 @@
   "{objective} at {title}, open in maps app": "{title}에서 {objective}, 지도 앱에서 열기",
   "{osm} contributors. Not affiliated with Bannergress.": "{osm} 기여자. Bannergress와 관련 없음.",
   "{seconds}s": "{seconds}초",
-  "{shown} of {total} in view": "화면에 {total}개 중 {shown}개",
   "{time} walk": "도보 {time}",
   "{title} – Mission Day plan": "{title} – Mission Day 계획",
   "{title} – Mission Day plan (view only)": "{title} – Mission Day 계획(보기 전용)",

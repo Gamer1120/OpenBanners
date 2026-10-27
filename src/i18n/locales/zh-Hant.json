@@ -2,6 +2,9 @@
   "#{number} of {banner}": "{banner} 的第 {number} 個",
   "&copy; {osm} contributors. This website is NOT affiliated with Bannergress in any way!": "&copy; {osm} 貢獻者。本網站與 Bannergress 完全無關！",
   "(no longer in Ingress)": "（已不在 Ingress 中）",
+  "+{count} more · show list": {
+    "other": "還有 {count} 個 · 顯示清單"
+  },
   "? missions": "? 個任務",
   "A connected participant needs to enable list sharing before comparisons appear.": "需要有已連線的參與者啟用清單分享，才會顯示比較結果。",
   "A parallel reroute worker failed before it could finish.": "一個平行重排路線工作程序在完成前失敗了。",
@@ -104,6 +107,7 @@
   "Banners": "拼圖",
   "Banners Near Me": "我附近的拼圖",
   "Banners created by {agent}.": "{agent} 建立的拼圖。",
+  "Banners in view": "畫面中的拼圖",
   "Banners near you": "你附近的拼圖",
   "Banners, cities or regions": "拼圖、城市或地區",
   "Become a tester on Google Play": "在 Google Play 上成為測試人員",
@@ -131,7 +135,6 @@
   "Close": "關閉",
   "Close filters": "關閉篩選",
   "Close list": "關閉清單",
-  "Close route": "關閉路線",
   "Closest first, with filters": "最近的優先，可篩選",
   "Closest start point first.": "起點最近的優先。",
   "Compact banner view": "精簡拼圖檢視",
@@ -250,6 +253,7 @@
   "Finish": "完成",
   "Finish · {title}": "完成 · {title}",
   "Finish: {title}": "完成：{title}",
+  "Fold the list": "收合清單",
   "Follow an OpenBanners banner mission by mission.": "逐一任務跟著 OpenBanners 拼圖走。",
   "Follows the {count} missions still to do as one route and ticks them off here as you go.": {
     "other": "將仍待完成的 {count} 個任務當作一條路線，並在你走完時於此處打勾。"
@@ -590,7 +594,6 @@
   "See what’s around you": "看看你周圍有什麼",
   "Select a valid end portal before generating a reroute.": "產生重排路線前，請選擇有效的終點能量塔。",
   "Select a valid start portal before generating a reroute.": "產生重排路線前，請選擇有效的起點能量塔。",
-  "Selected banner": "已選擇的拼圖",
   "Send this banner to a friend": "將此拼圖傳送給朋友",
   "Settings": "設定",
   "Share": "分享",
@@ -605,6 +608,7 @@
   },
   "Shortest first": "最短的優先",
   "Show": "顯示",
+  "Show all in view": "顯示畫面中全部",
   "Show all {count} countries": {
     "other": "顯示全部 {count} 個國家"
   },
@@ -622,6 +626,7 @@
   "Show my location": "顯示我的位置",
   "Show offline banners": "顯示下線的拼圖",
   "Show the banners closest to you": "顯示離你最近的拼圖",
+  "Show the list": "顯示清單",
   "Show the {count} without an answer": "顯示 {count} 個沒有答案的",
   "Show whole route": "顯示整條路線",
   "Show {count} banners": {
@@ -876,7 +881,6 @@
   "sharing offline": "離線分享中",
   "sharing, including offline": "分享中，包含離線",
   "shows on {date}": "於 {date} 顯示",
-  "tap one for its route": "點選一個以查看其路線",
   "timed out": "已逾時",
   "updated": "已更新",
   "view only": "僅供檢視",
@@ -993,7 +997,6 @@
   "{objective} at {title}, open in maps app": "{title} 的{objective}，在地圖 App 中開啟",
   "{osm} contributors. Not affiliated with Bannergress.": "{osm} 貢獻者。與 Bannergress 無關。",
   "{seconds}s": "{seconds} 秒",
-  "{shown} of {total} in view": "畫面中顯示 {total} 個中的 {shown} 個",
   "{time} walk": "步行 {time}",
   "{title} – Mission Day plan": "{title} – Mission Day 計畫",
   "{title} – Mission Day plan (view only)": "{title} – Mission Day 計畫（僅供檢視）",

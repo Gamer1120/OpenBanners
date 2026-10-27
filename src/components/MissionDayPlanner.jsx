@@ -1,10 +1,17 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Add, ArrowDownward, ArrowUpward, Close, DragIndicator, EventNote, Layers, MyLocation, OpenInNew, Search, Share, SwapVert } from "@mui/icons-material";
 import { BANNERGRESS_AUTH_REQUEST_EVENT, useBannergressAuth } from "../bannergressSync";
 import { buildIngressMissionUrl, formatLength, getDistanceMeters } from "../bannerDisplay";
 import BannerImage from "./BannerImage";
-import { buildOverlayPlanIntentUrl, isAndroidUserAgent, OVERLAY_FALLBACK_URL } from "../overlayLink";
+import {
+  buildOverlayPlanIntentUrl,
+  isAndroidUserAgent,
+  isOverlayMissingSearch,
+  OVERLAY_FALLBACK_URL,
+  withoutOverlayMissing,
+} from "../overlayLink";
+import { OverlayMissingDialog } from "./OverlayDownloadDialog";
 import {
   createPlan,
   fetchActiveMissionDays,
@@ -376,9 +383,25 @@ function useHere() {
 // The plan in the OpenBanners Overlay (Android): one route through the missions
 // that aren't done yet, in this order; going on from a mission ticks it off here.
 function OverlayStart({ plan }) {
+  const location = useLocation();
+  const navigate = useNavigate();
+  const [missing, setMissing] = useState(false);
+  // Chrome came back via the intent's fallback (?overlay=missing): the app
+  // isn't installed. Show the install dialog once and drop the parameter.
+  useEffect(() => {
+    if (!isOverlayMissingSearch(location.search)) {
+      return;
+    }
+    setMissing(true);
+    navigate(
+      { pathname: location.pathname, search: withoutOverlayMissing(location.search), hash: location.hash },
+      { replace: true, state: location.state }
+    );
+  }, [location.search, location.pathname, location.hash, location.state, navigate]);
+  const dialog = missing ? <OverlayMissingDialog onClose={() => setMissing(false)} /> : null;
   const open = plan.items.filter((item) => !item.done).length;
   if (!plan.items.length) {
-    return null;
+    return dialog;
   }
   const android = isAndroidUserAgent(navigator.userAgent);
   const count = open || plan.items.length;
@@ -388,6 +411,7 @@ function OverlayStart({ plan }) {
   ).split("{app}");
   return (
     <div className="mdp-overlay">
+      {dialog}
       {android ? (
         <a className="btn filled sl" href={buildOverlayPlanIntentUrl(plan.id, window.location.origin)}>
           <Layers fontSize="small" />

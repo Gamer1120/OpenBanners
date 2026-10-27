@@ -1,9 +1,15 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Alert, Snackbar } from "@mui/material";
 import { Directions, Explore, Layers, OpenInNew, Share } from "@mui/icons-material";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { t } from "../i18n";
-import { buildOverlayStartIntentUrl, isAndroidUserAgent } from "../overlayLink";
+import {
+  buildOverlayStartIntentUrl,
+  isAndroidUserAgent,
+  isOverlayMissingSearch,
+  withoutOverlayMissing,
+} from "../overlayLink";
+import { OverlayMissingDialog } from "./OverlayDownloadDialog";
 
 function RowAction({ icon: Icon, label, title, onClick, disabled, primary = false }) {
   return (
@@ -45,7 +51,26 @@ function ActionItem({ icon: Icon, title, subtitle, onClick, disabled, trailing =
 // buttons (heading optional, e.g. inside a sticky action bar).
 const BannerInfo = ({ banner, loading = false, variant = "list", heading = t("Start this banner"), className = "" }) => {
   const navigate = useNavigate();
+  const location = useLocation();
+  const { bannerId: routeBannerId } = useParams();
+  const bannerId = banner?.id ?? routeBannerId;
   const [shareFeedback, setShareFeedback] = useState(null);
+  // null, "missing" (came back from the intent fallback) or "notAndroid".
+  const [overlayMissing, setOverlayMissing] = useState(null);
+
+  // Chrome opened ?overlay=missing because the Overlay app isn't installed:
+  // show the install dialog once and drop the parameter, so reload/back
+  // don't open it again.
+  useEffect(() => {
+    if (!isOverlayMissingSearch(location.search)) {
+      return;
+    }
+    setOverlayMissing("missing");
+    navigate(
+      { pathname: location.pathname, search: withoutOverlayMissing(location.search), hash: location.hash },
+      { replace: true, state: location.state }
+    );
+  }, [location.search, location.pathname, location.hash, location.state, navigate]);
   const hasStartPoint = Boolean(banner.startLatitude && banner.startLongitude);
 
   // BannerGuider without location is the default (the location variant's route
@@ -151,8 +176,8 @@ const BannerInfo = ({ banner, loading = false, variant = "list", heading = t("St
   };
 
   // Android: open the Overlay app straight at mission 1 (it opens that mission
-  // in Ingress). Elsewhere the app can't be launched, so copy/share the link
-  // to send to the phone, as before.
+  // in Ingress); without the app Chrome comes back with ?overlay=missing.
+  // Elsewhere the app can't be launched: show the install dialog straight away.
   const handleStartWithOverlay = () => {
     if (isAndroidUserAgent(navigator.userAgent)) {
       window.location.assign(
@@ -161,9 +186,15 @@ const BannerInfo = ({ banner, loading = false, variant = "list", heading = t("St
       return;
     }
 
-    shareBannerText(`https://bannergress.com/banner/${banner.id}`, {
-      title: banner.title,
-      successMessage: t("OpenBanners Overlay link copied to clipboard."),
+    setOverlayMissing("notAndroid");
+  };
+
+  // The dialog's alternative: the Android share sheet with the Bannergress
+  // link (Bannergress Overlay accepts it); copied where sharing isn't possible.
+  const handleOpenInBannergress = () => {
+    shareBannerText(`https://bannergress.com/banner/${encodeURIComponent(bannerId)}`, {
+      title: banner?.title || "OpenBanners",
+      successMessage: t("Bannergress link copied to clipboard."),
     });
   };
 
@@ -232,8 +263,16 @@ const BannerInfo = ({ banner, loading = false, variant = "list", heading = t("St
           ) : null}
         </div>
       )}
+      {overlayMissing ? (
+        <OverlayMissingDialog
+          reason={overlayMissing}
+          onClose={() => setOverlayMissing(null)}
+          onOpenInBannergress={bannerId ? handleOpenInBannergress : null}
+        />
+      ) : null}
       <Snackbar
         open={Boolean(shareFeedback)}
+        sx={{ zIndex: 1500 }}
         autoHideDuration={2500}
         onClose={() => setShareFeedback(null)}
       >

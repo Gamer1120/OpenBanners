@@ -17,16 +17,12 @@ function ExternalButton({ href, variant, children }) {
   );
 }
 
-// More menu → "Download OpenBanners Overlay" (the Android app, separate repo
-// Gamer1120/OpenBanners-overlay). Google Play first: it is still a closed test
-// there, so people join the Google Group first and wait a moment.
-export default function OverlayDownloadDialog({ onClose }) {
+// The three ways to get the app (separate repo Gamer1120/OpenBanners-overlay).
+// Google Play first: it is still a closed test there, so people join the
+// Google Group first and wait a moment.
+export function OverlayDownloadOptions() {
   return (
-    <ObModal title={t("Download OpenBanners Overlay")} onClose={onClose} labelId="overlay-download-title">
-      <p className="small muted">
-        {t("A route map that floats over Ingress while you do a banner. Banners from openbanners.org open straight in it. Android only.")}
-      </p>
-
+    <>
       <section className="ob-dl-option primary" aria-labelledby="overlay-dl-play">
         <div className="ob-dl-option-head">
           <h3 id="overlay-dl-play">Google Play</h3>
@@ -68,6 +64,46 @@ export default function OverlayDownloadDialog({ onClose }) {
           {t("Download the latest release")}
         </ExternalButton>
       </section>
+    </>
+  );
+}
+
+// More menu → "Download OpenBanners Overlay".
+export default function OverlayDownloadDialog({ onClose }) {
+  return (
+    <ObModal title={t("Download OpenBanners Overlay")} onClose={onClose} labelId="overlay-download-title">
+      <p className="small muted">
+        {t("A route map that floats over Ingress while you do a banner. Banners from openbanners.org open straight in it. Android only.")}
+      </p>
+      <OverlayDownloadOptions />
+    </ObModal>
+  );
+}
+
+// "Start with Overlay" without the app: on Android Chrome comes back here via
+// the intent's browser_fallback_url (?overlay=missing); elsewhere it opens
+// straight away (reason "notAndroid"). onOpenInBannergress (banner page only)
+// adds the alternative: share the Bannergress link, e.g. with Bannergress Overlay.
+export function OverlayMissingDialog({ onClose, reason = "missing", onOpenInBannergress = null }) {
+  return (
+    <ObModal title={t("Install OpenBanners Overlay")} onClose={onClose} labelId="overlay-missing-title">
+      <p className="small">
+        {reason === "notAndroid"
+          ? t("OpenBanners Overlay is an Android app. Install it on your phone, then open this page there.")
+          : t("OpenBanners Overlay isn’t installed on this phone (or it’s too old for this link). Install it, then try again.")}
+      </p>
+      <OverlayDownloadOptions />
+      {onOpenInBannergress ? (
+        <section className="ob-dl-option" aria-labelledby="overlay-dl-bannergress">
+          <h3 id="overlay-dl-bannergress">{t("Or use Bannergress Overlay")}</h3>
+          <p className="small muted">
+            {t("Already have another overlay app, like Bannergress Overlay? Share this banner’s Bannergress link with it.")}
+          </p>
+          <button type="button" className="btn outlined sl ob-dl-btn" onClick={onOpenInBannergress}>
+            {t("Open in Bannergress Overlay")}
+          </button>
+        </section>
+      ) : null}
     </ObModal>
   );
 }

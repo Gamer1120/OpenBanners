@@ -69,6 +69,8 @@ The Android WebView APK (`public/OpenBanners.apk`) was retired on 2026-10-27; ng
 
 The More menu's "Download OpenBanners Overlay" (`OverlayDownloadDialog.jsx`, links in `OVERLAY_LINKS`) lists Google Play first (closed test: join the Google Group `openbanners-overlay`, wait ~2 minutes, then the `play.google.com/apps/testing/org.openbanners.overlay` opt-in page), then F-Droid, then the latest GitHub release of Gamer1120/OpenBanners-overlay. When the app leaves testing on Play, replace the steps with the store link.
 
+"Start with Overlay" (banner page) and "Start in OpenBanners Overlay" (planner) use Android intent URLs (`src/overlayLink.js`) whose `S.browser_fallback_url` is the same page on the current origin with `?overlay=missing` (Chrome can't tell a page whether an app is installed; it opens the fallback when the package is missing). That page then shows `OverlayMissingDialog` (same download options as the More-menu dialog) and removes the parameter with a replace navigation so reload/back don't reopen it. On the banner page the dialog adds "Open in Bannergress Overlay": `navigator.share` with `https://bannergress.com/banner/<id>` (clipboard copy where sharing isn't available). Off Android, "Start with Overlay" opens the dialog straight away.
+
 Bannergress sign-in from the installed app opens in a Chrome custom tab where `window.opener`/`window.name` can be lost, so `public/bannergress-auth-callback.html` must find the PKCE data in localStorage under `BANNERGRESS_AUTH_PENDING_STORAGE_KEY` (`openbanners:bannergress-auth-pending`, the old dash name is accepted too); `src/bannergressAuthCallback.test.js` runs the page's script to keep the two in step.
 
 ## Commit & Pull Request Guidelines

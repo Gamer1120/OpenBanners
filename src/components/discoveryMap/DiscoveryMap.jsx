@@ -23,7 +23,7 @@ import {
 } from "./mapFilters";
 import { useBannerRoute } from "./bannerRoute";
 import { clusterByPixels, isInsideArea } from "./mapMath";
-import { areaCenter, buildRow, keepFocus, sortByDistance } from "./rowModel";
+import { areaCenter, buildRow, sortByDistance } from "./rowModel";
 import { BannerCarousel, BannerSideList } from "./BannerRow";
 import { FINISH_FLAG_SVG, missionColors } from "../BannerDetailsPage";
 import { formatLength } from "../../bannerDisplay";
@@ -79,8 +79,6 @@ function CustomDistance({ filters, onChange }) {
 const FILTERBAR_SPACE = 56;
 // The row sits this far above the bottom edge (clear of the OSM attribution).
 const ROW_BOTTOM = 18;
-// A swiped-to card loads its route once the row has rested on it this long.
-const ROUTE_DWELL_MS = 600;
 const ROW_FOLDED_STORAGE_KEY = "openbanners.mapRowFolded";
 // Same breakpoint as the navigation rail (m3.css): wider screens get the side list.
 const WIDE_QUERY = "(min-width: 840px)";
@@ -283,9 +281,10 @@ function ClusterSheet({ banners, onPick, onClose }) {
 }
 
 // /map: status-coloured dots with filter chips; banners reload for whatever is in view.
-// The banners in view are cards (phone: a swipeable row above the bottom bar,
-// desktop: a list beside the map), nearest to the map centre first. The selected
-// card's dot is enlarged and its walking route is drawn.
+// The banners in view are cards (phone: a scrolling row above the bottom bar,
+// desktop: a list beside the map), nearest to the map centre first. Nothing is
+// selected until a card or dot is tapped; the selected card's dot is enlarged and
+// its walking route is drawn. Tapping it again deselects it.
 export default function DiscoveryMap() {
   const vm = useDiscoveryMap();
   const { map, banners, liveArea } = vm;
@@ -304,8 +303,6 @@ export default function DiscoveryMap() {
   const [rowHeight, setRowHeight] = useState(0);
   const rowRef = useRef(null);
   const lastFocused = useRef(restored?.selected ?? null);
-  // Until the user picks a card (swipe, tap, dot), the nearest one is selected.
-  const userPicked = useRef(Boolean(focusId));
   const activeCount = countActiveMapFilters(filters);
   const summary = filterSummary(filters);
 
@@ -356,30 +353,19 @@ export default function DiscoveryMap() {
     }
   }, [pinned, groupList]);
 
-  // Phone: some card is always the selected one. After the map moved or the
-  // filters changed, keep the one the user picked while it is still listed,
-  // else take the nearest. (While a new area loads, it may still arrive.)
+  // After the map moved or the filters changed, the selection stays while its
+  // banner is still listed and is dropped otherwise (no route for a banner that
+  // has no card). Nothing else gets selected. (While banners load, it may still
+  // arrive.)
   useEffect(() => {
-    if (isWide || !rowList.length) {
+    if (!focusId || vm.loading || !vm.banners.length) {
       return;
     }
 
-    const listed = focusId && rowList.some((banner) => banner.id === focusId);
-
-    if (userPicked.current && !listed && vm.loading) {
-      return;
+    if (!rowList.some((banner) => banner.id === focusId)) {
+      setFocusId(null);
     }
-
-    if (!listed) {
-      userPicked.current = false;
-    }
-
-    const next = userPicked.current ? keepFocus(focusId, rowList) : rowList[0].id;
-
-    if (next !== focusId) {
-      setFocusId(next);
-    }
-  }, [focusId, isWide, rowList, vm.loading]);
+  }, [focusId, rowList, vm.banners.length, vm.loading]);
 
   const focused = focusId ? (byId.get(focusId) ?? (lastFocused.current?.id === focusId ? lastFocused.current : null)) : null;
   lastFocused.current = focused ?? lastFocused.current;
@@ -388,31 +374,13 @@ export default function DiscoveryMap() {
 
   const rowVisible = !isWide && !sheet && !moreOpen && rowList.length > 0;
   const rowOpen = rowVisible && !folded;
-  // What the map shows as selected: the middle card on phones (not while the
-  // row is folded or hidden), the clicked card on desktop.
+  // What the map shows as selected: the tapped card (on phones not while the row
+  // is folded or hidden). Its route loads right away.
   const selected = isWide || rowOpen ? focused : null;
   const selectedId = selected?.id ?? null;
-  const [routeId, setRouteId] = useState(null);
-
-  // Swiping through the row only loads the route of the card it rests on.
-  useEffect(() => {
-    if (!selectedId) {
-      setRouteId(null);
-      return undefined;
-    }
-
-    if (isWide) {
-      setRouteId(selectedId);
-      return undefined;
-    }
-
-    const timer = setTimeout(() => setRouteId(selectedId), ROUTE_DWELL_MS);
-    return () => clearTimeout(timer);
-  }, [isWide, selectedId]);
-
-  const routeState = useBannerRoute(routeId && routeId === selectedId ? routeId : null);
-  const route = routeId === selectedId ? (routeState.data?.route ?? null) : null;
-  const routeStatus = selectedId && routeId === selectedId ? routeState.status : "idle";
+  const routeState = useBannerRoute(selectedId);
+  const route = selectedId ? (routeState.data?.route ?? null) : null;
+  const routeStatus = selectedId ? routeState.status : "idle";
 
   // Floating controls stay clear of the row.
   useLayoutEffect(() => {
@@ -456,21 +424,19 @@ export default function DiscoveryMap() {
     }));
   }, [map, matching, vm.zoom]);
 
-  const selectBanner = useCallback(
-    (id) => {
-      userPicked.current = true;
-      setMoreOpen(false);
-      setFolded(false);
-      setFocusId(id);
+  const selectBanner = (id) => {
+    setMoreOpen(false);
+    setFolded(false);
+    setFocusId(id);
 
-      if (pinned && !pinned.includes(id)) {
-        setPinned(null);
-      }
-    },
-    [pinned]
-  );
-  const selectRef = useRef(selectBanner);
-  selectRef.current = selectBanner;
+    if (pinned && !pinned.includes(id)) {
+      setPinned(null);
+    }
+  };
+  // A card or dot: selects its banner, or deselects it when it is the selected one.
+  const toggleRef = useRef(null);
+  toggleRef.current = (id) => (id === selectedId ? setFocusId(null) : selectBanner(id));
+  const toggleBanner = useCallback((id) => toggleRef.current(id), []);
 
   // Zoom in until the group splits; if zooming can't split it, its banners
   // become the row.
@@ -509,12 +475,9 @@ export default function DiscoveryMap() {
     showGroup(members);
   };
   const showGroup = (members) => {
-    const first = sortByDistance(members, center)[0];
-    userPicked.current = true;
     setPinned(members.map((banner) => banner.id));
     setMoreOpen(false);
     setFolded(false);
-    setFocusId(first?.id ?? null);
   };
   const openClusterRef = useRef(openCluster);
   openClusterRef.current = openCluster;
@@ -545,7 +508,7 @@ export default function DiscoveryMap() {
             key={banner.id}
             position={[banner._latitude, banner._longitude]}
             icon={statusDotIcon(banner._status)}
-            eventHandlers={{ click: () => selectRef.current(banner.id) }}
+            eventHandlers={{ click: () => toggleBanner(banner.id) }}
           >
             {isWide ? (
               <Tooltip direction="top" offset={[0, -10]}>
@@ -555,7 +518,7 @@ export default function DiscoveryMap() {
           </Marker>
         );
       }),
-    [clusters, isWide]
+    [clusters, isWide, toggleBanner]
   );
   const hovered = isWide && hoverId && hoverId !== selectedId ? byId.get(hoverId) : null;
   const rowProps = {
@@ -563,7 +526,7 @@ export default function DiscoveryMap() {
     moreCount: row.moreCount,
     count: rowList.length,
     focusId,
-    onFocus: selectBanner,
+    onToggle: toggleBanner,
     onMore: () => setMoreOpen(true),
     inGroup,
     onExitGroup: () => setPinned(null),
@@ -576,10 +539,7 @@ export default function DiscoveryMap() {
         vm={vm}
         onMapClick={() => {
           setMoreOpen(false);
-
-          if (isWide) {
-            setFocusId(null);
-          }
+          setFocusId(null);
         }}
       >
         {markers}

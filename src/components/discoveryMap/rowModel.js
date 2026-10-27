@@ -62,13 +62,3 @@ export function buildRow(sorted, focusId, { limit = ROW_LIMIT, cap = ROW_CAP } =
 
   return { items, moreCount: sorted.length - items.length };
 }
-
-// After the list changes: keep the focus while that banner is still listed,
-// otherwise move it to the first (nearest) one.
-export function keepFocus(focusId, list) {
-  if (focusId && list.some((banner) => banner.id === focusId)) {
-    return focusId;
-  }
-
-  return list[0]?.id ?? null;
-}

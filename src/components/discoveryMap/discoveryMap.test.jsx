@@ -3,7 +3,7 @@ import { MemoryRouter, Route, Routes, useParams } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import DiscoveryMap from "./DiscoveryMap";
 import { useBannerRoute } from "./bannerRoute";
-import { buildRow, keepFocus, sortByDistance } from "./rowModel";
+import { buildRow, sortByDistance } from "./rowModel";
 import {
   MAP_FILTERS_STORAGE_KEY,
   applyMapFilters,
@@ -181,14 +181,6 @@ describe("banners in view row (helpers)", () => {
     expect(withFar.items.map((item) => item.id).slice(-1)).toEqual(["b44"]);
     expect(withFar.moreCount).toBe(14);
   });
-
-  test("keeps the focus while listed, else the nearest", () => {
-    const list = [banner("a", 0, 0), banner("b", 0, 0)];
-    expect(keepFocus("b", list)).toBe("b");
-    expect(keepFocus("gone", list)).toBe("a");
-    expect(keepFocus(null, list)).toBe("a");
-    expect(keepFocus("a", [])).toBeNull();
-  });
 });
 
 describe("banners in view row (phone)", () => {
@@ -243,15 +235,17 @@ describe("banners in view row (phone)", () => {
   const card = (title) => cards().find((item) => item.querySelector(".mv-rc-title").textContent === title);
   const current = () =>
     cards()
-      .find((item) => item.getAttribute("aria-current") === "true")
+      .find((item) => item.getAttribute("aria-pressed") === "true")
       ?.querySelector(".mv-rc-title").textContent;
+  const routeFor = () => useBannerRoute.mock.lastCall?.[0] ?? null;
+  const dotIcons = (position) => screen.getAllByTestId(`marker-${position}`).map((marker) => marker.dataset.icon);
 
   beforeEach(() => {
     window.localStorage.setItem(MAP_FILTERS_STORAGE_KEY, JSON.stringify({ status: "all" }));
     useBannerRoute.mockClear();
   });
 
-  test("lists the banners in view nearest first, focuses the nearest and loads its route after a dwell", async () => {
+  test("lists the banners in view nearest first; nothing is selected and no route is shown", () => {
     setVm(
       [mapBanner("far", 52.008, 6), mapBanner("near", 52.001, 6), mapBanner("out", 53, 6), mapBanner("mid", 52.004, 6)],
       area(52, 6)
@@ -260,56 +254,65 @@ describe("banners in view row (phone)", () => {
 
     expect(cardTitles()).toEqual(["near", "mid", "far"]);
     expect(screen.getByText("3 banners here")).toBeInTheDocument();
-    expect(screen.queryByText(/tap one for its route/)).not.toBeInTheDocument();
-    expect(current()).toBe("near");
-    expect(useBannerRoute).not.toHaveBeenCalledWith("near");
-    await waitFor(() => expect(useBannerRoute).toHaveBeenCalledWith("near"), { timeout: 1500 });
-    // The focused banner's dot is drawn enlarged on top of the plain one.
-    expect(screen.getAllByTestId("marker-52.001,6").map((marker) => marker.dataset.icon)).toEqual([
-      "mv-dot",
-      "mv-dot sel",
-    ]);
+    expect(current()).toBeUndefined();
+    expect(cards().every((item) => item.getAttribute("aria-pressed") === "false")).toBe(true);
+    expect(useBannerRoute).toHaveBeenCalled();
+    expect(useBannerRoute.mock.calls.every(([id]) => id === null)).toBe(true);
+    expect(dotIcons("52.001,6")).toEqual(["mv-dot"]);
   });
 
-  test("until the user picks one, the nearest card stays selected as the map moves", () => {
+  test("tapping a card selects it and loads its route at once; tapping it again deselects it", () => {
     setVm([mapBanner("a", 52.001, 6), mapBanner("b", 52.004, 6), mapBanner("c", 52.008, 6)], area(52, 6));
-    const { rerender } = render(ui());
-    expect(current()).toBe("a");
-
-    setVm(vm.banners, area(52.009, 6));
-    rerender(ui());
-    expect(cardTitles()).toEqual(["c", "b", "a"]);
-    expect(current()).toBe("c");
-  });
-
-  test("tapping a card focuses it, tapping it again keeps it focused (no navigation); focus survives a re-sort", () => {
-    setVm([mapBanner("a", 52.001, 6), mapBanner("b", 52.004, 6), mapBanner("c", 52.008, 6)], area(52, 6));
-    const { rerender } = render(ui());
+    render(ui());
 
     expect(card("c")).not.toHaveAttribute("href");
     fireEvent.click(card("c"));
     expect(current()).toBe("c");
-    fireEvent.click(card("c"));
-    expect(current()).toBe("c");
+    expect(routeFor()).toBe("c");
+    // The selected banner's dot is drawn enlarged on top of the plain one.
+    expect(dotIcons("52.008,6")).toEqual(["mv-dot", "mv-dot sel"]);
 
-    // The map moved north: the order flips but c stays focused.
+    fireEvent.click(card("c"));
+    expect(current()).toBeUndefined();
+    expect(routeFor()).toBeNull();
+    expect(dotIcons("52.008,6")).toEqual(["mv-dot"]);
+
+    // Another card switches the selection.
+    fireEvent.click(card("a"));
+    fireEvent.click(card("b"));
+    expect(current()).toBe("b");
+    expect(routeFor()).toBe("b");
+  });
+
+  test("moving the map selects nothing, keeps a selection while it is listed and drops it when it leaves", () => {
+    setVm([mapBanner("a", 52.001, 6), mapBanner("b", 52.004, 6), mapBanner("c", 52.008, 6)], area(52, 6));
+    const { rerender } = render(ui());
+
+    // A re-sort selects nothing.
     setVm(vm.banners, area(52.009, 6));
     rerender(ui());
     expect(cardTitles()).toEqual(["c", "b", "a"]);
-    expect(current()).toBe("c");
+    expect(current()).toBeUndefined();
 
-    // c left the view: the nearest one takes over.
+    fireEvent.click(card("b"));
+    setVm(vm.banners, area(52, 6));
+    rerender(ui());
+    expect(cardTitles()).toEqual(["a", "b", "c"]);
+    expect(current()).toBe("b");
+    expect(routeFor()).toBe("b");
+
+    // b left the view: deselected, its route is gone, nothing else selected.
     setVm(vm.banners, area(51.995, 6, 0.007));
     rerender(ui());
     expect(cardTitles()).toEqual(["a"]);
-    expect(current()).toBe("a");
+    expect(current()).toBeUndefined();
+    expect(routeFor()).toBeNull();
   });
 
-  test("tapping the selected card doesn't open the banner; its Details button does", () => {
+  test("tapping a card doesn't open the banner; its Details button does", () => {
     setVm([mapBanner("a", 52.001, 6), mapBanner("b", 52.004, 6)], area(52, 6));
     render(routedUi());
 
-    expect(current()).toBe("a");
     fireEvent.click(card("a"));
     fireEvent.keyDown(card("a"), { key: "Enter" });
     expect(screen.queryByText(/banner page/)).not.toBeInTheDocument();
@@ -324,7 +327,7 @@ describe("banners in view row (phone)", () => {
     expect(screen.getByText("banner page b")).toBeInTheDocument();
   });
 
-  test("the Details button doesn't select its card", () => {
+  test("the Details button doesn't toggle the selection", () => {
     setVm([mapBanner("a", 52.001, 6), mapBanner("b", 52.004, 6)], area(52, 6));
     render(ui());
     // Keep the page (React Router skips a click whose default was prevented).
@@ -333,18 +336,27 @@ describe("banners in view row (phone)", () => {
 
     try {
       fireEvent.click(screen.getByRole("link", { name: "Details for b" }));
+      expect(current()).toBeUndefined();
+      fireEvent.click(card("a"));
+      fireEvent.click(screen.getByRole("link", { name: "Details for a" }));
       expect(current()).toBe("a");
+      expect(routeFor()).toBe("a");
     } finally {
       window.removeEventListener("click", stay, true);
     }
   });
 
-  test("tapping a dot focuses its card", () => {
+  test("tapping a dot selects its card; tapping it again deselects it", () => {
     setVm([mapBanner("a", 52.001, 6), mapBanner("b", 52.004, 6)], area(52, 6));
     render(ui());
 
     fireEvent.click(screen.getByTestId("marker-52.004,6"));
     expect(current()).toBe("b");
+    expect(routeFor()).toBe("b");
+
+    fireEvent.click(screen.getAllByTestId("marker-52.004,6")[0]);
+    expect(current()).toBeUndefined();
+    expect(routeFor()).toBeNull();
   });
 
   test("more than 40 in view: 30 cards and a more card that opens the full list", () => {
@@ -381,7 +393,7 @@ describe("banners in view row (phone)", () => {
     fireEvent.click(screen.getByRole("button", { name: "2 banners" }));
     expect(map.flyTo).not.toHaveBeenCalled();
     expect(cardTitles()).toEqual(["x", "y"]);
-    expect(current()).toBe("x");
+    expect(current()).toBeUndefined();
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Show all in view" }));
@@ -452,14 +464,11 @@ describe("banners in view row (phone)", () => {
       scroller().scrollLeft = left;
       fireEvent.scroll(scroller());
     };
-    // A swipe: finger down, the row scrolls to left, finger up, momentum ends.
-    const swipeTo = (left, { scrollend = true } = {}) => {
+    // A swipe: finger down, the row scrolls to left, finger up.
+    const swipeTo = (left) => {
       fireEvent.touchStart(scroller(), finger(300));
       scrollRowTo(left);
       fireEvent.touchEnd(scroller(), lift(200));
-      if (scrollend) {
-        fireEvent(scroller(), new Event("scrollend"));
-      }
     };
     const fourBanners = () => [
       mapBanner("a", 52.001, 6),
@@ -468,46 +477,30 @@ describe("banners in view row (phone)", () => {
       mapBanner("d", 52.008, 6),
     ];
 
-    test("free scroll: a pause mid-drag selects nothing; the card nearest the middle is selected where the row stops, and the row stays put", () => {
+    test("scrolling never selects anything and the row stays where it stops", () => {
       setVm(fourBanners(), area(52, 6));
       render(ui());
-      expect(current()).toBe("a");
 
       fireEvent.touchStart(scroller(), finger(300));
-      // Released mid-card: the middle (185) is on b.
       scrollRowTo(60);
-      // The finger rests for a while: the row must not take over.
       act(() => vi.advanceTimersByTime(1000));
-      expect(current()).toBe("a");
-
       fireEvent.touchEnd(scroller(), lift(200));
-      act(() => vi.advanceTimersByTime(200));
-      expect(current()).toBe("b");
-      expect(scrollTo).not.toHaveBeenCalled();
+      act(() => vi.advanceTimersByTime(1000));
+      expect(current()).toBeUndefined();
       expect(scroller().scrollLeft).toBe(60);
 
-      // Momentum ending mid-card (middle 225 is on c): selected, not snapped.
+      // Momentum ending mid-card, at the end, back at the start: still nothing.
       swipeTo(100);
-      expect(current()).toBe("c");
-      expect(scroller().scrollLeft).toBe(100);
       act(() => vi.advanceTimersByTime(1000));
-      expect(scrollTo).not.toHaveBeenCalled();
-      expect(scroller().scrollLeft).toBe(100);
-    });
-
-    test("at the end of the row the last card is selected, at the start the first", () => {
-      setVm(fourBanners(), area(52, 6));
-      render(ui());
-
-      // Fully scrolled (424 - 250): the middle is on c, but d can't come further.
       swipeTo(174);
-      expect(current()).toBe("d");
-
-      // Back at the start: the middle is on b, but a is the one at the start.
-      swipeTo(0, { scrollend: false });
-      act(() => vi.advanceTimersByTime(200));
-      expect(current()).toBe("a");
+      act(() => vi.advanceTimersByTime(1000));
+      expect(current()).toBeUndefined();
+      expect(scroller().scrollLeft).toBe(174);
+      swipeTo(0);
+      act(() => vi.advanceTimersByTime(1000));
+      expect(current()).toBeUndefined();
       expect(scrollTo).not.toHaveBeenCalled();
+      expect(useBannerRoute.mock.calls.every(([id]) => id === null)).toBe(true);
     });
 
     test("a dot or a half-hidden card scrolls just into view; a visible card or a tap without scrolling doesn't scroll", () => {
@@ -520,12 +513,17 @@ describe("banners in view row (phone)", () => {
       expect(scrollTo).toHaveBeenLastCalledWith({ left: 74, behavior: "smooth" });
       scrollTo.mockClear();
 
-      // b is fully visible: selected without scrolling; the touch selects nothing else.
+      // b is fully visible: selected without scrolling.
       fireEvent.touchStart(scroller(), finger(150));
       fireEvent.touchEnd(scroller(), lift(150));
       fireEvent.click(card("b"));
       act(() => vi.advanceTimersByTime(1000));
       expect(current()).toBe("b");
+      expect(scrollTo).not.toHaveBeenCalled();
+
+      // Deselecting doesn't scroll either.
+      fireEvent.click(card("b"));
+      expect(current()).toBeUndefined();
       expect(scrollTo).not.toHaveBeenCalled();
 
       // a (12–112) is cut off on the left.
@@ -558,6 +556,56 @@ describe("banners in view row (phone)", () => {
       expect(current()).toBe("c");
       expect(scrollTo).toHaveBeenCalledTimes(1);
       expect(scrollTo).toHaveBeenLastCalledWith({ left: 0, behavior: "instant" });
+    });
+
+    test("a re-sort without a selection puts the row back at its start", () => {
+      setVm([mapBanner("a", 52.001, 6), mapBanner("b", 52.004, 6), mapBanner("c", 52.008, 6)], area(52, 6));
+      const { rerender } = render(ui());
+
+      swipeTo(74);
+      act(() => vi.advanceTimersByTime(1000));
+      setVm(vm.banners, area(52.009, 6));
+      rerender(ui());
+      expect(cardTitles()).toEqual(["c", "b", "a"]);
+      expect(current()).toBeUndefined();
+      expect(scrollTo).toHaveBeenLastCalledWith({ left: 0, behavior: "instant" });
+    });
+  });
+
+  describe("desktop side list", () => {
+    beforeEach(() => {
+      window.matchMedia = (query) => ({
+        matches: query === "(min-width: 840px)",
+        addEventListener: () => {},
+        removeEventListener: () => {},
+      });
+    });
+
+    afterEach(() => {
+      delete window.matchMedia;
+    });
+
+    test("click toggles the selection; arrow keys only move focus", () => {
+      setVm([mapBanner("a", 52.001, 6), mapBanner("b", 52.004, 6)], area(52, 6));
+      render(ui());
+
+      expect(document.querySelector(".mv-side")).not.toBeNull();
+      expect(current()).toBeUndefined();
+      expect(routeFor()).toBeNull();
+
+      act(() => card("a").focus());
+      act(() => {
+        fireEvent.keyDown(card("a"), { key: "ArrowDown" });
+      });
+      expect(document.activeElement).toBe(card("b"));
+      expect(current()).toBeUndefined();
+
+      fireEvent.click(card("b"));
+      expect(current()).toBe("b");
+      expect(routeFor()).toBe("b");
+      fireEvent.click(card("b"));
+      expect(current()).toBeUndefined();
+      expect(routeFor()).toBeNull();
     });
   });
 

@@ -41,25 +41,31 @@ export async function loadBannerRoute(bannerId) {
   return routeCache.get(bannerId);
 }
 
+// The route of bannerId; answers for a banner that is no longer asked for are
+// ignored, and an earlier banner's state is never returned for a new one.
 export function useBannerRoute(bannerId) {
-  const [state, setState] = useState({ status: "idle", data: null });
+  const [state, setState] = useState({ id: null, status: "idle", data: null });
 
   useEffect(() => {
     if (!bannerId) {
-      setState({ status: "idle", data: null });
+      setState({ id: null, status: "idle", data: null });
       return undefined;
     }
 
     let ignore = false;
-    setState({ status: "loading", data: null });
+    setState({ id: bannerId, status: "loading", data: null });
     loadBannerRoute(bannerId)
-      .then((data) => !ignore && setState({ status: "ready", data }))
-      .catch(() => !ignore && setState({ status: "error", data: null }));
+      .then((data) => !ignore && setState({ id: bannerId, status: "ready", data }))
+      .catch(() => !ignore && setState({ id: bannerId, status: "error", data: null }));
 
     return () => {
       ignore = true;
     };
   }, [bannerId]);
 
-  return state;
+  if (state.id !== bannerId) {
+    return { status: bannerId ? "loading" : "idle", data: null };
+  }
+
+  return { status: state.status, data: state.data };
 }

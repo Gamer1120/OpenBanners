@@ -3932,9 +3932,12 @@ test("discovery map filters banners and lists those in view, with the route of t
   expect(within(filteredRow).getByText("1 banner here")).toBeInTheDocument();
   expect(screen.queryByText("Long Map Banner")).not.toBeInTheDocument();
 
+  // Nothing is selected until a card or dot is tapped.
+  expect(within(filteredRow).queryByRole("button", { pressed: true })).not.toBeInTheDocument();
+  expect(screen.queryByText("Finish · End")).not.toBeInTheDocument();
   fireEvent.click(screen.getAllByTestId("marker-52.22-6.89")[0]);
 
-  const card = within(filteredRow).getByRole("button", { current: true });
+  const card = within(filteredRow).getByRole("button", { pressed: true });
   expect(within(card).getByText("Short Map Banner")).toBeInTheDocument();
   expect(within(card).getByText(/30 missions/)).toBeInTheDocument();
   expect(within(filteredRow).getByRole("link", { name: "Details for Short Map Banner" })).toHaveAttribute(

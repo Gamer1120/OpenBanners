@@ -1,6 +1,6 @@
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
-import { beforeEach, describe, expect, test, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import DiscoveryMap from "./DiscoveryMap";
 import { useBannerRoute } from "./bannerRoute";
 import { buildRow, keepFocus, sortByDistance } from "./rowModel";
@@ -351,6 +351,112 @@ describe("banners in view row (phone)", () => {
     render(ui());
     fireEvent.click(screen.getByRole("button", { name: "Show the list" }));
     expect(cardTitles()).toEqual(["a", "b"]);
+  });
+
+  describe("swiping", () => {
+    // Layout for jsdom: the row is 100 px wide, each card 100 px at its index.
+    const restore = [];
+    const stub = (proto, name, get) => {
+      restore.push([proto, name, Object.getOwnPropertyDescriptor(proto, name)]);
+      Object.defineProperty(proto, name, { configurable: true, get });
+    };
+    const isCard = (element) => element.classList.contains("mv-rc-item");
+    let scrollTo;
+
+    beforeEach(() => {
+      vi.useFakeTimers();
+      stub(HTMLElement.prototype, "offsetLeft", function () {
+        return isCard(this) ? [...this.parentNode.children].indexOf(this) * 100 : 0;
+      });
+      stub(HTMLElement.prototype, "offsetWidth", function () {
+        return isCard(this) ? 100 : 0;
+      });
+      stub(Element.prototype, "clientWidth", function () {
+        return this.classList.contains("mv-row-scroll") ? 100 : 0;
+      });
+      scrollTo = vi.fn(function ({ left }) {
+        this.scrollLeft = left;
+      });
+      Element.prototype.scrollTo = scrollTo;
+    });
+
+    afterEach(() => {
+      vi.useRealTimers();
+      delete Element.prototype.scrollTo;
+      for (const [proto, name, descriptor] of restore.splice(0).reverse()) {
+        if (descriptor) {
+          Object.defineProperty(proto, name, descriptor);
+        } else {
+          delete proto[name];
+        }
+      }
+    });
+
+    const scroller = () => document.querySelector(".mv-row-scroll");
+    const finger = (x) => ({ touches: [{ clientX: x, clientY: 800 }], changedTouches: [{ clientX: x, clientY: 800 }] });
+    const lift = (x) => ({ touches: [], changedTouches: [{ clientX: x, clientY: 800 }] });
+    const scrollRowTo = (left) => {
+      scroller().scrollLeft = left;
+      fireEvent.scroll(scroller());
+    };
+
+    test("a pause mid-drag selects nothing; resting on a card selects it without scrolling the row", () => {
+      setVm([mapBanner("a", 52.001, 6), mapBanner("b", 52.004, 6), mapBanner("c", 52.008, 6)], area(52, 6));
+      render(ui());
+      expect(current()).toBe("a");
+
+      fireEvent.touchStart(scroller(), finger(300));
+      scrollRowTo(100);
+      // The finger rests on b for a while: the row must not take over.
+      act(() => vi.advanceTimersByTime(1000));
+      expect(current()).toBe("a");
+
+      fireEvent.touchEnd(scroller(), lift(200));
+      act(() => vi.advanceTimersByTime(200));
+      expect(current()).toBe("b");
+      expect(scrollTo).not.toHaveBeenCalled();
+      expect(scroller().scrollLeft).toBe(100);
+
+      // scrollend settles at once.
+      fireEvent.touchStart(scroller(), finger(300));
+      scrollRowTo(200);
+      fireEvent.touchEnd(scroller(), lift(200));
+      fireEvent(scroller(), new Event("scrollend"));
+      expect(current()).toBe("c");
+      expect(scrollTo).not.toHaveBeenCalled();
+
+      // A dot still brings its card to the middle, smoothly.
+      fireEvent.click(screen.getByTestId("marker-52.001,6"));
+      expect(current()).toBe("a");
+      expect(scrollTo).toHaveBeenLastCalledWith({ left: 0, behavior: "smooth" });
+    });
+
+    test("keeps the card order while the row is touched, then re-sorts around the selected card", () => {
+      setVm([mapBanner("a", 52.001, 6), mapBanner("b", 52.004, 6), mapBanner("c", 52.008, 6)], area(52, 6));
+      const { rerender } = render(ui());
+      const link = (title) => screen.getAllByRole("link").find((item) => item.textContent.includes(title));
+
+      fireEvent.click(link("c"));
+      expect(scrollTo).toHaveBeenLastCalledWith({ left: 200, behavior: "smooth" });
+      scrollTo.mockClear();
+
+      fireEvent.touchStart(scroller(), finger(200));
+      // More banners loaded / the map moved: the order flips under the finger.
+      setVm(vm.banners, area(52.009, 6));
+      rerender(ui());
+      expect(cardTitles()).toEqual(["a", "b", "c"]);
+      expect(current()).toBe("c");
+      act(() => vi.advanceTimersByTime(1000));
+      expect(cardTitles()).toEqual(["a", "b", "c"]);
+      expect(scrollTo).not.toHaveBeenCalled();
+
+      fireEvent.touchEnd(scroller(), lift(200));
+      act(() => vi.advanceTimersByTime(1000));
+      expect(cardTitles()).toEqual(["c", "b", "a"]);
+      expect(current()).toBe("c");
+      expect(scrollTo).toHaveBeenCalledTimes(1);
+      expect(scrollTo).toHaveBeenLastCalledWith({ left: 0, behavior: "instant" });
+    });
   });
 
   test("hidden when nothing matches in view", () => {

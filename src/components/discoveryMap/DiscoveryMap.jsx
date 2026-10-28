@@ -77,6 +77,8 @@ function CustomDistance({ filters, onChange }) {
 }
 // Room the filter chips take at the top when fitting the map.
 const FILTERBAR_SPACE = 56;
+// Room the desktop list takes on the right (.mv-side: 340 px wide, 12 px from the edge).
+const SIDE_LIST_SPACE = 352;
 // The row sits this far above the bottom edge (clear of the OSM attribution).
 const ROW_BOTTOM = 18;
 const ROW_FOLDED_STORAGE_KEY = "openbanners.mapRowFolded";
@@ -447,7 +449,8 @@ export default function DiscoveryMap() {
 
     const bounds = L.latLngBounds(members.map((banner) => [banner._latitude, banner._longitude]));
     const padTopLeft = L.point(40, FILTERBAR_SPACE + 30);
-    const padBottomRight = L.point(40, controlsBottom + 40);
+    // On desktop the list covers the right of the map: fit the group beside it.
+    const padBottomRight = L.point(40 + (isWide && rowList.length ? SIDE_LIST_SPACE : 0), controlsBottom + 40);
     const maxZoom = map.getMaxZoom?.() ?? 18;
     const fitZoom = Math.min(map.getBoundsZoom(bounds, false, padTopLeft.add(padBottomRight)), maxZoom);
     const splitsAt = (zoomLevel) =>
@@ -467,7 +470,10 @@ export default function DiscoveryMap() {
     // Find the first zoom level where the group splits; otherwise list the group.
     for (let zoomLevel = map.getZoom() + 1; zoomLevel <= maxZoom; zoomLevel += 1) {
       if (splitsAt(zoomLevel)) {
-        map.flyTo(bounds.getCenter(), zoomLevel, { duration: 0.5 });
+        // Centre the group in the uncovered part of the map.
+        const offset = padBottomRight.subtract(padTopLeft).divideBy(2);
+        const target = map.unproject(map.project(bounds.getCenter(), zoomLevel).add(offset), zoomLevel);
+        map.flyTo(target, zoomLevel, { duration: 0.5 });
         return;
       }
     }
@@ -534,7 +540,7 @@ export default function DiscoveryMap() {
   };
 
   return (
-    <div className={`mv-root${isWide ? " wide" : ""}`}>
+    <div className={`mv-root${isWide ? " wide" : ""}${L.Browser.mobile ? "" : " zoomctl"}`}>
       <DiscoveryBaseMap
         vm={vm}
         onMapClick={() => {

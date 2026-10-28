@@ -693,16 +693,27 @@
   padding: 4px 10px;
   overflow-x: auto;
   scrollbar-width: none;
+  /* Only the chips take the pointer: the empty rest of the strip is map
+     (wheel zoom, drag, click). */
+  pointer-events: none;
+}
+
+.mv-filterbar > * {
+  pointer-events: auto;
 }
 
 .mv-filterbar::-webkit-scrollbar {
   display: none;
 }
 
+/* Clear of Leaflet's +/- buttons (shown off L.Browser.mobile, at any width). */
+.mv-root.zoomctl .mv-filterbar {
+  left: 50px;
+}
+
 @media (min-width: 900px) {
   .mv-filterbar {
     top: 10px;
-    left: 50px;
   }
 }
 

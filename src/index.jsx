@@ -5,6 +5,7 @@ import { createRoot } from "react-dom/client";
 import "./index.css";
 import "leaflet/dist/leaflet.css";
 import "./mapWheelZoom";
+import "./mapZoomPress";
 import "./m3.css";
 import { useThemeMode } from "./themeMode";
 import App from "./App";

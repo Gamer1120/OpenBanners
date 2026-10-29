@@ -15,8 +15,9 @@ import { t, tk, tn } from "../../i18n";
 import { formatMinutes, walkingMinutes } from "./mapMath";
 import { StatusChip } from "./shared";
 
-// Card thumbnail: 84 wide, at most 84 × 74; taller banners pan.
-const THUMB_ASPECT = 84 / 74;
+// Card thumbnail: 100 wide (84 on cards under 280 px), at most 100 × 74;
+// taller banners pan.
+const THUMB_ASPECT = 100 / 74;
 // Desktop list: the picture spans the card, whole up to 4 rows of missions
 // (6 × 4 tiles); taller banners pan.
 const STACK_ASPECT = 6 / 4;
@@ -24,8 +25,8 @@ const STACK_ASPECT = 6 / 4;
 const THAW_MS = 400;
 const FOLD_SWIPE_PX = 48;
 
-// To do / Done / Hide toggles on the desktop cards (same Bannergress call and
-// icons as the Browse list rows and the banner page).
+// To do / Done / Hide toggles on the desktop cards and on wide row cards (same
+// Bannergress call and icons as the Browse list rows and the banner page).
 const LIST_ACTIONS = [
   { listType: "todo", label: tk("To do"), icon: BookmarkBorder, activeIcon: Bookmark },
   { listType: "done", label: tk("Done"), icon: CheckCircleOutline, activeIcon: CheckCircle },
@@ -110,10 +111,14 @@ function prefersReducedMotion() {
 // a one-line title, then the stats beside the To do / Done / Hide toggles and
 // the Details button (the lit toggle replaces the status chip). Toggles and
 // Details sit over the card's bottom-right corner like the phone's Details.
+//
+// Row cards (phone/foldable) carry the same toggles, but CSS shows them only when
+// the card itself is at least 340 px wide (container query on .mv-rc-item, e.g. a
+// foldable's inner screen); narrower cards keep the status chip + Details.
 const RowCard = memo(function RowCard({ banner, selected, onToggle, onHover, onKeyDown, itemRef, stacked = false }) {
   const missions = Number(banner.numberOfMissions);
   const minutes = walkingMinutes(banner.lengthMeters);
-  const withLists = stacked && isBannergressAuthSupportedOrigin();
+  const withLists = isBannergressAuthSupportedOrigin();
   const lists = useListToggle(banner);
   const stats = withLists && lists.error ? (
     <span className="mv-rc-stats mv-rc-err" role="status">
@@ -153,6 +158,23 @@ const RowCard = memo(function RowCard({ banner, selected, onToggle, onHover, onK
     </Link>
   );
 
+  // Invisible copy of the overlaid buttons in the foot row, keeping its
+  // content clear of them.
+  const detailsSpace = withLists ? (
+    <span className="mv-rc-tools mv-rc-tools-space" aria-hidden="true">
+      <span className="mv-rc-acts">
+        {LIST_ACTIONS.map((action) => (
+          <span key={action.listType} className="mv-rc-act" />
+        ))}
+      </span>
+      <span className="mv-rc-details">{details}</span>
+    </span>
+  ) : (
+    <span className="mv-rc-details mv-rc-details-space" aria-hidden="true">
+      {details}
+    </span>
+  );
+
   const hover = onHover
     ? {
         onMouseEnter: () => onHover(banner.id),
@@ -182,20 +204,7 @@ const RowCard = memo(function RowCard({ banner, selected, onToggle, onHover, onK
             </span>
             <span className="mv-rc-foot">
               {stats}
-              {withLists ? (
-                <span className="mv-rc-tools mv-rc-tools-space" aria-hidden="true">
-                  <span className="mv-rc-acts">
-                    {LIST_ACTIONS.map((action) => (
-                      <span key={action.listType} className="mv-rc-act" />
-                    ))}
-                  </span>
-                  <span className="mv-rc-details">{details}</span>
-                </span>
-              ) : (
-                <span className="mv-rc-details mv-rc-details-space" aria-hidden="true">
-                  {details}
-                </span>
-              )}
+              {detailsSpace}
             </span>
           </span>
         ) : (
@@ -206,9 +215,7 @@ const RowCard = memo(function RowCard({ banner, selected, onToggle, onHover, onK
             </span>
             <span className="mv-rc-foot">
               <StatusChip status={banner._status} />
-              <span className="mv-rc-details mv-rc-details-space" aria-hidden="true">
-                {details}
-              </span>
+              {detailsSpace}
             </span>
           </span>
         )}

@@ -649,6 +649,32 @@ describe("banners in view row (phone)", () => {
     });
   });
 
+  test("row cards carry the same To do / Done / Hide toggles (shown by CSS on wide cards) without selecting", async () => {
+    updateBannergressBannerListType.mockClear();
+    setVm([mapBanner("a", 52.001, 6), { ...mapBanner("b", 52.004, 6), _status: "todo", _listType: "todo" }], area(52, 6));
+    render(ui());
+
+    expect(document.querySelector(".mv-side")).toBeNull();
+    // jsdom has no container queries: the cards count as narrow, toggles hidden.
+    expect(screen.queryByRole("button", { name: "To do: b" })).toBeNull();
+    const toggle = (label, title) => screen.getByRole("button", { name: `${label}: ${title}`, hidden: true });
+    expect(toggle("To do", "b")).toHaveAttribute("aria-pressed", "true");
+    expect(toggle("Done", "a")).toHaveAttribute("aria-pressed", "false");
+    // Narrow cards still show the status chip (CSS hides it on wide ones).
+    expect(card("b").querySelector(".mv-chip")).not.toBeNull();
+    expect(screen.getByRole("link", { name: "Details for a" })).toBeInTheDocument();
+
+    fireEvent.click(toggle("Done", "a"));
+    await waitFor(() =>
+      expect(updateBannergressBannerListType).toHaveBeenCalledWith("a", "done", { keepHiddenVisible: false })
+    );
+    fireEvent.click(toggle("Hide", "b"));
+    await waitFor(() =>
+      expect(updateBannergressBannerListType).toHaveBeenLastCalledWith("b", "blacklist", { keepHiddenVisible: true })
+    );
+    expect(current()).toBeUndefined();
+  });
+
   test("hidden when nothing matches in view", () => {
     setVm([mapBanner("out", 53, 6)], area(52, 6));
     render(ui());

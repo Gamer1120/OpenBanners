@@ -418,11 +418,13 @@
   display: none;
 }
 
-/* ~78% of the row (at most 360px), so the next cards show: it reads as a list. */
+/* ~78% of the row (at most 376px), so the next cards show: it reads as a list.
+   Each card is a size container: its own width decides the layout below. */
 .mv-row-scroll .mv-rc-item {
   flex: 0 0 78%;
-  max-width: 360px;
+  max-width: 376px;
   contain: layout style;
+  container-type: inline-size;
 }
 
 .mv-row-scroll .mv-rc {
@@ -465,9 +467,9 @@
   outline-offset: 2px;
 }
 
-/* <BannerImage minAspect>: at most 84 × 74, tall banners pan */
+/* <BannerImage minAspect>: at most 100 × 74, tall banners pan */
 .mv-rc-thumb {
-  flex: 0 0 84px;
+  flex: 0 0 100px;
   align-self: center;
   border-radius: 10px;
   background: #2a3138;
@@ -820,6 +822,35 @@
   border-color: #d85f5f;
   background: #431e1e;
   color: #f5a8a8;
+}
+
+/* Row cards (phone, foldable): the toggles only when the card is wide enough
+   for them beside Details (the lit one then replaces the status chip);
+   narrower cards keep the chip + Details. Very narrow cards keep the old
+   84px picture so the chip still fits. */
+.mv-row-scroll .mv-rc-tools {
+  right: 13px;
+  bottom: 4px;
+}
+
+.mv-row-scroll .mv-rc-acts {
+  display: none;
+}
+
+@container (min-width: 340px) {
+  .mv-row-scroll .mv-rc-acts {
+    display: flex;
+  }
+
+  .mv-row-scroll .mv-rc-foot .mv-chip {
+    display: none;
+  }
+}
+
+@container (max-width: 279.98px) {
+  .mv-row-scroll .mv-rc-thumb {
+    flex-basis: 84px;
+  }
 }
 
 .mv-rc-stats.mv-rc-err {

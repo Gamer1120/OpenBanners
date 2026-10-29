@@ -39,7 +39,7 @@ The test stack is Vitest, jsdom, and Testing Library, configured in `vite.config
 
 Local debugging with `yarn dev`, `yarn preview`, or focused tests is fine while developing. Always test changes on production as part of final verification after the GitHub Docker image workflow and Watchtower update have completed.
 
-For `/map`, discovery banner loading should render each fetched page immediately; do not wait for every page in the viewport before plotting markers. Loaded discovery pages should remain cached in memory until the browser page is refreshed.
+For `/map`, discovery banner loading should render each fetched page immediately; do not wait for every page in the viewport before plotting markers. Loaded discovery pages should remain cached in memory until the browser page is refreshed. The view in front of the user loads first (`src/discoveryMapData.js` page scheduler, 2026-10-29): the 3 request slots are taken per page, newest view first and centre tile first; tiles no view wants any more stop 400 ms after the view leaves them (open request aborted, queued pages dropped) and continue from their last page when needed again. Zoomed out, one tile can be hundreds of pages, so never go back to per-tile first-come-first-served slots.
 
 The `/map` marker toggle supports image markers and Bannergress-style dots; dot colors should continue to reflect the effective Bannergress list state.
 

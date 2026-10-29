@@ -2,10 +2,11 @@ import { renderHook, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("./bannergressSync", () => ({
-  fetchBannergress: (url) => globalThis.fetch(url),
+  fetchBannergress: (url, options) => globalThis.fetch(url, options),
 }));
 
 import {
+  comparePagePriority,
   resetDiscoveryMapData,
   tileBounds,
   tileLevelFor,
@@ -109,5 +110,93 @@ describe("discovery map tiles", () => {
     expect(result.current.loading).toBe(true);
     expect(result.current.hasMore).toBe(true);
     expect(result.current.banners.map((b) => b.id).sort()).toEqual(["a", "b"]);
+  });
+
+  it("orders waiting pages newest view first, then nearest the centre", () => {
+    const waiting = [
+      { name: "old-centre", generation: 1, distance: 0 },
+      { name: "new-edge", generation: 2, distance: 4 },
+      { name: "new-centre", generation: 2, distance: 1 },
+    ];
+    expect(waiting.sort(comparePagePriority).map((w) => w.name)).toEqual([
+      "new-centre",
+      "new-edge",
+      "old-centre",
+    ]);
+  });
+
+  it("zooming out and then in elsewhere loads the new view first and stops the old tiles", async () => {
+    // A zoomed-out area with endless full pages that are slow to answer, and
+    // a far-away area that answers at once.
+    const FAR = [banner("far", 40.42, -3.7)];
+    const requests = [];
+    globalThis.fetch = vi.fn((url, options) => {
+      const q = new URL(url).searchParams;
+      const far = Number(q.get("maxLatitude")) < 45;
+      requests.push({ far, offset: Number(q.get("offset")), signal: options?.signal });
+      if (far) {
+        return Promise.resolve({ json: async () => (Number(q.get("offset")) ? [] : FAR) });
+      }
+      return new Promise((resolve, reject) => {
+        options?.signal?.addEventListener("abort", () => reject(new DOMException("aborted", "AbortError")));
+        setTimeout(() => {
+          const page = Array.from({ length: 50 }, (_, i) =>
+            banner(`z${q.get("minLatitude")}:${q.get("minLongitude")}:${q.get("offset")}:${i}`, 52, 6)
+          );
+          resolve({ json: async () => page });
+        }, 150);
+      });
+    });
+
+    const { result, rerender } = renderHook(
+      ({ view }) => useDiscoveryMapBanners(view, null, filters),
+      { initialProps: { view: area(52, 6, 8) } } // zoomed out: big tiles
+    );
+    await waitFor(() => expect(requests.filter((r) => !r.far).length).toBeGreaterThanOrEqual(3));
+    expect(requests.filter((r) => !r.far).length).toBe(3); // at most 3 at a time
+
+    rerender({ view: area(40.42, -3.7, 0.05) }); // zoom in somewhere else
+    await waitFor(() => expect(result.current.banners.map((b) => b.id)).toEqual(["far"]));
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    // The old tiles' open requests get aborted and nothing more is asked for them.
+    await waitFor(() => expect(requests.some((r) => !r.far && r.signal?.aborted)).toBe(true));
+    const oldCount = requests.filter((r) => !r.far).length;
+    await new Promise((resolve) => setTimeout(resolve, 700));
+    expect(requests.filter((r) => !r.far).length).toBe(oldCount);
+  });
+
+  it("a tile stopped part-way continues from the next page when it is needed again", async () => {
+    const pages = [];
+    globalThis.fetch = vi.fn((url, options) => {
+      const q = new URL(url).searchParams;
+      const offset = Number(q.get("offset"));
+      pages.push(offset);
+      if (offset === 0) {
+        const page = Array.from({ length: 50 }, (_, i) => banner(`p${i}`, 52.22, 6.89));
+        return Promise.resolve({ json: async () => page });
+      }
+      // Later pages hang until aborted.
+      return new Promise((resolve, reject) => {
+        options?.signal?.addEventListener("abort", () => reject(new DOMException("aborted", "AbortError")));
+      });
+    });
+    const here = area(52.22, 6.89, 0.0001);
+    expect(tilesForArea(here)).toHaveLength(1);
+    const { result, rerender } = renderHook(
+      ({ view }) => useDiscoveryMapBanners(view, null, filters),
+      { initialProps: { view: here } }
+    );
+    await waitFor(() => expect(result.current.banners).toHaveLength(50));
+    await waitFor(() => expect(pages).toContain(50));
+
+    globalThis.fetch.mockClear();
+    pages.length = 0;
+    rerender({ view: null });
+    await new Promise((resolve) => setTimeout(resolve, 600)); // past the release grace
+    rerender({ view: here });
+    await waitFor(() => expect(pages.length).toBeGreaterThan(0));
+    expect(pages[0]).toBe(50); // not page one again
+    expect(result.current.banners).toHaveLength(50);
   });
 });

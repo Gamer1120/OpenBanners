@@ -87,53 +87,32 @@ export function buildDiscoveryMapUrl({
   return url.toString();
 }
 
-export async function fetchDiscoveryMapBanners({
+// One page of a /bnrs bounding-box query; null when the answer isn't a list.
+export async function fetchDiscoveryMapPage({
   visibleArea,
   originLatitude,
   originLongitude,
   showOfflineBanners,
   showHiddenBanners,
-  onPage,
+  offset,
+  signal,
 }) {
-  let offset = 0;
-  let allBanners = [];
-
-  while (true) {
-    const pageLimit = DISCOVERY_MAP_PAGE_SIZE;
-    const response = await fetchBannergress(
-      buildDiscoveryMapUrl({
-        visibleArea,
-        originLatitude,
-        originLongitude,
-        showOfflineBanners,
-        limit: pageLimit,
-        offset,
-      }),
-      {
-        authenticate: !showHiddenBanners,
-      }
-    );
-    const pageData = await response.json();
-
-    if (!Array.isArray(pageData)) {
-      return null;
+  const response = await fetchBannergress(
+    buildDiscoveryMapUrl({
+      visibleArea,
+      originLatitude,
+      originLongitude,
+      showOfflineBanners,
+      limit: DISCOVERY_MAP_PAGE_SIZE,
+      offset,
+    }),
+    {
+      authenticate: !showHiddenBanners,
+      signal,
     }
-
-    allBanners = [...allBanners, ...pageData];
-    onPage?.({
-      banners: allBanners,
-      hasMore: pageData.length === pageLimit,
-    });
-
-    if (pageData.length < pageLimit) {
-      return {
-        banners: allBanners,
-        hasMore: false,
-      };
-    }
-
-    offset += pageData.length;
-  }
+  );
+  const pageData = await response.json();
+  return Array.isArray(pageData) ? pageData : null;
 }
 
 export function normalizeFetchedBanners(data, originLatitude, originLongitude) {
@@ -201,8 +180,14 @@ export function calculateDistanceMeters(latitudeA, longitudeA, latitudeB, longit
 }
 
 export function resetDiscoveryMapData() {
+  for (const [key, load] of [...tileInflight]) {
+    stopTile(key, load);
+  }
   tileCache.clear();
   tileInflight.clear();
+  pageWaiters.splice(0).forEach((waiter) => waiter.resolve(null));
+  pageActive = 0;
+  pageEpoch += 1;
 }
 
 /* ---------- tiles ---------- */
@@ -211,13 +196,14 @@ const TILE_MIN_LEVEL = 1;
 const TILE_MAX_LEVEL = 18;
 // How many levels of smaller loaded tiles may stand in for a bigger one.
 const TILE_CHILD_DEPTH = 3;
-// Tiles fetched at the same time (each one pages on its own).
+// Pages fetched at the same time, over all tiles.
 const TILE_CONCURRENCY = 3;
+// A tile no view wants any more stops this long after the view left it
+// (longer than the view debounce, so a small pan doesn't restart it).
+const TILE_RELEASE_GRACE_MS = 400;
 
 const tileCache = new globalThis.Map();
 const tileInflight = new globalThis.Map();
-let tileActive = 0;
-const tileWaiters = [];
 
 function tileSize(level) {
   return 360 / 2 ** level;
@@ -338,56 +324,190 @@ export function knownTileBanners(tile, filterKey) {
   return found;
 }
 
-async function withTileSlot(run) {
-  if (tileActive >= TILE_CONCURRENCY) {
-    await new Promise((resolve) => tileWaiters.push(resolve));
+/* ---------- page scheduler ----------
+ * Zoomed out, one tile can hold thousands of banners (hundreds of pages of
+ * 50, fetched one after another). The slots used to be taken per tile and
+ * handed out first come, first served, so after zooming out and then in
+ * somewhere else the new view waited minutes behind the old tiles
+ * (2026-10-29, Michael). Now slots are taken per page and go to the newest
+ * view first, centre tile first; a tile no view wants any more stops (its
+ * open request is aborted, its queued pages dropped) and keeps the pages it
+ * already has, continuing from there when a view needs it again.
+ */
+let pageActive = 0;
+let pageEpoch = 0;
+let viewGeneration = 0;
+const pageWaiters = [];
+
+function tilePriority(load) {
+  let generation = -1;
+  let distance = Infinity;
+  for (const holder of load.holders.values()) {
+    const latScale = Math.cos((holder.centerLatitude * Math.PI) / 180);
+    const d =
+      (load.centerLatitude - holder.centerLatitude) ** 2 +
+      ((load.centerLongitude - holder.centerLongitude) * latScale) ** 2;
+    if (holder.generation > generation || (holder.generation === generation && d < distance)) {
+      generation = holder.generation;
+      distance = d;
+    }
   }
-  tileActive += 1;
-  try {
-    return await run();
-  } finally {
-    tileActive -= 1;
-    tileWaiters.shift()?.();
+  return { generation, distance };
+}
+
+// The order waiting pages get a slot in: newest view first, then nearest
+// to that view's centre.
+export function comparePagePriority(a, b) {
+  return b.generation - a.generation || a.distance - b.distance;
+}
+
+function drainPageWaiters() {
+  for (let index = pageWaiters.length - 1; index >= 0; index -= 1) {
+    if (pageWaiters[index].load.stopped) {
+      pageWaiters.splice(index, 1)[0].resolve(null);
+    }
+  }
+  while (pageActive < TILE_CONCURRENCY && pageWaiters.length) {
+    let best = 0;
+    let bestPriority = tilePriority(pageWaiters[0].load);
+    for (let index = 1; index < pageWaiters.length; index += 1) {
+      const priority = tilePriority(pageWaiters[index].load);
+      if (comparePagePriority(priority, bestPriority) < 0) {
+        best = index;
+        bestPriority = priority;
+      }
+    }
+    const [next] = pageWaiters.splice(best, 1);
+    pageActive += 1;
+    next.resolve(pageEpoch);
   }
 }
 
-// Fetches one tile (all pages) once; later callers share the same promise.
-// onPage gets the tile's banners so far after every page.
-function loadTile(tile, filters, filterKey, onPage) {
-  const key = tileKey(tile, filterKey);
-  const listeners = tileInflight.get(key);
-  if (listeners) {
-    listeners.onPage.add(onPage);
-    return listeners.promise;
-  }
+// Resolves with a slot ticket, or null when the tile was stopped meanwhile.
+function acquirePageSlot(load) {
+  return new Promise((resolve) => {
+    pageWaiters.push({ load, resolve });
+    drainPageWaiters();
+  });
+}
 
-  const entry = { onPage: new Set([onPage]), promise: null };
+function releasePageSlot(ticket) {
+  if (ticket === pageEpoch) {
+    pageActive -= 1;
+  }
+  drainPageWaiters();
+}
+
+function stopTile(key, load) {
+  load.stopped = true;
+  if (tileInflight.get(key) === load) {
+    tileInflight.delete(key);
+  }
+  load.controller?.abort();
+  drainPageWaiters();
+}
+
+function releaseTile(key, load, token) {
+  load.holders.delete(token);
+  if (load.holders.size || load.stopped) {
+    return;
+  }
+  window.setTimeout(() => {
+    if (!load.holders.size && !load.stopped) {
+      stopTile(key, load);
+    }
+  }, TILE_RELEASE_GRACE_MS);
+}
+
+async function runTile(load, key, tile, filters) {
   const bounds = tileBounds(tile);
-  entry.promise = withTileSlot(() =>
-    fetchDiscoveryMapBanners({
-      visibleArea: bounds,
-      originLatitude: roundCoordinate((bounds.minLatitude + bounds.maxLatitude) / 2, 5),
-      originLongitude: roundCoordinate((bounds.minLongitude + bounds.maxLongitude) / 2, 5),
-      showOfflineBanners: filters.showOfflineBanners,
-      showHiddenBanners: filters.showHiddenBanners,
-      onPage: (pageData) => {
-        tileCache.set(key, { banners: pageData.banners, complete: !pageData.hasMore });
-        entry.onPage.forEach((listener) => listener());
-      },
-    })
-  )
-    .then((data) => {
-      if (!data) {
-        throw new Error("Map results returned an unexpected response.");
+  const origin = {
+    originLatitude: roundCoordinate(load.centerLatitude, 5),
+    originLongitude: roundCoordinate(load.centerLongitude, 5),
+  };
+  // Continue a tile that was stopped part-way instead of starting over.
+  let banners = tileCache.get(key)?.banners ?? [];
+  let offset = banners.length;
+
+  while (true) {
+    const ticket = await acquirePageSlot(load);
+    if (ticket === null) {
+      return null;
+    }
+    let pageData;
+    try {
+      if (load.stopped) {
+        return null;
       }
-      tileCache.set(key, { banners: data.banners, complete: true });
-      return data.banners;
-    })
-    .finally(() => {
-      tileInflight.delete(key);
+      load.controller = typeof AbortController === "function" ? new AbortController() : null;
+      pageData = await fetchDiscoveryMapPage({
+        visibleArea: bounds,
+        ...origin,
+        showOfflineBanners: filters.showOfflineBanners,
+        showHiddenBanners: filters.showHiddenBanners,
+        offset,
+        signal: load.controller?.signal,
+      });
+    } catch (error) {
+      if (load.stopped) {
+        return null;
+      }
+      throw error;
+    } finally {
+      load.controller = null;
+      releasePageSlot(ticket);
+    }
+
+    if (load.stopped) {
+      return null;
+    }
+    if (!pageData) {
+      throw new Error("Map results returned an unexpected response.");
+    }
+    const known = new Set(banners.map((banner) => banner?.id));
+    banners = [...banners, ...pageData.filter((banner) => !known.has(banner?.id))];
+    const complete = pageData.length < DISCOVERY_MAP_PAGE_SIZE;
+    tileCache.set(key, { banners, complete });
+    load.holders.forEach((holder) => holder.onPage());
+    if (complete) {
+      return banners;
+    }
+    offset += pageData.length;
+  }
+}
+
+// Fetches one tile (all pages) once; later callers share the same load.
+// holder: { generation, centerLatitude, centerLongitude, onPage }, called
+// with the tile's banners in the cache after every page. Returns the load's
+// promise (banners, or null if it was stopped) and a release function.
+function loadTile(tile, filters, filterKey, holder) {
+  const key = tileKey(tile, filterKey);
+  const token = {};
+  let load = tileInflight.get(key);
+  if (!load) {
+    const bounds = tileBounds(tile);
+    load = {
+      holders: new globalThis.Map(),
+      controller: null,
+      stopped: false,
+      centerLatitude: (bounds.minLatitude + bounds.maxLatitude) / 2,
+      centerLongitude: (bounds.minLongitude + bounds.maxLongitude) / 2,
+      promise: null,
+    };
+    load.holders.set(token, holder);
+    const current = load;
+    load.promise = runTile(load, key, tile, filters).finally(() => {
+      if (tileInflight.get(key) === current) {
+        tileInflight.delete(key);
+      }
     });
-  tileInflight.set(key, entry);
-  return entry.promise;
+    tileInflight.set(key, load);
+  } else {
+    load.holders.set(token, holder);
+    drainPageWaiters();
+  }
+  const current = load;
+  return { promise: load.promise, release: () => releaseTile(key, current, token) };
 }
 
 // Loads the banners for a visible area (raw Leaflet-bounds shape, see
@@ -420,6 +540,7 @@ export function useDiscoveryMapBanners(visibleArea, userLocation, filters) {
     }
 
     let ignore = false;
+    const releases = [];
     const tiles = tilesForArea(normalizedVisibleArea);
     const originLatitude = normalizedOriginLocation.latitude;
     const originLongitude = normalizedOriginLocation.longitude;
@@ -458,9 +579,26 @@ export function useDiscoveryMapBanners(visibleArea, userLocation, filters) {
       }
 
       setLoading(true);
-      const results = await Promise.allSettled(
-        missing.map((tile) => loadTile(tile, filters, filterKey, publish))
-      );
+      // Centre tile first; this view's pages go before any older view's.
+      const generation = (viewGeneration += 1);
+      const holder = {
+        generation,
+        centerLatitude: normalizedVisibleArea.centerLatitude,
+        centerLongitude: normalizedVisibleArea.centerLongitude,
+        onPage: publish,
+      };
+      const centerDistance = (tile) => {
+        const bounds = tileBounds(tile);
+        return (
+          ((bounds.minLatitude + bounds.maxLatitude) / 2 - holder.centerLatitude) ** 2 +
+          ((bounds.minLongitude + bounds.maxLongitude) / 2 - holder.centerLongitude) ** 2
+        );
+      };
+      const loads = [...missing]
+        .sort((a, b) => centerDistance(a) - centerDistance(b))
+        .map((tile) => loadTile(tile, filters, filterKey, holder));
+      loads.forEach((load) => releases.push(load.release));
+      const results = await Promise.allSettled(loads.map((load) => load.promise));
       if (ignore) {
         return;
       }
@@ -476,6 +614,8 @@ export function useDiscoveryMapBanners(visibleArea, userLocation, filters) {
     return () => {
       ignore = true;
       window.clearTimeout(timeoutId);
+      // Tiles only this view wanted stop shortly (see the page scheduler).
+      releases.forEach((release) => release());
     };
     // filters is read through filterKey
     // eslint-disable-next-line react-hooks/exhaustive-deps

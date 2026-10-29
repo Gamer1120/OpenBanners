@@ -8,6 +8,9 @@ import { StatusChip } from "./shared";
 
 // Card thumbnail: 84 wide, at most 84 × 74; taller banners pan.
 const THUMB_ASPECT = 84 / 74;
+// Desktop list: the picture spans the card, whole up to 4 rows of missions
+// (6 × 4 tiles); taller banners pan.
+const STACK_ASPECT = 6 / 4;
 // Cards re-sorted while the row was touched move once it hasn't scrolled for this long.
 const THAW_MS = 400;
 const FOLD_SWIPE_PX = 48;
@@ -21,9 +24,25 @@ function prefersReducedMotion() {
 // the banner page. The button is a sibling of the card button laid over it (no
 // nested interactive elements); an invisible copy of its label in the foot row
 // keeps the status chip clear of it.
-const RowCard = memo(function RowCard({ banner, selected, onToggle, onHover, onKeyDown, itemRef }) {
+//
+// stacked (desktop list): the picture is the card, full width on top; below it
+// a one-line title with the status chip, then the stats beside the Details button.
+const RowCard = memo(function RowCard({ banner, selected, onToggle, onHover, onKeyDown, itemRef, stacked = false }) {
   const missions = Number(banner.numberOfMissions);
   const minutes = walkingMinutes(banner.lengthMeters);
+  const stats = (
+    <span className="mv-rc-stats">
+      {formatLength(banner.lengthMeters)}
+      {" · "}
+      {Number.isFinite(missions) ? tn("{count} mission", "{count} missions", missions) : t("? missions")}
+      {minutes !== null ? (
+        <>
+          {" · "}
+          {t("{time} walk", { time: `~${formatMinutes(minutes)}` })}
+        </>
+      ) : null}
+    </span>
+  );
   const details = (
     <>
       {t("Details")}
@@ -46,34 +65,41 @@ const RowCard = memo(function RowCard({ banner, selected, onToggle, onHover, onK
     <li className="mv-rc-item" ref={itemRef} data-banner-id={banner.id} {...hover}>
       <button
         type="button"
-        className={`mv-rc${selected ? " on" : ""}`}
+        className={`mv-rc${stacked ? " stack" : ""}${selected ? " on" : ""}`}
         aria-pressed={selected}
         onClick={() => onToggle(banner.id)}
         onKeyDown={onKeyDown}
       >
-        <BannerImage banner={banner} className="mv-rc-thumb" minAspect={THUMB_ASPECT} />
-        <span className="mv-rc-body">
-          <span className="mv-rc-text">
-            <span className="mv-rc-title">{banner.title}</span>
-            <span className="mv-rc-stats">
-              {formatLength(banner.lengthMeters)}
-              {" · "}
-              {Number.isFinite(missions) ? tn("{count} mission", "{count} missions", missions) : t("? missions")}
-              {minutes !== null ? (
-                <>
-                  {" · "}
-                  {t("{time} walk", { time: `~${formatMinutes(minutes)}` })}
-                </>
-              ) : null}
+        <BannerImage banner={banner} className="mv-rc-thumb" minAspect={stacked ? STACK_ASPECT : THUMB_ASPECT} />
+        {stacked ? (
+          <span className="mv-rc-body">
+            <span className="mv-rc-head">
+              <span className="mv-rc-title" title={banner.title}>
+                {banner.title}
+              </span>
+              <StatusChip status={banner._status} />
+            </span>
+            <span className="mv-rc-foot">
+              {stats}
+              <span className="mv-rc-details mv-rc-details-space" aria-hidden="true">
+                {details}
+              </span>
             </span>
           </span>
-          <span className="mv-rc-foot">
-            <StatusChip status={banner._status} />
-            <span className="mv-rc-details mv-rc-details-space" aria-hidden="true">
-              {details}
+        ) : (
+          <span className="mv-rc-body">
+            <span className="mv-rc-text">
+              <span className="mv-rc-title">{banner.title}</span>
+              {stats}
+            </span>
+            <span className="mv-rc-foot">
+              <StatusChip status={banner._status} />
+              <span className="mv-rc-details mv-rc-details-space" aria-hidden="true">
+                {details}
+              </span>
             </span>
           </span>
-        </span>
+        )}
       </button>
       <Link
         to={`/banner/${banner.id}`}
@@ -403,6 +429,7 @@ export function BannerSideList({
             onHover={onHover}
             onKeyDown={onKeyDown}
             itemRef={refFor(banner.id)}
+            stacked
           />
         ))}
         {moreCount ? <MoreCard count={moreCount} onMore={onMore} /> : null}

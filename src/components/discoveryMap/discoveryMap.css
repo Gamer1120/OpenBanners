@@ -622,7 +622,8 @@
   display: flex;
   flex-direction: column;
   box-sizing: border-box;
-  width: 340px;
+  /* Wide enough for the pictures to read (keep SIDE_LIST_SPACE's fallback in step). */
+  width: clamp(340px, 30vw, 440px);
   max-height: calc(100% - 56px - 84px);
   padding: 10px 8px 8px;
   border: 1px solid var(--mv-line);
@@ -671,6 +672,65 @@
 .mv-side .mv-rc.on {
   background: #1a2733;
   box-shadow: inset 0 0 0 1px var(--mv-accent);
+}
+
+/* Desktop card: the banner picture first, full width at its own aspect (up to
+   4 rows of missions, taller ones pan); title + chip and stats + Details below. */
+.mv-rc.stack {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 4px;
+  height: auto;
+  padding: 6px 6px 4px;
+}
+
+.mv-rc.stack .mv-rc-thumb {
+  flex: none;
+  width: 100%;
+  border-radius: 10px;
+}
+
+.mv-rc.stack .mv-rc-body {
+  gap: 0;
+  padding: 0 0 0 4px;
+}
+
+.mv-rc.stack .mv-rc-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  min-height: 22px;
+}
+
+.mv-rc.stack .mv-rc-title {
+  display: block;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--mv-text);
+  font: 600 13px/18px var(--mv-font);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.mv-rc.stack .mv-rc-head .mv-chip {
+  flex: none;
+}
+
+.mv-rc.stack .mv-rc-foot {
+  min-width: 0;
+}
+
+.mv-rc.stack .mv-rc-stats {
+  flex: 1;
+  min-width: 0;
+}
+
+/* The Details button sits in the card's bottom-right corner (border 1px + 4px). */
+.mv-side .mv-rc-item .mv-rc-details:not(.mv-rc-details-space) {
+  right: 7px;
+  bottom: 5px;
 }
 
 @media (prefers-reduced-motion: reduce) {

@@ -77,8 +77,15 @@ function CustomDistance({ filters, onChange }) {
 }
 // Room the filter chips take at the top when fitting the map.
 const FILTERBAR_SPACE = 56;
-// Room the desktop list takes on the right (.mv-side: 340 px wide, 12 px from the edge).
+// Room the desktop list takes on the right (.mv-side: 340-440 px wide, 12 px
+// from the edge); measured when it is on screen, this is the fallback.
 const SIDE_LIST_SPACE = 352;
+const SIDE_LIST_MARGIN = 12;
+
+function sideListSpace() {
+  const width = document.querySelector(".mv-side")?.offsetWidth;
+  return width ? width + SIDE_LIST_MARGIN : SIDE_LIST_SPACE;
+}
 // The row sits this far above the bottom edge (clear of the OSM attribution).
 const ROW_BOTTOM = 18;
 const ROW_FOLDED_STORAGE_KEY = "openbanners.mapRowFolded";
@@ -450,7 +457,7 @@ export default function DiscoveryMap() {
     const bounds = L.latLngBounds(members.map((banner) => [banner._latitude, banner._longitude]));
     const padTopLeft = L.point(40, FILTERBAR_SPACE + 30);
     // On desktop the list covers the right of the map: fit the group beside it.
-    const padBottomRight = L.point(40 + (isWide && rowList.length ? SIDE_LIST_SPACE : 0), controlsBottom + 40);
+    const padBottomRight = L.point(40 + (isWide && rowList.length ? sideListSpace() : 0), controlsBottom + 40);
     const maxZoom = map.getMaxZoom?.() ?? 18;
     const fitZoom = Math.min(map.getBoundsZoom(bounds, false, padTopLeft.add(padBottomRight)), maxZoom);
     const splitsAt = (zoomLevel) =>

@@ -590,6 +590,9 @@ describe("banners in view row (phone)", () => {
       render(ui());
 
       expect(document.querySelector(".mv-side")).not.toBeNull();
+      // Desktop cards lead with the full-width picture, the title below it.
+      expect(card("a").classList.contains("stack")).toBe(true);
+      expect(card("a").firstElementChild.classList.contains("mv-rc-thumb")).toBe(true);
       expect(current()).toBeUndefined();
       expect(routeFor()).toBeNull();
 

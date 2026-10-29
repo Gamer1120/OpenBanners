@@ -93,4 +93,21 @@ describe("discovery map tiles", () => {
     await waitFor(() => expect(globalThis.fetch.mock.calls.length).toBeGreaterThan(first));
     expect(tileLevelFor(area(52.22, 6.89, 0.1))).toBe(level - 1);
   });
+
+  it("zoom out keeps the already-loaded dots while the bigger tiles load", async () => {
+    const { result, rerender } = renderHook(
+      ({ view }) => useDiscoveryMapBanners(view, null, filters),
+      { initialProps: { view: area(52.225, 6.895, 0.05) } }
+    );
+    await waitFor(() => expect(result.current.banners.map((b) => b.id).sort()).toEqual(["a", "b"]));
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    // The bigger tiles never answer: only what is already loaded can show.
+    globalThis.fetch = vi.fn(() => new Promise(() => {}));
+    rerender({ view: area(52.225, 6.895, 0.4) }); // a few levels out
+    await waitFor(() => expect(globalThis.fetch).toHaveBeenCalled());
+    expect(result.current.loading).toBe(true);
+    expect(result.current.hasMore).toBe(true);
+    expect(result.current.banners.map((b) => b.id).sort()).toEqual(["a", "b"]);
+  });
 });

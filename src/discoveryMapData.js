@@ -312,6 +312,32 @@ export function cachedTileBanners(tile, filterKey, depth = TILE_CHILD_DEPTH) {
   return null;
 }
 
+// Every banner already downloaded inside a tile, complete or not: from its
+// own (partial) entry, from loaded or loading smaller tiles inside it at any
+// depth, and from bigger tiles around it (cut to this one). Shown while the
+// tile itself is still loading, so zooming out never hides dots that were
+// already on the map (2026-10-29).
+export function knownTileBanners(tile, filterKey) {
+  const bounds = tileBounds(tile);
+  const suffix = `:${filterKey}`;
+  const found = [];
+  for (const [key, entry] of tileCache) {
+    if (!key.endsWith(suffix)) {
+      continue;
+    }
+    const [level, x, y] = key.slice(0, -suffix.length).split("/").map(Number);
+    const shift = level - tile.level;
+    if (shift >= 0) {
+      if (Math.floor(x / 2 ** shift) === tile.x && Math.floor(y / 2 ** shift) === tile.y) {
+        found.push(...entry.banners);
+      }
+    } else if (Math.floor(tile.x / 2 ** -shift) === x && Math.floor(tile.y / 2 ** -shift) === y) {
+      found.push(...entry.banners.filter((banner) => inTile(banner, bounds)));
+    }
+  }
+  return found;
+}
+
 async function withTileSlot(run) {
   if (tileActive >= TILE_CONCURRENCY) {
     await new Promise((resolve) => tileWaiters.push(resolve));
@@ -407,7 +433,7 @@ export function useDiscoveryMapBanners(visibleArea, userLocation, filters) {
       let pending = false;
       for (const tile of tiles) {
         const complete = cachedTileBanners(tile, filterKey);
-        const partial = complete ?? tileCache.get(tileKey(tile, filterKey))?.banners ?? [];
+        const partial = complete ?? knownTileBanners(tile, filterKey);
         if (!complete) {
           pending = true;
         }

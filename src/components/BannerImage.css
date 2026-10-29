@@ -21,7 +21,7 @@
 .bimg.pan > .bimg-i {
   top: 0;
   transform: translateY(0);
-  animation: bimg-pan 3.4s infinite;
+  animation: bimg-pan 8s infinite;
 }
 
 /* Too small to pan: the whole picture, centred. */
@@ -44,19 +44,29 @@
   animation-play-state: paused;
 }
 
-/* 3.4 s loop: short rest at the top, 2 s down, short rest, 1 s back up.
+/* 8 s loop, Bannergress's timing (bannergress/website BannerPicture.tsx): 5 s down
+   from the top, 1 s pause at the bottom, 1 s back up, 1 s pause at the top
+   (87.5-100 %, which runs straight into the next 0 %), ease-in-out per segment.
    Deliberately NOT disabled under prefers-reduced-motion (Android "Remove
    animations", Vivaldi): a still long banner would only ever show its top. */
 @keyframes bimg-pan {
-  0%,
-  6% {
+  0% {
     transform: translateY(0);
     animation-timing-function: ease-in-out;
   }
 
-  65%,
-  71% {
+  62.5% {
     transform: translateY(var(--pan, 0%));
+    animation-timing-function: ease-in-out;
+  }
+
+  75% {
+    transform: translateY(var(--pan, 0%));
+    animation-timing-function: ease-in-out;
+  }
+
+  87.5% {
+    transform: translateY(0);
     animation-timing-function: ease-in-out;
   }
 

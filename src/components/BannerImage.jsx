@@ -4,8 +4,9 @@ import "./BannerImage.css";
 
 // THE ONLY PLACE THAT RENDERS A BANNER PICTURE.
 // Banner pictures can be very tall (a 48-mission banner is 8 rows of 6), and every
-// fixed-height box that crops one must slowly pan it (2 s down, 1 s back up, also
-// under reduced motion), or a long banner only ever shows its top. Doing that
+// fixed-height box that crops one must slowly pan it (Bannergress's 8 s loop: 5 s
+// down, 1 s pause, 1 s back up, 1 s pause; also under reduced motion), or a long
+// banner only ever shows its top. Doing that
 // separately per page kept breaking, so every <img> / background-image of
 // banner.picture goes through <BannerImage>. src/bannerImageGuard.test.js fails
 // the build when a component renders getBannerPictureUrl / banner.picture itself.

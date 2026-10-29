@@ -16,7 +16,8 @@ import { formatMinutes, walkingMinutes } from "./mapMath";
 import { StatusChip } from "./shared";
 
 // Card thumbnail: 100 wide (84 on cards under 280 px), at most 100 × 74;
-// taller banners pan.
+// taller banners pan. Cards at least 340 px wide (CSS) widen it to 132-160 px
+// and cap it at the card's inner height instead.
 const THUMB_ASPECT = 100 / 74;
 // Desktop list: the picture spans the card, whole up to 4 rows of missions
 // (6 × 4 tiles); taller banners pan.

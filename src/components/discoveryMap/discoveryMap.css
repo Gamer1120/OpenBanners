@@ -427,6 +427,21 @@
   container-type: inline-size;
 }
 
+/* Foldables (inner screen) and small tablets: wider cards, so the wide-card
+   layout below gets a big picture without squeezing the text. From 784px two
+   cards fit side by side: they share the row evenly (376-403px) instead. */
+@media (min-width: 560px) {
+  .mv-row-scroll .mv-rc-item {
+    max-width: 440px;
+  }
+}
+
+@media (min-width: 784px) {
+  .mv-row-scroll .mv-rc-item {
+    max-width: calc((100% - 8px) / 2);
+  }
+}
+
 .mv-row-scroll .mv-rc {
   contain: content;
 }
@@ -844,6 +859,23 @@
 
   .mv-row-scroll .mv-rc-foot .mv-chip {
     display: none;
+  }
+}
+
+/* Wide cards: a much wider picture (banners are wide, often 6 missions a row),
+   up to the card's full inner height (82px; taller banners pan). 160px is the
+   width at which a 6 × 3 banner fills that height; the text keeps 205-255px
+   (the stats line needs ~185px, the toggles + Details ~180px). */
+@container (min-width: 340px) {
+  .mv-row-scroll .mv-rc {
+    gap: 8px;
+    padding-left: 3px;
+  }
+
+  .mv-row-scroll .mv-rc-thumb {
+    flex-basis: clamp(132px, calc(100cqw - 230px), 160px);
+    max-height: 100%;
+    border-radius: 12px;
   }
 }
 

@@ -1,8 +1,17 @@
 import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
+import {
+  Bookmark,
+  BookmarkBorder,
+  CheckCircle,
+  CheckCircleOutline,
+  Visibility,
+  VisibilityOff,
+} from "@mui/icons-material";
 import BannerImage from "../BannerImage";
 import { formatLength } from "../../bannerDisplay";
-import { t, tn } from "../../i18n";
+import { isBannergressAuthSupportedOrigin, updateBannergressBannerListType } from "../../bannergressSync";
+import { t, tk, tn } from "../../i18n";
 import { formatMinutes, walkingMinutes } from "./mapMath";
 import { StatusChip } from "./shared";
 
@@ -15,6 +24,78 @@ const STACK_ASPECT = 6 / 4;
 const THAW_MS = 400;
 const FOLD_SWIPE_PX = 48;
 
+// To do / Done / Hide toggles on the desktop cards (same Bannergress call and
+// icons as the Browse list rows and the banner page).
+const LIST_ACTIONS = [
+  { listType: "todo", label: tk("To do"), icon: BookmarkBorder, activeIcon: Bookmark },
+  { listType: "done", label: tk("Done"), icon: CheckCircleOutline, activeIcon: CheckCircle },
+  { listType: "blacklist", label: tk("Hide"), icon: Visibility, activeIcon: VisibilityOff },
+];
+
+// Pressing the list it is already on takes it off again. Hide keeps the banner
+// on the map until the page is left, so it can be undone from the same card.
+function useListToggle(banner) {
+  const [pending, setPending] = useState(null);
+  const [error, setError] = useState("");
+  const listType = banner._listType ?? null;
+
+  const toggle = async (nextListType) => {
+    if (pending) {
+      return;
+    }
+
+    const requested = listType === nextListType ? "none" : nextListType;
+    setPending(nextListType);
+    setError("");
+
+    try {
+      await updateBannergressBannerListType(banner.id, requested, {
+        keepHiddenVisible: requested === "blacklist",
+      });
+    } catch (updateError) {
+      console.error("Couldn't update Bannergress list type.", updateError);
+      setError(
+        updateError?.status === 401 || updateError?.status === 403 ? t("Authenticate again.") : t("Update failed.")
+      );
+    } finally {
+      setPending(null);
+    }
+  };
+
+  return { listType, pending, error, toggle };
+}
+
+function ListActions({ banner, lists }) {
+  const title = (banner.title || t("Untitled")).trim();
+
+  return (
+    <span className="mv-rc-acts" role="group" aria-label={t("Lists for {title}", { title })}>
+      {LIST_ACTIONS.map((action) => {
+        const active = lists.listType === action.listType;
+        const Icon = active ? action.activeIcon : action.icon;
+
+        return (
+          <button
+            key={action.listType}
+            type="button"
+            className={`mv-rc-act ${action.listType}${active ? " on" : ""}`}
+            aria-pressed={active}
+            aria-label={t("{label}: {title}", { label: t(action.label), title })}
+            title={t(action.label)}
+            disabled={Boolean(lists.pending)}
+            onClick={(event) => {
+              event.stopPropagation();
+              lists.toggle(action.listType);
+            }}
+          >
+            <Icon />
+          </button>
+        );
+      })}
+    </span>
+  );
+}
+
 function prefersReducedMotion() {
   return Boolean(window.matchMedia?.("(prefers-reduced-motion: reduce)").matches);
 }
@@ -26,11 +107,19 @@ function prefersReducedMotion() {
 // keeps the status chip clear of it.
 //
 // stacked (desktop list): the picture is the card, full width on top; below it
-// a one-line title with the status chip, then the stats beside the Details button.
+// a one-line title, then the stats beside the To do / Done / Hide toggles and
+// the Details button (the lit toggle replaces the status chip). Toggles and
+// Details sit over the card's bottom-right corner like the phone's Details.
 const RowCard = memo(function RowCard({ banner, selected, onToggle, onHover, onKeyDown, itemRef, stacked = false }) {
   const missions = Number(banner.numberOfMissions);
   const minutes = walkingMinutes(banner.lengthMeters);
-  const stats = (
+  const withLists = stacked && isBannergressAuthSupportedOrigin();
+  const lists = useListToggle(banner);
+  const stats = withLists && lists.error ? (
+    <span className="mv-rc-stats mv-rc-err" role="status">
+      {lists.error}
+    </span>
+  ) : (
     <span className="mv-rc-stats">
       {formatLength(banner.lengthMeters)}
       {" · "}
@@ -50,6 +139,18 @@ const RowCard = memo(function RowCard({ banner, selected, onToggle, onHover, onK
         ›
       </span>
     </>
+  );
+
+  const detailsLink = (
+    <Link
+      to={`/banner/${banner.id}`}
+      className="mv-rc-details"
+      aria-label={t("Details for {title}", { title: banner.title })}
+      draggable={false}
+      onClick={(event) => event.stopPropagation()}
+    >
+      {details}
+    </Link>
   );
 
   const hover = onHover
@@ -77,13 +178,24 @@ const RowCard = memo(function RowCard({ banner, selected, onToggle, onHover, onK
               <span className="mv-rc-title" title={banner.title}>
                 {banner.title}
               </span>
-              <StatusChip status={banner._status} />
+              {withLists ? null : <StatusChip status={banner._status} />}
             </span>
             <span className="mv-rc-foot">
               {stats}
-              <span className="mv-rc-details mv-rc-details-space" aria-hidden="true">
-                {details}
-              </span>
+              {withLists ? (
+                <span className="mv-rc-tools mv-rc-tools-space" aria-hidden="true">
+                  <span className="mv-rc-acts">
+                    {LIST_ACTIONS.map((action) => (
+                      <span key={action.listType} className="mv-rc-act" />
+                    ))}
+                  </span>
+                  <span className="mv-rc-details">{details}</span>
+                </span>
+              ) : (
+                <span className="mv-rc-details mv-rc-details-space" aria-hidden="true">
+                  {details}
+                </span>
+              )}
             </span>
           </span>
         ) : (
@@ -101,15 +213,14 @@ const RowCard = memo(function RowCard({ banner, selected, onToggle, onHover, onK
           </span>
         )}
       </button>
-      <Link
-        to={`/banner/${banner.id}`}
-        className="mv-rc-details"
-        aria-label={t("Details for {title}", { title: banner.title })}
-        draggable={false}
-        onClick={(event) => event.stopPropagation()}
-      >
-        {details}
-      </Link>
+      {withLists ? (
+        <span className="mv-rc-tools">
+          <ListActions banner={banner} lists={lists} />
+          {detailsLink}
+        </span>
+      ) : (
+        detailsLink
+      )}
     </li>
   );
 });

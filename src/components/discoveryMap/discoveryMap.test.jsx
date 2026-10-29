@@ -12,6 +12,7 @@ import {
   normalizeMapFilters,
 } from "./mapFilters";
 import { getBannerStatus, withStatus } from "./mapStatus";
+import { updateBannergressBannerListType } from "../../bannergressSync";
 import { formatMinutes, isInsideArea, walkingMinutes } from "./mapMath";
 
 vi.mock("leaflet", () => {
@@ -48,6 +49,10 @@ vi.mock("react-leaflet", () => ({
 // The map view model (viewport, banners) is driven by the tests.
 let vm;
 vi.mock("./useDiscoveryMap", () => ({ default: () => vm }));
+vi.mock("../../bannergressSync", async (importOriginal) => ({
+  ...(await importOriginal()),
+  updateBannergressBannerListType: vi.fn(async () => ({})),
+}));
 vi.mock("./bannerRoute", () => ({
   useBannerRoute: vi.fn(() => ({ status: "idle", data: null })),
 }));
@@ -140,8 +145,8 @@ describe("status", () => {
   test("withStatus tags banners and leaves Hidden ones out", () => {
     const tagged = withStatus([{ id: "a" }, { id: "c" }, { id: "y" }], syncState);
     expect(tagged).toEqual([
-      { id: "a", _status: "todo" },
-      { id: "y", _status: "none" },
+      { id: "a", _status: "todo", _listType: "todo" },
+      { id: "y", _status: "none", _listType: null },
     ]);
   });
 });
@@ -609,6 +614,38 @@ describe("banners in view row (phone)", () => {
       fireEvent.click(card("b"));
       expect(current()).toBeUndefined();
       expect(routeFor()).toBeNull();
+    });
+
+    test("each card has To do / Done / Hide toggles that don't select the card", async () => {
+      updateBannergressBannerListType.mockClear();
+      setVm([mapBanner("a", 52.001, 6), { ...mapBanner("b", 52.004, 6), _status: "done", _listType: "done" }], area(52, 6));
+      render(ui());
+
+      const toggle = (label, title) => screen.getByRole("button", { name: `${label}: ${title}` });
+      expect(toggle("To do", "a")).toHaveAttribute("aria-pressed", "false");
+      expect(toggle("Done", "b")).toHaveAttribute("aria-pressed", "true");
+      expect(toggle("Hide", "a")).toBeInTheDocument();
+      // The lit toggle shows the status; no separate chip on desktop cards.
+      expect(card("b").querySelector(".mv-chip")).toBeNull();
+
+      fireEvent.click(toggle("To do", "a"));
+      await waitFor(() =>
+        expect(updateBannergressBannerListType).toHaveBeenCalledWith("a", "todo", { keepHiddenVisible: false })
+      );
+      expect(current()).toBeUndefined();
+
+      // Pressing the list it is on takes it off.
+      fireEvent.click(toggle("Done", "b"));
+      await waitFor(() =>
+        expect(updateBannergressBannerListType).toHaveBeenLastCalledWith("b", "none", { keepHiddenVisible: false })
+      );
+
+      // Hide keeps the banner on the map for now so it can be undone.
+      fireEvent.click(toggle("Hide", "a"));
+      await waitFor(() =>
+        expect(updateBannergressBannerListType).toHaveBeenLastCalledWith("a", "blacklist", { keepHiddenVisible: true })
+      );
+      expect(current()).toBeUndefined();
     });
   });
 

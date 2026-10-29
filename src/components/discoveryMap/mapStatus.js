@@ -26,9 +26,15 @@ export function getStatusStyle(status) {
   return STATUS_STYLES[status] ?? STATUS_STYLES.none;
 }
 
-// Adds _status and drops Hidden banners (the map never shows them).
+// Adds _status (and _listType, the raw Bannergress list: a banner hidden from
+// its card stays visible with _status "none" but _listType "blacklist") and
+// drops Hidden banners (the map never shows them).
 export function withStatus(banners, syncState) {
   return (Array.isArray(banners) ? banners : [])
-    .map((banner) => ({ ...banner, _status: getBannerStatus(banner, syncState) }))
+    .map((banner) => ({
+      ...banner,
+      _status: getBannerStatus(banner, syncState),
+      _listType: getBannerListType(syncState, banner?.id, banner?.listType) ?? null,
+    }))
     .filter((banner) => banner._status !== "hidden");
 }

@@ -722,15 +722,109 @@
   min-width: 0;
 }
 
+/* Narrow lists (toggles + Details beside them): the stats wrap to two lines
+   rather than lose the walk time. */
 .mv-rc.stack .mv-rc-stats {
   flex: 1;
   min-width: 0;
+  white-space: normal;
 }
 
 /* The Details button sits in the card's bottom-right corner (border 1px + 4px). */
 .mv-side .mv-rc-item .mv-rc-details:not(.mv-rc-details-space) {
   right: 7px;
   bottom: 5px;
+}
+
+/* To do / Done / Hide toggles + Details in the card's bottom-right corner; an
+   invisible copy (.mv-rc-tools-space) in the foot row keeps the stats clear. */
+.mv-rc-tools {
+  position: absolute;
+  right: 7px;
+  bottom: 5px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.mv-side .mv-rc-item .mv-rc-tools .mv-rc-details,
+.mv-rc-tools .mv-rc-details {
+  position: relative;
+  right: auto;
+  bottom: auto;
+}
+
+.mv-rc-foot .mv-rc-tools-space {
+  position: static;
+  flex: none;
+  margin-left: auto;
+  visibility: hidden;
+}
+
+.mv-rc-acts {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.mv-rc-act {
+  display: grid;
+  place-items: center;
+  box-sizing: border-box;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--mv-muted);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.mv-rc-act svg {
+  width: 20px;
+  height: 20px;
+  fill: currentColor;
+}
+
+.mv-rc-act:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--mv-text);
+}
+
+.mv-rc-act:focus-visible {
+  outline: 2px solid var(--mv-accent);
+  outline-offset: 1px;
+}
+
+.mv-rc-act:disabled {
+  opacity: 0.55;
+  cursor: progress;
+}
+
+/* Lit like the status chips and dots (mapStatus STATUS_STYLES). */
+.mv-rc-act.todo.on {
+  border-color: #f2b63d;
+  background: #4b3410;
+  color: #ffd67a;
+}
+
+.mv-rc-act.done.on {
+  border-color: #35a853;
+  background: #173f26;
+  color: #9aecae;
+}
+
+.mv-rc-act.blacklist.on {
+  border-color: #d85f5f;
+  background: #431e1e;
+  color: #f5a8a8;
+}
+
+.mv-rc-stats.mv-rc-err {
+  color: #f5a8a8;
+  white-space: normal;
 }
 
 @media (prefers-reduced-motion: reduce) {

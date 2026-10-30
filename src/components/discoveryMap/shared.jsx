@@ -1,3 +1,4 @@
+import "../../leafletSetup";
 import L from "leaflet";
 import { MapContainer, Marker, TileLayer, useMapEvents } from "react-leaflet";
 import { Link } from "react-router-dom";

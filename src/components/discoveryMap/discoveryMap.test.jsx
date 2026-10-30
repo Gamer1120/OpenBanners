@@ -22,6 +22,9 @@ function storeSession() {
 }
 import { formatMinutes, isInsideArea, walkingMinutes } from "./mapMath";
 
+// Our Leaflet patches need the real Leaflet (mapWheelZoom/mapZoomPress tests).
+vi.mock("../../leafletSetup", () => ({}));
+
 vi.mock("leaflet", () => {
   const point = (x, y) => ({ x, y, add: (other) => point(x + other.x, y + other.y) });
   const leaflet = {

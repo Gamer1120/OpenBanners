@@ -1,3 +1,4 @@
+import "../leafletSetup";
 import React, { memo, useMemo } from "react";
 import { Popup, Marker } from "react-leaflet";
 import L from "leaflet";

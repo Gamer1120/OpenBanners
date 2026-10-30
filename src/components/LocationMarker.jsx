@@ -1,3 +1,6 @@
+import "../leafletSetup";
+// Before easy-button, which needs Leaflet's global L.
+import "leaflet";
 import { Marker, useMap } from "react-leaflet";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import "leaflet-easybutton/src/easy-button.js";

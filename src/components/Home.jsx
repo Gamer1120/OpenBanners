@@ -8,11 +8,6 @@ import BannersStartPage from "./BannersStartPage";
 import SearchPage from "./SearchPage";
 import ListsPage from "./ListsPage";
 import BrowsingPage from "./BrowsingPage";
-import BannerDetailsPage from "./BannerDetailsPage";
-import DiscoveryMap from "./discoveryMap/DiscoveryMap";
-import BannerRerouterPage from "./BannerRerouterPage";
-import MissionDayPlanner from "./MissionDayPlanner";
-import BannerTogetherPage from "./BannerTogetherPage";
 import AuthorPassphraseNotice from "./AuthorPassphraseNotice";
 import NotFoundPage from "./NotFoundPage";
 import ErrorBoundary from "./ErrorBoundary";
@@ -27,6 +22,13 @@ import { t, tk } from "../i18n";
 
 // Loaded only when opened: it carries every UI text (keys.json).
 const TranslationEditor = lazy(() => import("./TranslationEditor"));
+// Pages with a map (Leaflet) or a lot of code of their own come as separate
+// chunks, so the home page, search and browse don't download them.
+const BannerDetailsPage = lazy(() => import("./BannerDetailsPage"));
+const DiscoveryMap = lazy(() => import("./discoveryMap/DiscoveryMap"));
+const BannerRerouterPage = lazy(() => import("./BannerRerouterPage"));
+const MissionDayPlanner = lazy(() => import("./MissionDayPlanner"));
+const BannerTogetherPage = lazy(() => import("./BannerTogetherPage"));
 
 const legacyDarkTheme = buildAppTheme("dark");
 
@@ -321,6 +323,9 @@ export default function Home({ notFound = false }) {
         />
         <main className="ob-main" id="main-content" tabIndex={-1}>
           <ErrorBoundary resetKey={location.pathname}>
+          {/* The lazy pages' fallback is empty: the banner page and the map
+              fill the viewport (.ob-app.fill) either way, so nothing moves. */}
+          <Suspense fallback={null}>
           {currentView === "notFound" && <NotFoundPage />}
           {currentView === "start" || currentView === "lists" ? <AuthorPassphraseNotice /> : null}
           {currentView === "start" && <BannersStartPage />}
@@ -368,6 +373,7 @@ export default function Home({ notFound = false }) {
               <BannerRerouterPage />
             </LegacyDark>
           )}
+          </Suspense>
           </ErrorBoundary>
         </main>
       </div>

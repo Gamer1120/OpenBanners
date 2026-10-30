@@ -1,3 +1,4 @@
+import "../../leafletSetup";
 import L from "leaflet";
 import { Marker, Polyline, Tooltip } from "react-leaflet";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";

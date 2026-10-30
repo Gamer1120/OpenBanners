@@ -23,6 +23,13 @@ export default defineConfig({
             return null;
           }
 
+          // Stylesheets stay with the chunk that imports them: leaflet.css
+          // (imported by src/index.jsx) in the "leaflet" chunk would make every
+          // page load Leaflet's JavaScript too.
+          if (/\.css($|\?)/.test(id)) {
+            return undefined;
+          }
+
           if (
             id.includes("/@mui/") ||
             id.includes("/@emotion/") ||

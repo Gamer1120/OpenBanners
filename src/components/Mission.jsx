@@ -1,3 +1,4 @@
+import "../leafletSetup";
 import React, { useMemo } from "react";
 import MissionStepMarker from "./MissionStepMarker";
 import { Polyline } from "react-leaflet";

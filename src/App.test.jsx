@@ -49,6 +49,10 @@ vi.mock("@mui/material", async () => {
   };
 });
 
+// Our Leaflet patches need the real Leaflet (src/mapWheelZoom.test.js and
+// src/mapZoomPress.test.js cover them).
+vi.mock("./leafletSetup", () => ({}));
+
 vi.mock("leaflet", () => {
   const leaflet = {
     icon: vi.fn((options) => options),

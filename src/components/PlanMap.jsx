@@ -1,3 +1,4 @@
+import "../leafletSetup";
 import { WORLD_PLACEHOLDER } from "../mapDefaults";
 import React, { useEffect, useMemo, useRef } from "react";
 import L from "leaflet";

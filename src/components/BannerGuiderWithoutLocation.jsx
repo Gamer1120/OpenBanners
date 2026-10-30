@@ -1,3 +1,4 @@
+import "../leafletSetup";
 import { WORLD_PLACEHOLDER } from "../mapDefaults";
 import { MapContainer, TileLayer } from "react-leaflet";
 import BannerMarkers from "./BannerMarkers";

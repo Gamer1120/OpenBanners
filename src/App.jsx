@@ -1,6 +1,5 @@
 import "./App.css";
-import BannerGuider from "./components/BannerGuider";
-import BannerGuiderWithoutLocation from "./components/BannerGuiderWithoutLocation";
+import { lazy, Suspense } from "react";
 import {
   BrowserRouter as Router,
   Routes,
@@ -11,6 +10,10 @@ import {
 import { ScrollManager } from "./scrollRestoration";
 import Home from "./components/Home";
 import ErrorBoundary from "./components/ErrorBoundary";
+
+// Full-screen map pages: their own chunks (Leaflet), see Home.jsx.
+const BannerGuider = lazy(() => import("./components/BannerGuider"));
+const BannerGuiderWithoutLocation = lazy(() => import("./components/BannerGuiderWithoutLocation"));
 
 // Banner Together lives under Lists now; old (and shared invite) links keep
 // working, including the invite secret in the hash.
@@ -35,6 +38,7 @@ function App() {
       <ErrorBoundary>
       <Router>
         <ScrollManager />
+        <Suspense fallback={null}>
         <Routes>
           <Route path="/" element={<Home />} />
           <Route exact path="/browse/" element={<Home />} />
@@ -68,6 +72,7 @@ function App() {
               server sends it with status 404). */}
           <Route path="*" element={<Home notFound />} />
         </Routes>
+        </Suspense>
       </Router>
       </ErrorBoundary>
     </div>

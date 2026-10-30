@@ -24,18 +24,18 @@ beforeEach(() => {
   window.scrollTo = vi.fn();
 });
 
-test("routes place-scoped Banner Together links through Home", () => {
+test("routes place-scoped Banner Together links through Home", async () => {
   window.history.replaceState({}, "", "/together/enschede-place");
 
   render(<App />);
 
   expect(
-    screen.getByText("Banner Together route: enschede-place / new")
+    await screen.findByText("Banner Together route: enschede-place / new")
   ).toBeInTheDocument();
   expect(screen.queryByText("Banners Near Me mounted")).not.toBeInTheDocument();
 });
 
-test("routes live peer room links without mounting the nearby view", () => {
+test("routes live peer room links without mounting the nearby view", async () => {
   window.history.replaceState(
     {},
     "",
@@ -45,7 +45,7 @@ test("routes live peer room links without mounting the nearby view", () => {
   render(<App />);
 
   expect(
-    screen.getByText("Banner Together route: enschede-place / room-123")
+    await screen.findByText("Banner Together route: enschede-place / room-123")
   ).toBeInTheDocument();
   expect(screen.queryByText("Banners Near Me mounted")).not.toBeInTheDocument();
 });

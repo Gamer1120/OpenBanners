@@ -21,6 +21,8 @@ const CACHE_TTL_MS = 15 * 60 * 1000;
 const MAX_CACHE_ENTRIES = 2_000;
 const MAX_BANNER_ID_LENGTH = 200;
 const FETCH_TIMEOUT_MS = 8_000;
+// Bannergress said 404: remembered this long (a new banner may appear later).
+const MISSING_TTL_MS = 5 * 60 * 1000;
 
 type Banner = Record<string, unknown> & { id: string };
 
@@ -31,6 +33,8 @@ type BannerMetadata = {
   // "" = no image: pages without a picture of their own get a text-only preview.
   image: string;
   type?: "website" | "article";
+  // Bannergress says the banner doesn't exist: status 404 and noindex.
+  notFound?: boolean;
 };
 
 type CacheEntry = {
@@ -206,6 +210,13 @@ export function createBannerMetaServer(options: BannerMetaServerOptions = {}) {
   const jsonCache = new Map<string, JsonCacheEntry>();
   const plansApi = (options.plansApi ?? (normalizeText(process.env.OPENBANNERS_PLANS_API) || DEFAULT_PLANS_API)).replace(/\/+$/, "");
   const inFlight = new Map<string, Promise<Banner | null>>();
+  // Banner ids Bannergress answered 404 for, with the time.
+  const missing = new Map<string, number>();
+
+  function isKnownMissing(bannerId: string): boolean {
+    const storedAt = missing.get(bannerId);
+    return storedAt !== undefined && now() - storedAt <= MISSING_TTL_MS;
+  }
   let indexHtml: string | null = null;
 
   async function loadIndexHtml(): Promise<string | null> {
@@ -251,9 +262,25 @@ export function createBannerMetaServer(options: BannerMetaServerOptions = {}) {
         signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
       });
 
+      if (apiResponse.status === 404 || apiResponse.status === 410) {
+        cache.delete(bannerId);
+        missing.delete(bannerId);
+        missing.set(bannerId, now());
+        while (missing.size > MAX_CACHE_ENTRIES) {
+          const oldestKey = missing.keys().next().value;
+          if (oldestKey === undefined) {
+            break;
+          }
+          missing.delete(oldestKey);
+        }
+        return null;
+      }
+
       if (apiResponse.status !== 200) {
         return loadCachedBanner(bannerId, true);
       }
+
+      missing.delete(bannerId);
 
       const banner: unknown = await apiResponse.json();
 
@@ -273,6 +300,10 @@ export function createBannerMetaServer(options: BannerMetaServerOptions = {}) {
 
     if (freshBanner !== null) {
       return Promise.resolve(freshBanner);
+    }
+
+    if (isKnownMissing(bannerId)) {
+      return Promise.resolve(null);
     }
 
     let pending = inFlight.get(bannerId);
@@ -331,7 +362,9 @@ export function createBannerMetaServer(options: BannerMetaServerOptions = {}) {
     if (page.kind === "banner") {
       const banner = await fetchBanner(params.bannerId);
       if (banner === null) {
-        return base;
+        return isKnownMissing(params.bannerId)
+          ? { ...base, title: "Banner not found", description: "This banner doesn't exist (any more) on Bannergress.", notFound: true }
+          : base;
       }
       const found = buildMetadata(banner, params.bannerId);
       // A banner without a picture keeps the site's card.
@@ -406,6 +439,11 @@ export function createBannerMetaServer(options: BannerMetaServerOptions = {}) {
     }
 
     const preview = await previewFor(request.url ?? "/");
+    if (preview?.notFound) {
+      // The app shows "This banner doesn't exist"; search engines drop it.
+      sendHtml(response, request, notFoundHtml(injectMetadata(html, preview)), 404);
+      return;
+    }
     sendHtml(response, request, preview === null ? html : injectMetadata(html, preview));
   }
 

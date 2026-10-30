@@ -631,6 +631,19 @@ body {
   min-width: 0;
 }
 
+/* Banner page: Bannergress says the banner doesn't exist. */
+.ob-alert.bp-missing .bp-missing-t {
+  margin: 0 0 4px;
+  font: 500 16px/24px var(--font);
+}
+
+.bp-missing-acts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+
 .card {
   background: var(--sc-low);
   border-radius: var(--r-l);

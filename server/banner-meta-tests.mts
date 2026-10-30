@@ -100,9 +100,12 @@ test("injects escaped banner metadata into the SPA shell", async (t) => {
 });
 
 test("falls back to the card when the banner is unavailable, and the plain shell for unknown pages", async (t) => {
-  const baseUrl = await startServer(t, async () => jsonResponse({ error: "nope" }, 404));
+  const baseUrl = await startServer(t, async () => jsonResponse({ error: "busy" }, 503));
 
-  const missing = await fetch(`${baseUrl}/banner/missing`).then((response) => response.text());
+  const unavailableResponse = await fetch(`${baseUrl}/banner/missing`);
+  assert.equal(unavailableResponse.status, 200);
+  const missing = await unavailableResponse.text();
+  assert.doesNotMatch(missing, /noindex/);
   assert.match(missing, /<meta property="og:type" content="website" \/>/);
   assert.match(missing, /<meta property="og:image" content="https:\/\/openbanners.org\/og-image.png" \/>/);
   assert.doesNotMatch(missing, /logo512/);
@@ -118,6 +121,28 @@ test("falls back to the card when the banner is unavailable, and the plain shell
   }
   // Known pages in any letter case stay 200, like React Router's routes.
   assert.equal((await fetch(`${baseUrl}/Map`)).status, 200);
+});
+
+test("a banner Bannergress doesn't know gets 404 and noindex (remembered for a few minutes)", async (t) => {
+  let currentTime = 0;
+  let calls = 0;
+  const baseUrl = await startServer(t, async () => {
+    calls += 1;
+    return new Response("", { status: 404 });
+  }, () => currentTime);
+
+  for (let i = 0; i < 2; i++) {
+    const response = await fetch(`${baseUrl}/banner/this-does-not-exist`);
+    assert.equal(response.status, 404);
+    const html = await response.text();
+    assert.match(html, /<meta name="robots" content="noindex" \/>/);
+    assert.match(html, /<title>Banner not found \| OpenBanners<\/title>/);
+    assert.match(html, /<meta property="og:image" content="https:\/\/openbanners.org\/og-image.png" \/>/);
+  }
+  assert.equal(calls, 1);
+  currentTime = 6 * 60 * 1000;
+  assert.equal((await fetch(`${baseUrl}/banner/this-does-not-exist`)).status, 404);
+  assert.equal(calls, 2);
 });
 
 test("every page gets its own title and the site's 1200x630 card, never the old logo", async (t) => {

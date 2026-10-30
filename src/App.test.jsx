@@ -3886,10 +3886,59 @@ test("shows a retryable error when banner details fail to load", async () => {
   );
 
   expect(
-    await screen.findByText("Couldn't load this banner. Please try again.")
+    await screen.findByText(
+      "Bannergress, where the banner data comes from, isn’t responding right now. Try again in a minute."
+    )
   ).toBeInTheDocument();
   expect(screen.getByRole("button", { name: /retry/i })).toBeInTheDocument();
   consoleErrorSpy.mockRestore();
+});
+
+test("Bannergress trouble (5xx) says so and offers Retry, which loads the banner", async () => {
+  const user = userEvent.setup();
+  let bannergressUp = false;
+  global.fetch.mockImplementation(async (url) =>
+    String(url).includes("/bnrs/flaky-banner")
+      ? bannergressUp
+        ? { ok: true, status: 200, json: async () => ({ id: "flaky-banner", title: "Back Again", missions: {} }) }
+        : { ok: false, status: 503, json: async () => ({}) }
+      : { ok: true, status: 200, json: async () => ({}) }
+  );
+
+  renderWithProviders(
+    <Routes>
+      <Route path="/banner/:bannerId" element={<BannerDetailsPage />} />
+    </Routes>,
+    { route: "/banner/flaky-banner" }
+  );
+
+  expect(await screen.findByText(/isn’t responding right now/)).toBeInTheDocument();
+  expect(screen.queryByText(/doesn’t exist/)).toBeNull();
+  bannergressUp = true;
+  await user.click(screen.getByRole("button", { name: /retry/i }));
+  expect(await screen.findByRole("heading", { name: "Back Again", level: 1 })).toBeInTheDocument();
+});
+
+test("a banner Bannergress doesn't know (404) says it doesn't exist, with Search and Map instead of Retry", async () => {
+  global.fetch.mockImplementation(async (url) =>
+    String(url).includes("/bnrs/")
+      ? { ok: false, status: 404, json: async () => { throw new SyntaxError("Unexpected end of JSON input"); } }
+      : { ok: true, status: 200, json: async () => ({}) }
+  );
+
+  renderWithProviders(
+    <Routes>
+      <Route path="/banner/:bannerId" element={<BannerDetailsPage />} />
+    </Routes>,
+    { route: "/banner/this-does-not-exist" }
+  );
+
+  expect(await screen.findByText("This banner doesn’t exist (any more) on Bannergress.")).toBeInTheDocument();
+  expect(screen.getByRole("heading", { name: "Banner not found", level: 1 })).toBeInTheDocument();
+  expect(screen.getByRole("link", { name: "Search" })).toHaveAttribute("href", "/search");
+  expect(screen.getByRole("link", { name: "Map" })).toHaveAttribute("href", "/map");
+  expect(screen.queryByRole("button", { name: /retry/i })).toBeNull();
+  await waitFor(() => expect(document.title).toMatch(/^Banner not found/));
 });
 
 test("discovery map filters banners and lists those in view, with the route of the selected one", async () => {

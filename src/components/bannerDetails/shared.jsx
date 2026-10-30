@@ -678,6 +678,32 @@ export function getOrderLabel(type) {
   return ORDER_LABELS[type] ? t(ORDER_LABELS[type]) : String(type);
 }
 
+export const BANNER_NOT_FOUND = "notFound";
+export const BANNER_UNAVAILABLE = "unavailable";
+// Longer than Bannergress ever takes when it's well; then it counts as down.
+const BANNER_FETCH_TIMEOUT_MS = 20_000;
+
+function bannerFetchTimeoutSignal() {
+  return typeof AbortSignal !== "undefined" && typeof AbortSignal.timeout === "function"
+    ? AbortSignal.timeout(BANNER_FETCH_TIMEOUT_MS)
+    : undefined;
+}
+
+// What a /bnrs/<id> answer means: null (fine), the banner doesn't exist
+// (404/410), or Bannergress has trouble (anything else that isn't OK).
+export function bannerResponseProblem(response) {
+  if (response?.ok !== false) {
+    return null;
+  }
+  return response.status === 404 || response.status === 410 ? BANNER_NOT_FOUND : BANNER_UNAVAILABLE;
+}
+
+export function bannerErrorMessage(kind) {
+  return kind === BANNER_NOT_FOUND
+    ? t("This banner doesn’t exist (any more) on Bannergress.")
+    : t("Bannergress, where the banner data comes from, isn’t responding right now. Try again in a minute.");
+}
+
 // All state, loading and map handling of the banner page; the designs only lay it out.
 // With tabs (mobile Overview / Missions / Map) the map replaces the pane on phones.
 export function useBannerDetails({ tabs = true } = {}) {
@@ -687,6 +713,9 @@ export function useBannerDetails({ tabs = true } = {}) {
   const [items, setItems] = useState({});
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
+  // BANNER_NOT_FOUND (Bannergress says 404) or BANNER_UNAVAILABLE (network
+  // error, timeout, 5xx): different message, and only the latter has Retry.
+  const [errorKind, setErrorKind] = useState("");
   const [reloadToken, setReloadToken] = useState(0);
   const [tab, setTab] = useState("overview");
   const [selectedMission, setSelectedMission] = useState(-1);
@@ -722,17 +751,22 @@ export function useBannerDetails({ tabs = true } = {}) {
     const loadBanner = async () => {
       setIsLoading(true);
       setError("");
+      setErrorKind("");
 
       try {
-        const response = await fetchBannergress(`https://api.bannergress.com/bnrs/${bannerId}`);
-        const result = await response.json();
+        const response = await fetchBannergress(`https://api.bannergress.com/bnrs/${bannerId}`, {
+          signal: bannerFetchTimeoutSignal(),
+        });
+        const kind = bannerResponseProblem(response);
+        const result = kind ? null : await response.json();
 
         if (!ignore) {
           if (result && typeof result === "object" && result.id) {
             setItems(result);
           } else {
             setItems({});
-            setError(t("Couldn't load this banner."));
+            setErrorKind(kind ?? BANNER_UNAVAILABLE);
+            setError(bannerErrorMessage(kind ?? BANNER_UNAVAILABLE));
           }
         }
       } catch (fetchError) {
@@ -740,7 +774,8 @@ export function useBannerDetails({ tabs = true } = {}) {
 
         if (!ignore) {
           setItems({});
-          setError(t("Couldn't load this banner. Please try again."));
+          setErrorKind(BANNER_UNAVAILABLE);
+          setError(bannerErrorMessage(BANNER_UNAVAILABLE));
         }
       } finally {
         if (!ignore) {
@@ -767,6 +802,13 @@ export function useBannerDetails({ tabs = true } = {}) {
       return undefined;
     }
 
+    if (errorKind === BANNER_NOT_FOUND) {
+      applyPageMetadata({ title: t("Banner not found"), description: bannerErrorMessage(BANNER_NOT_FOUND) });
+      return () => {
+        resetPageMetadata();
+      };
+    }
+
     if (error || !items?.id) {
       resetPageMetadata();
       return undefined;
@@ -784,7 +826,7 @@ export function useBannerDetails({ tabs = true } = {}) {
     return () => {
       resetPageMetadata();
     };
-  }, [error, isLoading, items]);
+  }, [error, errorKind, isLoading, items]);
 
   const fitRoute = useCallback(
     (map = mapRef.current) => {
@@ -916,6 +958,7 @@ export function useBannerDetails({ tabs = true } = {}) {
     items,
     isLoading,
     error,
+    errorKind,
     retry: () => setReloadToken((value) => value + 1),
     isMobile,
     tab,
@@ -1051,13 +1094,32 @@ export function BannerTitle({ d, className = "bp-title" }) {
       {d.isLoading ? (
         <Skeleton width="70%" sx={{ bgcolor: "rgba(255,255,255,0.15)" }} />
       ) : (
-        d.items.title || t("Banner")
+        d.items.title || (d.errorKind === BANNER_NOT_FOUND ? t("Banner not found") : t("Banner"))
       )}
     </h1>
   );
 }
 
 export function ErrorAlert({ d }) {
+  if (d.errorKind === BANNER_NOT_FOUND) {
+    return (
+      <div className="ob-alert bp-missing" role="alert">
+        <div className="grow">
+          <p className="bp-missing-t">{d.error}</p>
+          <p className="small muted">{t("The link may be mistyped, or the banner was removed from Bannergress.")}</p>
+          <div className="bp-missing-acts">
+            <Link className="btn filled sl" to="/search">
+              {t("Search")}
+            </Link>
+            <Link className="btn tonal sl" to="/map">
+              {t("Map")}
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="ob-alert bad" role="alert">
       <div className="grow">{d.error}</div>

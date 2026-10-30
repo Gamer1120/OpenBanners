@@ -14,6 +14,8 @@ import BannerRerouterPage from "./BannerRerouterPage";
 import MissionDayPlanner from "./MissionDayPlanner";
 import BannerTogetherPage from "./BannerTogetherPage";
 import AuthorPassphraseNotice from "./AuthorPassphraseNotice";
+import NotFoundPage from "./NotFoundPage";
+import ErrorBoundary from "./ErrorBoundary";
 import {
   getBrowseStateScope,
   readBrowseFilters,
@@ -63,7 +65,14 @@ function formatRouteParam(value) {
     .replace(/\b\w/g, (character) => character.toUpperCase());
 }
 
-function getRouteMetadata({ pathname, placeId, agentName, query }) {
+function getRouteMetadata({ pathname, placeId, agentName, query, notFound }) {
+  if (notFound) {
+    return {
+      title: t("Page not found"),
+      description: t("There’s no page at this address. The link may be mistyped or out of date."),
+    };
+  }
+
   if (pathname.startsWith("/banner/")) {
     return null;
   }
@@ -199,7 +208,7 @@ function getCurrentView(pathname) {
   return "start";
 }
 
-export default function Home() {
+export default function Home({ notFound = false }) {
   const { placeId, roomId, agentName, query, planId } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
@@ -209,7 +218,7 @@ export default function Home() {
   );
   // Derived in render so the old view unmounts in the same commit as the
   // route change; Back then restores scroll against the right list.
-  const currentView = getCurrentView(location.pathname);
+  const currentView = notFound ? "notFound" : getCurrentView(location.pathname);
   const [bannerFilters, setBannerFilters] = useState(() =>
     readBrowseFilters(browseStateScope)
   );
@@ -280,6 +289,7 @@ export default function Home() {
       placeId,
       agentName,
       query,
+      notFound,
     });
 
     if (!routeMetadata) {
@@ -293,7 +303,7 @@ export default function Home() {
         window.location.origin
       ).toString(),
     });
-  }, [agentName, location.pathname, location.search, placeId, query]);
+  }, [agentName, location.pathname, location.search, notFound, placeId, query]);
 
   const fillViewport = currentView === "bannerDetails" || currentView === "map";
 
@@ -310,6 +320,8 @@ export default function Home() {
           title={VIEW_TITLES[currentView] ? t(VIEW_TITLES[currentView]) : ""}
         />
         <main className="ob-main" id="main-content" tabIndex={-1}>
+          <ErrorBoundary resetKey={location.pathname}>
+          {currentView === "notFound" && <NotFoundPage />}
           {currentView === "start" || currentView === "lists" ? <AuthorPassphraseNotice /> : null}
           {currentView === "start" && <BannersStartPage />}
           {currentView === "near" && (
@@ -356,6 +368,7 @@ export default function Home() {
               <BannerRerouterPage />
             </LegacyDark>
           )}
+          </ErrorBoundary>
         </main>
       </div>
     </div>

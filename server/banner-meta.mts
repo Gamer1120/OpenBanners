@@ -5,7 +5,7 @@ import type { AddressInfo } from "node:net";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { matchPage, SITE_ORIGIN as PAGE_ORIGIN, staticPreview } from "./page-meta.mjs";
+import { DEFAULT_IMAGE, isKnownPath, matchPage, SITE_ORIGIN as PAGE_ORIGIN, staticPreview } from "./page-meta.mjs";
 
 export const SITE_ORIGIN = "https://openbanners.org";
 const SITE_NAME = "OpenBanners";
@@ -151,13 +151,18 @@ export function injectMetadata(html: string, metadata: BannerMetadata): string {
   const description = escapeHtml(metadata.description);
   const url = escapeHtml(metadata.url);
   const image = escapeHtml(metadata.image);
-  // Image tags only when the page has its own picture; never a logo.
-  // They go right after og:url, with the matching Twitter card size.
+  // Image tags right after og:url, with the matching Twitter card size. The
+  // site's own card (DEFAULT_IMAGE) also gets its size and alt text; banner
+  // and plan pictures come in any size.
+  const isDefaultImage = metadata.image === DEFAULT_IMAGE.url;
+  const imageDetails = isDefaultImage
+    ? `\n<meta property="og:image:width" content="${DEFAULT_IMAGE.width}" />\n<meta property="og:image:height" content="${DEFAULT_IMAGE.height}" />\n<meta property="og:image:alt" content="${escapeHtml(DEFAULT_IMAGE.alt)}" />\n<meta name="twitter:image:alt" content="${escapeHtml(DEFAULT_IMAGE.alt)}" />`
+    : "";
   const afterUrl = (image
-    ? `\n<meta property="og:image" content="${image}" />\n<meta name="twitter:image" content="${image}" />`
+    ? `\n<meta property="og:image" content="${image}" />${imageDetails}\n<meta name="twitter:image" content="${image}" />`
     : "") + `\n<meta name="twitter:card" content="${image ? "summary_large_image" : "summary"}" />`;
   const cleaned = html.replace(
-    /[ \t]*<meta\s+(?:property="og:image(?::[a-z]+)?"|name="twitter:(?:image|card)")\s+content="[^"]*"\s*\/>\n?/gi,
+    /[ \t]*<meta\s+(?:property="og:image(?::[a-z]+)?"|name="twitter:(?:image(?::alt)?|card)")\s+content="[^"]*"\s*\/>\n?/gi,
     "",
   );
   const replacements: Array<[RegExp, string]> = [
@@ -177,6 +182,10 @@ export function injectMetadata(html: string, metadata: BannerMetadata): string {
     (result, [pattern, replacement]) => result.replace(pattern, () => replacement),
     cleaned,
   );
+}
+
+export function notFoundHtml(html: string): string {
+  return html.replace(/<head>/i, () => `<head>\n    <meta name="robots" content="noindex" />`);
 }
 
 function sendHtml(response: ServerResponse, request: IncomingMessage, html: string, statusCode = 200): void {
@@ -324,7 +333,9 @@ export function createBannerMetaServer(options: BannerMetaServerOptions = {}) {
       if (banner === null) {
         return base;
       }
-      const metadata = buildMetadata(banner, params.bannerId);
+      const found = buildMetadata(banner, params.bannerId);
+      // A banner without a picture keeps the site's card.
+      const metadata = found.image ? found : { ...found, image: base.image };
       return page.path === "/banner/:bannerId"
         ? metadata
         : { ...metadata, title: withPrefix(page.prefix, metadata.title), url: `${PAGE_ORIGIN}${match.path}` };
@@ -366,7 +377,7 @@ export function createBannerMetaServer(options: BannerMetaServerOptions = {}) {
         ...base,
         title: normalizeText(plan.title) || base.title,
         description: `Mission Day plan: ${parts.join(", ")}.${plan.readOnly === true ? " View only." : ""}`,
-        image: picture ? toAbsoluteImageUrl(picture.picture) : "",
+        image: picture ? toAbsoluteImageUrl(picture.picture) : base.image,
       };
     }
 
@@ -384,6 +395,13 @@ export function createBannerMetaServer(options: BannerMetaServerOptions = {}) {
 
     if (html === null) {
       sendHtml(response, request, "OpenBanners shell not found.", 500);
+      return;
+    }
+
+    // A path no page knows: still the SPA shell (it shows "Page not found"
+    // with the menu), but with status 404 and noindex.
+    if (!isKnownPath(request.url ?? "/")) {
+      sendHtml(response, request, notFoundHtml(html), 404);
       return;
     }
 

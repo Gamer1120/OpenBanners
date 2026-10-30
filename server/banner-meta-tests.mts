@@ -104,15 +104,23 @@ test("falls back to the card when the banner is unavailable, and the plain shell
 
   const missing = await fetch(`${baseUrl}/banner/missing`).then((response) => response.text());
   assert.match(missing, /<meta property="og:type" content="website" \/>/);
-  assert.doesNotMatch(missing, /og:image|twitter:image|logo512/);
-  assert.match(missing, /<meta name="twitter:card" content="summary" \/>/);
+  assert.match(missing, /<meta property="og:image" content="https:\/\/openbanners.org\/og-image.png" \/>/);
+  assert.doesNotMatch(missing, /logo512/);
+  assert.match(missing, /<meta name="twitter:card" content="summary_large_image" \/>/);
 
-  const response = await fetch(`${baseUrl}/not-a-page`);
-  assert.equal(response.status, 200);
-  assert.equal(await response.text(), shellHtml);
+  // Unknown pages: the plain shell (the app shows "Page not found"), 404, noindex.
+  for (const path of ["/not-a-page", "/no/such/page", "/banner/x/extra"]) {
+    const response = await fetch(`${baseUrl}${path}`);
+    assert.equal(response.status, 404, path);
+    const html = await response.text();
+    assert.match(html, /<meta name="robots" content="noindex" \/>/, path);
+    assert.equal(html.replace(/\n\s*<meta name="robots" content="noindex" \/>/, ""), shellHtml, path);
+  }
+  // Known pages in any letter case stay 200, like React Router's routes.
+  assert.equal((await fetch(`${baseUrl}/Map`)).status, 200);
 });
 
-test("every page gets its own title, and no logo as its image", async (t) => {
+test("every page gets its own title and the site's 1200x630 card, never the old logo", async (t) => {
   const baseUrl = await startServer(t, async () => jsonResponse({ error: "nope" }, 404));
   for (const [path, title] of [
     ["/", "OpenBanners"],
@@ -123,7 +131,12 @@ test("every page gets its own title, and no logo as its image", async (t) => {
   ]) {
     const html = await fetch(`${baseUrl}${path}`).then((response) => response.text());
     assert.match(html, new RegExp(`<title>${title}</title>`), path);
-    assert.doesNotMatch(html, /og:image|twitter:image/, path);
+    assert.doesNotMatch(html, /logo512/, path);
+    assert.equal(html.match(/property="og:image"/g)?.length, 1, path);
+    assert.match(html, /<meta property="og:image" content="https:\/\/openbanners.org\/og-image.png" \/>/, path);
+    assert.match(html, /<meta property="og:image:width" content="1200" \/>/, path);
+    assert.match(html, /<meta property="og:image:height" content="630" \/>/, path);
+    assert.match(html, /<meta name="twitter:card" content="summary_large_image" \/>/, path);
     assert.match(html, /<meta property="og:type" content="website" \/>/, path);
   }
 });

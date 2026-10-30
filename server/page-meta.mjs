@@ -6,6 +6,14 @@
 export const SITE_ORIGIN = "https://openbanners.org";
 export const SITE_NAME = "OpenBanners";
 export const DEFAULT_DESCRIPTION = "Find, plan and walk Ingress mission banners.";
+// The site's own preview card (public/og-image.png, made from
+// docs/og-image-source.html): every page without a picture of its own.
+export const DEFAULT_IMAGE = {
+  url: `${SITE_ORIGIN}/og-image.png`,
+  width: 1200,
+  height: 630,
+  alt: "OpenBanners: find, plan and walk Ingress mission banners",
+};
 
 // kind: what the server looks up for the preview (none, banner, place, plan).
 // title/description: text for pages that need no lookup, or the fallback while
@@ -48,7 +56,8 @@ function compile(path) {
       return segment.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
     })
     .join("/");
-  return { regex: new RegExp(`^${source}/?$`), names };
+  // Case-insensitive like React Router's routes.
+  return { regex: new RegExp(`^${source}/?$`, "i"), names };
 }
 
 const COMPILED = PAGES.map((page) => ({ page, ...compile(page.path) }));
@@ -77,16 +86,23 @@ export function matchPage(requestPath) {
   return null;
 }
 
+// Whether any page has this path (unknown paths get "Page not found" with
+// status 404). Unlike matchPage, odd parameters still count as known.
+export function isKnownPath(requestPath) {
+  const path = String(requestPath).split(/[?#]/, 1)[0] || "/";
+  return COMPILED.some(({ regex }) => regex.test(path));
+}
+
 const text = (value, params) => (typeof value === "function" ? value(params) : value);
 
-// The preview without any lookup: the page's own text, no image (only banners
-// and plans have a picture worth showing; a logo isn't).
+// The preview without any lookup: the page's own text and the site's card
+// (banners and plans swap in their own picture after the lookup).
 export function staticPreview({ page, params, path }) {
   return {
     title: text(page.title, params),
     description: text(page.description, params),
     url: `${SITE_ORIGIN}${path}`,
-    image: "",
+    image: DEFAULT_IMAGE.url,
     type: "website",
   };
 }

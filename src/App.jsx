@@ -10,6 +10,7 @@ import {
 } from "react-router-dom";
 import { ScrollManager } from "./scrollRestoration";
 import Home from "./components/Home";
+import ErrorBoundary from "./components/ErrorBoundary";
 
 // Banner Together lives under Lists now; old (and shared invite) links keep
 // working, including the invite secret in the hash.
@@ -31,6 +32,7 @@ function TogetherRedirect() {
 function App() {
   return (
     <div className="App">
+      <ErrorBoundary>
       <Router>
         <ScrollManager />
         <Routes>
@@ -62,8 +64,12 @@ function App() {
           <Route path="/lists/together" element={<Home />} />
           <Route path="/lists/together/:placeId" element={<Home />} />
           <Route path="/lists/together/:placeId/live/:roomId" element={<Home />} />
+          {/* Anything else: "Page not found" in the normal layout (the
+              server sends it with status 404). */}
+          <Route path="*" element={<Home notFound />} />
         </Routes>
       </Router>
+      </ErrorBoundary>
     </div>
   );
 }

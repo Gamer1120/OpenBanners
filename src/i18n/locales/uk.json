@@ -561,7 +561,7 @@
   "Open this mission in Ingress": "Відкрити цю місію в Ingress",
   "Open your browser’s menu and choose “Install app” or “Add to Home screen”. Chrome, Edge and Safari can install OpenBanners.": "Відкрий меню браузера й вибери «Установити застосунок» або «Додати на головний екран». Установити OpenBanners можуть Chrome, Edge і Safari.",
   "Open {mission} in Ingress": "Відкрити {mission} в Ingress",
-  "OpenBanners Overlay didn’t open. If it isn’t installed yet, install it below, then try again.": "OpenBanners Overlay не відкрився. Якщо застосунок ще не встановлено, встановіть його нижче й спробуйте знову.",
+  "If OpenBanners Overlay didn’t open, it may not be installed yet. Install it below, then try again.": "Якщо OpenBanners Overlay не відкрився, можливо, застосунок ще не встановлено. Встанови його нижче й спробуй знову.",
   "OpenBanners Overlay is an Android app. Install it on your phone, then open this page there.": "OpenBanners Overlay — застосунок для Android. Установіть його на телефон і відкрийте цю сторінку там.",
   "OpenBanners Overlay isn’t installed on this phone (or it’s too old for this link). Install it, then try again.": "OpenBanners Overlay не встановлено на цьому телефоні (або воно застаре для цього посилання). Установіть його й спробуйте ще раз.",
   "OpenBanners banner": "Банер OpenBanners",

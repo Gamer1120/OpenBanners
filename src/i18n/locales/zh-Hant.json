@@ -525,7 +525,7 @@
   "Open this mission in Ingress": "在 Ingress 中開啟此任務",
   "Open your browser’s menu and choose “Install app” or “Add to Home screen”. Chrome, Edge and Safari can install OpenBanners.": "開啟瀏覽器選單，選擇「安裝應用程式」或「新增至主畫面」。Chrome、Edge 和 Safari 都能安裝 OpenBanners。",
   "Open {mission} in Ingress": "在 Ingress 中開啟 {mission}",
-  "OpenBanners Overlay didn’t open. If it isn’t installed yet, install it below, then try again.": "OpenBanners Overlay 沒有開啟。如果尚未安裝，請在下方安裝後再試一次。",
+  "If OpenBanners Overlay didn’t open, it may not be installed yet. Install it below, then try again.": "如果 OpenBanners Overlay 沒有開啟，可能是還沒有安裝。請在下方安裝後再試一次。",
   "OpenBanners Overlay is an Android app. Install it on your phone, then open this page there.": "OpenBanners Overlay 是 Android 應用程式。請在手機上安裝，然後在手機上開啟此頁面。",
   "OpenBanners Overlay isn’t installed on this phone (or it’s too old for this link). Install it, then try again.": "這支手機沒有安裝 OpenBanners Overlay（或版本太舊，無法開啟此連結）。請安裝後再試一次。",
   "OpenBanners banner": "OpenBanners 拼圖",

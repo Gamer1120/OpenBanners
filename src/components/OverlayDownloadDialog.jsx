@@ -110,7 +110,7 @@ export function OverlayMissingDialog({ onClose, reason = "missing", onOpenInBann
 
   const intro = {
     notAndroid: t("OpenBanners Overlay is an Android app. Install it on your phone, then open this page there."),
-    noResponse: t("OpenBanners Overlay didn’t open. If it isn’t installed yet, install it below, then try again."),
+    noResponse: t("If OpenBanners Overlay didn’t open, it may not be installed yet. Install it below, then try again."),
     inApp: t("Built-in browsers in apps like Telegram often can’t open other apps. Try the button; if nothing happens, open this page in your browser and start from there."),
   }[reason] ?? t("OpenBanners Overlay isn’t installed on this phone (or it’s too old for this link). Install it, then try again.");
 

@@ -525,7 +525,7 @@
   "Open this mission in Ingress": "このミッションを Ingress で開く",
   "Open your browser’s menu and choose “Install app” or “Add to Home screen”. Chrome, Edge and Safari can install OpenBanners.": "ブラウザのメニューを開き、「アプリをインストール」または「ホーム画面に追加」を選びます。Chrome、Edge、Safari で OpenBanners をインストールできます。",
   "Open {mission} in Ingress": "{mission} を Ingress で開く",
-  "OpenBanners Overlay didn’t open. If it isn’t installed yet, install it below, then try again.": "OpenBanners Overlay が開きませんでした。まだインストールしていない場合は、下からインストールしてからもう一度お試しください。",
+  "If OpenBanners Overlay didn’t open, it may not be installed yet. Install it below, then try again.": "OpenBanners Overlay が開かなかった場合は、まだインストールされていない可能性があります。下からインストールしてから、もう一度お試しください。",
   "OpenBanners Overlay is an Android app. Install it on your phone, then open this page there.": "OpenBanners Overlay は Android アプリです。スマートフォンにインストールして、そこでこのページを開いてください。",
   "OpenBanners Overlay isn’t installed on this phone (or it’s too old for this link). Install it, then try again.": "このスマートフォンには OpenBanners Overlay がインストールされていません（またはこのリンクには古すぎます）。インストールしてからもう一度お試しください。",
   "OpenBanners banner": "OpenBanners のバナー",

@@ -187,7 +187,8 @@ const BannerInfo = ({ banner, loading = false, variant = "list", heading = t("St
   // Elsewhere the app can't be launched: show the install dialog straight away.
   // In-app browsers (Telegram, …) often ignore app links, so they get the
   // dialog first (with the link as a button). Anywhere on Android, a link that
-  // leaves the page in front for 1.5 s shows the dialog too.
+  // leaves the page in front for 3 s shows the dialog too (and
+  // it closes again if the app turns up late).
   const handleStartWithOverlay = () => {
     if (!isAndroidUserAgent(navigator.userAgent)) {
       setOverlayMissing("notAndroid");
@@ -200,7 +201,11 @@ const BannerInfo = ({ banner, loading = false, variant = "list", heading = t("St
     }
 
     stopLaunchWatch.current?.();
-    stopLaunchWatch.current = watchAppLaunch(() => setOverlayMissing("noResponse"));
+    stopLaunchWatch.current = watchAppLaunch(() => setOverlayMissing("noResponse"), {
+      // The app turned up after all: take the "didn't open" dialog away again.
+      onLateLaunch: () =>
+        setOverlayMissing((reason) => (reason === "noResponse" ? null : reason)),
+    });
     window.location.assign(
       buildOverlayStartIntentUrl(banner.id, window.location.origin)
     );

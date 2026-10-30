@@ -56,19 +56,52 @@ export function buildOverlayStartLink(bannerId, origin) {
 }
 
 // How long an app link may take to leave the page before we assume nothing
-// happened (no app, or a browser that ignores the link).
-export const APP_LAUNCH_TIMEOUT_MS = 1500;
+// happened (no app, or a browser that ignores the link). Cold-starting the
+// Overlay on a slow phone (its activity, then its service, then Ingress) can
+// take well over a second, so this errs on the long side.
+export const APP_LAUNCH_TIMEOUT_MS = 3000;
+// After the "didn't open" dialog shows, the app may still turn up late. If the
+// page is hidden within this window, onLateLaunch() lets the caller close the
+// dialog again, so people don't come back to a wrong "didn't open" message.
+export const APP_LATE_LAUNCH_MS = 15000;
 
 // After firing an app link: calls onStay() if the page is still in front
 // after timeoutMs. Any sign that something took over (the page hidden, the
 // window losing focus to an app or a chooser, the page unloading) cancels it,
 // so the install dialog never shows when the app did open. Returns a cancel
 // function.
-export function watchAppLaunch(onStay, { timeoutMs = APP_LAUNCH_TIMEOUT_MS, win = window, doc = document } = {}) {
+export function watchAppLaunch(
+  onStay,
+  {
+    timeoutMs = APP_LAUNCH_TIMEOUT_MS,
+    onLateLaunch = null,
+    lateMs = APP_LATE_LAUNCH_MS,
+    win = window,
+    doc = document,
+  } = {}
+) {
   let active = true;
   let timer = null;
+  let lateTimer = null;
+
+  const stopLate = () => {
+    win.clearTimeout(lateTimer);
+    lateTimer = null;
+    doc.removeEventListener("visibilitychange", onLateVisibility);
+    win.removeEventListener("pagehide", onLateHide);
+  };
+  function onLateVisibility() {
+    if (doc.visibilityState === "hidden") {
+      onLateHide();
+    }
+  }
+  function onLateHide() {
+    stopLate();
+    onLateLaunch?.();
+  }
 
   const stop = () => {
+    stopLate();
     if (!active) {
       return;
     }
@@ -95,6 +128,13 @@ export function watchAppLaunch(onStay, { timeoutMs = APP_LAUNCH_TIMEOUT_MS, win 
     stop();
     if (stillHere) {
       onStay();
+      // Only the page going to the background counts here: a blur alone is
+      // usually just the dialog or keyboard taking focus.
+      if (onLateLaunch) {
+        doc.addEventListener("visibilitychange", onLateVisibility);
+        win.addEventListener("pagehide", onLateHide);
+        lateTimer = win.setTimeout(stopLate, lateMs);
+      }
     }
   }, timeoutMs);
 

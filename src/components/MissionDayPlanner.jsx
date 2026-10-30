@@ -417,7 +417,7 @@ function OverlayStart({ plan }) {
     />
   ) : null;
   // Same as the banner page: in-app browsers get the dialog first, and a link
-  // that leaves the page in front for 1.5 s shows it too.
+  // that leaves the page in front for 3 s shows it too.
   const handleStart = (event) => {
     stopLaunchWatch.current?.();
     if (detectInAppBrowser()) {
@@ -425,7 +425,9 @@ function OverlayStart({ plan }) {
       setMissing("inApp");
       return;
     }
-    stopLaunchWatch.current = watchAppLaunch(() => setMissing("noResponse"));
+    stopLaunchWatch.current = watchAppLaunch(() => setMissing("noResponse"), {
+      onLateLaunch: () => setMissing((reason) => (reason === "noResponse" ? false : reason)),
+    });
   };
   const open = plan.items.filter((item) => !item.done).length;
   if (!plan.items.length) {

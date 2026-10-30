@@ -6,6 +6,7 @@ import { vi } from "vitest";
 import BannerInfo from "./BannerInfo";
 import {
   APP_LAUNCH_TIMEOUT_MS,
+  APP_LATE_LAUNCH_MS,
   buildOverlayPlanIntentUrl,
   buildOverlayPlanLink,
   buildOverlayStartIntentUrl,
@@ -248,6 +249,44 @@ describe("app link that doesn't leave the page", () => {
     await act(() => vi.advanceTimersByTime(APP_LAUNCH_TIMEOUT_MS * 3));
     act(() => setVisibility("visible"));
     await act(() => vi.advanceTimersByTime(APP_LAUNCH_TIMEOUT_MS * 3));
+    expect(screen.queryByRole("dialog")).toBeNull();
+  });
+
+  test("watchAppLaunch: onLateLaunch only when the page is hidden soon after the dialog", () => {
+    const stayed = vi.fn();
+    const late = vi.fn();
+    watchAppLaunch(stayed, { onLateLaunch: late });
+    vi.advanceTimersByTime(APP_LAUNCH_TIMEOUT_MS);
+    expect(stayed).toHaveBeenCalledTimes(1);
+    window.dispatchEvent(new Event("blur"));
+    expect(late).not.toHaveBeenCalled();
+    setVisibility("hidden");
+    expect(late).toHaveBeenCalledTimes(1);
+    setVisibility("visible");
+    setVisibility("hidden");
+    expect(late).toHaveBeenCalledTimes(1);
+    setVisibility("visible");
+
+    const tooLate = vi.fn();
+    watchAppLaunch(() => {}, { onLateLaunch: tooLate });
+    vi.advanceTimersByTime(APP_LAUNCH_TIMEOUT_MS + APP_LATE_LAUNCH_MS + 1);
+    setVisibility("hidden");
+    setVisibility("visible");
+    expect(tooLate).not.toHaveBeenCalled();
+  });
+
+  test("Chrome on Android: the didn't-open dialog closes again when the app turns up late", async () => {
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+    stubUserAgent(ANDROID_UA);
+    vi.stubGlobal("location", { ...window.location, origin: "https://openbanners.org", assign: vi.fn() });
+
+    renderRow();
+    await user.click(screen.getByRole("button", { name: "Start with OpenBanners Overlay" }));
+    await act(() => vi.advanceTimersByTime(APP_LAUNCH_TIMEOUT_MS + 10));
+    expect(screen.getByRole("dialog", { name: "Install OpenBanners Overlay" })).toBeInTheDocument();
+    act(() => setVisibility("hidden"));
+    act(() => setVisibility("visible"));
+    await act(() => vi.advanceTimersByTime(500));
     expect(screen.queryByRole("dialog")).toBeNull();
   });
 

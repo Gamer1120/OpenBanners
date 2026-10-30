@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { Add, ArrowDownward, ArrowUpward, Close, DragIndicator, EventNote, Layers, MyLocation, OpenInNew, Search, Share, SwapVert } from "@mui/icons-material";
+import { Add, ArrowDownward, DeleteOutline, ArrowUpward, Close, DragIndicator, EventNote, Layers, MyLocation, OpenInNew, Search, Share, SwapVert } from "@mui/icons-material";
 import { BANNERGRESS_AUTH_REQUEST_EVENT, useBannergressAuth } from "../bannergressSync";
 import { buildIngressMissionUrl, formatLength, getDistanceMeters } from "../bannerDisplay";
 import BannerImage from "./BannerImage";
@@ -17,6 +17,7 @@ import { OverlayMissingDialog } from "./OverlayDownloadDialog";
 import { detectInAppBrowser } from "../inAppBrowser";
 import {
   createPlan,
+  deletePlan,
   fetchActiveMissionDays,
   fetchBannerWithMissions,
   forgetPlan,
@@ -112,6 +113,7 @@ function BannerSearch({ onPick, busy, autoFocus = false }) {
 
 function PlannerStart() {
   const navigate = useNavigate();
+  const deletedTitle = useLocation().state?.planDeleted;
   const auth = useBannergressAuth();
   const loggedIn = Boolean(auth?.accessToken || auth?.refreshToken);
   const [active, setActive] = useState({ status: "loading", banners: [] });
@@ -154,6 +156,9 @@ function PlannerStart() {
         {loggedIn ? "" : ` ${t("Log in with Bannergress to start a plan.")}`}
       </p>
       {error ? <p className="small pp-error" role="alert">{error}</p> : null}
+      {deletedTitle ? (
+        <p className="small mdp-msg" role="status">{t("“{title}” was deleted.", { title: deletedTitle })}</p>
+      ) : null}
 
       {recent.length ? (
         <section aria-labelledby="mdp-recent">
@@ -469,6 +474,11 @@ function MissionPicture({ mission }) {
 
 function PlanEditor({ planId }) {
   const { status, plan, error, apply } = usePlan(planId);
+  const navigate = useNavigate();
+  const auth = useBannergressAuth();
+  const loggedIn = Boolean(auth?.accessToken || auth?.refreshToken);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const banners = useBanners(plan?.banners ?? []);
   const [addingBanner, setAddingBanner] = useState(false);
   const [title, setTitle] = useState(null);
@@ -853,6 +863,50 @@ function PlanEditor({ planId }) {
             <button type="button" className="btn tonal sl" onClick={() => setAddingBanner(true)}>
               <Add fontSize="small" />
               {t("Add another banner")}
+            </button>
+          )}
+        </section>
+      )}
+
+      {ro || !loggedIn ? null : (
+        <section className="mdp-delete" aria-label={t("Delete plan")}>
+          {confirmDelete ? (
+            <div className="ob-alert bad" role="alertdialog" aria-labelledby="mdp-delete-q">
+              <p id="mdp-delete-q" className="small">
+                {t("Delete “{title}” for everyone? People with a link can't open it any more. This can't be undone.", { title: plan.title })}
+              </p>
+              <div className="mdp-delete-actions">
+                <button
+                  type="button"
+                  className="btn filled sl"
+                  disabled={deleting}
+                  onClick={() => {
+                    setDeleting(true);
+                    setMessage("");
+                    deletePlan(plan.id).then(
+                      () => {
+                        forgetPlan(plan.id);
+                        navigate("/planner", { replace: true, state: { planDeleted: plan.title } });
+                      },
+                      (e) => {
+                        setDeleting(false);
+                        setConfirmDelete(false);
+                        setMessage(e.message);
+                      }
+                    );
+                  }}
+                >
+                  {t("Delete plan")}
+                </button>
+                <button type="button" className="btn text sl" disabled={deleting} onClick={() => setConfirmDelete(false)}>
+                  {t("Cancel")}
+                </button>
+              </div>
+            </div>
+          ) : (
+            <button type="button" className="btn text sl mdp-delete-btn" onClick={() => setConfirmDelete(true)}>
+              <DeleteOutline fontSize="small" />
+              {t("Delete plan")}
             </button>
           )}
         </section>

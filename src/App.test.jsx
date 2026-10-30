@@ -4045,7 +4045,8 @@ test("discovery map filters banners and lists those in view, with the route of t
   expect(within(row).getByText("Long Map Banner")).toBeInTheDocument();
   expect(within(row).getByText("2 banners here")).toBeInTheDocument();
   expect(screen.queryByText(/in view/)).not.toBeInTheDocument();
-  expect(screen.getAllByRole("button", { name: /^filters \(1 on\)$/i })).toHaveLength(1);
+  // Signed out, the default "Hide Done" doesn't count: no filter badge.
+  expect(screen.getAllByRole("button", { name: /^filters$/i })).toHaveLength(1);
   expect(screen.queryByRole("radiogroup", { name: /map prototype/i })).not.toBeInTheDocument();
 
   expect(screen.queryByRole("button", { name: /any length/i })).not.toBeInTheDocument();

@@ -23,6 +23,8 @@ export default function useDiscoveryMap() {
   const [zoom, setZoom] = useState(restoredViewport?.zoom ?? defaultView.zoom);
   const [userLocation, setUserLocation] = useState(null);
   const [locating, setLocating] = useState(false);
+  // Set when "Go to my area" couldn't get a location (denied, unavailable).
+  const [locationFailed, setLocationFailed] = useState(false);
   const syncState = useBannergressSync();
   const centeredRef = useRef(Boolean(restoredViewport));
   const { banners: loadedBanners, loading, error, tooFarOut } = useDiscoveryMapBanners(
@@ -66,10 +68,12 @@ export default function useDiscoveryMap() {
   const requestLocation = useCallback(
     ({ recenter = false } = {}) => {
       if (!("geolocation" in navigator)) {
+        setLocationFailed(true);
         return;
       }
 
       setLocating(true);
+      setLocationFailed(false);
       navigator.geolocation.getCurrentPosition(
         (position) => {
           const next = { latitude: position.coords.latitude, longitude: position.coords.longitude };
@@ -81,7 +85,10 @@ export default function useDiscoveryMap() {
             flyToUser(next);
           }
         },
-        () => setLocating(false),
+        () => {
+          setLocating(false);
+          setLocationFailed(true);
+        },
         { enableHighAccuracy: true, timeout: 15000 }
       );
     },
@@ -130,6 +137,7 @@ export default function useDiscoveryMap() {
     syncState,
     userLocation,
     locating,
+    locationFailed,
     requestLocation,
     handleViewportChange,
   };

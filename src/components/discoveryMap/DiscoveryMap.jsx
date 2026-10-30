@@ -19,10 +19,12 @@ import {
   applyMapFilters,
   distanceOptions,
   countActiveMapFilters,
+  signedOutMapFilters,
   filterSummary,
   normalizeMapFilters,
 } from "./mapFilters";
 import { useBannerRoute } from "./bannerRoute";
+import { useBannergressAuth } from "../../bannergressSync";
 import { clusterByPixels, isInsideArea } from "./mapMath";
 import { areaCenter, buildRow, sortByDistance } from "./rowModel";
 import { BannerCarousel, BannerSideList } from "./BannerRow";
@@ -299,7 +301,13 @@ export default function DiscoveryMap() {
   const vm = useDiscoveryMap();
   const { map, banners, liveArea } = vm;
   const isWide = useIsWide();
-  const [filters, setFilters] = useState(readStoredFilters);
+  const [storedFilters, setFilters] = useState(readStoredFilters);
+  // Signed out there are no Done banners to hide, so "Hide Done" (the default)
+  // counts as "All": no filter badge for a first visit. It comes back as soon
+  // as you sign in.
+  const auth = useBannergressAuth();
+  const loggedIn = Boolean(auth?.accessToken || auth?.refreshToken);
+  const filters = useMemo(() => signedOutMapFilters(storedFilters, loggedIn), [storedFilters, loggedIn]);
   const [sheet, setSheet] = useState(null); // group key that opened the sheet
   const [moreOpen, setMoreOpen] = useState(false);
   // Back from a banner reselects its card (the viewport itself is remembered
@@ -318,11 +326,11 @@ export default function DiscoveryMap() {
 
   useEffect(() => {
     try {
-      window.localStorage.setItem(MAP_FILTERS_STORAGE_KEY, JSON.stringify(filters));
+      window.localStorage.setItem(MAP_FILTERS_STORAGE_KEY, JSON.stringify(storedFilters));
     } catch {
       // Private mode: filters last for this visit.
     }
-  }, [filters]);
+  }, [storedFilters]);
 
   useEffect(() => {
     try {

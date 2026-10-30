@@ -134,11 +134,32 @@ export function LocateButton({ vm, style }) {
 export function MapStatusPill({ vm, count, emptyText, bottom = 16 }) {
   let text = "";
 
+  if (!vm.error && vm.tooFarOut) {
+    // Zoomed out too far to load (discoveryMapData MIN_LOAD_TILE_LEVEL): offer
+    // to jump to the visitor's area, which zooms in far enough to load.
+    return (
+      <div className="mv-pill mv-pill-action" style={{ bottom }} role="status">
+        <span>
+          {vm.locationFailed
+            ? t("Couldn't get your location. Zoom in on the map to see banners.")
+            : t("Zoom in to see banners")}
+        </span>
+        {vm.locationFailed ? null : (
+          <button
+            type="button"
+            className="mv-btn primary"
+            disabled={vm.locating}
+            onClick={() => vm.requestLocation({ recenter: true })}
+          >
+            {vm.locating ? t("Finding you…") : t("Go to my area")}
+          </button>
+        )}
+      </div>
+    );
+  }
+
   if (vm.error) {
     text = vm.error;
-  } else if (vm.tooFarOut) {
-    // Zoomed out too far to load (discoveryMapData MIN_LOAD_TILE_LEVEL).
-    text = t("Zoom in to see banners");
   } else if (vm.loading && !vm.banners.length) {
     text = t("Loading banners…");
   } else if (count === 0 && vm.searchArea) {

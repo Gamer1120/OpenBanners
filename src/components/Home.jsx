@@ -22,6 +22,7 @@ import { t, tk } from "../i18n";
 
 // Loaded only when opened: it carries every UI text (keys.json).
 const TranslationEditor = lazy(() => import("./TranslationEditor"));
+const PrivacyPage = lazy(() => import("./PrivacyPage"));
 // Pages with a map (Leaflet) or a lot of code of their own come as separate
 // chunks, so the home page, search and browse don't download them.
 const BannerDetailsPage = lazy(() => import("./BannerDetailsPage"));
@@ -53,6 +54,7 @@ const VIEW_TITLES = {
   rerouter: tk("Reroute Banner"),
   planner: tk("Mission Day planner"),
   translate: tk("Translation editor"),
+  privacy: tk("Privacy"),
 };
 
 function formatRouteParam(value) {
@@ -138,6 +140,13 @@ function getRouteMetadata({ pathname, placeId, agentName, query, notFound }) {
     };
   }
 
+  if (pathname === "/privacy") {
+    return {
+      title: t("Privacy"),
+      description: t("What OpenBanners stores and logs, and how to delete it."),
+    };
+  }
+
   if (pathname.startsWith("/translate")) {
     return {
       title: t("Translation editor"),
@@ -201,6 +210,10 @@ function getCurrentView(pathname) {
 
   if (pathname.startsWith("/translate")) {
     return "translate";
+  }
+
+  if (pathname === "/privacy") {
+    return "privacy";
   }
 
   if (pathname.startsWith("/lists")) {
@@ -327,6 +340,7 @@ export default function Home({ notFound = false }) {
               fill the viewport (.ob-app.fill) either way, so nothing moves. */}
           <Suspense fallback={null}>
           {currentView === "notFound" && <NotFoundPage />}
+          {currentView === "privacy" && <PrivacyPage />}
           {currentView === "start" || currentView === "lists" ? <AuthorPassphraseNotice /> : null}
           {currentView === "start" && <BannersStartPage />}
           {currentView === "near" && (

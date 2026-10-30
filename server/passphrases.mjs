@@ -676,6 +676,17 @@ export function createPassphraseService({
     return planOut(loadPlan(id));
   }
 
+  // Only the person who made the plan can delete it, with the edit link's id.
+  // The row is really removed (the privacy page says so).
+  function deletePlan(identity, id) {
+    const row = loadPlan(id);
+    if (row.owner !== identity.userId) {
+      throw new ApiError(403, "not_owner", "Only the person who made this plan can delete it.");
+    }
+    db.prepare("DELETE FROM plans WHERE id = ?").run(row.id);
+    return { deleted: true };
+  }
+
   // ops: [{ op: "title", title } | { op: "addBanner", bannerId } | { op: "removeBanner", bannerId }
   //   | { op: "add", bannerId, missionId, index? } | { op: "remove", missionId } | { op: "move", missionId, index }
   //   | { op: "done", missionId, done } | { op: "reverse", missionId, reversed }]
@@ -806,6 +817,9 @@ export function createPassphraseService({
     }
     if (planMatch && method === "POST") {
       return editPlan(planMatch[1], body);
+    }
+    if (planMatch && method === "DELETE") {
+      return deletePlan(await identify(headers.authorization), planMatch[1]);
     }
     if (path === "/health" && method === "GET") {
       return { ok: true };

@@ -11,6 +11,8 @@ export const planUrl = (planId) => `${window.location.origin}${planPath(planId)}
 
 export const createPlan = ({ banners, title }) => call("/plans", { method: "POST", body: { banners, title } });
 export const getPlan = (planId) => call(`/plans/${encodeURIComponent(planId)}`, { authenticate: false });
+// Only the maker can delete a plan (with the edit link); it's removed for everyone.
+export const deletePlan = (planId) => call(`/plans/${encodeURIComponent(planId)}`, { method: "DELETE" });
 export const editPlan = (planId, ops) =>
   call(`/plans/${encodeURIComponent(planId)}`, { method: "POST", body: { ops }, authenticate: false });
 

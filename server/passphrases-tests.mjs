@@ -269,6 +269,20 @@ test("plans: made with a login, edited by anyone with the link, one change at a 
   await assert.rejects(service.handle("GET", "/plans/nope", {}, null), { status: 404 });
 });
 
+test("plans: only the maker deletes a plan, with the edit link, and it's really gone", async () => {
+  const { service, as } = setup();
+  const plan = await service.handle("POST", "/plans", as("alice"), { banners: ["b1"] });
+  const path = `/plans/${plan.id}`;
+  await assert.rejects(service.handle("DELETE", path, {}, null), { status: 401 });
+  await assert.rejects(service.handle("DELETE", path, as("bob"), null), { status: 403, code: "not_owner" });
+  await assert.rejects(service.handle("DELETE", `/plans/${plan.viewId}`, as("alice"), null), { status: 403, code: "read_only" });
+  await assert.rejects(service.handle("DELETE", "/plans/nope", as("alice"), null), { status: 404 });
+  assert.deepEqual(await service.handle("DELETE", path, as("alice"), null), { deleted: true });
+  await assert.rejects(service.handle("GET", path, {}, null), { status: 404, code: "plan_not_found" });
+  await assert.rejects(service.handle("GET", `/plans/${plan.viewId}`, {}, null), { status: 404 });
+  await assert.rejects(service.handle("POST", path, {}, { ops: [{ op: "title", title: "x" }] }), { status: 404 });
+});
+
 test("plans: the read-only link shows the plan but can't change it or reveal the edit link", async () => {
   const { service, as } = setup();
   const plan = await service.handle("POST", "/plans", as("alice"), { banners: ["b1"] });

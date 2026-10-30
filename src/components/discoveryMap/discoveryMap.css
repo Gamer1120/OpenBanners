@@ -181,6 +181,18 @@
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
 }
 
+.mv-pill-action {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 6px 10px;
+}
+
+.mv-pill-action .mv-btn {
+  min-height: 36px;
+}
+
 .mv-pill.err {
   background: #4a1f1f;
 }

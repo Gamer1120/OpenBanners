@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { Link } from "react-router-dom";
 import ObModal from "./ObModal";
 import { buildOpenInBrowserIntent, copyText } from "../inAppBrowser";
 import { t } from "../i18n";
@@ -48,6 +49,9 @@ export default function InAppBrowserDialog({ info, onClose, onContinue }) {
         <button type="button" className="btn text sl" onClick={onContinue}>
           {t("Try signing in here anyway")}
         </button>
+        <Link className="btn text sl" to="/privacy" onClick={onClose}>
+          {t("What happens when you sign in")}
+        </Link>
       </div>
     </ObModal>
   );

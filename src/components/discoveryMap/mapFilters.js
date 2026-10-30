@@ -53,6 +53,13 @@ export function normalizeMapFilters(value) {
   };
 }
 
+// Signed out nobody has Done banners: "Hide Done" shows as "All" (no badge),
+// and the saved choice comes back after signing in.
+export function signedOutMapFilters(filters, loggedIn) {
+  const normalized = normalizeMapFilters(filters);
+  return loggedIn || normalized.status !== "hideDone" ? normalized : { ...normalized, status: "all" };
+}
+
 function distanceActive(normalized) {
   if (normalized.distance === "custom") {
     return normalized.distMin !== null || normalized.distMax !== null;

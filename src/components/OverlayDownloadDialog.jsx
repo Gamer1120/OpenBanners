@@ -121,6 +121,18 @@ export function OverlayMissingDialog({ onClose, reason = "missing", onOpenInBann
       labelId="overlay-missing-title"
     >
       <p className="small">{intro}</p>
+      {onOpenInBannergress ? (
+        // First: many players already use Bannergress Overlay.
+        <section className="ob-dl-option primary" aria-labelledby="overlay-dl-bannergress">
+          <h3 id="overlay-dl-bannergress">{t("Use Bannergress Overlay")}</h3>
+          <p className="small muted">
+            {t("Already have another overlay app, like Bannergress Overlay? Share this banner’s Bannergress link with it.")}
+          </p>
+          <button type="button" className="btn filled sl ob-dl-btn" onClick={onOpenInBannergress}>
+            {t("Open in Bannergress Overlay")}
+          </button>
+        </section>
+      ) : null}
       {inApp ? (
         <>
           <div className="ob-modal-actions">
@@ -142,19 +154,10 @@ export function OverlayMissingDialog({ onClose, reason = "missing", onOpenInBann
           ) : null}
           <h3 className="ob-dl-sub">{t("Install OpenBanners Overlay")}</h3>
         </>
+      ) : onOpenInBannergress ? (
+        <h3 className="ob-dl-sub">{t("Install OpenBanners Overlay")}</h3>
       ) : null}
       <OverlayDownloadOptions />
-      {onOpenInBannergress ? (
-        <section className="ob-dl-option" aria-labelledby="overlay-dl-bannergress">
-          <h3 id="overlay-dl-bannergress">{t("Or use Bannergress Overlay")}</h3>
-          <p className="small muted">
-            {t("Already have another overlay app, like Bannergress Overlay? Share this banner’s Bannergress link with it.")}
-          </p>
-          <button type="button" className="btn outlined sl ob-dl-btn" onClick={onOpenInBannergress}>
-            {t("Open in Bannergress Overlay")}
-          </button>
-        </section>
-      ) : null}
     </ObModal>
   );
 }

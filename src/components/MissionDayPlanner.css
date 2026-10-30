@@ -412,3 +412,15 @@
 .mdp-mission:disabled {
   cursor: default;
 }
+
+/* Delete plan (maker only): at the very end, away from everyday buttons. */
+.mdp-delete {
+  margin-top: 32px;
+}
+
+.mdp-delete-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
+}

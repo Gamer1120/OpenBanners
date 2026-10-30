@@ -16,6 +16,7 @@ import {
   EventNote,
   InstallMobile,
   GitHub,
+  PrivacyTip,
   Login,
   MoreVert,
   Settings as SettingsIcon,
@@ -640,6 +641,17 @@ export default function TopMenu({
                 <GitHub fontSize="small" />
               </ListItemIcon>
               <ListItemText>{t("Source code")}</ListItemText>
+            </MenuItem>
+            <MenuItem
+              onClick={() => {
+                closeMoreMenu();
+                navigate("/privacy");
+              }}
+            >
+              <ListItemIcon>
+                <PrivacyTip fontSize="small" />
+              </ListItemIcon>
+              <ListItemText>{t("Privacy")}</ListItemText>
             </MenuItem>
           </Menu>
         </div>

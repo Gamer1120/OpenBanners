@@ -11,6 +11,7 @@ import {
 } from "@mui/icons-material";
 import BannerWall from "./BannerWall";
 import AboutNotice from "./AboutNotice";
+import FirstVisitIntro from "./FirstVisitIntro";
 import { loadCachedNearbyLocation, saveCachedNearbyLocation } from "./BannersNearMe";
 import { fetchBannergress, useBannergressSync } from "../bannergressSync";
 import { useRememberEntry, useRestoredEntry } from "../scrollRestoration";
@@ -234,6 +235,8 @@ export default function BannersStartPage() {
                 : t("Share your location to see the banners closest to you.")}
         </p>
       </header>
+
+      <FirstVisitIntro />
 
       {hasLocation ? (
         top === null ? (

@@ -70,6 +70,51 @@ export type BannerMetaServerOptions = {
   botWaitMs?: number;
 };
 
+// Only what the previews need is kept in memory: a whole Bannergress banner
+// (missions, steps, POIs) is ~30 kB, these few fields are well under 1 kB.
+const MAX_CACHED_TEXT = 500;
+
+function slimText(value: unknown): string | undefined {
+  return typeof value === "string" ? value.slice(0, MAX_CACHED_TEXT) : undefined;
+}
+
+function slimNumber(value: unknown): number | undefined {
+  return typeof value === "number" && Number.isFinite(value) ? value : undefined;
+}
+
+export function slimBanner(banner: Record<string, unknown>): Banner {
+  return {
+    id: slimText(banner.id),
+    title: slimText(banner.title),
+    picture: slimText(banner.picture),
+    numberOfMissions: slimNumber(banner.numberOfMissions),
+    lengthMeters: slimNumber(banner.lengthMeters),
+    formattedAddress: slimText(banner.formattedAddress),
+  } as Banner;
+}
+
+export function slimPlace(place: Record<string, unknown>): Record<string, unknown> {
+  return {
+    longName: slimText(place.longName),
+    shortName: slimText(place.shortName),
+    numberOfBanners: slimNumber(place.numberOfBanners),
+    formattedAddress: slimText(place.formattedAddress),
+  };
+}
+
+export function slimPlan(plan: Record<string, unknown>): Record<string, unknown> {
+  const items = Array.isArray(plan.items) ? plan.items : [];
+  const banners = Array.isArray(plan.banners) ? plan.banners : [];
+  return {
+    title: slimText(plan.title),
+    readOnly: plan.readOnly === true,
+    // The preview only counts items and done items.
+    items: items.map((item) => ({ done: isPlainObject(item) && item.done === true })),
+    banners: banners.slice(0, 3).map(slimText),
+    bannerCount: banners.length,
+  };
+}
+
 function isPlainObject(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === "object" && !Array.isArray(value);
 }
@@ -306,8 +351,9 @@ export function createBannerMetaServer(options: BannerMetaServerOptions = {}) {
         return loadCachedBanner(bannerId, true);
       }
 
-      storeCachedBanner(bannerId, banner as Banner);
-      return banner as Banner;
+      const slim = slimBanner(banner);
+      storeCachedBanner(bannerId, slim);
+      return slim;
     } catch {
       return loadCachedBanner(bannerId, true);
     }
@@ -337,7 +383,11 @@ export function createBannerMetaServer(options: BannerMetaServerOptions = {}) {
   }
 
   // Places and plans: fetched like banners (fresh for 15 minutes, stale when the source fails).
-  async function fetchJson(url: string, ttlMs = CACHE_TTL_MS): Promise<Record<string, unknown> | null> {
+  async function fetchJson(
+    url: string,
+    ttlMs: number,
+    slim: (value: Record<string, unknown>) => Record<string, unknown>,
+  ): Promise<Record<string, unknown> | null> {
     const entry = jsonCache.get(url);
     if (entry !== undefined && now() - entry.storedAt <= ttlMs) {
       return entry.value;
@@ -348,10 +398,11 @@ export function createBannerMetaServer(options: BannerMetaServerOptions = {}) {
         redirect: "manual",
         signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
       });
-      const value: unknown = apiResponse.status === 200 ? await apiResponse.json() : null;
-      if (!isPlainObject(value)) {
+      const raw: unknown = apiResponse.status === 200 ? await apiResponse.json() : null;
+      if (!isPlainObject(raw)) {
         return entry?.value ?? null;
       }
+      const value = slim(raw);
       jsonCache.delete(url);
       jsonCache.set(url, { value, storedAt: now() });
       while (jsonCache.size > MAX_CACHE_ENTRIES) {
@@ -396,7 +447,7 @@ export function createBannerMetaServer(options: BannerMetaServerOptions = {}) {
     }
 
     if (page.kind === "place") {
-      const place = await fetchJson(`${BANNERGRESS_API_ORIGIN}/places/${encodeURIComponent(params.placeId)}`, 6 * 60 * 60 * 1000);
+      const place = await fetchJson(`${BANNERGRESS_API_ORIGIN}/places/${encodeURIComponent(params.placeId)}`, 6 * 60 * 60 * 1000, slimPlace);
       const name = normalizeText(place?.longName) || normalizeText(place?.shortName);
       if (place === null || name === "") {
         return base;
@@ -412,7 +463,7 @@ export function createBannerMetaServer(options: BannerMetaServerOptions = {}) {
     }
 
     if (page.kind === "plan") {
-      const plan = await fetchJson(`${plansApi}/plans/${encodeURIComponent(params.planId)}`, 60 * 1000);
+      const plan = await fetchJson(`${plansApi}/plans/${encodeURIComponent(params.planId)}`, 60 * 1000, slimPlan);
       if (plan === null) {
         return base;
       }
@@ -424,7 +475,7 @@ export function createBannerMetaServer(options: BannerMetaServerOptions = {}) {
       const parts = [
         `${items.length} ${items.length === 1 ? "mission" : "missions"} planned`,
         done ? `${done} done` : "",
-        titles.length ? `from ${titles.join(", ")}${bannerIds.length > titles.length ? " and more" : ""}` : "",
+        titles.length ? `from ${titles.join(", ")}${Math.max(bannerIds.length, toFiniteNumber(plan.bannerCount) ?? 0) > titles.length ? " and more" : ""}` : "",
       ].filter(Boolean);
       const picture = banners.find((banner) => normalizeText(banner.picture) !== "");
       return {

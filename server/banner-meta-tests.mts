@@ -12,6 +12,8 @@ import {
   createBannerMetaServer,
   escapeHtml,
   isPreviewBot,
+  slimBanner,
+  slimPlan,
 } from "./banner-meta.mts";
 
 const shellHtml = [
@@ -339,4 +341,44 @@ test("stale while revalidate: an expired copy answers at once while Bannergress 
   assert.match(stale, /og:type" content="article"/);
   assert.match(stale, /Rock &amp; Roll/);
   assert.equal(calls, 2);
+});
+
+test("the preview cache keeps only the preview fields of a banner", () => {
+  const missions = Array.from({ length: 300 }, (_, index) => ({
+    id: `m${index}`,
+    title: `Mission ${index}`,
+    steps: Array.from({ length: 6 }, () => ({ poi: { title: "A portal with a long name", latitude: 52.1, longitude: 5.1 } })),
+  }));
+  const full = {
+    id: "big-1234",
+    title: "x".repeat(2000),
+    picture: "https://lh3.googleusercontent.com/abc",
+    numberOfMissions: 300,
+    lengthMeters: 12345,
+    formattedAddress: "Utrecht, Netherlands",
+    missions,
+  };
+  const slim = slimBanner(full);
+  assert.deepEqual(Object.keys(slim).sort(), ["formattedAddress", "id", "lengthMeters", "numberOfMissions", "picture", "title"]);
+  assert.equal((slim.title as string).length, 500);
+  assert.ok(JSON.stringify(full).length > 50_000);
+  assert.ok(JSON.stringify(slim).length < 1_000);
+  assert.equal(buildDescription(slim), "300 Missions, 12.3 km, Utrecht, Netherlands");
+});
+
+test("the preview cache keeps only what a plan preview counts", () => {
+  const slim = slimPlan({
+    title: "Day out",
+    readOnly: true,
+    secret: "should not be kept",
+    items: [{ done: true, notes: "n".repeat(5000) }, { done: false }, "junk"],
+    banners: ["a", "b", "c", "d", "e"],
+  });
+  assert.deepEqual(slim, {
+    title: "Day out",
+    readOnly: true,
+    items: [{ done: true }, { done: false }, { done: false }],
+    banners: ["a", "b", "c"],
+    bannerCount: 5,
+  });
 });

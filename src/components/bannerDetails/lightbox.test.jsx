@@ -34,3 +34,52 @@ test("tapping the banner artwork enlarges it instead of opening a mission", asyn
   await user.click(screen.getByRole("button", { name: "Close" }));
   expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
 });
+
+// Tiles of the mosaic from top-left: mission id, "gap" (filler slot) or "void" (padding).
+function mosaicCells(container) {
+  return [...container.querySelector(".mosaic").children].map((cell) =>
+    cell.classList.contains("gap")
+      ? "gap"
+      : cell.classList.contains("void")
+      ? "void"
+      : cell.querySelector("img").getAttribute("src").replace("https://example.com/", "").replace(/=s\d+$/, "")
+  );
+}
+
+test("a filler slot stays an empty tile in its place, like on Bannergress", () => {
+  // 广式双马尾-f8aa: width 6, positions 0, 2, 3, 4, 5 (position 1 is another banner's mission).
+  const gapBanner = { id: "g", width: 6 };
+  const gapMissions = ["0", "2", "3", "4", "5"].map((position) => ({
+    id: `m${position}`,
+    picture: `https://example.com/${position}`,
+  }));
+  const { container } = render(
+    <MissionMosaic banner={gapBanner} missions={gapMissions} slots={[0, 2, 3, 4, 5]} colors={[]} />
+  );
+
+  // Mission 1 bottom-right; the gap is second from the right, as in Bannergress' picture.
+  expect(mosaicCells(container)).toEqual(["5", "4", "3", "2", "gap", "0"]);
+  expect(container.querySelector(".mosaic").style.getPropertyValue("--rows")).toBe("1");
+});
+
+test("a filler slot can push the banner to another row", () => {
+  const gapBanner = { id: "g", width: 3 };
+  const gapMissions = [0, 1, 3].map((position) => ({ id: `m${position}`, picture: `https://example.com/${position}` }));
+  const { container } = render(
+    <MissionMosaic banner={gapBanner} missions={gapMissions} slots={[0, 1, 3]} colors={[]} />
+  );
+
+  expect(mosaicCells(container)).toEqual(["void", "void", "3", "gap", "1", "0"]);
+});
+
+test("without filler slots the mosaic is unchanged", () => {
+  const plainBanner = { id: "p", width: 3 };
+  const plainMissions = [0, 1, 2, 3].map((position) => ({ id: `m${position}`, picture: `https://example.com/${position}` }));
+  const withSlots = render(
+    <MissionMosaic banner={plainBanner} missions={plainMissions} slots={[0, 1, 2, 3]} colors={[]} />
+  );
+  expect(mosaicCells(withSlots.container)).toEqual(["void", "void", "3", "2", "1", "0"]);
+  withSlots.unmount();
+  const withoutSlots = render(<MissionMosaic banner={plainBanner} missions={plainMissions} colors={[]} />);
+  expect(mosaicCells(withoutSlots.container)).toEqual(["void", "void", "3", "2", "1", "0"]);
+});

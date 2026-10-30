@@ -51,6 +51,7 @@ import {
   plannedOfflineTone,
 } from "../../bannerFacts";
 import { getLanguage, t, tk, tn } from "../../i18n";
+import { getMissionEntries, getSlotCount } from "../../bannerMissions";
 
 // Leaflet comes with the map only (RouteMap.jsx).
 const RouteMap = lazy(() => import("./RouteMap"));
@@ -156,11 +157,17 @@ export function getFinish(missions) {
 }
 
 // The banner artwork. Tiles aren't links: tapping the artwork opens it enlarged.
-export function MissionMosaic({ banner, missions, colors, large = false }) {
+// slots[i] is mission i's position in the banner; a position without a mission
+// (a filler slot) stays an empty tile, like on Bannergress.
+export function MissionMosaic({ banner, missions, slots, colors, large = false }) {
   const width = Number(banner.width) || 6;
   const count = missions.length;
-  const rows = Math.max(1, Math.ceil(count / width));
-  const padding = rows * width - count;
+  const missionSlots =
+    Array.isArray(slots) && slots.length === count ? slots : missions.map((_, index) => index);
+  const slotCount = getSlotCount(missionSlots);
+  const indexBySlot = new Map(missionSlots.map((slot, index) => [slot, index]));
+  const rows = Math.max(1, Math.ceil(slotCount / width));
+  const padding = rows * width - slotCount;
   const hasPictures = missions.some((mission) => mission?.picture);
 
   if (!count || !hasPictures) {
@@ -184,7 +191,14 @@ export function MissionMosaic({ banner, missions, colors, large = false }) {
     }
 
     // Mission 1 is bottom-right, like in the Ingress scanner.
-    const index = count - 1 - (cell - padding);
+    const slot = slotCount - 1 - (cell - padding);
+    const index = indexBySlot.get(slot);
+
+    if (index === undefined) {
+      cells.push(<span key={`gap-${slot}`} className="void gap" aria-hidden="true" />);
+      continue;
+    }
+
     const mission = missions[index];
 
     cells.push(
@@ -223,7 +237,7 @@ export function MissionMosaic({ banner, missions, colors, large = false }) {
 }
 
 // Full-screen view of the artwork; tap anywhere, × or Escape closes it.
-export function BannerLightbox({ banner, missions, colors, onClose }) {
+export function BannerLightbox({ banner, missions, slots, colors, onClose }) {
   useEffect(() => {
     const onKey = (event) => {
       if (event.key === "Escape") {
@@ -252,7 +266,7 @@ export function BannerLightbox({ banner, missions, colors, onClose }) {
         ×
       </button>
       <div className="bp-lightbox-body">
-        <MissionMosaic banner={banner} missions={missions} colors={colors} large />
+        <MissionMosaic banner={banner} missions={missions} slots={slots} colors={colors} large />
       </div>
     </div>,
     document.body
@@ -260,7 +274,7 @@ export function BannerLightbox({ banner, missions, colors, onClose }) {
 }
 
 // Tappable artwork that opens the lightbox.
-export function EnlargeableArt({ banner, missions, colors, children }) {
+export function EnlargeableArt({ banner, missions, slots, colors, children }) {
   const [open, setOpen] = useState(false);
 
   return (
@@ -274,7 +288,13 @@ export function EnlargeableArt({ banner, missions, colors, children }) {
         {children}
       </button>
       {open ? (
-        <BannerLightbox banner={banner} missions={missions} colors={colors} onClose={() => setOpen(false)} />
+        <BannerLightbox
+          banner={banner}
+          missions={missions}
+          slots={slots}
+          colors={colors}
+          onClose={() => setOpen(false)}
+        />
       ) : null}
     </>
   );
@@ -512,7 +532,10 @@ export function useBannerDetails({ tabs = true } = {}) {
   const mapRef = useRef(null);
   const mapContainerRef = useRef(null);
   const missionItemRefs = useRef([]);
-  const missions = useMemo(() => Object.values(items.missions ?? {}), [items.missions]);
+  // Missions in banner order without filler slots; missionSlots holds their positions.
+  const missionEntries = useMemo(() => getMissionEntries(items.missions), [items.missions]);
+  const missions = useMemo(() => missionEntries.map((entry) => entry.mission), [missionEntries]);
+  const missionSlots = useMemo(() => missionEntries.map((entry) => entry.position), [missionEntries]);
   const colors = useMemo(() => missionColors(missions.length), [missions.length]);
   const missionPositions = useMemo(
     () =>
@@ -753,6 +776,7 @@ export function useBannerDetails({ tabs = true } = {}) {
     showMap,
     showPane,
     missions,
+    missionSlots,
     colors,
     missionPositions,
     selectedMission,
@@ -868,8 +892,8 @@ export function HeroArt({ d }) {
   }
 
   return (
-    <EnlargeableArt banner={d.items} missions={d.missions} colors={d.colors}>
-      <MissionMosaic banner={d.items} missions={d.missions} colors={d.colors} />
+    <EnlargeableArt banner={d.items} missions={d.missions} slots={d.missionSlots} colors={d.colors}>
+      <MissionMosaic banner={d.items} missions={d.missions} slots={d.missionSlots} colors={d.colors} />
     </EnlargeableArt>
   );
 }
@@ -1216,6 +1240,7 @@ export function MapSection({ d, className = "", sheet = true, onShowInList, chil
           missions={d.missions}
           colors={d.colors}
           missionPositions={d.missionPositions}
+          missionSlots={d.missionSlots}
           selectedMission={d.selectedMission}
           onSelectMission={d.handleMapSelect}
           userLocation={d.userLocation}

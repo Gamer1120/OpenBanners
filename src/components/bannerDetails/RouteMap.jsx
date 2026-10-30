@@ -9,6 +9,7 @@ import { WORLD_PLACEHOLDER } from "../../mapDefaults";
 import { buildGeoUrl } from "../../bannerDisplay";
 import userLocationIcon from "../../constants";
 import { t } from "../../i18n";
+import { areAdjacent } from "../../bannerMissions";
 import { FINISH_FLAG_SVG, getFinish, getStepPosition, getSteps, isOnStartMarker } from "./shared";
 
 function createStartIcon(index, color, selected) {
@@ -44,6 +45,7 @@ export default function RouteMap({
   missions,
   colors,
   missionPositions,
+  missionSlots,
   selectedMission,
   onSelectMission,
   userLocation,
@@ -60,11 +62,12 @@ export default function RouteMap({
       missionPositions.flatMap((positions, index) => {
         const next = missionPositions[index + 1];
 
-        return positions.length && next?.length
+        // Like Bannergress: no line across a filler slot (a mission of another banner).
+        return positions.length && next?.length && areAdjacent(missionSlots, index)
           ? [{ key: `connector-${index}`, positions: [positions[positions.length - 1], next[0]] }]
           : [];
       }),
-    [missionPositions]
+    [missionPositions, missionSlots]
   );
   const selectedSteps = selectedMission >= 0 ? getSteps(missions[selectedMission]) : [];
   const waypointIcon = useMemo(

@@ -1,4 +1,5 @@
 import "../leafletSetup";
+import { getMissionList } from "../bannerMissions";
 import { WORLD_PLACEHOLDER } from "../mapDefaults";
 import { MapContainer, TileLayer } from "react-leaflet";
 import LocationMarker from "./LocationMarker";
@@ -49,7 +50,7 @@ export default function Map() {
   const [locationDebugSnapshot, setLocationDebugSnapshot] = useState(null);
   const [mapViewportRevision, setMapViewportRevision] = useState(0);
   const missions = useMemo(
-    () => Object.values(items.missions ?? {}),
+    () => getMissionList(items.missions),
     [items.missions]
   );
 

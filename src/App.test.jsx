@@ -2301,6 +2301,52 @@ test("renders a single visible map for banner details even with multiple mission
   expect(screen.getAllByTestId("map-container")).toHaveLength(1);
 });
 
+test("keeps a filler slot of the banner empty in the artwork, like Bannergress", async () => {
+  // Like 广式双马尾-f8aa: position 1 is left out on purpose (another banner's mission).
+  const mission = (position) => ({
+    id: `gap-mission-${position}`,
+    title: `Gap mission ${position}`,
+    picture: `https://example.com/pic-${position}`,
+    steps: {
+      0: { poi: { title: `Portal ${position}`, type: "portal", latitude: 52.37 + position / 100, longitude: 4.89 } },
+    },
+  });
+  global.fetch.mockImplementation((url) => {
+    if (url.endsWith("/bnrs/gap-banner")) {
+      return jsonResponse({
+        id: "gap-banner",
+        title: "Gap Banner",
+        picture: "/images/gap.jpg",
+        numberOfMissions: 5,
+        width: 6,
+        lengthMeters: 2100,
+        missions: Object.fromEntries([0, 2, 3, 4, 5].map((position) => [String(position), mission(position)])),
+      });
+    }
+
+    throw new Error(`Unhandled fetch: ${url}`);
+  });
+
+  const { container } = renderWithProviders(
+    <Routes>
+      <Route path="/banner/:bannerId" element={<BannerDetailsPage />} />
+    </Routes>,
+    { route: "/banner/gap-banner" }
+  );
+
+  expect(await screen.findByText("Gap Banner")).toBeInTheDocument();
+  const cells = [...container.querySelector(".mosaic").children].map((cell) =>
+    cell.classList.contains("gap") ? "gap" : cell.querySelector("img")?.getAttribute("src").replace(/^.*pic-(\d+)=s\d+$/, "$1")
+  );
+  expect(cells).toEqual(["5", "4", "3", "2", "gap", "0"]);
+  // The mission list holds only the missions that are there, in banner order, like Bannergress.
+  fireEvent.click(screen.getByRole("tab", { name: /^missions$/i }));
+  const list = await screen.findByRole("list", { name: /missions in order/i });
+  expect(within(list).getAllByRole("listitem").filter((item) => item.parentElement === list)).toHaveLength(5);
+  expect(within(list).getByText("Gap mission 0")).toBeInTheDocument();
+  expect(within(list).getByText("Gap mission 5")).toBeInTheDocument();
+});
+
 test("polls the BannerGuider user location every 2 seconds without resetting an already-centered map", async () => {
   const intervalCallbacks = [];
   const setIntervalSpy = vi

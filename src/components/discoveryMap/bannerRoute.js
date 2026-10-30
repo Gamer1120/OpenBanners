@@ -1,12 +1,13 @@
 import { useEffect, useState } from "react";
 import { fetchBannergress } from "../../bannergressSync";
+import { getMissionList } from "../../bannerMissions";
 import { getFinish, getStepPosition, getSteps, isOnStartMarker } from "../BannerDetailsPage";
 
 const routeCache = new globalThis.Map();
 
 // Mission-by-mission positions of a banner's walking route, in mission order.
 export function buildBannerRoute(details) {
-  const missions = Object.values(details?.missions ?? {});
+  const missions = getMissionList(details?.missions);
   const missionPositions = missions.map((mission) =>
     getSteps(mission)
       .filter((step) => step?.poi?.type !== "unavailable")

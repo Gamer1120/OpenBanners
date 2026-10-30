@@ -63,6 +63,8 @@ Banner Together offline sharing is a separate, default-off opt-in that is availa
 
 On `/together/` routes, do not run the TopMenu full-account list auto-sync; the route owns its place-scoped membership and catalog caches. Bannergress `/bnrs` pages are capped at 100. Banner Together should probe the first page and then use bounded four-request windows, and it must classify singular private-list requests by the requested list because `BannerDto.listType` is optional.
 
+Bannergress keys a banner's `missions` by position (`"0"`, `"2"`, …) and positions can be missing on purpose (filler slots, e.g. a mission of another banner; `numberOfMissions` counts only the missions that are there). Read missions through `src/bannerMissions.js` (`getMissionEntries`/`getMissionList`/`getMissionSlots`), never `Object.values`. Like Bannergress (2026-10-30): the artwork (`MissionMosaic`, `slots` prop) keeps an empty tile at a filler position (slot count = last position + 1, mission 1 bottom-right); the mission list, numbers, colours and markers count only the missions that are there (1…n, Bannergress' `sequence`); the route map draws no connector across a filler slot.
+
 Banner pictures (`banner.picture`) are rendered only through `src/components/BannerImage.jsx`, which owns the tall-banner pan (Bannergress's 8 s loop: 5 s down / 1 s pause / 1 s up / 1 s pause, 2026-10-29 Michael; also under reduced motion, no pan below 3 % or 12 px overflow). `src/bannerImageGuard.test.js` fails if a component renders the picture itself. Mission pictures are not affected.
 
 ## Loading speed (2026-10-30, before the Telegram launch post)

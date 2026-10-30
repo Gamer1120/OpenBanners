@@ -16,7 +16,7 @@ export default function PrivacyPage() {
       <h1 className="ob-h1">{t("Privacy")}</h1>
       <p>
         {t(
-          "OpenBanners is an unofficial hobby project by Michael (Gamer1120). It isn't made by Bannergress or Niantic. It shows banner data from Bannergress, and you sign in with your Bannergress account."
+          "OpenBanners is an unofficial hobby project. It isn't made by Bannergress or Niantic. It shows banner data from Bannergress, and you sign in with your Bannergress account."
         )}
       </p>
 

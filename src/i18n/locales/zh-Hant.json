@@ -531,7 +531,7 @@
   "OpenBanners banner": "OpenBanners 拼圖",
   "OpenBanners doesn’t keep track of which Telegram account belongs to which Bannergress account.": "OpenBanners 不會記錄哪個 Telegram 帳號屬於哪個 Bannergress 帳號。",
   "OpenBanners home": "OpenBanners 首頁",
-  "OpenBanners is an unofficial hobby project by Michael (Gamer1120). It isn't made by Bannergress or Niantic. It shows banner data from Bannergress, and you sign in with your Bannergress account.": "OpenBanners 是 Michael（Gamer1120）的非官方業餘專案，並非由 Bannergress 或 Niantic 製作。它顯示來自 Bannergress 的拼圖資料，你以 Bannergress 帳號登入。",
+  "OpenBanners is an unofficial hobby project. It isn't made by Bannergress or Niantic. It shows banner data from Bannergress, and you sign in with your Bannergress account.": "OpenBanners 是非官方業餘專案，並非由 Bannergress 或 Niantic 製作。它顯示來自 Bannergress 的拼圖資料，你以 Bannergress 帳號登入。",
   "OpenBanners on GitHub": "GitHub 上的 OpenBanners",
   "OpenBanners ran into an error on this page. Reloading usually fixes it.": "OpenBanners 在此頁面發生錯誤。通常重新載入即可解決。",
   "OpenBanners then opens from your home screen like an app.": "之後就能像 App 一樣從主畫面開啟 OpenBanners。",

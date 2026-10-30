@@ -531,7 +531,7 @@
   "OpenBanners banner": "OpenBanners のバナー",
   "OpenBanners doesn’t keep track of which Telegram account belongs to which Bannergress account.": "OpenBanners は、どの Telegram アカウントがどの Bannergress アカウントのものかを記録しません。",
   "OpenBanners home": "OpenBanners ホーム",
-  "OpenBanners is an unofficial hobby project by Michael (Gamer1120). It isn't made by Bannergress or Niantic. It shows banner data from Bannergress, and you sign in with your Bannergress account.": "OpenBanners は Michael (Gamer1120) による非公式の趣味のプロジェクトです。Bannergress や Niantic が作ったものではありません。Bannergress のバナーデータを表示し、Bannergress アカウントでサインインします。",
+  "OpenBanners is an unofficial hobby project. It isn't made by Bannergress or Niantic. It shows banner data from Bannergress, and you sign in with your Bannergress account.": "OpenBanners は非公式の趣味のプロジェクトです。Bannergress や Niantic が作ったものではありません。Bannergress のバナーデータを表示し、Bannergress アカウントでサインインします。",
   "OpenBanners on GitHub": "GitHub の OpenBanners",
   "OpenBanners ran into an error on this page. Reloading usually fixes it.": "このページで OpenBanners にエラーが発生しました。たいていは再読み込みで直ります。",
   "OpenBanners then opens from your home screen like an app.": "以後、OpenBanners はホーム画面からアプリのように開けます。",

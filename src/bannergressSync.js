@@ -648,6 +648,29 @@ export function serializeBannergressPendingAuth(pendingAuth) {
   )}`;
 }
 
+// A path on this site only: one leading "/", no whitespace, control
+// characters or backslashes (browsers strip tabs/newlines from URLs, so
+// "/<TAB>/evil.example" would become "//evil.example"), same origin.
+export function safeReturnPath(value) {
+  if (
+    typeof value !== "string" ||
+    value.length > 2048 ||
+    !value.startsWith("/") ||
+    value.startsWith("//") ||
+    /[\s\u0000-\u001f\u007f\\]/.test(value)
+  ) {
+    return "/";
+  }
+  try {
+    const url = new URL(value, window.location.origin);
+    return url.origin === window.location.origin
+      ? url.pathname + url.search + url.hash
+      : "/";
+  } catch {
+    return "/";
+  }
+}
+
 // mode "redirect": the sign-in runs in this tab (no popup); the callback page
 // then goes back to returnTo (a path on this site).
 export async function buildBannergressAuthorizationUrl({ mode = "popup", returnTo = null } = {}) {
@@ -671,10 +694,7 @@ export async function buildBannergressAuthorizationUrl({ mode = "popup", returnT
     redirectUri,
     createdAt: Date.now(),
     mode: mode === "redirect" ? "redirect" : "popup",
-    returnTo:
-      typeof returnTo === "string" && /^\/(?![/\\])/.test(returnTo)
-        ? returnTo
-        : "/",
+    returnTo: safeReturnPath(returnTo),
   };
 
   window.localStorage.setItem(

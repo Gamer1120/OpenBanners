@@ -63,7 +63,7 @@ import { getLanguage, t, tk, tn } from "../i18n";
 const DEFAULT_MAP_CENTER = WORLD_PLACEHOLDER.center;
 const PORTAL_LIST_LIMIT = 120;
 const DISTANCE_INPUT_DEBOUNCE_MS = 250;
-const TILE_URL = "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png";
+const TILE_URL = "https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const TILE_ATTRIBUTION = "&copy; OpenStreetMap contributors";
 const LOOP_CLOSURE_OPTIONS = [
   {

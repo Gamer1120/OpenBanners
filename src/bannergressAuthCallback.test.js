@@ -9,8 +9,8 @@ import {
 // public/bannergress-auth-callback.html must find the PKCE data the app saved,
 // also when window.opener and window.name are gone (the installed app opens
 // the sign-in in a Chrome custom tab).
-const html = readFileSync(resolve(__dirname, "../public/bannergress-auth-callback.html"), "utf8");
-const script = html.match(/<script>([\s\S]*?)<\/script>/)[1];
+// The page loads its script from a file (no inline <script>, for the CSP).
+const script = readFileSync(resolve(__dirname, "../public/bannergress-auth-callback.js"), "utf8");
 const LEGACY_PENDING_KEY = "openbanners-bannergress-auth-pending";
 
 async function runCallback(search) {
@@ -78,7 +78,18 @@ describe("bannergress-auth-callback.html", () => {
   });
 
   it("never links off the site", async () => {
-    for (const returnTo of ["//evil.example/", "https://evil.example/", "/\\evil.example"]) {
+    for (const returnTo of [
+      "//evil.example/",
+      "https://evil.example/",
+      "/\\evil.example",
+      "/\t/evil.example",
+      "/\n/evil.example",
+      "/\r\n//evil.example",
+      " /evil",
+      "javascript:alert(1)",
+      "data:text/html,x",
+      "/" + "a".repeat(3000),
+    ]) {
       window.localStorage.setItem(
         BANNERGRESS_AUTH_PENDING_STORAGE_KEY,
         JSON.stringify({ state: "other", codeVerifier: "verifier", returnTo })

@@ -10,7 +10,11 @@ import {
 } from "@mui/icons-material";
 import BannerImage from "../BannerImage";
 import { formatLength } from "../../bannerDisplay";
-import { isBannergressAuthSupportedOrigin, updateBannergressBannerListType } from "../../bannergressSync";
+import {
+  isBannergressAuthSupportedOrigin,
+  isSignedInToBannergress,
+  updateBannergressBannerListType,
+} from "../../bannergressSync";
 import { t, tk, tn } from "../../i18n";
 import { formatMinutes, walkingMinutes } from "./mapMath";
 import { StatusChip } from "./shared";
@@ -39,6 +43,8 @@ const LIST_ACTIONS = [
 function useListToggle(banner) {
   const [pending, setPending] = useState(null);
   const [error, setError] = useState("");
+  // "Sign in to use …" is a hint, not an error.
+  const [hint, setHint] = useState("");
   const listType = banner._listType ?? null;
 
   const toggle = async (nextListType) => {
@@ -46,9 +52,18 @@ function useListToggle(banner) {
       return;
     }
 
+    // Signed out: say so instead of sending a request that can only fail
+    // (the header's Sign in button is right above).
+    if (!isSignedInToBannergress()) {
+      setError("");
+      setHint(t("Sign in to use To do, Done and Hide."));
+      return;
+    }
+
     const requested = listType === nextListType ? "none" : nextListType;
     setPending(nextListType);
     setError("");
+    setHint("");
 
     try {
       await updateBannergressBannerListType(banner.id, requested, {
@@ -64,7 +79,7 @@ function useListToggle(banner) {
     }
   };
 
-  return { listType, pending, error, toggle };
+  return { listType, pending, error, hint, toggle };
 }
 
 function ListActions({ banner, lists }) {
@@ -121,9 +136,9 @@ const RowCard = memo(function RowCard({ banner, selected, onToggle, onHover, onK
   const minutes = walkingMinutes(banner.lengthMeters);
   const withLists = isBannergressAuthSupportedOrigin();
   const lists = useListToggle(banner);
-  const stats = withLists && lists.error ? (
-    <span className="mv-rc-stats mv-rc-err" role="status">
-      {lists.error}
+  const stats = withLists && (lists.error || lists.hint) ? (
+    <span className={`mv-rc-stats ${lists.error ? "mv-rc-err" : "mv-rc-hint"}`} role="status">
+      {lists.error || lists.hint}
     </span>
   ) : (
     <span className="mv-rc-stats">

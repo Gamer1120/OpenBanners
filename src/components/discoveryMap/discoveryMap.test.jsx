@@ -12,7 +12,14 @@ import {
   normalizeMapFilters,
 } from "./mapFilters";
 import { getBannerStatus, withStatus } from "./mapStatus";
-import { updateBannergressBannerListType } from "../../bannergressSync";
+import { BANNERGRESS_AUTH_STORAGE_KEY, updateBannergressBannerListType } from "../../bannergressSync";
+
+function storeSession() {
+  window.localStorage.setItem(
+    BANNERGRESS_AUTH_STORAGE_KEY,
+    JSON.stringify({ accessToken: "a", refreshToken: "r", accessExpiresAt: Date.now() + 300000, refreshExpiresAt: Date.now() + 1800000, updatedAt: Date.now() })
+  );
+}
 import { formatMinutes, isInsideArea, walkingMinutes } from "./mapMath";
 
 vi.mock("leaflet", () => {
@@ -618,6 +625,7 @@ describe("banners in view row (phone)", () => {
 
     test("each card has To do / Done / Hide toggles that don't select the card", async () => {
       updateBannergressBannerListType.mockClear();
+      storeSession();
       setVm([mapBanner("a", 52.001, 6), { ...mapBanner("b", 52.004, 6), _status: "done", _listType: "done" }], area(52, 6));
       render(ui());
 
@@ -651,6 +659,7 @@ describe("banners in view row (phone)", () => {
 
   test("row cards carry the same To do / Done / Hide toggles (shown by CSS on wide cards) without selecting", async () => {
     updateBannergressBannerListType.mockClear();
+    storeSession();
     setVm([mapBanner("a", 52.001, 6), { ...mapBanner("b", 52.004, 6), _status: "todo", _listType: "todo" }], area(52, 6));
     render(ui());
 
@@ -672,6 +681,17 @@ describe("banners in view row (phone)", () => {
     await waitFor(() =>
       expect(updateBannergressBannerListType).toHaveBeenLastCalledWith("b", "blacklist", { keepHiddenVisible: true })
     );
+    expect(current()).toBeUndefined();
+  });
+
+  test("signed out, a row toggle says to sign in instead of calling Bannergress", async () => {
+    updateBannergressBannerListType.mockClear();
+    setVm([mapBanner("a", 52.001, 6)], area(52, 6));
+    render(ui());
+
+    fireEvent.click(screen.getByRole("button", { name: "To do: a", hidden: true }));
+    expect(await screen.findByText("Sign in to use To do, Done and Hide.")).toBeInTheDocument();
+    expect(updateBannergressBannerListType).not.toHaveBeenCalled();
     expect(current()).toBeUndefined();
   });
 

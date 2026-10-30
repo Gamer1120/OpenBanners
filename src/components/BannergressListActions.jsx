@@ -1,6 +1,11 @@
 import React from "react";
 import { Box, Button, CircularProgress, Skeleton, Stack, Typography } from "@mui/material";
-import { updateBannergressBannerListType } from "../bannergressSync";
+import {
+  BANNERGRESS_AUTH_REQUEST_EVENT,
+  isSignedInToBannergress,
+  updateBannergressBannerListType,
+  useBannergressAuth,
+} from "../bannergressSync";
 import { t, tk } from "../i18n";
 
 // Light (design X) theme: outlined M3 segmented look; dark keeps the original tints.
@@ -174,12 +179,25 @@ export default function BannergressListActions({
 }) {
   const [pendingListType, setPendingListType] = React.useState(null);
   const [listActionError, setListActionError] = React.useState("");
+  const [askedToSignIn, setAskedToSignIn] = React.useState(false);
+  const auth = useBannergressAuth();
+  const signedIn = Boolean(auth?.accessToken || auth?.refreshToken);
   const styles = getLayoutStyles(layout);
 
   const handleBannerListAction = async (nextListType) => {
     if (!bannerId || !canUpdateBannerList || pendingListType) {
       return;
     }
+
+    // Signed out: say so (with a Sign in button) instead of sending a request
+    // that can only fail.
+    if (!isSignedInToBannergress()) {
+      setListActionError("");
+      setAskedToSignIn(true);
+      return;
+    }
+
+    setAskedToSignIn(false);
 
     const requestedListType =
       effectiveListType === nextListType ? "none" : nextListType;
@@ -268,6 +286,28 @@ export default function BannergressListActions({
           );
         })}
       </Stack>
+      {askedToSignIn && !signedIn ? (
+        <Box
+          sx={{
+            display: "flex",
+            alignItems: "center",
+            flexWrap: "wrap",
+            gap: 1,
+            pt: 0.75,
+          }}
+        >
+          <Typography role="status" variant="body2" sx={{ flex: "1 1 12em", color: "var(--on-surface-variant)" }}>
+            {t("Sign in to use To do, Done and Hide.")}
+          </Typography>
+          <button
+            type="button"
+            className="btn filled sl"
+            onClick={() => window.dispatchEvent(new Event(BANNERGRESS_AUTH_REQUEST_EVENT))}
+          >
+            {t("Sign in")}
+          </button>
+        </Box>
+      ) : null}
       {listActionError ? (
         <Typography
           variant="caption"

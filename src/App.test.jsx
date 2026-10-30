@@ -888,6 +888,10 @@ test("browse mission filtering backfills extra pages before scroll gets sparse",
 });
 
 test("compact list actions update the Bannergress list through the API", async () => {
+  window.localStorage.setItem(
+    BANNERGRESS_AUTH_STORAGE_KEY,
+    JSON.stringify({ accessToken: "test-access-token", refreshToken: "test-refresh-token", accessExpiresAt: Date.now() + 300000, refreshExpiresAt: Date.now() + 1800000, updatedAt: Date.now() })
+  );
   const updateBannerListSpy = vi
     .spyOn(bannergressSync, "updateBannergressBannerListType")
     .mockImplementation(async (bannerId, listType) => {
@@ -938,7 +942,36 @@ test("compact list actions update the Bannergress list through the API", async (
   });
 });
 
+test("compact list actions ask signed-out visitors to sign in instead of failing", async () => {
+  const updateBannerListSpy = vi.spyOn(bannergressSync, "updateBannergressBannerListType");
+
+  renderWithProviders(
+    <BannerRows
+      banners={[
+        {
+          id: "signed-out-banner",
+          title: "Signed Out Banner",
+          picture: "/images/action-banner.jpg",
+          numberOfMissions: 6,
+          lengthMeters: 2400,
+          formattedAddress: "Enschede, NL",
+          numberOfDisabledMissions: 0,
+        },
+      ]}
+    />
+  );
+
+  await userEvent.click(screen.getByRole("button", { name: /to do/i }));
+
+  expect(await screen.findByText("Sign in to use To do, Done and Hide.")).toBeInTheDocument();
+  expect(updateBannerListSpy).not.toHaveBeenCalled();
+});
+
 test("compact list actions toggle todo banners back to none", async () => {
+  window.localStorage.setItem(
+    BANNERGRESS_AUTH_STORAGE_KEY,
+    JSON.stringify({ accessToken: "test-access-token", refreshToken: "test-refresh-token", accessExpiresAt: Date.now() + 300000, refreshExpiresAt: Date.now() + 1800000, updatedAt: Date.now() })
+  );
   bannergressSync.saveBannergressSyncData({
     bannerLists: {
       "toggle-banner": "todo",
@@ -1508,7 +1541,7 @@ test("sorts the rerouter start portal list alphabetically", async () => {
   await user.keyboard("{Escape}");
 });
 
-test("top menu shows authenticate when bannergress auth has no valid session", async () => {
+test("top menu shows a labelled Sign in button when bannergress auth has no valid session", async () => {
   renderWithProviders(
     <Routes>
       <Route
@@ -1525,8 +1558,8 @@ test("top menu shows authenticate when bannergress auth has no valid session", a
   );
 
   expect(
-    await screen.findByRole("button", { name: /authenticate/i }, { timeout: 3000 })
-  ).toBeInTheDocument();
+    await screen.findByRole("button", { name: /^sign in$/i }, { timeout: 3000 })
+  ).toHaveTextContent("Sign in");
 });
 
 test("top menu offers Install web app instead of the old APK download", async () => {

@@ -4,7 +4,9 @@ import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import TopMenu from "./TopMenu";
-import { BANNERGRESS_AUTH_PENDING_STORAGE_KEY } from "../bannergressSync";
+import { BANNERGRESS_AUTH_PENDING_STORAGE_KEY, BANNERGRESS_AUTH_STORAGE_KEY } from "../bannergressSync";
+import { __setCatalogForTests } from "../i18n";
+import de from "../i18n/locales/de.json";
 
 const TELEGRAM_ANDROID =
   "Mozilla/5.0 (Linux; Android 14; Pixel 7; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/129.0 Mobile Safari/537.36 Telegram-Android/11.4.2";
@@ -22,7 +24,7 @@ async function renderMenu() {
       <TopMenu onTitleClick={vi.fn()} />
     </MemoryRouter>
   );
-  return screen.findByRole("button", { name: /authenticate/i }, { timeout: 3000 });
+  return screen.findByRole("button", { name: "Sign in" }, { timeout: 3000 });
 }
 
 describe("sign-in button", () => {
@@ -37,6 +39,70 @@ describe("sign-in button", () => {
     setUserAgent(originalUserAgent);
     vi.restoreAllMocks();
     window.localStorage.clear();
+    __setCatalogForTests("en", {});
+  });
+
+  it("is a labelled Sign in button, not a bare icon, when signed out", async () => {
+    const button = await renderMenu();
+
+    expect(button).toHaveTextContent(/^Sign in$/);
+    expect(button).toHaveClass("btn", "filled");
+    expect(button).toHaveAttribute("title", "Sign in with Bannergress");
+    expect(button).toBeEnabled();
+    // The icon is decoration; the name comes from the visible label.
+    expect(button.querySelector("svg")).toHaveAttribute("aria-hidden", "true");
+    expect(button).not.toHaveAttribute("aria-label");
+  });
+
+  it("uses the translated label as its name", async () => {
+    __setCatalogForTests("de", de);
+    render(
+      <MemoryRouter initialEntries={["/"]}>
+        <TopMenu onTitleClick={vi.fn()} />
+      </MemoryRouter>
+    );
+
+    const button = await screen.findByRole("button", { name: "Anmelden" }, { timeout: 3000 });
+    expect(button).toHaveTextContent("Anmelden");
+    expect(button).toHaveAttribute("title", "Mit Bannergress anmelden");
+  });
+
+  it("is also offered at the top of the More menu", async () => {
+    setUserAgent(DESKTOP);
+    const popup = { closed: false, focus: vi.fn(), close: vi.fn(), name: "", location: { href: "" } };
+    window.open.mockReturnValue(popup);
+    const user = userEvent.setup();
+    await renderMenu();
+    await user.click(screen.getByRole("button", { name: "More options" }));
+    const items = await screen.findAllByRole("menuitem");
+    expect(items[0]).toHaveTextContent("Sign in with Bannergress");
+    await user.click(items[0]);
+
+    await waitFor(() => expect(popup.location.href).toContain("login.bannergress.com"));
+  });
+
+  it("is replaced by the account avatar when signed in", async () => {
+    window.localStorage.setItem(
+      BANNERGRESS_AUTH_STORAGE_KEY,
+      JSON.stringify({
+        accessToken: "test-access-token",
+        refreshToken: "test-refresh-token",
+        accessExpiresAt: Date.now() + 5 * 60 * 1000,
+        refreshExpiresAt: Date.now() + 30 * 60 * 1000,
+        updatedAt: Date.now(),
+      })
+    );
+    render(
+      <MemoryRouter initialEntries={["/together/x"]}>
+        <TopMenu onTitleClick={vi.fn()} />
+      </MemoryRouter>
+    );
+
+    expect(await screen.findByRole("button", { name: "Authenticated" }, { timeout: 3000 })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Sign in" })).toBeNull();
+    const user = userEvent.setup();
+    await user.click(screen.getByRole("button", { name: "More options" }));
+    expect(screen.queryByRole("menuitem", { name: "Sign in with Bannergress" })).toBeNull();
   });
 
   it("explains in Telegram's browser instead of opening Google", async () => {

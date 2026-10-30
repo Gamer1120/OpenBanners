@@ -493,6 +493,13 @@ function subscribeToAuthChanges(callback) {
   };
 }
 
+// A stored session (it may still need a token refresh). Signed-out visitors
+// get a "sign in" prompt instead of a request that can only fail.
+export function isSignedInToBannergress() {
+  const auth = loadBannergressAuthData();
+  return Boolean(auth?.accessToken || auth?.refreshToken);
+}
+
 export function useBannergressAuth() {
   return useSyncExternalStore(
     subscribeToAuthChanges,

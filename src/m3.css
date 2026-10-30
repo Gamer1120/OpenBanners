@@ -460,6 +460,26 @@ body {
   margin-left: auto;
 }
 
+/* Signed out: labelled Sign in button (icon + text), see TopMenu.jsx. */
+.ob-bar .ob-signin {
+  min-height: 40px;
+  padding: 0 16px 0 12px;
+  margin-right: 4px;
+  min-width: 0;
+  max-width: 60vw;
+}
+
+.ob-bar .ob-signin svg {
+  width: 18px;
+  height: 18px;
+  flex: none;
+}
+
+.ob-signin-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .ob-bar .avatar {
   width: 32px;
   height: 32px;
@@ -861,6 +881,7 @@ body {
 
 .brow {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
 }
 
@@ -869,7 +890,7 @@ body {
 }
 
 .brow-a {
-  flex: 1;
+  flex: 1 1 0;
   min-width: 0;
   display: flex;
   align-items: center;
@@ -977,7 +998,14 @@ body {
   flex-basis: 100%;
   text-align: right;
   font-size: 12px;
+  line-height: 16px;
+  padding: 0 16px 8px;
   color: var(--on-error-container);
+}
+
+.brow-err.hint {
+  font-size: 13px;
+  color: var(--on-surface-variant);
 }
 
 @media (max-width: 480px) {

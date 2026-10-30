@@ -15,6 +15,7 @@ import {
 import {
   getBannerListType,
   isBannergressAuthSupportedOrigin,
+  isSignedInToBannergress,
   updateBannergressBannerListType,
   useBannergressSync,
 } from "../bannergressSync";
@@ -54,6 +55,8 @@ function missionCountText(banner) {
 function RowListActions({ banner, listType }) {
   const [pending, setPending] = useState(null);
   const [error, setError] = useState("");
+  // "Sign in to use …" is a hint, not an error.
+  const [askedToSignIn, setAskedToSignIn] = useState(false);
   const title = (banner.title || t("Untitled")).trim();
 
   const toggle = async (nextListType) => {
@@ -61,9 +64,18 @@ function RowListActions({ banner, listType }) {
       return;
     }
 
+    // Signed out: say so instead of sending a request that can only fail
+    // (the header's Sign in button is right above).
+    if (!isSignedInToBannergress()) {
+      setError("");
+      setAskedToSignIn(true);
+      return;
+    }
+
     const requested = listType === nextListType ? "none" : nextListType;
     setPending(nextListType);
     setError("");
+    setAskedToSignIn(false);
 
     try {
       await updateBannergressBannerListType(banner.id, requested, {
@@ -81,33 +93,37 @@ function RowListActions({ banner, listType }) {
     }
   };
 
+  // The message is a full-width line under the row (.brow wraps), so it
+  // doesn't widen the narrow icon column and squeeze the title.
   return (
-    <div className="brow-acts" role="group" aria-label={t("Lists for {title}", { title })}>
-      {ROW_ACTIONS.map((action) => {
-        const active = listType === action.listType;
-        const Icon = active ? action.activeIcon : action.icon;
+    <>
+      <div className="brow-acts" role="group" aria-label={t("Lists for {title}", { title })}>
+        {ROW_ACTIONS.map((action) => {
+          const active = listType === action.listType;
+          const Icon = active ? action.activeIcon : action.icon;
 
-        return (
-          <button
-            key={action.listType}
-            type="button"
-            className={`brow-act sl ${action.listType}${active ? " on" : ""}`}
-            aria-pressed={active}
-            aria-label={t("{label}: {title}", { label: t(action.label), title })}
-            title={t(action.label)}
-            disabled={Boolean(pending)}
-            onClick={() => toggle(action.listType)}
-          >
-            <Icon />
-          </button>
-        );
-      })}
-      {error ? (
-        <span className="brow-err" role="status">
-          {error}
+          return (
+            <button
+              key={action.listType}
+              type="button"
+              className={`brow-act sl ${action.listType}${active ? " on" : ""}`}
+              aria-pressed={active}
+              aria-label={t("{label}: {title}", { label: t(action.label), title })}
+              title={t(action.label)}
+              disabled={Boolean(pending)}
+              onClick={() => toggle(action.listType)}
+            >
+              <Icon />
+            </button>
+          );
+        })}
+      </div>
+      {error || askedToSignIn ? (
+        <span className={`brow-err${error ? "" : " hint"}`} role="status">
+          {error || t("Sign in to use To do, Done and Hide.")}
         </span>
       ) : null}
-    </div>
+    </>
   );
 }
 

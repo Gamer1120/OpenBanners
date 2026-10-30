@@ -890,6 +890,10 @@
   white-space: normal;
 }
 
+.mv-rc-stats.mv-rc-hint {
+  white-space: normal;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .mv-row,
   .mv-sheet {

@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import {
   Alert,
+  CircularProgress,
   Divider,
   ListItemIcon,
   ListItemText,
@@ -41,6 +42,7 @@ import {
   requestBannergressSyncData,
   saveBannergressSyncData,
   serializeBannergressPendingAuth,
+  useBannergressAuth,
 } from "../bannergressSync";
 import { t, tk, tn } from "../i18n";
 import AppLogo from "./AppLogo";
@@ -78,6 +80,8 @@ export default function TopMenu({
   const [isCheckingAuth, setIsCheckingAuth] = useState(authSupportedOrigin);
   const [isAuthenticating, setIsAuthenticating] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
+  const storedAuth = useBannergressAuth();
+  const hasStoredSession = Boolean(storedAuth?.accessToken || storedAuth?.refreshToken);
   const navigate = useNavigate();
   const location = useLocation();
   const isBannerTogetherRoute = /^\/(?:lists\/)?together(?:\/|$)/.test(
@@ -340,7 +344,9 @@ export default function TopMenu({
     });
     setFeedback(null);
 
-    if (authStatus?.authenticated || isCheckingAuth || isAuthenticating) {
+    // Without a stored session the check can only end in "signed out", so the
+    // Sign in button works at once instead of waiting for it.
+    if (authStatus?.authenticated || isAuthenticating || (isCheckingAuth && hasStoredSession)) {
       return;
     }
 
@@ -444,6 +450,12 @@ export default function TopMenu({
     : authButtonLabel === "Authenticate"
       ? t("Sign in with Bannergress")
       : t(authButtonLabel);
+  // Signed out: a labelled "Sign in" button instead of a bare icon, so new
+  // visitors can tell where to sign in. While a stored session is being
+  // checked the old icon placeholder stays, so signed-in people don't see a
+  // Sign in button flash before their avatar.
+  const showSignInButton =
+    authSupportedOrigin && !authStatus?.authenticated && !(isCheckingAuth && hasStoredSession);
   const closeMoreMenu = () => setMoreMenuAnchor(null);
 
   const handleInstallClick = async () => {
@@ -473,25 +485,43 @@ export default function TopMenu({
           <span className="ob-brand-text">{title || "OpenBanners"}</span>
         </button>
         <div className="ob-bar-actions">
-          <button
-            type="button"
-            className="icon-btn sl"
-            aria-label={t(authButtonLabel)}
-            title={authButtonTitle}
-            onClick={handleAuthButtonClick}
-            disabled={authButtonDisabled && !authStatus?.authenticated}
-            aria-disabled={authButtonDisabled}
-          >
-            {authStatus?.authenticated ? (
-              <span className="avatar" aria-hidden="true">
-                {(agentName || "B").slice(0, 1).toUpperCase()}
-              </span>
-            ) : authButtonLabel === "Authenticate" ? (
-              <Login />
-            ) : (
-              <AccountCircleOutlined />
-            )}
-          </button>
+          {showSignInButton ? (
+            <button
+              type="button"
+              className="btn filled sl ob-signin"
+              title={isAuthenticating ? t("Authenticating...") : t("Sign in with Bannergress")}
+              onClick={handleAuthButtonClick}
+              disabled={isAuthenticating}
+              aria-busy={isAuthenticating || undefined}
+            >
+              {isAuthenticating ? (
+                <CircularProgress size={18} color="inherit" aria-hidden="true" />
+              ) : (
+                <Login aria-hidden="true" />
+              )}
+              <span className="ob-signin-label">{t("Sign in")}</span>
+            </button>
+          ) : (
+            <button
+              type="button"
+              className="icon-btn sl"
+              aria-label={t(authButtonLabel)}
+              title={authButtonTitle}
+              onClick={handleAuthButtonClick}
+              disabled={authButtonDisabled && !authStatus?.authenticated}
+              aria-disabled={authButtonDisabled}
+            >
+              {authStatus?.authenticated ? (
+                <span className="avatar" aria-hidden="true">
+                  {(agentName || "B").slice(0, 1).toUpperCase()}
+                </span>
+              ) : authButtonLabel === "Authenticate" ? (
+                <Login />
+              ) : (
+                <AccountCircleOutlined />
+              )}
+            </button>
+          )}
           <button
             type="button"
             className="icon-btn sl"
@@ -509,6 +539,21 @@ export default function TopMenu({
             anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
             transformOrigin={{ vertical: "top", horizontal: "right" }}
           >
+            {showSignInButton ? (
+              <MenuItem
+                disabled={isAuthenticating}
+                onClick={() => {
+                  closeMoreMenu();
+                  handleAuthButtonClick();
+                }}
+              >
+                <ListItemIcon>
+                  <Login fontSize="small" />
+                </ListItemIcon>
+                <ListItemText>{t("Sign in with Bannergress")}</ListItemText>
+              </MenuItem>
+            ) : null}
+            {showSignInButton ? <Divider /> : null}
             <MenuItem
               onClick={() => {
                 closeMoreMenu();

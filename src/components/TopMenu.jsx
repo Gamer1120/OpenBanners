@@ -25,6 +25,8 @@ import SettingsDialog from "./SettingsDialog";
 import InstallAppDialog from "./InstallAppDialog";
 import OverlayDownloadDialog from "./OverlayDownloadDialog";
 import TelegramJoinDialog from "./TelegramJoinDialog";
+import InAppBrowserDialog from "./InAppBrowserDialog";
+import { detectInAppBrowser } from "../inAppBrowser";
 import { promptInstall, useInstallMode } from "../pwaInstall";
 import { useLocation, useNavigate } from "react-router-dom";
 import {
@@ -69,6 +71,8 @@ export default function TopMenu({
   const [installHelpMode, setInstallHelpMode] = useState(null);
   const [overlayDownloadOpen, setOverlayDownloadOpen] = useState(false);
   const [telegramJoinOpen, setTelegramJoinOpen] = useState(false);
+  // { app, platform } while the "open in your browser" dialog is shown.
+  const [inAppBrowser, setInAppBrowser] = useState(null);
   const [authStatus, setAuthStatus] = useState(null);
   const [moreMenuAnchor, setMoreMenuAnchor] = useState(null);
   const [isCheckingAuth, setIsCheckingAuth] = useState(authSupportedOrigin);
@@ -224,13 +228,44 @@ export default function TopMenu({
     return nextStatus;
   }
 
-  const openAuthenticationPopup = async () => {
+  // No popup possible (blocked, or a browser without windows): sign in in
+  // this tab instead. The callback page brings you back to this page.
+  const startRedirectAuthentication = async () => {
+    debugLog("Popup unavailable; signing in with a full-page redirect.");
+    setIsAuthenticating(true);
+
+    try {
+      const { authorizationUrl } = await buildBannergressAuthorizationUrl({
+        mode: "redirect",
+        returnTo: `${window.location.pathname}${window.location.search}${window.location.hash}`,
+      });
+      window.location.assign(authorizationUrl);
+    } catch {
+      setIsAuthenticating(false);
+      setFeedback({
+        severity: "error",
+        message: t("Couldn't open Bannergress. Allow popups and try again."),
+      });
+    }
+  };
+
+  // options.force: skip the in-app browser check ("Try signing in here
+  // anyway"). Also called as an event listener (BANNERGRESS_AUTH_REQUEST_EVENT).
+  const openAuthenticationPopup = async (options) => {
     if (!authSupportedOrigin) {
       setFeedback({
         severity: "warning",
         message:
           t("Bannergress auth is currently only available on supported OpenBanners domains."),
       });
+      return;
+    }
+
+    const inApp = options?.force === true ? null : detectInAppBrowser();
+
+    if (inApp) {
+      debugLog("In-app browser; showing the open-in-browser dialog.", inApp);
+      setInAppBrowser(inApp);
       return;
     }
 
@@ -245,10 +280,7 @@ export default function TopMenu({
           );
 
     if (!popup) {
-      setFeedback({
-        severity: "error",
-        message: t("Couldn't open Bannergress. Allow popups and try again."),
-      });
+      await startRedirectAuthentication();
       return;
     }
 
@@ -258,7 +290,9 @@ export default function TopMenu({
 
     try {
       const { authorizationUrl, pendingAuth } =
-        await buildBannergressAuthorizationUrl();
+        await buildBannergressAuthorizationUrl({
+          returnTo: `${window.location.pathname}${window.location.search}${window.location.hash}`,
+        });
       popup.name = serializeBannergressPendingAuth(pendingAuth);
       popup.location.href = authorizationUrl;
     } catch (error) {
@@ -571,6 +605,16 @@ export default function TopMenu({
       ) : null}
       {overlayDownloadOpen ? <OverlayDownloadDialog onClose={() => setOverlayDownloadOpen(false)} /> : null}
       {telegramJoinOpen ? <TelegramJoinDialog onClose={() => setTelegramJoinOpen(false)} /> : null}
+      {inAppBrowser ? (
+        <InAppBrowserDialog
+          info={inAppBrowser}
+          onClose={() => setInAppBrowser(null)}
+          onContinue={() => {
+            setInAppBrowser(null);
+            void openAuthenticationPopup({ force: true });
+          }}
+        />
+      ) : null}
       <Snackbar
         open={Boolean(feedback)}
         autoHideDuration={4500}

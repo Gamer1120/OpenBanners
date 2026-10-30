@@ -63,6 +63,34 @@ describe("bannergress-auth-callback.html", () => {
     });
   }
 
+  it("links back to the page where the sign-in started, and returns there after a same-tab sign-in", async () => {
+    window.localStorage.setItem(
+      BANNERGRESS_AUTH_PENDING_STORAGE_KEY,
+      JSON.stringify({ state: "s1", codeVerifier: "verifier", mode: "redirect", returnTo: "/banner/abc?x=1" })
+    );
+    window.history.replaceState({}, "", "/bannergress-auth-callback.html?code=***&state=s1");
+    document.body.innerHTML = '<h1 id="title"></h1><p id="message"></p><a id="back" href="/">Back</a>';
+    new Function(script)();
+    await vi.waitFor(() => expect(document.getElementById("title").textContent).toBe("Bannergress sign-in complete"));
+
+    expect(document.getElementById("message").textContent).toBe("Taking you back to OpenBanners…");
+    expect(document.getElementById("back").getAttribute("href")).toBe("/banner/abc?x=1");
+  });
+
+  it("never links off the site", async () => {
+    for (const returnTo of ["//evil.example/", "https://evil.example/", "/\\evil.example"]) {
+      window.localStorage.setItem(
+        BANNERGRESS_AUTH_PENDING_STORAGE_KEY,
+        JSON.stringify({ state: "other", codeVerifier: "verifier", returnTo })
+      );
+      window.history.replaceState({}, "", "/bannergress-auth-callback.html?code=***&state=s1");
+      document.body.innerHTML = '<h1 id="title"></h1><p id="message"></p><a id="back" href="/x">Back</a>';
+      new Function(script)();
+      await vi.waitFor(() => expect(document.getElementById("title").textContent).toBe("Bannergress sign-in failed"));
+      expect(document.getElementById("back").getAttribute("href")).toBe("/");
+    }
+  });
+
   it("refuses a state mismatch", async () => {
     window.localStorage.setItem(
       BANNERGRESS_AUTH_PENDING_STORAGE_KEY,

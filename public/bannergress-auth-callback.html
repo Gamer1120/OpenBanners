@@ -33,12 +33,26 @@
         margin: 0;
         color: rgba(244, 247, 251, 0.82);
       }
+
+      .back {
+        display: inline-block;
+        margin-top: 20px;
+        padding: 10px 22px;
+        border-radius: 20px;
+        background: #38bdf8;
+        color: #0f172a;
+        font-weight: 600;
+        text-decoration: none;
+      }
     </style>
   </head>
   <body>
     <main>
       <h1 id="title">Finishing Bannergress sign-in…</h1>
       <p id="message">Please wait while OpenBanners stores your Bannergress session.</p>
+      <!-- For when this tab can't close itself (no popup, a custom tab, an
+           in-app browser): always a way back to the site. -->
+      <a id="back" class="back" href="/">Back to OpenBanners</a>
     </main>
     <script>
       const AUTH_STORAGE_KEY = "openbanners-bannergress-auth";
@@ -61,6 +75,24 @@
       function setStatus(title, message) {
         document.getElementById("title").textContent = title;
         document.getElementById("message").textContent = message;
+      }
+
+      // A path on this site only (the app saves where the sign-in started).
+      function safeReturnPath(value) {
+        return typeof value === "string" && value.startsWith("/") && !value.startsWith("//") && !value.startsWith("/\\")
+          ? value
+          : "/";
+      }
+
+      function setBackLink(pendingAuth) {
+        const back = document.getElementById("back");
+        const path = safeReturnPath(pendingAuth && pendingAuth.returnTo);
+
+        if (back) {
+          back.setAttribute("href", path);
+        }
+
+        return path;
       }
 
       function parseLocationParams() {
@@ -280,6 +312,9 @@
         }
 
         const pendingAuth = loadPendingAuth();
+        const returnPath = setBackLink(pendingAuth);
+        // The sign-in ran in the site's own tab (no popup): go back there.
+        const sameTab = Boolean(pendingAuth && pendingAuth.mode === "redirect");
 
         if (!code || !state || !pendingAuth) {
           const missingParts = [];
@@ -349,11 +384,20 @@
           notifyOpener({ success: true });
           setStatus(
             "Bannergress sign-in complete",
-            "You can return to OpenBanners now."
+            sameTab
+              ? "Taking you back to OpenBanners…"
+              : "You can return to OpenBanners now."
           );
-          window.setTimeout(() => {
-            window.close();
-          }, 150);
+
+          if (sameTab) {
+            window.setTimeout(() => {
+              window.location.replace(returnPath);
+            }, 600);
+          } else {
+            window.setTimeout(() => {
+              window.close();
+            }, 150);
+          }
         } catch (error) {
           const message =
             error instanceof Error

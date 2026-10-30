@@ -641,7 +641,9 @@ export function serializeBannergressPendingAuth(pendingAuth) {
   )}`;
 }
 
-export async function buildBannergressAuthorizationUrl() {
+// mode "redirect": the sign-in runs in this tab (no popup); the callback page
+// then goes back to returnTo (a path on this site).
+export async function buildBannergressAuthorizationUrl({ mode = "popup", returnTo = null } = {}) {
   if (!isBannergressAuthSupportedOrigin()) {
     throw new Error(
       t("Bannergress auth is currently only enabled on {hosts}", {
@@ -661,6 +663,11 @@ export async function buildBannergressAuthorizationUrl() {
     codeVerifier,
     redirectUri,
     createdAt: Date.now(),
+    mode: mode === "redirect" ? "redirect" : "popup",
+    returnTo:
+      typeof returnTo === "string" && /^\/(?![/\\])/.test(returnTo)
+        ? returnTo
+        : "/",
   };
 
   window.localStorage.setItem(

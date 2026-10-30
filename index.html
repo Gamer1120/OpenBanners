@@ -49,9 +49,6 @@
     </script>
     <script>
       (function () {
-        const SITE_NAME = "OpenBanners";
-        const DEFAULT_DESCRIPTION = "An open-source front-end for banners";
-        const BANNERGRESS_IMAGE_ORIGIN = "https://api.bannergress.com";
         const origin = window.location.origin || "https://openbanners.org";
         const currentUrl = new URL(
           `${window.location.pathname}${window.location.search}`,
@@ -85,69 +82,9 @@
         canonicalLink.setAttribute("href", currentUrl);
         setMeta("property", "og:url", currentUrl);
 
-        const bannerMatch = window.location.pathname.match(/^\/banner\/([^/?#]+)/);
-        if (!bannerMatch) {
-          return;
-        }
-
-        const bannerId = decodeURIComponent(bannerMatch[1]);
-
-        fetch(`https://api.bannergress.com/bnrs/${encodeURIComponent(bannerId)}`)
-          .then((response) => (response.ok ? response.json() : null))
-          .then((banner) => {
-            if (!banner || !banner.id || !banner.title) {
-              return;
-            }
-
-            const missionCount = Number(banner.numberOfMissions);
-            const lengthMeters = Number(banner.lengthMeters);
-            const formattedDistance = Number.isFinite(lengthMeters)
-              ? `${Math.round((lengthMeters / 1000) * 10) / 10} km`
-              : null;
-            const formattedMissions = Number.isFinite(missionCount)
-              ? `${missionCount} ${missionCount === 1 ? "Mission" : "Missions"}`
-              : null;
-            const formattedAddress =
-              typeof banner.formattedAddress === "string"
-                ? banner.formattedAddress.trim()
-                : "";
-            const description = [
-              formattedMissions,
-              formattedDistance,
-              formattedAddress,
-            ]
-              .filter(Boolean)
-              .join(", ");
-            const image = banner.picture
-              ? new URL(banner.picture, BANNERGRESS_IMAGE_ORIGIN).toString()
-              : "";
-
-            document.title =
-              banner.title === SITE_NAME
-                ? SITE_NAME
-                : `${banner.title} | ${SITE_NAME}`;
-            setMeta("name", "description", description || DEFAULT_DESCRIPTION);
-            setMeta("property", "og:type", "article");
-            setMeta("property", "og:title", banner.title);
-            setMeta(
-              "property",
-              "og:description",
-              description || DEFAULT_DESCRIPTION
-            );
-            setMeta("property", "og:url", currentUrl);
-            if (image) {
-              setMeta("property", "og:image", image);
-              setMeta("name", "twitter:image", image);
-            }
-            setMeta("name", "twitter:card", image ? "summary_large_image" : "summary");
-            setMeta("name", "twitter:title", banner.title);
-            setMeta(
-              "name",
-              "twitter:description",
-              description || DEFAULT_DESCRIPTION
-            );
-          })
-          .catch(() => {});
+        // Banner pages: the meta service (server/banner-meta.mts) already puts
+        // the banner's tags in this HTML and the app sets them after loading
+        // the banner, so there is no second Bannergress request here.
       })();
     </script>
   </head>

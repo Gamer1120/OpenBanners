@@ -21,6 +21,20 @@ const CACHE_TTL_MS = 15 * 60 * 1000;
 const MAX_CACHE_ENTRIES = 2_000;
 const MAX_BANNER_ID_LENGTH = 200;
 const FETCH_TIMEOUT_MS = 8_000;
+// How long a page load waits for Bannergress (or the plan service) before
+// it gets the page with the generic preview: people see the app at once (it
+// loads the banner itself), link-preview bots wait longer since they only
+// read the tags. The lookup carries on (FETCH_TIMEOUT_MS) and fills the cache.
+export const BROWSER_WAIT_MS = 1_500;
+export const BOT_WAIT_MS = 5_000;
+// Link-preview fetchers and crawlers (not in-app browsers: LINE's or
+// Telegram's own browser must not wait).
+const PREVIEW_BOT_PATTERN = /TelegramBot|facebookexternalhit|facebookcatalog|meta-externalagent|Twitterbot|Discordbot|Slackbot|Slack-ImgProxy|^WhatsApp\/|LinkedInBot|SkypeUriPreview|Iframely|Embedly|Pinterest|redditbot|Mastodon|Bluesky|Cardyb|vkShare|Googlebot|Google-InspectionTool|bingbot|Applebot|DuckDuckBot|YandexBot|\bbot\b|crawler|spider/i;
+
+export function isPreviewBot(userAgent: string | undefined): boolean {
+  return typeof userAgent === "string" && PREVIEW_BOT_PATTERN.test(userAgent);
+}
+
 // Bannergress said 404: remembered this long (a new banner may appear later).
 const MISSING_TTL_MS = 5 * 60 * 1000;
 
@@ -52,6 +66,8 @@ export type BannerMetaServerOptions = {
   fetchImpl?: typeof fetch;
   now?: () => number;
   plansApi?: string;
+  browserWaitMs?: number;
+  botWaitMs?: number;
 };
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {
@@ -209,6 +225,8 @@ export function createBannerMetaServer(options: BannerMetaServerOptions = {}) {
   const cache = new Map<string, CacheEntry>();
   const jsonCache = new Map<string, JsonCacheEntry>();
   const plansApi = (options.plansApi ?? (normalizeText(process.env.OPENBANNERS_PLANS_API) || DEFAULT_PLANS_API)).replace(/\/+$/, "");
+  const browserWaitMs = options.browserWaitMs ?? BROWSER_WAIT_MS;
+  const botWaitMs = options.botWaitMs ?? BOT_WAIT_MS;
   const inFlight = new Map<string, Promise<Banner | null>>();
   // Banner ids Bannergress answered 404 for, with the time.
   const missing = new Map<string, number>();
@@ -312,7 +330,10 @@ export function createBannerMetaServer(options: BannerMetaServerOptions = {}) {
       inFlight.set(bannerId, pending);
     }
 
-    return pending;
+    // Stale while revalidate: an older copy answers now, the lookup above
+    // refreshes it for the next visitor.
+    const staleBanner = loadCachedBanner(bannerId, true);
+    return staleBanner !== null ? Promise.resolve(staleBanner) : pending;
   }
 
   // Places and plans: fetched like banners (fresh for 15 minutes, stale when the source fails).
@@ -417,6 +438,12 @@ export function createBannerMetaServer(options: BannerMetaServerOptions = {}) {
     return base;
   }
 
+  // The page's own title and our card, without any lookup.
+  function genericPreview(requestUrl: string): BannerMetadata | null {
+    const match = matchPage(requestUrl);
+    return match === null ? null : { ...staticPreview(match), type: "website" };
+  }
+
   async function handleRequest(request: IncomingMessage, response: ServerResponse): Promise<void> {
     if (request.method !== "GET" && request.method !== "HEAD") {
       response.writeHead(405, { Allow: "GET, HEAD" });
@@ -438,7 +465,19 @@ export function createBannerMetaServer(options: BannerMetaServerOptions = {}) {
       return;
     }
 
-    const preview = await previewFor(request.url ?? "/");
+    // Wait at most browserWaitMs (bots: botWaitMs) for the lookups, then send
+    // the page's generic preview; the lookup goes on and fills the cache.
+    const requestUrl = request.url ?? "/";
+    const lookup = previewFor(requestUrl);
+    lookup.catch(() => {});
+    const waitMs = isPreviewBot(request.headers["user-agent"]) ? botWaitMs : browserWaitMs;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const deadline = new Promise<"timeout">((resolveDeadline) => {
+      timer = setTimeout(() => resolveDeadline("timeout"), waitMs);
+    });
+    const outcome = await Promise.race([lookup, deadline]);
+    clearTimeout(timer);
+    const preview = outcome === "timeout" ? genericPreview(requestUrl) : outcome;
     if (preview?.notFound) {
       // The app shows "This banner doesn't exist"; search engines drop it.
       sendHtml(response, request, notFoundHtml(injectMetadata(html, preview)), 404);

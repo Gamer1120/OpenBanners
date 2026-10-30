@@ -6,9 +6,12 @@ import test from "node:test";
 
 import {
   bannerIdFromRequestUrl,
+  BOT_WAIT_MS,
+  BROWSER_WAIT_MS,
   buildDescription,
   createBannerMetaServer,
   escapeHtml,
+  isPreviewBot,
 } from "./banner-meta.mts";
 
 const shellHtml = [
@@ -37,11 +40,16 @@ const exampleBanner = {
   picture: "/bnrs/pictures/abc",
 };
 
-async function startServer(t: test.TestContext, fetchImpl: typeof fetch, now?: () => number) {
+async function startServer(
+  t: test.TestContext,
+  fetchImpl: typeof fetch,
+  now?: () => number,
+  waits: { browserWaitMs?: number; botWaitMs?: number } = {},
+) {
   const directory = await mkdtemp(join(tmpdir(), "banner-meta-"));
   const indexHtmlPath = join(directory, "index.html");
   await writeFile(indexHtmlPath, shellHtml);
-  const bannerMeta = createBannerMetaServer({ indexHtmlPath, fetchImpl, now });
+  const bannerMeta = createBannerMetaServer({ indexHtmlPath, fetchImpl, now, ...waits });
   const address = await bannerMeta.listen(0);
   t.after(() => bannerMeta.close());
   return `http://127.0.0.1:${address.port}`;
@@ -231,4 +239,104 @@ test("answers HEAD without a body and rejects other methods", async (t) => {
 
   const post = await fetch(`${baseUrl}/banner/nice-banner-1234`, { method: "POST" });
   assert.equal(post.status, 405);
+});
+
+const TELEGRAM_BOT_UA = "TelegramBot (like TwitterBot)";
+const TELEGRAM_ANDROID_UA = "Mozilla/5.0 (Linux; Android 14; Pixel 7 Build/UQ1A.240205.004; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/130.0.6723.107 Mobile Safari/537.36 Telegram-Android/11.4.2 (Google Pixel 7; Android 14; SDK 34; AVERAGE)";
+const sleep = (ms: number) => new Promise((resolveSleep) => setTimeout(resolveSleep, ms));
+
+test("link-preview bots are recognised, people's browsers (also in-app ones) are not", () => {
+  assert.equal(BROWSER_WAIT_MS, 1_500);
+  assert.equal(BOT_WAIT_MS, 5_000);
+  for (const ua of [
+    TELEGRAM_BOT_UA,
+    "facebookexternalhit/1.1 (+http://www.facebook.com/externalhit_uatext.php)",
+    "Twitterbot/1.0",
+    "Mozilla/5.0 (compatible; Discordbot/2.0; +https://discordapp.com)",
+    "Slackbot-LinkExpanding 1.0 (+https://api.slack.com/robots)",
+    "WhatsApp/2.23.20.0 A",
+    "Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)",
+    "LinkedInBot/1.0 (compatible; Mozilla/5.0; Apache-HttpClient +http://www.linkedin.com)",
+  ]) {
+    assert.equal(isPreviewBot(ua), true, ua);
+  }
+  for (const ua of [
+    TELEGRAM_ANDROID_UA,
+    "Mozilla/5.0 (Linux; Android 14; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Mobile Safari/537.36",
+    "Mozilla/5.0 (iPhone; CPU iPhone OS 18_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148",
+    "Mozilla/5.0 (Linux; Android 14; SM-S918B) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0 Mobile Safari/537.36 Line/14.1.0",
+    undefined,
+  ]) {
+    assert.equal(isPreviewBot(ua), false, String(ua));
+  }
+});
+
+test("slow Bannergress: browsers get the page after the short wait, bots wait for the banner, the lookup fills the cache", async (t) => {
+  let calls = 0;
+  const baseUrl = await startServer(t, async () => {
+    calls += 1;
+    await sleep(400);
+    return jsonResponse(exampleBanner);
+  }, undefined, { browserWaitMs: 100, botWaitMs: 2_000 });
+
+  let started = Date.now();
+  const quick = await fetch(`${baseUrl}/banner/nice-banner-1234`, { headers: { "User-Agent": TELEGRAM_ANDROID_UA } });
+  const quickHtml = await quick.text();
+  const quickMs = Date.now() - started;
+  assert.equal(quick.status, 200);
+  assert.ok(quickMs < 350, `browser waited ${quickMs} ms`);
+  assert.match(quickHtml, /og:image" content="https:\/\/openbanners.org\/og-image.png"/);
+  assert.match(quickHtml, /og:type" content="website"/);
+
+  // A bot asking at the same time shares the lookup and gets the banner.
+  started = Date.now();
+  const botHtml = await fetch(`${baseUrl}/banner/nice-banner-1234`, { headers: { "User-Agent": TELEGRAM_BOT_UA } }).then((response) => response.text());
+  assert.ok(Date.now() - started < 1_000);
+  assert.match(botHtml, /og:image" content="https:\/\/api.bannergress.com\/bnrs\/pictures\/abc"/);
+  assert.match(botHtml, /og:type" content="article"/);
+  assert.equal(calls, 1);
+
+  // The next visitor gets the banner's preview straight from the cache.
+  const cachedHtml = await fetch(`${baseUrl}/banner/nice-banner-1234`).then((response) => response.text());
+  assert.match(cachedHtml, /og:type" content="article"/);
+  assert.equal(calls, 1);
+});
+
+test("a bot gets the generic preview when Bannergress takes longer than the bot wait", async (t) => {
+  const baseUrl = await startServer(t, async (_url, init) => {
+    await sleep(1_000);
+    if (init?.signal?.aborted) {
+      throw new Error("aborted");
+    }
+    return jsonResponse(exampleBanner);
+  }, undefined, { browserWaitMs: 50, botWaitMs: 200 });
+
+  const started = Date.now();
+  const response = await fetch(`${baseUrl}/banner/nice-banner-1234`, { headers: { "User-Agent": TELEGRAM_BOT_UA } });
+  const html = await response.text();
+  assert.equal(response.status, 200);
+  assert.ok(Date.now() - started < 700);
+  assert.match(html, /og:image" content="https:\/\/openbanners.org\/og-image.png"/);
+});
+
+test("stale while revalidate: an expired copy answers at once while Bannergress hangs", async (t) => {
+  let currentTime = 0;
+  let calls = 0;
+  const baseUrl = await startServer(t, async () => {
+    calls += 1;
+    if (calls === 1) {
+      return jsonResponse(exampleBanner);
+    }
+    await sleep(2_000);
+    return jsonResponse({ ...exampleBanner, title: "Renamed" });
+  }, () => currentTime, { browserWaitMs: 1_000, botWaitMs: 1_000 });
+
+  await fetch(`${baseUrl}/banner/nice-banner-1234`).then((response) => response.text());
+  currentTime = 16 * 60 * 1000;
+  const started = Date.now();
+  const stale = await fetch(`${baseUrl}/banner/nice-banner-1234`, { headers: { "User-Agent": TELEGRAM_BOT_UA } }).then((response) => response.text());
+  assert.ok(Date.now() - started < 500);
+  assert.match(stale, /og:type" content="article"/);
+  assert.match(stale, /Rock &amp; Roll/);
+  assert.equal(calls, 2);
 });

@@ -44,15 +44,16 @@ function browserTimeZone() {
   }
 }
 
-// /map without a saved view or location: a world view (zoom 2, or 3 on very
-// tall screens so there are no grey bands above and below the world),
-// centred on the visitor's part of the world. A phone shows about a
-// continent, a desktop the whole world.
+// /map without a saved view or location: the visitor's part of the world
+// (zoom 3, or 4 on very tall screens), centred from the time zone. One level
+// closer than a whole-world view (2026-10-30, Michael: it could be zoomed in
+// one more level when opened fresh). A phone shows a large part of a
+// continent, a desktop about a continent.
 export function getWorldView({
   height = typeof window === "undefined" ? 844 : window.innerHeight,
   timeZone = browserTimeZone(),
 } = {}) {
   const fill = Math.ceil(Math.log2(Math.max(1, height) / 256));
-  const zoom = Math.min(3, Math.max(2, Number.isFinite(fill) ? fill : 2));
+  const zoom = Math.min(4, Math.max(3, (Number.isFinite(fill) ? fill : 2) + 1));
   return { center: regionCenterForTimeZone(timeZone), zoom };
 }

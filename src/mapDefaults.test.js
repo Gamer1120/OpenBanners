@@ -2,16 +2,19 @@ import { describe, expect, it } from "vitest";
 import { getWorldView, regionCenterForTimeZone, WORLD_PLACEHOLDER } from "./mapDefaults";
 
 describe("default map view without a location", () => {
-  it("is a world view, not Enschede", () => {
+  it("is the visitor's part of the world, not Enschede", () => {
     const view = getWorldView({ height: 664, timeZone: "UTC" });
-    expect(view.zoom).toBe(2);
+    expect(view.zoom).toBe(3);
     expect(view.center).toEqual(WORLD_PLACEHOLDER.center);
   });
 
-  it("zooms one step more only on very tall screens (no grey bands)", () => {
-    expect(getWorldView({ height: 900, timeZone: "UTC" }).zoom).toBe(2);
-    expect(getWorldView({ height: 1300, timeZone: "UTC" }).zoom).toBe(3);
-    expect(getWorldView({ height: 4000, timeZone: "UTC" }).zoom).toBe(3);
+  it("starts one level closer than a whole-world view, one more on very tall screens", () => {
+    expect(getWorldView({ height: 0, timeZone: "UTC" }).zoom).toBe(3);
+    expect(getWorldView({ height: 600, timeZone: "UTC" }).zoom).toBe(3);
+    expect(getWorldView({ height: 900, timeZone: "UTC" }).zoom).toBe(3);
+    expect(getWorldView({ height: 915, timeZone: "UTC" }).zoom).toBe(3);
+    expect(getWorldView({ height: 1300, timeZone: "UTC" }).zoom).toBe(4);
+    expect(getWorldView({ height: 4000, timeZone: "UTC" }).zoom).toBe(4);
   });
 
   it.each([

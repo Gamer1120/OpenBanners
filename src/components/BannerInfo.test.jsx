@@ -1,15 +1,18 @@
 import React from "react";
-import { render, screen, within } from "@testing-library/react";
+import { act, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter, Route, Routes, useLocation } from "react-router-dom";
 import { vi } from "vitest";
 import BannerInfo from "./BannerInfo";
 import {
+  APP_LAUNCH_TIMEOUT_MS,
   buildOverlayPlanIntentUrl,
+  buildOverlayPlanLink,
   buildOverlayStartIntentUrl,
   buildOverlayStartLink,
   isAndroidUserAgent,
   isOverlayMissingSearch,
+  watchAppLaunch,
   withoutOverlayMissing,
 } from "../overlayLink";
 
@@ -22,6 +25,8 @@ const banner = {
 
 const ANDROID_UA =
   "Mozilla/5.0 (Linux; Android 15; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0 Mobile Safari/537.36";
+const TELEGRAM_ANDROID_UA =
+  "Mozilla/5.0 (Linux; Android 14; Pixel 7 Build/UQ1A.240205.004; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/130.0.6723.107 Mobile Safari/537.36 Telegram-Android/11.4.2 (Google Pixel 7; Android 14; SDK 34; AVERAGE)";
 const DESKTOP_UA =
   "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0 Safari/537.36";
 
@@ -171,4 +176,118 @@ test("Open in Bannergress Overlay copies the link without navigator.share", asyn
 
   expect(writeText).toHaveBeenCalledWith("https://bannergress.com/banner/my-banner");
   expect(await screen.findByText("Bannergress link copied to clipboard.")).toBeInTheDocument();
+});
+
+function setVisibility(state) {
+  Object.defineProperty(document, "visibilityState", { configurable: true, get: () => state });
+  document.dispatchEvent(new Event("visibilitychange"));
+}
+
+describe("app link that doesn't leave the page", () => {
+  beforeEach(() => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+    delete document.visibilityState;
+  });
+
+  test("watchAppLaunch calls back only when the page is still in front", () => {
+    const stayed = vi.fn();
+    watchAppLaunch(stayed);
+    vi.advanceTimersByTime(APP_LAUNCH_TIMEOUT_MS - 1);
+    expect(stayed).not.toHaveBeenCalled();
+    vi.advanceTimersByTime(1);
+    expect(stayed).toHaveBeenCalledTimes(1);
+
+    for (const leave of [
+      () => setVisibility("hidden"),
+      () => window.dispatchEvent(new Event("blur")),
+      () => window.dispatchEvent(new Event("pagehide")),
+    ]) {
+      const notCalled = vi.fn();
+      watchAppLaunch(notCalled);
+      vi.advanceTimersByTime(300);
+      leave();
+      setVisibility("visible");
+      vi.advanceTimersByTime(APP_LAUNCH_TIMEOUT_MS * 2);
+      expect(notCalled).not.toHaveBeenCalled();
+    }
+
+    const cancelled = vi.fn();
+    const stop = watchAppLaunch(cancelled);
+    stop();
+    vi.advanceTimersByTime(APP_LAUNCH_TIMEOUT_MS * 2);
+    expect(cancelled).not.toHaveBeenCalled();
+  });
+
+  test("Chrome on Android: the intent fires, and the dialog shows when nothing happens", async () => {
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+    stubUserAgent(ANDROID_UA);
+    const assign = vi.fn();
+    vi.stubGlobal("location", { ...window.location, origin: "https://openbanners.org", assign });
+
+    renderRow();
+    await user.click(screen.getByRole("button", { name: "Start with OpenBanners Overlay" }));
+    expect(assign).toHaveBeenCalledWith(buildOverlayStartIntentUrl("my-banner", "https://openbanners.org"));
+    expect(screen.queryByRole("dialog")).toBeNull();
+
+    await act(() => vi.advanceTimersByTime(APP_LAUNCH_TIMEOUT_MS + 10));
+    const dialog = screen.getByRole("dialog", { name: "Install OpenBanners Overlay" });
+    expect(within(dialog).getByText(/didn’t open/)).toBeInTheDocument();
+  });
+
+  test("Chrome on Android: no dialog when the app opened (page hidden)", async () => {
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+    stubUserAgent(ANDROID_UA);
+    vi.stubGlobal("location", { ...window.location, origin: "https://openbanners.org", assign: vi.fn() });
+
+    renderRow();
+    await user.click(screen.getByRole("button", { name: "Start with OpenBanners Overlay" }));
+    act(() => setVisibility("hidden"));
+    await act(() => vi.advanceTimersByTime(APP_LAUNCH_TIMEOUT_MS * 3));
+    act(() => setVisibility("visible"));
+    await act(() => vi.advanceTimersByTime(APP_LAUNCH_TIMEOUT_MS * 3));
+    expect(screen.queryByRole("dialog")).toBeNull();
+  });
+
+  test("Telegram on Android: the dialog first, with the app link, Open in browser and the install options", async () => {
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+    stubUserAgent(TELEGRAM_ANDROID_UA);
+    const assign = vi.fn();
+    vi.stubGlobal("location", {
+      ...window.location,
+      origin: "https://openbanners.org",
+      href: "https://openbanners.org/banner/my-banner",
+      assign,
+    });
+
+    renderRow();
+    await user.click(screen.getByRole("button", { name: "Start with OpenBanners Overlay" }));
+    expect(assign).not.toHaveBeenCalled();
+    const dialog = screen.getByRole("dialog", { name: "Start with OpenBanners Overlay" });
+    expect(within(dialog).getByText(/can’t open other apps/)).toBeInTheDocument();
+    expect(within(dialog).getByRole("link", { name: "Open in browser" }).getAttribute("href")).toMatch(
+      /^intent:\/\/openbanners\.org\/banner\/my-banner#Intent;scheme=https;/
+    );
+    expect(within(dialog).getByRole("link", { name: "Open in F-Droid" })).toBeInTheDocument();
+
+    await user.click(within(dialog).getByRole("button", { name: "Start with Overlay" }));
+    expect(assign).toHaveBeenCalledWith(buildOverlayStartLink("my-banner", "https://openbanners.org"));
+    expect(within(dialog).queryByRole("status")).toBeNull();
+    await act(() => vi.advanceTimersByTime(APP_LAUNCH_TIMEOUT_MS + 10));
+    expect(within(dialog).getByRole("status")).toHaveTextContent(/The app didn’t open/);
+
+    // Tried again and the app opened this time: no new note.
+    await user.click(within(dialog).getByRole("button", { name: "Start with Overlay" }));
+    act(() => setVisibility("hidden"));
+    await act(() => vi.advanceTimersByTime(APP_LAUNCH_TIMEOUT_MS + 10));
+    expect(within(dialog).queryByRole("status")).toBeNull();
+  });
+});
+
+test("plan app link", () => {
+  expect(buildOverlayPlanLink("p1", "https://openbanners.org")).toBe(
+    "openbanners-overlay://plan/p1?start=1&origin=https%3A%2F%2Fopenbanners.org"
+  );
 });

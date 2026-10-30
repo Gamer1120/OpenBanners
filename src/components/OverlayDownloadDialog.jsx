@@ -1,5 +1,7 @@
-import React from "react";
+import React, { useEffect, useRef, useState } from "react";
 import ObModal from "./ObModal";
+import { buildOpenInBrowserIntent } from "../inAppBrowser";
+import { watchAppLaunch } from "../overlayLink";
 import { t } from "../i18n";
 
 export const OVERLAY_LINKS = {
@@ -80,18 +82,67 @@ export default function OverlayDownloadDialog({ onClose }) {
   );
 }
 
-// "Start with Overlay" without the app: on Android Chrome comes back here via
-// the intent's browser_fallback_url (?overlay=missing); elsewhere it opens
-// straight away (reason "notAndroid"). onOpenInBannergress (banner page only)
-// adds the alternative: share the Bannergress link, e.g. with Bannergress Overlay.
-export function OverlayMissingDialog({ onClose, reason = "missing", onOpenInBannergress = null }) {
+// "Start with Overlay" without the app. reason:
+// - "missing": Chrome came back via the intent's browser_fallback_url
+//   (?overlay=missing), so the app isn't installed;
+// - "notAndroid": iOS / desktop, opened straight away;
+// - "noResponse": the app link was fired but the page stayed in front
+//   (watchAppLaunch), e.g. a browser that ignores it or no app;
+// - "inApp": an in-app browser (Telegram, …; src/inAppBrowser.js), where app
+//   links often do nothing. Opened before trying: appLink (the plain
+//   openbanners-overlay:// link, which a WebView host is most likely to hand
+//   to Android) is offered as a button, plus "Open in browser".
+// onOpenInBannergress (banner page only) adds the alternative: share the
+// Bannergress link, e.g. with Bannergress Overlay.
+export function OverlayMissingDialog({ onClose, reason = "missing", onOpenInBannergress = null, appLink = null }) {
+  const [launchFailed, setLaunchFailed] = useState(false);
+  const stopWatching = useRef(null);
+  useEffect(() => () => stopWatching.current?.(), []);
+  const inApp = reason === "inApp";
+  const browserIntent = inApp ? buildOpenInBrowserIntent(window.location.href) : null;
+
+  const handleOpenApp = () => {
+    setLaunchFailed(false);
+    stopWatching.current?.();
+    stopWatching.current = watchAppLaunch(() => setLaunchFailed(true));
+    window.location.assign(appLink);
+  };
+
+  const intro = {
+    notAndroid: t("OpenBanners Overlay is an Android app. Install it on your phone, then open this page there."),
+    noResponse: t("OpenBanners Overlay didn’t open. If it isn’t installed yet, install it below, then try again."),
+    inApp: t("Built-in browsers in apps like Telegram often can’t open other apps. Try the button; if nothing happens, open this page in your browser and start from there."),
+  }[reason] ?? t("OpenBanners Overlay isn’t installed on this phone (or it’s too old for this link). Install it, then try again.");
+
   return (
-    <ObModal title={t("Install OpenBanners Overlay")} onClose={onClose} labelId="overlay-missing-title">
-      <p className="small">
-        {reason === "notAndroid"
-          ? t("OpenBanners Overlay is an Android app. Install it on your phone, then open this page there.")
-          : t("OpenBanners Overlay isn’t installed on this phone (or it’s too old for this link). Install it, then try again.")}
-      </p>
+    <ObModal
+      title={inApp ? t("Start with OpenBanners Overlay") : t("Install OpenBanners Overlay")}
+      onClose={onClose}
+      labelId="overlay-missing-title"
+    >
+      <p className="small">{intro}</p>
+      {inApp ? (
+        <>
+          <div className="ob-modal-actions">
+            {appLink ? (
+              <button type="button" className="btn filled sl" onClick={handleOpenApp}>
+                {t("Start with Overlay")}
+              </button>
+            ) : null}
+            {browserIntent ? (
+              <a className="btn outlined sl" href={browserIntent}>
+                {t("Open in browser")}
+              </a>
+            ) : null}
+          </div>
+          {launchFailed ? (
+            <p className="small" role="status">
+              {t("The app didn’t open. Open this page in your browser and try again there, or install the app below.")}
+            </p>
+          ) : null}
+          <h3 className="ob-dl-sub">{t("Install OpenBanners Overlay")}</h3>
+        </>
+      ) : null}
       <OverlayDownloadOptions />
       {onOpenInBannergress ? (
         <section className="ob-dl-option" aria-labelledby="overlay-dl-bannergress">

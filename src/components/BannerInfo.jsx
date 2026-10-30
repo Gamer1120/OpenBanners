@@ -1,14 +1,17 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { Alert, Snackbar } from "@mui/material";
 import { Directions, Explore, Layers, OpenInNew, Share } from "@mui/icons-material";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { t } from "../i18n";
 import {
   buildOverlayStartIntentUrl,
+  buildOverlayStartLink,
   isAndroidUserAgent,
   isOverlayMissingSearch,
+  watchAppLaunch,
   withoutOverlayMissing,
 } from "../overlayLink";
+import { detectInAppBrowser } from "../inAppBrowser";
 import { OverlayMissingDialog } from "./OverlayDownloadDialog";
 
 function RowAction({ icon: Icon, label, title, onClick, disabled, primary = false }) {
@@ -55,8 +58,12 @@ const BannerInfo = ({ banner, loading = false, variant = "list", heading = t("St
   const { bannerId: routeBannerId } = useParams();
   const bannerId = banner?.id ?? routeBannerId;
   const [shareFeedback, setShareFeedback] = useState(null);
-  // null, "missing" (came back from the intent fallback) or "notAndroid".
+  // null or the OverlayMissingDialog reason: "missing" (came back from the
+  // intent fallback), "notAndroid", "noResponse" (the link didn't leave the
+  // page) or "inApp" (in-app browser: explain first, then try).
   const [overlayMissing, setOverlayMissing] = useState(null);
+  const stopLaunchWatch = useRef(null);
+  useEffect(() => () => stopLaunchWatch.current?.(), []);
 
   // Chrome opened ?overlay=missing because the Overlay app isn't installed:
   // show the install dialog once and drop the parameter, so reload/back
@@ -178,15 +185,25 @@ const BannerInfo = ({ banner, loading = false, variant = "list", heading = t("St
   // Android: open the Overlay app straight at mission 1 (it opens that mission
   // in Ingress); without the app Chrome comes back with ?overlay=missing.
   // Elsewhere the app can't be launched: show the install dialog straight away.
+  // In-app browsers (Telegram, …) often ignore app links, so they get the
+  // dialog first (with the link as a button). Anywhere on Android, a link that
+  // leaves the page in front for 1.5 s shows the dialog too.
   const handleStartWithOverlay = () => {
-    if (isAndroidUserAgent(navigator.userAgent)) {
-      window.location.assign(
-        buildOverlayStartIntentUrl(banner.id, window.location.origin)
-      );
+    if (!isAndroidUserAgent(navigator.userAgent)) {
+      setOverlayMissing("notAndroid");
       return;
     }
 
-    setOverlayMissing("notAndroid");
+    if (detectInAppBrowser()) {
+      setOverlayMissing("inApp");
+      return;
+    }
+
+    stopLaunchWatch.current?.();
+    stopLaunchWatch.current = watchAppLaunch(() => setOverlayMissing("noResponse"));
+    window.location.assign(
+      buildOverlayStartIntentUrl(banner.id, window.location.origin)
+    );
   };
 
   // The dialog's alternative: the Android share sheet with the Bannergress
@@ -266,6 +283,7 @@ const BannerInfo = ({ banner, loading = false, variant = "list", heading = t("St
       {overlayMissing ? (
         <OverlayMissingDialog
           reason={overlayMissing}
+          appLink={bannerId ? buildOverlayStartLink(bannerId, window.location.origin) : null}
           onClose={() => setOverlayMissing(null)}
           onOpenInBannergress={bannerId ? handleOpenInBannergress : null}
         />

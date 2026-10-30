@@ -6,12 +6,15 @@ import { buildIngressMissionUrl, formatLength, getDistanceMeters } from "../bann
 import BannerImage from "./BannerImage";
 import {
   buildOverlayPlanIntentUrl,
+  buildOverlayPlanLink,
   isAndroidUserAgent,
+  watchAppLaunch,
   isOverlayMissingSearch,
   OVERLAY_FALLBACK_URL,
   withoutOverlayMissing,
 } from "../overlayLink";
 import { OverlayMissingDialog } from "./OverlayDownloadDialog";
+import { detectInAppBrowser } from "../inAppBrowser";
 import {
   createPlan,
   fetchActiveMissionDays,
@@ -385,20 +388,40 @@ function useHere() {
 function OverlayStart({ plan }) {
   const location = useLocation();
   const navigate = useNavigate();
+  // false or the OverlayMissingDialog reason ("missing", "noResponse", "inApp").
   const [missing, setMissing] = useState(false);
+  const stopLaunchWatch = useRef(null);
+  useEffect(() => () => stopLaunchWatch.current?.(), []);
   // Chrome came back via the intent's fallback (?overlay=missing): the app
   // isn't installed. Show the install dialog once and drop the parameter.
   useEffect(() => {
     if (!isOverlayMissingSearch(location.search)) {
       return;
     }
-    setMissing(true);
+    setMissing("missing");
     navigate(
       { pathname: location.pathname, search: withoutOverlayMissing(location.search), hash: location.hash },
       { replace: true, state: location.state }
     );
   }, [location.search, location.pathname, location.hash, location.state, navigate]);
-  const dialog = missing ? <OverlayMissingDialog onClose={() => setMissing(false)} /> : null;
+  const dialog = missing ? (
+    <OverlayMissingDialog
+      reason={missing}
+      appLink={buildOverlayPlanLink(plan.id, window.location.origin)}
+      onClose={() => setMissing(false)}
+    />
+  ) : null;
+  // Same as the banner page: in-app browsers get the dialog first, and a link
+  // that leaves the page in front for 1.5 s shows it too.
+  const handleStart = (event) => {
+    stopLaunchWatch.current?.();
+    if (detectInAppBrowser()) {
+      event.preventDefault();
+      setMissing("inApp");
+      return;
+    }
+    stopLaunchWatch.current = watchAppLaunch(() => setMissing("noResponse"));
+  };
   const open = plan.items.filter((item) => !item.done).length;
   if (!plan.items.length) {
     return dialog;
@@ -413,7 +436,7 @@ function OverlayStart({ plan }) {
     <div className="mdp-overlay">
       {dialog}
       {android ? (
-        <a className="btn filled sl" href={buildOverlayPlanIntentUrl(plan.id, window.location.origin)}>
+        <a className="btn filled sl" href={buildOverlayPlanIntentUrl(plan.id, window.location.origin)} onClick={handleStart}>
           <Layers fontSize="small" />
           {t("Start in OpenBanners Overlay")}
         </a>

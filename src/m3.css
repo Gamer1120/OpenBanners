@@ -2332,6 +2332,12 @@ body {
   margin: 4px 0 12px;
 }
 
+/* In-app browser version: "Install" heading above the download options. */
+.ob-dl-sub {
+  margin: 20px 0 0;
+  font: 500 16px/24px var(--font);
+}
+
 .ob-dl-option-head {
   display: flex;
   align-items: center;

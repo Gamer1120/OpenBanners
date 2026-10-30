@@ -55,6 +55,52 @@ export function buildOverlayStartLink(bannerId, origin) {
   return `${OVERLAY_SCHEME}://${overlayLinkPath(bannerId, origin)}`;
 }
 
+// How long an app link may take to leave the page before we assume nothing
+// happened (no app, or a browser that ignores the link).
+export const APP_LAUNCH_TIMEOUT_MS = 1500;
+
+// After firing an app link: calls onStay() if the page is still in front
+// after timeoutMs. Any sign that something took over (the page hidden, the
+// window losing focus to an app or a chooser, the page unloading) cancels it,
+// so the install dialog never shows when the app did open. Returns a cancel
+// function.
+export function watchAppLaunch(onStay, { timeoutMs = APP_LAUNCH_TIMEOUT_MS, win = window, doc = document } = {}) {
+  let active = true;
+  let timer = null;
+
+  const stop = () => {
+    if (!active) {
+      return;
+    }
+    active = false;
+    win.clearTimeout(timer);
+    win.removeEventListener("blur", stop);
+    win.removeEventListener("pagehide", stop);
+    doc.removeEventListener("visibilitychange", onVisibility);
+  };
+  function onVisibility() {
+    if (doc.visibilityState === "hidden") {
+      stop();
+    }
+  }
+
+  win.addEventListener("blur", stop);
+  win.addEventListener("pagehide", stop);
+  doc.addEventListener("visibilitychange", onVisibility);
+  timer = win.setTimeout(() => {
+    if (!active) {
+      return;
+    }
+    const stillHere = doc.visibilityState !== "hidden";
+    stop();
+    if (stillHere) {
+      onStay();
+    }
+  }, timeoutMs);
+
+  return stop;
+}
+
 // Chrome on Android: launches the app, or opens the fallback page when it
 // isn't installed (or is an older version without the link).
 export function buildOverlayStartIntentUrl(bannerId, origin) {
@@ -74,6 +120,10 @@ function overlayPlanPath(planId, origin) {
     query.set("origin", origin);
   }
   return `plan/${encodeURIComponent(planId)}?${query.toString()}`;
+}
+
+export function buildOverlayPlanLink(planId, origin) {
+  return `${OVERLAY_SCHEME}://${overlayPlanPath(planId, origin)}`;
 }
 
 export function buildOverlayPlanIntentUrl(planId, origin) {

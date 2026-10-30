@@ -1707,6 +1707,45 @@ body {
   border-color: #fff;
 }
 
+/* Missions starting at the same portal: one marker, the numbers stacked downwards
+   (Bannergress-style), runs of 3+ as one range badge ("3–5"). */
+.mk.mk-stack {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+}
+
+.mk.mk-stack span {
+  flex: none;
+  cursor: pointer;
+}
+
+.mk.mk-stack span + span {
+  margin-top: -2px;
+}
+
+.mk.mk-stack span.rng {
+  width: auto;
+  min-width: 20px;
+  padding: 0 5px;
+  border-radius: 10px;
+}
+
+.mk.mk-stack span.first {
+  background: #1e8e4e;
+  color: #fff;
+  border-color: #fff;
+}
+
+.mk.mk-stack span.sel {
+  position: relative;
+  z-index: 1;
+  transform: scale(1.2);
+  background: var(--c, var(--primary));
+  color: #fff;
+}
+
 .mk.mk-finish span {
   background: #111;
   color: #fff;

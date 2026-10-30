@@ -11,6 +11,7 @@ import userLocationIcon from "../../constants";
 import { t } from "../../i18n";
 import { areAdjacent } from "../../bannerMissions";
 import { FINISH_FLAG_SVG, getFinish, getStepPosition, getSteps, isOnStartMarker } from "./shared";
+import { getStartBadges, groupStartMarkers, pickBadgeMission } from "./startMarkers";
 
 function createStartIcon(index, color, selected) {
   // Mission 1 is the start: same numbered circle as the others, in its own colour.
@@ -22,13 +23,47 @@ function createStartIcon(index, color, selected) {
   });
 }
 
-function createFinishIcon(shifted) {
-  // Shifted up-right when a numbered start marker sits on the same portal.
+// Several missions start at this portal: one marker with every number stacked in it,
+// like Bannergress' cluster pin (mission 1 on top, then down). The portal is under the
+// top badge, so the finish flag can still sit up-right of it.
+function createStackIcon(badges, colors, selectedMission) {
+  const html = badges
+    .map((badge, badgeIndex) => {
+      const selected = badge.indexes.includes(selectedMission);
+      const classes = [
+        badge.indexes.length > 1 ? "rng" : "",
+        badge.indexes[0] === 0 ? "first" : "",
+        selected ? "sel" : "",
+      ]
+        .filter(Boolean)
+        .join(" ");
+      const color = colors[selected ? selectedMission : badge.indexes[0]];
+
+      return `<span class="${classes}" data-badge="${badgeIndex}" style="--c:${color}">${badge.label}</span>`;
+    })
+    .join("");
+  const width = getStackWidth(badges);
+
+  return L.divIcon({
+    className: "mk mk-num mk-stack",
+    html,
+    iconSize: [width, 22 + (badges.length - 1) * 18],
+    iconAnchor: [width / 2, 10],
+  });
+}
+
+function getStackWidth(badges) {
+  return badges.some((badge) => badge.indexes.length > 1) ? 44 : 22;
+}
+
+function createFinishIcon(shifted, startWidth = 22) {
+  // Shifted up-right when a numbered start marker sits on the same portal (past its
+  // right edge when that marker is a wider range badge).
   return L.divIcon({
     className: "mk mk-num mk-finish",
     html: `<span>${FINISH_FLAG_SVG}</span>`,
     iconSize: [22, 22],
-    iconAnchor: shifted ? [-3, 25] : [11, 11],
+    iconAnchor: shifted ? [-3 - (startWidth - 22) / 2, 25] : [11, 11],
   });
 }
 
@@ -53,10 +88,37 @@ export default function RouteMap({
   mapRef,
   onReady,
 }) {
-  const startIcons = useMemo(
-    () => missions.map((_, index) => createStartIcon(index, colors[index], index === selectedMission)),
-    [colors, missions, selectedMission]
+  const startMarkers = useMemo(
+    () =>
+      groupStartMarkers(missionPositions).map(({ position, indexes }) => {
+        if (indexes.length === 1) {
+          const [index] = indexes;
+
+          return {
+            position,
+            indexes,
+            icon: createStartIcon(index, colors[index], index === selectedMission),
+          };
+        }
+
+        const badges = getStartBadges(indexes);
+
+        return { position, indexes, badges, icon: createStackIcon(badges, colors, selectedMission) };
+      }),
+    [colors, missionPositions, selectedMission]
   );
+  const onStartMarkerClick = (marker, event) => {
+    if (!marker.badges) {
+      onSelectMission(marker.indexes[0]);
+      return;
+    }
+
+    // A tap on a badge picks its mission; otherwise (keyboard) step through all of them.
+    const badgeIndex = Number(event?.originalEvent?.target?.closest?.("[data-badge]")?.dataset.badge);
+    const badge = marker.badges[badgeIndex];
+
+    onSelectMission(pickBadgeMission(badge ? badge.indexes : marker.indexes, selectedMission));
+  };
   const connectors = useMemo(
     () =>
       missionPositions.flatMap((positions, index) => {
@@ -81,8 +143,10 @@ export default function RouteMap({
       return null;
     }
 
-    return createFinishIcon(isOnStartMarker(finish.position, missionPositions));
-  }, [finish, missionPositions]);
+    const startHere = startMarkers.find((marker) => isOnStartMarker(finish.position, [[marker.position]]));
+
+    return createFinishIcon(Boolean(startHere), startHere?.badges ? getStackWidth(startHere.badges) : 22);
+  }, [finish, startMarkers]);
 
   return (
     <MapContainer
@@ -182,20 +246,27 @@ export default function RouteMap({
           </Marker>
         );
       })}
-      {missionPositions
-        .map((positions, index) => ({ position: positions[0], index }))
-        .filter((entry) => entry.position)
-        .reverse()
-        .map(({ position, index }) => (
+      {[...startMarkers].reverse().map((marker) => {
+        const index = marker.indexes[0];
+
+        return (
           <Marker
-            key={`start-${missions[index]?.id ?? index}`}
-            position={position}
-            icon={startIcons[index]}
-            title={t("Mission {number}: {title}", { number: index + 1, title: missions[index]?.title ?? "" })}
+            key={`start-${marker.indexes.map((missionIndex) => missions[missionIndex]?.id ?? missionIndex).join("-")}`}
+            position={marker.position}
+            icon={marker.icon}
+            title={marker.indexes
+              .map((missionIndex) =>
+                t("Mission {number}: {title}", {
+                  number: missionIndex + 1,
+                  title: missions[missionIndex]?.title ?? "",
+                })
+              )
+              .join("\n")}
             zIndexOffset={index === 0 ? 1000 : 500 - index}
-            eventHandlers={{ click: () => onSelectMission(index) }}
+            eventHandlers={{ click: (event) => onStartMarkerClick(marker, event) }}
           />
-        ))}
+        );
+      })}
       {finish && finishIcon ? (
         <Marker
           key="finish"

@@ -1,3 +1,4 @@
+import { WORLD_PLACEHOLDER } from "../../mapDefaults";
 import { CircleMarker, MapContainer, Marker, Polyline, Popup, TileLayer } from "react-leaflet";
 import { Link, useParams } from "react-router-dom";
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
@@ -517,8 +518,8 @@ export function RouteMap({
 
   return (
     <MapContainer
-      center={[52.221058, 6.893297]}
-      zoom={8}
+      center={WORLD_PLACEHOLDER.center}
+      zoom={WORLD_PLACEHOLDER.zoom}
       zoomControl={!isMobile}
       scrollWheelZoom={true}
       style={{ height: "100%", width: "100%" }}

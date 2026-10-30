@@ -205,6 +205,17 @@ const TILE_RELEASE_GRACE_MS = 400;
 const tileCache = new globalThis.Map();
 const tileInflight = new globalThis.Map();
 
+// Views whose tiles would be bigger than this level's (5.6° squares, about a
+// country: zoom 6 on a phone, 7 on a desktop) load nothing new: a world or
+// continent view would be thousands of pages of 50 per tile from Bannergress
+// (a level-6 tile over the Netherlands is already 3,000-6,000 banners). The
+// map then says "zoom in" and shows only banners it already has.
+export const MIN_LOAD_TILE_LEVEL = 6;
+
+export function isTooFarOutToLoad(area) {
+  return Boolean(area) && tileLevelFor(area) < MIN_LOAD_TILE_LEVEL;
+}
+
 function tileSize(level) {
   return 360 / 2 ** level;
 }
@@ -573,7 +584,7 @@ export function useDiscoveryMapBanners(visibleArea, userLocation, filters) {
       setError("");
       const missing = tiles.filter((tile) => !cachedTileBanners(tile, filterKey));
       publish();
-      if (!missing.length) {
+      if (!missing.length || isTooFarOutToLoad(normalizedVisibleArea)) {
         setLoading(false);
         return;
       }
@@ -621,5 +632,11 @@ export function useDiscoveryMapBanners(visibleArea, userLocation, filters) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [viewKey, filterKey]);
 
-  return { banners, hasMore: hasMoreBannersInView, loading, error };
+  return {
+    banners,
+    hasMore: hasMoreBannersInView,
+    loading,
+    error,
+    tooFarOut: isTooFarOutToLoad(normalizedVisibleArea),
+  };
 }

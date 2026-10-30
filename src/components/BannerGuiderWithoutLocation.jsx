@@ -1,3 +1,4 @@
+import { WORLD_PLACEHOLDER } from "../mapDefaults";
 import { MapContainer, TileLayer } from "react-leaflet";
 import BannerMarkers from "./BannerMarkers";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
@@ -139,8 +140,8 @@ export default function Map() {
       <MapContainer
         ref={mapRef}
         id="map"
-        center={[52.221058, 6.893297]}
-        zoom={15}
+        center={WORLD_PLACEHOLDER.center}
+        zoom={WORLD_PLACEHOLDER.zoom}
         zoomControl={!L.Browser.mobile}
         scrollWheelZoom={true}
         whenReady={handleMapContainerReady}

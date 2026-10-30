@@ -6,6 +6,7 @@ vi.mock("./bannergressSync", () => ({
 }));
 
 import {
+  MIN_LOAD_TILE_LEVEL,
   comparePagePriority,
   resetDiscoveryMapData,
   tileBounds,
@@ -49,6 +50,37 @@ describe("discovery map tiles", () => {
   });
   afterEach(() => {
     vi.restoreAllMocks();
+  });
+
+  it("asks Bannergress nothing for a world or continent view, and says so", async () => {
+    const { result, rerender } = renderHook(
+      ({ view }) => useDiscoveryMapBanners(view, null, filters),
+      { initialProps: { view: area(25, 10, 120) } } // the default world view
+    );
+    expect(result.current.tooFarOut).toBe(true);
+    await new Promise((resolve) => setTimeout(resolve, 400)); // past the debounce
+    expect(globalThis.fetch).not.toHaveBeenCalled();
+    expect(result.current.loading).toBe(false);
+
+    rerender({ view: area(52, 7, 20) }); // a big country: still nothing
+    await new Promise((resolve) => setTimeout(resolve, 400));
+    expect(globalThis.fetch).not.toHaveBeenCalled();
+
+    rerender({ view: area(52.22, 6.89, 0.2) }); // zoomed in: loads
+    expect(result.current.tooFarOut).toBe(false);
+    await waitFor(() => expect(result.current.banners.map((b) => b.id).sort()).toEqual(["a", "b"]));
+
+    rerender({ view: area(25, 10, 120) }); // back out: keeps what it has
+    await new Promise((resolve) => setTimeout(resolve, 400));
+    const calls = globalThis.fetch.mock.calls.length;
+    expect(result.current.banners.map((b) => b.id).sort()).toEqual(["a", "b"]);
+    await new Promise((resolve) => setTimeout(resolve, 300));
+    expect(globalThis.fetch.mock.calls.length).toBe(calls);
+  });
+
+  it("loads from about country size (tile level " + MIN_LOAD_TILE_LEVEL + ")", () => {
+    expect(tileLevelFor(area(52, 7, 11))).toBe(MIN_LOAD_TILE_LEVEL);
+    expect(tileLevelFor(area(52, 7, 12))).toBe(MIN_LOAD_TILE_LEVEL - 1);
   });
 
   it("covers a view with 2-3 tiles per side", () => {

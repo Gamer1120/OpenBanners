@@ -3,9 +3,8 @@ import { useBannergressSync } from "../../bannergressSync";
 import { getVisibleAreaFromBounds, useDiscoveryMapBanners } from "../../discoveryMapData";
 import { readDiscoveryMapState, saveDiscoveryMapViewport } from "../../discoveryMapState";
 import { withStatus } from "./mapStatus";
+import { getWorldView } from "../../mapDefaults";
 
-export const DEFAULT_CENTER = [52.221058, 6.893297];
-export const DEFAULT_ZOOM = 15;
 const LOAD_FILTERS = Object.freeze({ showOfflineBanners: false, showHiddenBanners: false });
 
 // Discovery-map state: viewport (remembered across visits), user
@@ -14,15 +13,19 @@ const LOAD_FILTERS = Object.freeze({ showOfflineBanners: false, showHiddenBanner
 export default function useDiscoveryMap() {
   const [initialState] = useState(readDiscoveryMapState);
   const restoredViewport = initialState.viewport;
+  // No saved view: the world around the visitor's time zone (until the
+  // location, if already allowed, moves the map there). Banners load only
+  // once zoomed in far enough (see MIN_LOAD_TILE_LEVEL in discoveryMapData).
+  const [defaultView] = useState(() => (restoredViewport ? null : getWorldView()));
   const [map, setMap] = useState(null);
   const [liveArea, setLiveArea] = useState(null);
   const [searchArea, setSearchArea] = useState(null);
-  const [zoom, setZoom] = useState(restoredViewport?.zoom ?? DEFAULT_ZOOM);
+  const [zoom, setZoom] = useState(restoredViewport?.zoom ?? defaultView.zoom);
   const [userLocation, setUserLocation] = useState(null);
   const [locating, setLocating] = useState(false);
   const syncState = useBannergressSync();
   const centeredRef = useRef(Boolean(restoredViewport));
-  const { banners: loadedBanners, loading, error } = useDiscoveryMapBanners(
+  const { banners: loadedBanners, loading, error, tooFarOut } = useDiscoveryMapBanners(
     searchArea,
     userLocation,
     LOAD_FILTERS
@@ -115,9 +118,10 @@ export default function useDiscoveryMap() {
     map,
     initialCenter: restoredViewport
       ? [restoredViewport.center.latitude, restoredViewport.center.longitude]
-      : DEFAULT_CENTER,
-    initialZoom: restoredViewport?.zoom ?? DEFAULT_ZOOM,
+      : defaultView.center,
+    initialZoom: restoredViewport?.zoom ?? defaultView.zoom,
     zoom,
+    tooFarOut,
     liveArea,
     searchArea,
     banners,

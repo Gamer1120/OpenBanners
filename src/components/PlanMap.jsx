@@ -1,3 +1,4 @@
+import { WORLD_PLACEHOLDER } from "../mapDefaults";
 import React, { useEffect, useMemo, useRef } from "react";
 import L from "leaflet";
 import { CircleMarker, MapContainer, Marker, Polyline, Popup, TileLayer, useMap } from "react-leaflet";
@@ -81,7 +82,7 @@ export default function PlanMap({ missions, items, here, flyRequest, onToggle })
   }, [items, byId]);
 
   return (
-    <MapContainer center={[52.22, 6.89]} zoom={13} scrollWheelZoom style={{ height: "100%", width: "100%" }}>
+    <MapContainer center={WORLD_PLACEHOLDER.center} zoom={WORLD_PLACEHOLDER.zoom} scrollWheelZoom style={{ height: "100%", width: "100%" }}>
       <TileLayer
         attribution={`&copy; ${t("{osm} contributors. Not affiliated with Bannergress.", {
           osm: '<a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',

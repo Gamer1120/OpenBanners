@@ -1,3 +1,4 @@
+import { WORLD_PLACEHOLDER } from "../mapDefaults";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Accordion,
@@ -58,7 +59,7 @@ import {
 } from "../bannerRerouterStore";
 import { getLanguage, t, tk, tn } from "../i18n";
 
-const DEFAULT_MAP_CENTER = [52.221058, 6.893297];
+const DEFAULT_MAP_CENTER = WORLD_PLACEHOLDER.center;
 const PORTAL_LIST_LIMIT = 120;
 const DISTANCE_INPUT_DEBOUNCE_MS = 250;
 const TILE_URL = "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png";
@@ -1995,7 +1996,7 @@ export default function BannerRerouterPage() {
                 <Box sx={{ height: { xs: 360, lg: 560 } }}>
                   <MapContainer
                     center={DEFAULT_MAP_CENTER}
-                    zoom={14}
+                    zoom={WORLD_PLACEHOLDER.zoom}
                     style={{ height: "100%", width: "100%" }}
                   >
                     <TileLayer attribution={TILE_ATTRIBUTION} url={TILE_URL} />

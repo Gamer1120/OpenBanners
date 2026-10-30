@@ -135,6 +135,9 @@ export function MapStatusPill({ vm, count, emptyText, bottom = 16 }) {
 
   if (vm.error) {
     text = vm.error;
+  } else if (vm.tooFarOut) {
+    // Zoomed out too far to load (discoveryMapData MIN_LOAD_TILE_LEVEL).
+    text = t("Zoom in to see banners");
   } else if (vm.loading && !vm.banners.length) {
     text = t("Loading banners…");
   } else if (count === 0 && vm.searchArea) {

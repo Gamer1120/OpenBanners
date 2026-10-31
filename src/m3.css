@@ -2510,6 +2510,18 @@ body {
   min-width: 0;
 }
 
+/* Long button labels (e.g. Dutch "Mijn gesynchroniseerde instellingen
+   verwijderen") wrap, instead of squeezing the text beside them to one word
+   per line on phones. */
+.ob-setting > .btn {
+  flex: 0 1 auto;
+  max-width: 50%;
+  white-space: normal;
+  text-align: center;
+  padding-top: 8px;
+  padding-bottom: 8px;
+}
+
 .ob-setting b {
   display: block;
   font-weight: 500;

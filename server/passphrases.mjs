@@ -20,6 +20,8 @@ import { createServer } from "node:http";
 import { dirname, resolve } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import { fileURLToPath } from "node:url";
+import { createDataExport, DataExportError } from "./data-export.mjs";
+import { createOverlayBackups, OverlayBackupError } from "./overlay-backup.mjs";
 import { createSyncedSettings, SyncedSettingsError } from "./synced-settings.mjs";
 import { createTranslationService, loadI18nSource, TranslationError } from "./translations.mjs";
 
@@ -35,10 +37,12 @@ const BANNER_TTL_MS = 5 * 60 * 1000;
 const BANNER_ID_PATTERN = /^[^\s/?#]{1,200}$/u;
 
 class ApiError extends Error {
-  constructor(status, code, message) {
+  constructor(status, code, message, extra = {}) {
     super(message);
     this.status = status;
     this.code = code;
+    // More fields for the JSON error body (e.g. nextExportAt).
+    this.extra = extra;
   }
 }
 
@@ -203,6 +207,8 @@ export function createPassphraseService({
     onSubmitted: onTranslationSubmitted,
   });
   const syncedSettings = createSyncedSettings({ db, now });
+  const overlayBackups = createOverlayBackups({ db, now });
+  const dataExport = createDataExport({ db, now, overlayBackups });
   const identityCache = new Map();
   const bannerCache = new Map();
 
@@ -808,6 +814,36 @@ export function createPassphraseService({
         throw error instanceof SyncedSettingsError ? new ApiError(error.status, error.code, error.message) : error;
       }
     }
+    // OpenBanners Overlay settings backup (server/overlay-backup.mjs): the app
+    // with its short-lived overlay token, the site with the Bannergress login.
+    if (path.startsWith("/overlay/")) {
+      try {
+        if (path === "/overlay/link" && method === "POST") {
+          return overlayBackups.createLink(await identify(headers.authorization), body);
+        }
+        if (path === "/overlay/token" && method === "POST") {
+          return overlayBackups.exchange(body);
+        }
+        if (path === "/overlay/backup" && ["GET", "PUT", "DELETE"].includes(method)) {
+          const identity = overlayBackups.identifyOverlay(headers.authorization) ?? (await identify(headers.authorization));
+          if (method === "GET") {
+            return overlayBackups.get(identity);
+          }
+          return method === "PUT" ? overlayBackups.put(identity, body) : overlayBackups.remove(identity);
+        }
+      } catch (error) {
+        throw error instanceof OverlayBackupError ? new ApiError(error.status, error.code, error.message) : error;
+      }
+    }
+    // "Download my data" (server/data-export.mjs): GET = when it's possible, POST = the file.
+    if (path === "/export" && (method === "GET" || method === "POST")) {
+      const identity = await identify(headers.authorization);
+      try {
+        return method === "GET" ? dataExport.status(identity) : dataExport.run(identity);
+      } catch (error) {
+        throw error instanceof DataExportError ? new ApiError(error.status, error.code, error.message, error.extra) : error;
+      }
+    }
     if (path === "/settings" && (method === "GET" || method === "POST")) {
       const identity = await identify(headers.authorization);
       return method === "GET" ? settings(identity) : updateSettings(identity, body);
@@ -1028,7 +1064,7 @@ export function createPassphraseServer(options = {}) {
       send(200, await service.handle(request.method, url.pathname.slice(BASE_PATH.length) || "/", request.headers, body));
     } catch (error) {
       if (error instanceof ApiError) {
-        send(error.status, { error: error.code, message: error.message });
+        send(error.status, { ...error.extra, error: error.code, message: error.message });
       } else {
         process.stderr.write(`passphrases: ${error?.stack ?? error}\n`);
         send(500, { error: "internal", message: "Something went wrong." });

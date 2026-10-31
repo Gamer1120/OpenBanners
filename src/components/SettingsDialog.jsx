@@ -1,9 +1,126 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import ObModal from "./ObModal";
 import { BANNERGRESS_AUTH_REQUEST_EVENT } from "../bannergressSync";
 import { useUserSettings } from "../passphraseApi";
 import { LANGUAGES, getLanguageChoice, setLanguageChoice, t } from "../i18n";
 import { removeSyncedSettings, turnOnSettingsSync, useSettingsSync } from "../settingsSync";
+import { deleteOverlayBackup, downloadMyData, formatLocalDate, formatLocalTime, getExportStatus, getOverlayBackup } from "../accountData";
+
+// "Download my data" (once an hour, server-side) and the Overlay app's
+// settings backup (date + delete). Both only while signed in.
+function DataSection() {
+  const [nextAt, setNextAt] = useState(null);
+  const [busy, setBusy] = useState(false);
+  const [message, setMessage] = useState("");
+  const [error, setError] = useState("");
+  const [backup, setBackup] = useState({ status: "loading", backup: null });
+  const [confirmDelete, setConfirmDelete] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    getExportStatus().then(
+      (status) => !cancelled && setNextAt(status?.nextExportAt ?? null),
+      () => {}
+    );
+    getOverlayBackup().then(
+      (result) => !cancelled && setBackup({ status: "ready", backup: result?.backup ?? null }),
+      () => !cancelled && setBackup({ status: "error", backup: null })
+    );
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const waitText = (iso) => t("You can download your data once an hour. Next possible at {time}.", { time: formatLocalTime(iso) });
+  const tooSoon = Boolean(nextAt && new Date(nextAt).getTime() > Date.now());
+
+  const download = () => {
+    setBusy(true);
+    setError("");
+    setMessage("");
+    downloadMyData()
+      .then(({ nextExportAt }) => {
+        setNextAt(nextExportAt);
+        setMessage(t("Your data was downloaded."));
+      })
+      .catch((e) => {
+        if (e?.code === "export_limit") {
+          setNextAt(e.data?.nextExportAt ?? null);
+          setError(waitText(e.data?.nextExportAt));
+        } else {
+          setError(t("Couldn't download your data. Try again later."));
+        }
+      })
+      .finally(() => setBusy(false));
+  };
+
+  const removeBackup = () => {
+    setBusy(true);
+    setError("");
+    deleteOverlayBackup()
+      .then(() => {
+        setBackup({ status: "ready", backup: null });
+        setConfirmDelete(false);
+      })
+      .catch(() => setError(t("Couldn't delete the Overlay backup. Try again later.")))
+      .finally(() => setBusy(false));
+  };
+
+  return (
+    <>
+      <div className="ob-setting">
+        <span className="grow">
+          <b>{t("Download my data")}</b>
+          <span className="small muted">
+            {tooSoon && !error
+              ? waitText(nextAt)
+              : t("One JSON file with everything OpenBanners stores for your account. Once an hour.")}
+          </span>
+          {message ? <span className="small" role="status">{message}</span> : null}
+        </span>
+        <button type="button" className="btn tonal sl" disabled={busy} onClick={download}>
+          {t("Download my data")}
+        </button>
+      </div>
+      <div className="ob-setting">
+        <span className="grow">
+          <b>{t("OpenBanners Overlay backup")}</b>
+          <span className="small muted">
+            {backup.status === "loading"
+              ? t("Loading…")
+              : backup.backup
+                ? t("Last backup: {date} (app version {version}).", {
+                    date: formatLocalDate(backup.backup.createdAt),
+                    version: backup.backup.appVersion ?? "?",
+                  })
+                : backup.status === "error"
+                  ? t("Couldn’t load your settings.")
+                  : t("No backup yet. In the Overlay app: Settings → Back up to OpenBanners.")}
+          </span>
+        </span>
+        {backup.backup ? (
+          <button type="button" className="btn tonal sl" disabled={busy} onClick={() => setConfirmDelete(true)}>
+            {t("Delete")}
+          </button>
+        ) : null}
+      </div>
+      {confirmDelete ? (
+        <div className="pp-confirm" role="alertdialog" aria-label={t("Delete the Overlay backup?")}>
+          <p className="small">{t("Delete the Overlay backup?")}</p>
+          <div className="pp-actions">
+            <button type="button" className="btn filled sl pp-danger" disabled={busy} onClick={removeBackup}>
+              {t("Delete")}
+            </button>
+            <button type="button" className="btn text sl" onClick={() => setConfirmDelete(false)}>
+              {t("Cancel")}
+            </button>
+          </div>
+        </div>
+      ) : null}
+      {error ? <p className="small pp-error" role="alert">{error}</p> : null}
+    </>
+  );
+}
 
 // Settings sync (src/settingsSync.js): on while signed in, until removed here.
 function SyncSection({ loggedIn }) {
@@ -91,6 +208,12 @@ export default function SettingsDialog({ onClose }) {
       </label>
       <h3 className="ob-settings-h">{t("Sync between devices")}</h3>
       <SyncSection loggedIn={loggedIn} />
+      <h3 className="ob-settings-h">{t("Your data")}</h3>
+      {loggedIn ? (
+        <DataSection />
+      ) : (
+        <p className="small muted">{t("Sign in with Bannergress to download your data or manage your Overlay backup.")}</p>
+      )}
       <h3 className="ob-settings-h">{t("Passphrases")}</h3>
       {!loggedIn ? (
         <div className="ob-setting">

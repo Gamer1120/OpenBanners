@@ -25,6 +25,7 @@ export async function call(path, { method = "GET", body, authenticate = true } =
     throw Object.assign(new Error(result?.message || t("Couldn't reach the passphrase service.")), {
       code: result?.error,
       status: response.status,
+      data: result,
     });
   }
   return result;

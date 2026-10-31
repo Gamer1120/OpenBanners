@@ -52,6 +52,7 @@ function App() {
           <Route path="/planner/:planId" element={<Home />} />
           <Route path="/translate" element={<Home />} />
           <Route path="/privacy" element={<Home />} />
+          <Route path="/overlay/connect" element={<Home />} />
           <Route
             path="/bannerguider/:bannerId/debug"
             element={<BannerGuider />}

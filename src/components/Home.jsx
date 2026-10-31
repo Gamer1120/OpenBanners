@@ -23,6 +23,7 @@ import { t, tk } from "../i18n";
 // Loaded only when opened: it carries every UI text (keys.json).
 const TranslationEditor = lazy(() => import("./TranslationEditor"));
 const PrivacyPage = lazy(() => import("./PrivacyPage"));
+const OverlayConnectPage = lazy(() => import("./OverlayConnectPage"));
 // Pages with a map (Leaflet) or a lot of code of their own come as separate
 // chunks, so the home page, search and browse don't download them.
 const BannerDetailsPage = lazy(() => import("./BannerDetailsPage"));
@@ -55,6 +56,7 @@ const VIEW_TITLES = {
   planner: tk("Mission Day planner"),
   translate: tk("Translation editor"),
   privacy: tk("Privacy"),
+  overlayConnect: tk("Connect OpenBanners Overlay"),
 };
 
 function formatRouteParam(value) {
@@ -140,6 +142,13 @@ function getRouteMetadata({ pathname, placeId, agentName, query, notFound }) {
     };
   }
 
+  if (pathname === "/overlay/connect") {
+    return {
+      title: t("Connect OpenBanners Overlay"),
+      description: t("Back up or restore the OpenBanners Overlay app's settings with your account."),
+    };
+  }
+
   if (pathname === "/privacy") {
     return {
       title: t("Privacy"),
@@ -214,6 +223,10 @@ function getCurrentView(pathname) {
 
   if (pathname === "/privacy") {
     return "privacy";
+  }
+
+  if (pathname === "/overlay/connect") {
+    return "overlayConnect";
   }
 
   if (pathname.startsWith("/lists")) {
@@ -341,6 +354,7 @@ export default function Home({ notFound = false }) {
           <Suspense fallback={null}>
           {currentView === "notFound" && <NotFoundPage />}
           {currentView === "privacy" && <PrivacyPage />}
+          {currentView === "overlayConnect" && <OverlayConnectPage />}
           {currentView === "start" || currentView === "lists" ? <AuthorPassphraseNotice /> : null}
           {currentView === "start" && <BannersStartPage />}
           {currentView === "near" && (

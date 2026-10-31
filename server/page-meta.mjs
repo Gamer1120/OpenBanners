@@ -29,6 +29,7 @@ export const PAGES = [
   { path: "/rerouter", title: "Reroute Banner", description: "Build a rerouted banner from imported missions." },
   { path: "/planner", title: "Mission Day planner", description: "Pick the missions you want to do, put them in your order and walk them as one route with friends." },
   { path: "/privacy", title: "Privacy", description: "What OpenBanners stores and logs, and how to delete it." },
+  { path: "/overlay/connect", title: "Connect OpenBanners Overlay", description: "Back up or restore the OpenBanners Overlay app's settings with your account." },
   { path: "/translate", title: "Translation editor", description: "Help translate OpenBanners: suggest better texts in your language." },
   { path: "/planner/:planId", kind: "plan", title: "Mission Day plan", description: "A Mission Day plan on OpenBanners: missions in order, on a map." },
   { path: "/bannerguider/:bannerId/debug", kind: "banner", prefix: "BannerGuider", title: "BannerGuider", description: DEFAULT_DESCRIPTION },

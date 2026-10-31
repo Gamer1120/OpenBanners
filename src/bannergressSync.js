@@ -1,4 +1,4 @@
-import { useSyncExternalStore } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import { getLanguage, t } from "./i18n";
 
 export const BANNERGRESS_SYNC_STORAGE_KEY = "openbanners-bannergress-sync";
@@ -346,6 +346,32 @@ export function getBannergressDisplayName(
   );
 }
 
+// The one request for the signed-in account's agent name: Bannergress /user.
+// Caches the answer per account (also "no agent linked") and resolves to the
+// agent name or null. Rejects when the request fails; 401/403 with code "AUTH".
+export async function fetchBannergressUserAgentName({ signal } = {}) {
+  const authData = loadBannergressAuthData();
+  const response = await fetchBannergress(BANNERGRESS_USER_URL, { signal });
+
+  if (response?.status === 401 || response?.status === 403) {
+    throw Object.assign(new Error("Sign in again."), { code: "AUTH" });
+  }
+
+  if (!response?.ok) {
+    throw new Error(`Request failed: ${response?.status}`);
+  }
+
+  const user = await response.json().catch(() => null);
+
+  if (!user || typeof user !== "object") {
+    throw new Error("Bannergress sent an unreadable account.");
+  }
+
+  const name = readBannergressUserAgentName(user);
+  writeCachedAgentRecord(authData, name);
+  return name;
+}
+
 // Fetches the agent name from Bannergress when the cache is missing or old.
 // Resolves to the display name; never rejects.
 export function refreshBannergressAgentName({ force = false } = {}) {
@@ -364,31 +390,65 @@ export function refreshBannergressAgentName({ force = false } = {}) {
 
   if (!agentNameRequest) {
     agentNameRequest = withTimeout(
-      (signal) => fetchBannergress(BANNERGRESS_USER_URL, { signal }),
+      (signal) => fetchBannergressUserAgentName({ signal }),
       BANNERGRESS_REQUEST_TIMEOUT_MS,
       "user request"
     )
-      .then(async (response) => {
-        if (!response?.ok) {
-          return getBannergressDisplayName(authData);
-        }
-
-        const user = await response.json().catch(() => null);
-
-        if (!user || typeof user !== "object") {
-          return getBannergressDisplayName(authData);
-        }
-
-        writeCachedAgentRecord(authData, readBannergressUserAgentName(user));
-        return getBannergressDisplayName(authData);
-      })
-      .catch(() => getBannergressDisplayName(authData))
+      .catch(() => null)
+      .then(() => getBannergressDisplayName(authData))
       .finally(() => {
         agentNameRequest = null;
       });
   }
 
   return agentNameRequest;
+}
+
+// Agent name of the signed-in account, for everything that shows or sends it
+// (top bar, Banner Together): Bannergress /user, cached per account. Fetched
+// when missing or old; updates when it arrives, when another tab fetches it
+// and when the account changes. Null when disabled (signed out) or when the
+// account has no agent name.
+export function useBannergressDisplayName(enabled = true) {
+  const auth = useBannergressAuth();
+  const [displayName, setDisplayName] = useState(() =>
+    getBannergressDisplayName()
+  );
+
+  useEffect(() => {
+    if (!enabled) {
+      return undefined;
+    }
+
+    let cancelled = false;
+    const reload = () => {
+      if (!cancelled) {
+        setDisplayName(getBannergressDisplayName());
+      }
+    };
+    const handleStorage = (event) => {
+      if (
+        event.key === BANNERGRESS_AGENT_STORAGE_KEY ||
+        event.key === BANNERGRESS_AUTH_STORAGE_KEY ||
+        event.key === null
+      ) {
+        reload();
+      }
+    };
+
+    reload();
+    window.addEventListener(BANNERGRESS_AGENT_CHANGE_EVENT, reload);
+    window.addEventListener("storage", handleStorage);
+    void refreshBannergressAgentName().then(reload);
+
+    return () => {
+      cancelled = true;
+      window.removeEventListener(BANNERGRESS_AGENT_CHANGE_EVENT, reload);
+      window.removeEventListener("storage", handleStorage);
+    };
+  }, [enabled, auth.idToken, auth.accessToken]);
+
+  return enabled ? displayName : null;
 }
 
 function normalizeAuthState(rawValue) {

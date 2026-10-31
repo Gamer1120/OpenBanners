@@ -6,6 +6,7 @@ import {
   getBannergressAgentName,
   getBannergressDisplayName,
   readBannergressUserAgentName,
+  fetchBannergressUserAgentName,
   refreshBannergressAgentName,
   loadBannergressAuthData,
   requestBannergressAccessToken,
@@ -383,4 +384,22 @@ test("list sync times out a stuck token refresh and frees the refresh lock", asy
   } finally {
     vi.useRealTimers();
   }
+});
+
+test("the shared /user request reports sign-in problems and caches the agent", async () => {
+  saveSignedInAccount("user-1");
+  global.fetch.mockReturnValue(userResponse({}, 403));
+  await expect(fetchBannergressUserAgentName()).rejects.toMatchObject({ code: "AUTH" });
+  expect(window.localStorage.getItem(BANNERGRESS_AGENT_STORAGE_KEY)).toBeNull();
+
+  global.fetch.mockReturnValue(userResponse({ agent: { name: "ListsAgent" } }));
+  await expect(fetchBannergressUserAgentName()).resolves.toBe("ListsAgent");
+  // The top bar and Banner Together read the same cached name.
+  expect(getBannergressDisplayName()).toBe("ListsAgent");
+  global.fetch.mockClear();
+  await expect(refreshBannergressAgentName()).resolves.toBe("ListsAgent");
+  expect(global.fetch).not.toHaveBeenCalled();
+
+  global.fetch.mockReturnValue(userResponse({ agent: null }));
+  await expect(fetchBannergressUserAgentName()).resolves.toBeNull();
 });

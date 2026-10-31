@@ -91,12 +91,20 @@ function createJwt(payload) {
   return `header.${encodedPayload}.signature`;
 }
 
+// Bannergress /user reply for the signed-in account (where the agent name
+// comes from; the sign-in tokens carry none). A function may return a promise
+// to make the name arrive late.
+let userReply;
+
+function userResponse(body) {
+  return { ok: true, status: 200, json: () => Promise.resolve(body) };
+}
+
 function authenticate(agentName = null) {
+  userReply = { agent: agentName ? { name: agentName } : null };
   saveBannergressAuthData({
     accessToken: "live-page-access-token",
-    idToken: agentName
-      ? createJwt({ preferred_username: agentName })
-      : null,
+    idToken: createJwt({ iss: "https://login.example", sub: "live-page-user" }),
     refreshToken: "live-page-refresh-token",
     accessExpiresAt: Date.now() + 5 * 60 * 1000,
     refreshExpiresAt: Date.now() + 30 * 60 * 1000,
@@ -147,13 +155,22 @@ function renderPage({ roomId = null, hash = "" } = {}) {
 beforeEach(() => {
   vi.resetAllMocks();
   window.localStorage.clear();
-  global.fetch = vi.fn().mockResolvedValue({
-    ok: true,
-    json: () =>
-      Promise.resolve({
-        id: PLACE_ID,
-        formattedAddress: "Enschede, Netherlands",
-      }),
+  userReply = { agent: null };
+  global.fetch = vi.fn((url) => {
+    if (String(url) === "https://api.bannergress.com/user") {
+      return Promise.resolve(
+        typeof userReply === "function" ? userReply() : userReply
+      ).then(userResponse);
+    }
+
+    return Promise.resolve({
+      ok: true,
+      json: () =>
+        Promise.resolve({
+          id: PLACE_ID,
+          formattedAddress: "Enschede, Netherlands",
+        }),
+    });
   });
   Object.defineProperty(navigator, "clipboard", {
     configurable: true,
@@ -622,4 +639,123 @@ test("leaves the ephemeral room and clears local access", async () => {
     expect(session.close).toHaveBeenCalledWith({ notifyServer: true });
   });
   expect(loadBannerTogetherLiveAccess({ roomId: ROOM_ID, placeId: PLACE_ID })).toBeNull();
+});
+
+async function joinAsGuest() {
+  mocks.fetchMembership.mockResolvedValue(membership({ todo: ["shared"] }));
+  const inviteHash = createBannerTogetherLiveInviteHash({
+    roomSecret: ROOM_SECRET,
+  });
+
+  renderPage({ roomId: ROOM_ID, hash: inviteHash });
+  fireEvent.click(await screen.findByRole("button", { name: /^join room$/i }));
+  expect(
+    await screen.findByText("Joined. Your lists are still private.")
+  ).toBeInTheDocument();
+}
+
+test("shares the Bannergress agent name, not a token claim, with the room", async () => {
+  authenticate("UserAgent");
+  saveBannergressAuthData({
+    ...JSON.parse(window.localStorage.getItem("openbanners-bannergress-auth")),
+    idToken: createJwt({
+      iss: "https://login.example",
+      sub: "live-page-user",
+      preferred_username: "TokenClaim",
+    }),
+  });
+  await joinAsGuest();
+
+  expect(await screen.findByText(/You \(UserAgent\)/)).toBeInTheDocument();
+  fireEvent.click(screen.getByRole("checkbox", { name: "Share my lists" }));
+  await waitFor(() => expect(session.publishSnapshot).toHaveBeenCalledTimes(1));
+  expect(mocks.encryptSnapshot).toHaveBeenCalledWith(
+    expect.objectContaining({ agentName: "UserAgent" })
+  );
+  expect(global.fetch).toHaveBeenCalledWith(
+    "https://api.bannergress.com/user",
+    expect.anything()
+  );
+});
+
+test("sends the snapshot again when the agent name arrives after sharing started", async () => {
+  authenticate("LateAgent");
+  let releaseUser;
+  const lateUser = new Promise((resolve) => {
+    releaseUser = resolve;
+  });
+  userReply = () => lateUser;
+  await joinAsGuest();
+
+  fireEvent.click(screen.getByRole("checkbox", { name: "Share my lists" }));
+  await waitFor(() => expect(session.publishSnapshot).toHaveBeenCalledTimes(1));
+  expect(mocks.encryptSnapshot.mock.calls[0][0].agentName ?? null).toBeNull();
+  expect(
+    await screen.findByText("Your lists are now shared with connected room members.")
+  ).toBeInTheDocument();
+
+  await act(async () => {
+    releaseUser({ agent: { name: "LateAgent" } });
+    await lateUser;
+  });
+
+  await waitFor(() => expect(session.publishSnapshot).toHaveBeenCalledTimes(2));
+  const [first, second] = mocks.encryptSnapshot.mock.calls.map(([args]) => args);
+  expect(second).toEqual(
+    expect.objectContaining({
+      agentName: "LateAgent",
+      capturedAt: first.capturedAt,
+      lists: first.lists,
+      shareWhileOffline: false,
+    })
+  );
+  expect(second.sequence).toBeGreaterThan(first.sequence);
+  expect(session.publishSnapshot.mock.calls[1][0].sequence).toBe(second.sequence);
+  expect(screen.getByText(/You \(LateAgent\)/)).toBeInTheDocument();
+  // A name-only update keeps the sharing message instead of a refresh notice.
+  expect(
+    screen.getByText("Your lists are now shared with connected room members.")
+  ).toBeInTheDocument();
+  expect(
+    screen.queryByText("The refreshed list snapshot is now shared.")
+  ).not.toBeInTheDocument();
+
+  // Nothing changes after that: no further snapshots.
+  await new Promise((resolve) => setTimeout(resolve, 50));
+  expect(session.publishSnapshot).toHaveBeenCalledTimes(2);
+});
+
+test("falls back to You / Participant labels for accounts without an agent name", async () => {
+  authenticate(null);
+  mocks.joinRoom.mockResolvedValue(
+    roomResponse({ participantId: GUEST_PARTICIPANT_ID, peers: [PEER_ONE_ID] })
+  );
+  mocks.decryptSnapshot.mockResolvedValue(membership({ todo: ["shared"] }));
+  await joinAsGuest();
+
+  await waitFor(() =>
+    expect(global.fetch).toHaveBeenCalledWith(
+      "https://api.bannergress.com/user",
+      expect.anything()
+    )
+  );
+  fireEvent.click(screen.getByRole("checkbox", { name: "Share my lists" }));
+  await waitFor(() => expect(session.publishSnapshot).toHaveBeenCalledTimes(1));
+  expect(mocks.encryptSnapshot.mock.calls[0][0].agentName ?? null).toBeNull();
+  expect(screen.getByText(/^You - sharing$/)).toBeInTheDocument();
+
+  await act(async () => {
+    sessionOptions.onParticipantState({
+      participantId: PEER_ONE_ID,
+      state: "connected",
+    });
+    await sessionOptions.onSnapshot({
+      participantId: PEER_ONE_ID,
+      sequence: 1,
+      envelope: ENVELOPE,
+    });
+  });
+  expect(
+    await screen.findByText(`Participant ${PEER_ONE_ID.slice(0, 4)} - sharing`)
+  ).toBeInTheDocument();
 });

@@ -9,6 +9,7 @@ import {
   BANNERGRESS_AUTH_REQUEST_EVENT,
   BANNERGRESS_REQUEST_TIMEOUT_MS,
   fetchBannergress,
+  fetchBannergressUserAgentName,
   formatBannergressSyncTime,
   isBannergressAuthSupportedOrigin,
   requestBannergressSyncData,
@@ -30,19 +31,9 @@ const BANNERGRESS_CREATE_URL = "https://bannergress.com/new-banner";
 
 // "Yours" = banners whose missions were made by the Ingress agent linked to the
 // Bannergress account (same as Bannergress's agent page: /bnrs?author=<agent>).
+// Same /user request (and per-account cache) as the top bar and Banner Together.
 export async function fetchOwnAgentName() {
-  const response = await fetchBannergress("https://api.bannergress.com/user");
-
-  if (response.status === 401 || response.status === 403) {
-    throw Object.assign(new Error("Sign in again."), { code: "AUTH" });
-  }
-
-  if (!response.ok) {
-    throw new Error(`Request failed: ${response.status}`);
-  }
-
-  const user = await response.json();
-  const name = typeof user?.agent?.name === "string" ? user.agent.name.trim() : "";
+  const name = await fetchBannergressUserAgentName();
 
   if (!name) {
     throw Object.assign(new Error("No agent linked."), { code: "NO_AGENT" });

@@ -26,8 +26,8 @@ import { BannerTile } from "./BannerWall";
 import BannerTogetherGroupComparisonBuilder from "./BannerTogetherGroupComparisonBuilder";
 import {
   BANNERGRESS_AUTH_REQUEST_EVENT,
-  getBannergressAgentName,
   useBannergressAuth,
+  useBannergressDisplayName,
 } from "../bannergressSync";
 import {
   BANNER_TOGETHER_GROUP_DEFAULT_PRESET_ID,
@@ -230,13 +230,13 @@ export default function BannerTogetherLivePage({ placeId, roomId = null }) {
   const location = useLocation();
   const navigate = useNavigate();
   const authState = useBannergressAuth();
-  const localAgentName = useMemo(
-    () => getBannergressAgentName(authState),
-    [authState.accessToken, authState.idToken]
-  );
   const hasAuthCredentials = Boolean(
     authState.accessToken || authState.refreshToken
   );
+  // Agent name sent with the shared list snapshot: the same Bannergress /user
+  // name as the top bar (the sign-in tokens carry none). It can arrive after
+  // the room is joined; a shared snapshot is then sent again with it.
+  const localAgentName = useBannergressDisplayName(hasAuthCredentials);
   const [place, setPlace] = useState(null);
   const [placeStatus, setPlaceStatus] = useState("loading");
   const [placeError, setPlaceError] = useState("");
@@ -277,6 +277,7 @@ export default function BannerTogetherLivePage({ placeId, roomId = null }) {
   const lastForcedCatalogReloadRef = useRef(0);
   const lastForcedMembershipReloadRef = useRef(0);
   const lastPublishedCapturedAtRef = useRef(null);
+  const lastPublishedAgentNameRef = useRef(null);
   const cacheWriteFailuresRef = useRef({ catalog: false, membership: false });
   const isPlaceReady = placeStatus === "ready" && place?.id === placeId;
   const recordCacheWriteResult = (source, succeeded) => {
@@ -848,12 +849,17 @@ export default function BannerTogetherLivePage({ placeId, roomId = null }) {
       !sessionRef.current ||
       !access ||
       !membership ||
-      membership.capturedAt === lastPublishedCapturedAtRef.current
+      (membership.capturedAt === lastPublishedCapturedAtRef.current &&
+        (localAgentName ?? null) === lastPublishedAgentNameRef.current)
     ) {
       return undefined;
     }
 
     let active = true;
+    // Only the agent name changed (it loaded after sharing started): send the
+    // same lists again with it, without a message. Older clients just see a
+    // newer snapshot.
+    const nameOnly = membership.capturedAt === lastPublishedCapturedAtRef.current;
     const publishRefreshedMembership = async () => {
       const sequence = getNextSequence(localSequenceRef.current);
       localSequenceRef.current = sequence;
@@ -873,8 +879,15 @@ export default function BannerTogetherLivePage({ placeId, roomId = null }) {
         envelope,
       });
 
+      lastPublishedAgentNameRef.current = localAgentName ?? null;
+
       if (active) {
         lastPublishedCapturedAtRef.current = membership.capturedAt;
+
+        if (nameOnly) {
+          return;
+        }
+
         const deferredCount = getDeferredDeliveryCount(delivery);
         setFeedback(
           deferredCount > 0
@@ -1192,6 +1205,7 @@ export default function BannerTogetherLivePage({ placeId, roomId = null }) {
           envelope,
         });
         lastPublishedCapturedAtRef.current = membership.capturedAt;
+        lastPublishedAgentNameRef.current = localAgentName ?? null;
         setShareEnabled(true);
         const deferredCount = getDeferredDeliveryCount(delivery);
         setFeedback(
@@ -1278,6 +1292,7 @@ export default function BannerTogetherLivePage({ placeId, roomId = null }) {
         envelope,
       });
       lastPublishedCapturedAtRef.current = membership.capturedAt;
+      lastPublishedAgentNameRef.current = localAgentName ?? null;
       setShareWhileOffline(nextEnabled);
       const deferredCount = getDeferredDeliveryCount(delivery);
 

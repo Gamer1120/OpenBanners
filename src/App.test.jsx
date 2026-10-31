@@ -1665,7 +1665,7 @@ test("top menu opens the OpenBanners Overlay download dialog with its three sour
   expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
 });
 
-test("top menu shows authenticated when bannergress auth is stored locally", async () => {
+test("top menu shows the signed-in button when bannergress auth is stored locally", async () => {
   const syncSpy = vi
     .spyOn(bannergressSync, "requestBannergressSyncData")
     .mockResolvedValue({
@@ -1700,7 +1700,7 @@ test("top menu shows authenticated when bannergress auth is stored locally", asy
   );
 
   expect(
-    await screen.findByRole("button", { name: /authenticated/i }, { timeout: 3000 })
+    await screen.findByRole("button", { name: /signed in with bannergress/i }, { timeout: 3000 })
   ).toBeInTheDocument();
   await waitFor(() => expect(syncSpy).toHaveBeenCalledTimes(1));
 });
@@ -1740,7 +1740,7 @@ test("top menu does not duplicate Banner Together list loading", async () => {
   );
 
   expect(
-    await screen.findByRole("button", { name: /authenticated/i }, { timeout: 3000 })
+    await screen.findByRole("button", { name: /signed in with bannergress/i }, { timeout: 3000 })
   ).toBeInTheDocument();
   await new Promise((resolve) => setTimeout(resolve, 0));
   expect(syncSpy).not.toHaveBeenCalled();

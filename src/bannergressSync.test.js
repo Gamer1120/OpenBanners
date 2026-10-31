@@ -1,6 +1,12 @@
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import {
+  BANNERGRESS_AGENT_STORAGE_KEY,
+  clearBannergressAuthData,
+  getBannergressAccountId,
   getBannergressAgentName,
+  getBannergressDisplayName,
+  readBannergressUserAgentName,
+  refreshBannergressAgentName,
   loadBannergressAuthData,
   requestBannergressAccessToken,
   requestBannergressSyncData,
@@ -133,6 +139,102 @@ test("reads the Bannergress agent name from local token claims", () => {
       idToken: createJwt({ preferred_username: "A".repeat(65) }),
     })
   ).toBeNull();
+});
+
+test("reads the agent name from a Bannergress /user response", () => {
+  expect(readBannergressUserAgentName({ agent: { name: " Gamer1120 ", faction: "enlightened" } })).toBe("Gamer1120");
+  expect(readBannergressUserAgentName({ agent: null, verificationAgent: null })).toBeNull();
+  expect(readBannergressUserAgentName({})).toBeNull();
+  expect(readBannergressUserAgentName(null)).toBeNull();
+  expect(readBannergressUserAgentName({ agent: { name: "" } })).toBeNull();
+  expect(readBannergressUserAgentName({ agent: { name: "Bad\u202eName" } })).toBeNull();
+  expect(readBannergressUserAgentName({ agent: { name: 42 } })).toBeNull();
+});
+
+test("identifies the account by issuer and subject", () => {
+  expect(
+    getBannergressAccountId({
+      idToken: createJwt({ iss: "https://login.example", sub: "user-1" }),
+    })
+  ).toBe("https://login.example:user-1");
+  expect(
+    getBannergressAccountId({
+      idToken: "malformed",
+      accessToken: createJwt({ iss: "https://login.example", sub: "user-2" }),
+    })
+  ).toBe("https://login.example:user-2");
+  expect(getBannergressAccountId({ accessToken: "opaque" })).toBeNull();
+});
+
+function saveSignedInAccount(sub = "user-1", claims = {}) {
+  saveBannergressAuthData({
+    accessToken: createJwt({ iss: "https://login.example", sub, ...claims }),
+    refreshToken: "refresh-token",
+    accessExpiresAt: Date.now() + 5 * 60 * 1000,
+    refreshExpiresAt: Date.now() + 30 * 60 * 1000,
+    updatedAt: Date.now(),
+  });
+}
+
+function userResponse(body, status = 200) {
+  return Promise.resolve({
+    ok: status >= 200 && status < 300,
+    status,
+    json: () => Promise.resolve(body),
+  });
+}
+
+test("fetches the agent name from Bannergress /user and caches it per account", async () => {
+  saveSignedInAccount("user-1");
+  global.fetch.mockReturnValue(userResponse({ agent: { name: "Gamer1120", faction: "enlightened" } }));
+
+  await expect(refreshBannergressAgentName()).resolves.toBe("Gamer1120");
+  expect(global.fetch).toHaveBeenCalledTimes(1);
+  const [url, options] = global.fetch.mock.calls[0];
+  expect(url).toBe("https://api.bannergress.com/user");
+  expect(new Headers(options.headers).get("Authorization")).toMatch(/^Bearer /);
+  expect(getBannergressDisplayName()).toBe("Gamer1120");
+
+  // Fresh cache: no second request.
+  await expect(refreshBannergressAgentName()).resolves.toBe("Gamer1120");
+  expect(global.fetch).toHaveBeenCalledTimes(1);
+
+  // Another account on the same browser never sees the cached name.
+  saveSignedInAccount("user-2");
+  expect(getBannergressDisplayName()).toBeNull();
+
+  clearBannergressAuthData();
+  expect(window.localStorage.getItem(BANNERGRESS_AGENT_STORAGE_KEY)).toBeNull();
+});
+
+test("falls back to a token username, then to no name, without an agent", async () => {
+  saveSignedInAccount("user-1", { preferred_username: "TokenName" });
+  global.fetch.mockReturnValue(userResponse({ agent: null }));
+  await expect(refreshBannergressAgentName()).resolves.toBe("TokenName");
+
+  window.localStorage.clear();
+  saveSignedInAccount("user-1");
+  global.fetch.mockReturnValue(userResponse({ agent: null }));
+  await expect(refreshBannergressAgentName()).resolves.toBeNull();
+  expect(getBannergressDisplayName()).toBeNull();
+});
+
+test("keeps no cached name when /user fails or the request errors", async () => {
+  saveSignedInAccount("user-1");
+  global.fetch.mockReturnValue(userResponse({}, 401));
+  await expect(refreshBannergressAgentName()).resolves.toBeNull();
+  expect(window.localStorage.getItem(BANNERGRESS_AGENT_STORAGE_KEY)).toBeNull();
+
+  global.fetch.mockRejectedValue(new TypeError("Failed to fetch"));
+  await expect(refreshBannergressAgentName()).resolves.toBeNull();
+  expect(window.localStorage.getItem(BANNERGRESS_AGENT_STORAGE_KEY)).toBeNull();
+
+  // Signed out: nothing is requested.
+  window.localStorage.clear();
+  clearBannergressAuthData();
+  global.fetch.mockClear();
+  await expect(refreshBannergressAgentName()).resolves.toBeNull();
+  expect(global.fetch).not.toHaveBeenCalled();
 });
 
 function saveFreshAccessToken() {

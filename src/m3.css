@@ -458,6 +458,7 @@ body {
   display: flex;
   align-items: center;
   margin-left: auto;
+  min-width: 0;
 }
 
 /* Signed out: labelled Sign in button (icon + text), see TopMenu.jsx. */
@@ -480,15 +481,43 @@ body {
   text-overflow: ellipsis;
 }
 
-.ob-bar .avatar {
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  background: var(--primary);
-  color: var(--on-primary);
-  display: grid;
-  place-items: center;
-  font: 500 15px/1 var(--font);
+/* Signed in: "Signed in as <agent>" or just the agent name, whichever fits
+   (AccountButton.jsx measures); long names end in "…". */
+.ob-bar .ob-account {
+  position: relative;
+  min-height: 40px;
+  min-width: 0;
+  max-width: 360px;
+  flex: 0 1 auto;
+  padding: 0 16px;
+  margin-right: 4px;
+  overflow: hidden;
+}
+
+.ob-bar .ob-account.no-name {
+  padding-left: 12px;
+}
+
+.ob-bar .ob-account svg {
+  width: 18px;
+  height: 18px;
+  flex: none;
+}
+
+.ob-account-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ob-account-measure {
+  position: absolute;
+  left: 0;
+  top: 0;
+  visibility: hidden;
+  white-space: nowrap;
+  pointer-events: none;
 }
 
 @media (max-width: 599.98px) {

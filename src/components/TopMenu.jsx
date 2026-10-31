@@ -32,13 +32,16 @@ import { detectInAppBrowser } from "../inAppBrowser";
 import { promptInstall, useInstallMode } from "../pwaInstall";
 import { useLocation, useNavigate } from "react-router-dom";
 import {
+  BANNERGRESS_AGENT_CHANGE_EVENT,
+  BANNERGRESS_AGENT_STORAGE_KEY,
   BANNERGRESS_AUTH_COMPLETE_MESSAGE,
   BANNERGRESS_AUTH_REQUEST_EVENT,
   BANNERGRESS_AUTH_STORAGE_KEY,
   buildBannergressAuthorizationUrl,
-  getBannergressAgentName,
+  getBannergressDisplayName,
   getBannergressSyncCounts,
   isBannergressAuthSupportedOrigin,
+  refreshBannergressAgentName,
   requestBannergressAuthStatus,
   requestBannergressSyncData,
   saveBannergressSyncData,
@@ -47,6 +50,7 @@ import {
 } from "../bannergressSync";
 import { t, tk, tn } from "../i18n";
 import AppLogo from "./AppLogo";
+import AccountButton from "./AccountButton";
 
 const AUTH_POLL_INTERVAL_MS = 1500;
 const AUTH_POLL_TIMEOUT_MS = 120000;
@@ -93,6 +97,45 @@ export default function TopMenu({
   const authTimeoutRef = useRef(null);
   const syncInFlightRef = useRef(false);
   const hasAutoSyncedRef = useRef(false);
+  const isSignedIn = Boolean(authStatus?.authenticated);
+  // Agent name for the signed-in indicator: cached Bannergress /user agent
+  // name, fetched again when missing or old (the tokens don't carry it).
+  const [displayName, setDisplayName] = useState(() =>
+    getBannergressDisplayName()
+  );
+
+  useEffect(() => {
+    if (!isSignedIn) {
+      return undefined;
+    }
+
+    let cancelled = false;
+    const reload = () => {
+      if (!cancelled) {
+        setDisplayName(getBannergressDisplayName());
+      }
+    };
+    const handleStorage = (event) => {
+      if (
+        event.key === BANNERGRESS_AGENT_STORAGE_KEY ||
+        event.key === BANNERGRESS_AUTH_STORAGE_KEY ||
+        event.key === null
+      ) {
+        reload();
+      }
+    };
+
+    reload();
+    window.addEventListener(BANNERGRESS_AGENT_CHANGE_EVENT, reload);
+    window.addEventListener("storage", handleStorage);
+    void refreshBannergressAgentName().then(reload);
+
+    return () => {
+      cancelled = true;
+      window.removeEventListener(BANNERGRESS_AGENT_CHANGE_EVENT, reload);
+      window.removeEventListener("storage", handleStorage);
+    };
+  }, [isSignedIn, storedAuth?.idToken, storedAuth?.accessToken]);
 
   const handleRerouterClick = () => {
     if (typeof onRerouterClick === "function") {
@@ -443,7 +486,7 @@ export default function TopMenu({
     authButtonDisabled = true;
   }
 
-  const agentName = authStatus?.authenticated ? getBannergressAgentName() : null;
+  const agentName = authStatus?.authenticated ? displayName : null;
   const authButtonTitle = authStatus?.authenticated
     ? agentName
       ? t("Signed in with Bannergress as {agent}", { agent: agentName })
@@ -502,6 +545,12 @@ export default function TopMenu({
               )}
               <span className="ob-signin-label">{t("Sign in")}</span>
             </button>
+          ) : authStatus?.authenticated ? (
+            <AccountButton
+              agentName={agentName}
+              title={authButtonTitle}
+              onClick={handleAuthButtonClick}
+            />
           ) : (
             <button
               type="button"
@@ -512,11 +561,7 @@ export default function TopMenu({
               disabled={authButtonDisabled && !authStatus?.authenticated}
               aria-disabled={authButtonDisabled}
             >
-              {authStatus?.authenticated ? (
-                <span className="avatar" aria-hidden="true">
-                  {(agentName || "B").slice(0, 1).toUpperCase()}
-                </span>
-              ) : authButtonLabel === "Authenticate" ? (
+              {authButtonLabel === "Authenticate" ? (
                 <Login />
               ) : (
                 <AccountCircleOutlined />

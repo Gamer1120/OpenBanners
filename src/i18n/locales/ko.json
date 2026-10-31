@@ -681,6 +681,8 @@
   "Sign in with Bannergress to join.": "참여하려면 Bannergress로 로그인하세요.",
   "Sign in with Bannergress to mark this banner as done.": "이 배너를 완료로 표시하려면 Bannergress로 로그인하세요.",
   "Sign in with Bannergress to take your language, map filters, view, city and recent plans to your other devices.": "Bannergress로 로그인하면 언어, 지도 필터, 보기, 도시, 최근 계획을 다른 기기에서도 사용할 수 있습니다.",
+  "Signed in": "로그인됨",
+  "Signed in as {agent}": "{agent}(으)로 로그인됨",
   "Signed in with Bannergress": "Bannergress로 로그인됨",
   "Signed in with Bannergress as {agent}": "{agent}(으)로 Bannergress에 로그인됨",
   "Signing in": "로그인",

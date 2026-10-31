@@ -681,6 +681,8 @@
   "Sign in with Bannergress to join.": "以 Bannergress 登入即可加入。",
   "Sign in with Bannergress to mark this banner as done.": "以 Bannergress 登入，即可將此拼圖標記為完成。",
   "Sign in with Bannergress to take your language, map filters, view, city and recent plans to your other devices.": "以 Bannergress 登入，就能把你的語言、地圖篩選、檢視、城市和最近的計畫帶到你的其他裝置上。",
+  "Signed in": "已登入",
+  "Signed in as {agent}": "已以 {agent} 身分登入",
   "Signed in with Bannergress": "已以 Bannergress 登入",
   "Signed in with Bannergress as {agent}": "已以 {agent} 身分透過 Bannergress 登入",
   "Signing in": "登入",

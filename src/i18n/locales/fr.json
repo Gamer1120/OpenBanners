@@ -700,6 +700,8 @@
   "Sign in with Bannergress to join.": "Connecte-toi avec Bannergress pour rejoindre.",
   "Sign in with Bannergress to mark this banner as done.": "Connecte-toi avec Bannergress pour marquer cette bannière comme faite.",
   "Sign in with Bannergress to take your language, map filters, view, city and recent plans to your other devices.": "Connecte-toi avec Bannergress pour retrouver ta langue, tes filtres de carte, ta vue, ta ville et tes plans récents sur tes autres appareils.",
+  "Signed in": "Connecté",
+  "Signed in as {agent}": "Connecté en tant que {agent}",
   "Signed in with Bannergress": "Connecté avec Bannergress",
   "Signed in with Bannergress as {agent}": "Connecté avec Bannergress en tant que {agent}",
   "Signing in": "Connexion",

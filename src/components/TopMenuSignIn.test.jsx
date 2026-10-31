@@ -81,7 +81,48 @@ describe("sign-in button", () => {
     await waitFor(() => expect(popup.location.href).toContain("login.bannergress.com"));
   });
 
-  it("is replaced by the account avatar when signed in", async () => {
+  it("shows the agent name from Bannergress when signed in", async () => {
+    const payload = btoa(JSON.stringify({ iss: "https://login.example", sub: "user-1" }))
+      .replace(/=+$/, "")
+      .replace(/\+/g, "-")
+      .replace(/\//g, "_");
+    window.localStorage.setItem(
+      BANNERGRESS_AUTH_STORAGE_KEY,
+      JSON.stringify({
+        accessToken: `h.${payload}.s`,
+        refreshToken: "test-refresh-token",
+        accessExpiresAt: Date.now() + 5 * 60 * 1000,
+        refreshExpiresAt: Date.now() + 30 * 60 * 1000,
+        updatedAt: Date.now(),
+      })
+    );
+    const fetchMock = vi.fn((url) =>
+      Promise.resolve(
+        String(url) === "https://api.bannergress.com/user"
+          ? { ok: true, status: 200, json: () => Promise.resolve({ agent: { name: "Gamer1120" } }) }
+          : { ok: false, status: 500, json: () => Promise.resolve(null) }
+      )
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    render(
+      <MemoryRouter initialEntries={["/together/x"]}>
+        <TopMenu onTitleClick={vi.fn()} />
+      </MemoryRouter>
+    );
+
+    const button = await screen.findByRole(
+      "button",
+      { name: "Signed in with Bannergress as Gamer1120" },
+      { timeout: 3000 }
+    );
+    expect(button).toHaveAttribute("title", "Signed in with Bannergress as Gamer1120");
+    await waitFor(() => expect(button.querySelector(".ob-account-label")).toHaveTextContent(/^Signed in as Gamer1120$/));
+    expect(fetchMock).toHaveBeenCalledWith("https://api.bannergress.com/user", expect.anything());
+    vi.unstubAllGlobals();
+  });
+
+  it("is replaced by a Signed in button (never a letter) when signed in", async () => {
+    vi.stubGlobal("fetch", vi.fn(() => Promise.reject(new TypeError("offline"))));
     window.localStorage.setItem(
       BANNERGRESS_AUTH_STORAGE_KEY,
       JSON.stringify({
@@ -98,11 +139,14 @@ describe("sign-in button", () => {
       </MemoryRouter>
     );
 
-    expect(await screen.findByRole("button", { name: "Authenticated" }, { timeout: 3000 })).toBeInTheDocument();
+    const account = await screen.findByRole("button", { name: "Signed in with Bannergress" }, { timeout: 3000 });
+    expect(account).toHaveTextContent(/^Signed in$/);
+    expect(account.querySelector("svg")).toHaveAttribute("aria-hidden", "true");
     expect(screen.queryByRole("button", { name: "Sign in" })).toBeNull();
     const user = userEvent.setup();
     await user.click(screen.getByRole("button", { name: "More options" }));
     expect(screen.queryByRole("menuitem", { name: "Sign in with Bannergress" })).toBeNull();
+    vi.unstubAllGlobals();
   });
 
   it("explains in Telegram's browser instead of opening Google", async () => {

@@ -7,6 +7,12 @@ export const BANNERGRESS_SYNC_CHANGE_EVENT =
 export const BANNERGRESS_AUTH_STORAGE_KEY = "openbanners-bannergress-auth";
 export const BANNERGRESS_AUTH_CHANGE_EVENT =
   "openbanners:bannergress-auth-change";
+// The Ingress agent name of the signed-in account, from Bannergress's /user
+// endpoint (the sign-in tokens carry no agent name). Cached per account.
+export const BANNERGRESS_AGENT_STORAGE_KEY = "openbanners-bannergress-agent";
+export const BANNERGRESS_AGENT_CHANGE_EVENT =
+  "openbanners:bannergress-agent-change";
+export const BANNERGRESS_USER_URL = "https://api.bannergress.com/user";
 export const BANNERGRESS_AUTH_PENDING_STORAGE_KEY =
   "openbanners:bannergress-auth-pending";
 export const BANNERGRESS_AUTH_COMPLETE_MESSAGE =
@@ -253,6 +259,138 @@ export function getBannergressAgentName(
   return null;
 }
 
+// Bannergress account identity (issuer + subject) from the tokens, so a cached
+// agent name is never shown for another account signed in later.
+export function getBannergressAccountId(authData = loadBannergressAuthData()) {
+  for (const token of [authData?.idToken, authData?.accessToken]) {
+    const payload = decodeJwtPayload(token);
+
+    if (typeof payload?.sub === "string" && payload.sub) {
+      return `${typeof payload.iss === "string" ? payload.iss : ""}:${payload.sub}`;
+    }
+  }
+
+  return null;
+}
+
+// Agent name from a Bannergress /user response ({ agent: { name } }); null when
+// the account has no verified agent or the value is unusable.
+export function readBannergressUserAgentName(user) {
+  const name = user?.agent?.name;
+  return normalizeBannergressAgentName(
+    typeof name === "string" ? name.trim() : null
+  );
+}
+
+const AGENT_NAME_MAX_AGE_MS = 12 * 60 * 60 * 1000;
+const AGENT_NAME_MISSING_RECHECK_MS = 30 * 60 * 1000;
+let agentNameRequest = null;
+
+function readCachedAgentRecord(authData) {
+  if (typeof window === "undefined") {
+    return null;
+  }
+
+  try {
+    const record = JSON.parse(
+      window.localStorage.getItem(BANNERGRESS_AGENT_STORAGE_KEY) ?? "null"
+    );
+
+    if (
+      !record ||
+      typeof record !== "object" ||
+      record.account !== getBannergressAccountId(authData) ||
+      !Number.isFinite(record.fetchedAt)
+    ) {
+      return null;
+    }
+
+    return {
+      name: normalizeBannergressAgentName(record.name),
+      fetchedAt: record.fetchedAt,
+    };
+  } catch {
+    return null;
+  }
+}
+
+function writeCachedAgentRecord(authData, name) {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  try {
+    window.localStorage.setItem(
+      BANNERGRESS_AGENT_STORAGE_KEY,
+      JSON.stringify({
+        account: getBannergressAccountId(authData),
+        name: name ?? null,
+        fetchedAt: Date.now(),
+      })
+    );
+  } catch {
+    // Storage full or blocked: the name is just fetched again next time.
+  }
+
+  window.dispatchEvent(new CustomEvent(BANNERGRESS_AGENT_CHANGE_EVENT));
+}
+
+// Name shown for the signed-in account: the verified Ingress agent name from
+// Bannergress (cached), else a username claim in the tokens, else null (the
+// UI then says just "Signed in").
+export function getBannergressDisplayName(
+  authData = loadBannergressAuthData()
+) {
+  return (
+    readCachedAgentRecord(authData)?.name ?? getBannergressAgentName(authData)
+  );
+}
+
+// Fetches the agent name from Bannergress when the cache is missing or old.
+// Resolves to the display name; never rejects.
+export function refreshBannergressAgentName({ force = false } = {}) {
+  const authData = loadBannergressAuthData();
+
+  if (!authData.accessToken && !authData.refreshToken) {
+    return Promise.resolve(null);
+  }
+
+  const cached = readCachedAgentRecord(authData);
+  const maxAge = cached?.name ? AGENT_NAME_MAX_AGE_MS : AGENT_NAME_MISSING_RECHECK_MS;
+
+  if (!force && cached && Date.now() - cached.fetchedAt < maxAge) {
+    return Promise.resolve(getBannergressDisplayName(authData));
+  }
+
+  if (!agentNameRequest) {
+    agentNameRequest = withTimeout(
+      (signal) => fetchBannergress(BANNERGRESS_USER_URL, { signal }),
+      BANNERGRESS_REQUEST_TIMEOUT_MS,
+      "user request"
+    )
+      .then(async (response) => {
+        if (!response?.ok) {
+          return getBannergressDisplayName(authData);
+        }
+
+        const user = await response.json().catch(() => null);
+
+        if (!user || typeof user !== "object") {
+          return getBannergressDisplayName(authData);
+        }
+
+        writeCachedAgentRecord(authData, readBannergressUserAgentName(user));
+        return getBannergressDisplayName(authData);
+      })
+      .catch(() => getBannergressDisplayName(authData))
+      .finally(() => {
+        agentNameRequest = null;
+      });
+  }
+
+  return agentNameRequest;
+}
+
 function normalizeAuthState(rawValue) {
   if (!rawValue || typeof rawValue !== "object") {
     return EMPTY_AUTH_STATE;
@@ -432,6 +570,7 @@ export function clearBannergressAuthData() {
 
   window.localStorage.removeItem(BANNERGRESS_AUTH_STORAGE_KEY);
   window.localStorage.removeItem(BANNERGRESS_AUTH_PENDING_STORAGE_KEY);
+  window.localStorage.removeItem(BANNERGRESS_AGENT_STORAGE_KEY);
   cachedAuthStorageValue = null;
   cachedAuthSnapshot = EMPTY_AUTH_STATE;
   emitAuthChange();

@@ -681,6 +681,8 @@
   "Sign in with Bannergress to join.": "参加するには Bannergress でサインインしてください。",
   "Sign in with Bannergress to mark this banner as done.": "このバナーを完了にするには Bannergress でサインインしてください。",
   "Sign in with Bannergress to take your language, map filters, view, city and recent plans to your other devices.": "Bannergress でサインインすると、言語、地図のフィルター、表示、都市、最近のプランをほかの端末でも使えます。",
+  "Signed in": "サインイン済み",
+  "Signed in as {agent}": "{agent} としてサインイン中",
   "Signed in with Bannergress": "Bannergress でサインイン済み",
   "Signed in with Bannergress as {agent}": "{agent} として Bannergress でサインイン済み",
   "Signing in": "サインイン",

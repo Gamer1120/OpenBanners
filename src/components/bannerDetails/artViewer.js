@@ -68,13 +68,28 @@ export function getPictureSize(tile, pixelRatio = 1) {
   return [80, 160, 320, 640].find((size) => size >= needed) ?? 640;
 }
 
+// How much slower the hero pans for big banners (Michael, 2026-10-31): half the speed
+// above 250 missions, a quarter above 500.
+export function getPanSlowdown(missionCount) {
+  const count = Number(missionCount) || 0;
+
+  if (count > 500) {
+    return 4;
+  }
+
+  return count > 250 ? 2 : 1;
+}
+
 // Bannergress's pan timing (5 s down, 1 s pause, 1 s up, 1 s pause), slowed down for
 // banners that are many screens tall: 5 s per window height on the way down (a
-// 192-row banner would otherwise race past in a blur) and 2 s back up.
-export function getPanTiming(overflow, windowHeight) {
+// 192-row banner would otherwise race past in a blur) and 2 s back up. Banners with
+// more than 250 / 500 missions pan at half / a quarter of that speed (both ways; the
+// pauses stay 1 s).
+export function getPanTiming(overflow, windowHeight, missionCount = 0) {
   const screens = windowHeight > 0 ? overflow / windowHeight : 1;
-  const down = 5000 * Math.max(1, screens);
-  const up = screens > 1 ? 2000 : 1000;
+  const slowdown = getPanSlowdown(missionCount);
+  const down = 5000 * Math.max(1, screens) * slowdown;
+  const up = (screens > 1 ? 2000 : 1000) * slowdown;
   const pause = 1000;
 
   return { down, up, pause, total: down + pause + up + pause };

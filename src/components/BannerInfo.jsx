@@ -67,9 +67,11 @@ const BannerInfo = ({ banner, loading = false, variant = "list", heading = t("St
 
   // Chrome opened ?overlay=missing because the Overlay app isn't installed:
   // show the install dialog once and drop the parameter, so reload/back
-  // don't open it again.
+  // don't open it again. Not while the banner loads: the banner page swaps
+  // the loading placeholder (with its own BannerInfo) for the real content, so
+  // the dialog would be shown and lost in the placeholder.
   useEffect(() => {
-    if (!isOverlayMissingSearch(location.search)) {
+    if (loading || !isOverlayMissingSearch(location.search)) {
       return;
     }
     setOverlayMissing("missing");
@@ -77,7 +79,7 @@ const BannerInfo = ({ banner, loading = false, variant = "list", heading = t("St
       { pathname: location.pathname, search: withoutOverlayMissing(location.search), hash: location.hash },
       { replace: true, state: location.state }
     );
-  }, [location.search, location.pathname, location.hash, location.state, navigate]);
+  }, [loading, location.search, location.pathname, location.hash, location.state, navigate]);
   const hasStartPoint = Boolean(banner.startLatitude && banner.startLongitude);
 
   // BannerGuider without location is the default (the location variant's route

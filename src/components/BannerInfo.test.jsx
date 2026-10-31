@@ -144,6 +144,34 @@ test("?overlay=missing (intent fallback) opens the install dialog once and drops
   expect(screen.getByTestId("location")).toHaveTextContent("/banner/my-banner?x=1");
 });
 
+// Like the banner page: a loading placeholder with its own BannerInfo, then
+// the real content (a new BannerInfo) once the banner has loaded.
+function LoadingThenReady({ ready }) {
+  return (
+    <React.Fragment key={ready ? "ready" : "loading"}>
+      <BannerInfo banner={ready ? banner : {}} loading={!ready} variant="row" />
+      <ShowLocation />
+    </React.Fragment>
+  );
+}
+
+test("?overlay=missing while the banner loads: the dialog shows once it has loaded", async () => {
+  const page = (ready) => (
+    <MemoryRouter initialEntries={["/banner/my-banner?overlay=missing"]}>
+      <Routes>
+        <Route path="/banner/:bannerId" element={<LoadingThenReady ready={ready} />} />
+      </Routes>
+    </MemoryRouter>
+  );
+  const { rerender } = render(page(false));
+  expect(screen.queryByRole("dialog")).toBeNull();
+  expect(screen.getByTestId("location")).toHaveTextContent("/banner/my-banner?overlay=missing");
+
+  rerender(page(true));
+  expect(await screen.findByRole("dialog", { name: "Install OpenBanners Overlay" })).toBeInTheDocument();
+  expect(screen.getByTestId("location")).toHaveTextContent(/^\/banner\/my-banner$/);
+});
+
 test("no dialog without ?overlay=missing", () => {
   renderBannerPage("/banner/my-banner");
   expect(screen.queryByRole("dialog")).not.toBeInTheDocument();

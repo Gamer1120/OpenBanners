@@ -165,7 +165,7 @@ export { MissionMosaic };
 // The hero's artwork window: tiles fill the width (up to 56 px) and at most HERO_ROWS rows
 // show; a taller banner pans slowly through all its rows (Bannergress's loop, 5 s per
 // window height down), the same rule for every banner. The viewer shows it all.
-function PanningArt({ rows, missionCount = 0, children }) {
+function PanningArt({ rows, children }) {
   const windowRef = useRef(null);
 
   useLayoutEffect(() => {
@@ -213,7 +213,7 @@ function PanningArt({ rows, missionCount = 0, children }) {
         return;
       }
 
-      const { down, up, pause, total } = getPanTiming(overflow, height, missionCount);
+      const { down, up, pause, total } = getPanTiming(overflow, height);
       const end = `translateY(${-overflow}px)`;
       animation = inner.animate(
         [
@@ -242,7 +242,7 @@ function PanningArt({ rows, missionCount = 0, children }) {
       box.removeEventListener("pointerleave", onLeave);
       animation?.cancel();
     };
-  }, [rows, missionCount]);
+  }, [rows]);
 
   return (
     <span className="bp-art-window" ref={windowRef}>
@@ -301,12 +301,13 @@ export function HeroMosaic({ banner, missions, slots, colors }) {
         minAspect={columns / HERO_ROWS}
         className="bp-hero-cpic"
         eager
+        steadyPan
       />
     );
   }
 
   return (
-    <PanningArt rows={rows} missionCount={missions.length}>
+    <PanningArt rows={rows}>
       <MissionMosaic banner={banner} missions={missions} slots={slots} colors={colors} />
     </PanningArt>
   );

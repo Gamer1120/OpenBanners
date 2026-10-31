@@ -3,7 +3,6 @@ import {
   clampTile,
   getFitTile,
   getMosaicSize,
-  getPanSlowdown,
   getPanTiming,
   getPictureSize,
   getStartTile,
@@ -59,19 +58,12 @@ describe("hero pan timing", () => {
     expect(timing.up).toBe(2000);
   });
 
-  it("pans at half speed above 250 missions and a quarter above 500", () => {
-    expect(getPanSlowdown(0)).toBe(1);
-    expect(getPanSlowdown(250)).toBe(1);
-    expect(getPanSlowdown(251)).toBe(2);
-    expect(getPanSlowdown(500)).toBe(2);
-    expect(getPanSlowdown(501)).toBe(4);
-    expect(getPanSlowdown(1152)).toBe(4);
-
-    expect(getPanTiming(180 * 10, 180, 250)).toEqual({ down: 50_000, up: 2000, pause: 1000, total: 54_000 });
-    expect(getPanTiming(180 * 10, 180, 251)).toEqual({ down: 100_000, up: 4000, pause: 1000, total: 106_000 });
-    expect(getPanTiming(180 * 10, 180, 500)).toEqual({ down: 100_000, up: 4000, pause: 1000, total: 106_000 });
-    expect(getPanTiming(180 * 10, 180, 501)).toEqual({ down: 200_000, up: 8000, pause: 1000, total: 210_000 });
-    // Without a count (or a small banner) nothing changes.
-    expect(getPanTiming(100, 180)).toEqual(getPanTiming(100, 180, 18));
+  it("does not slow down big banners on the banner page (Michael, 2026-10-31)", () => {
+    // The 250 / 500 mission slowdown is for the other pages (BannerImage), not here:
+    // the timing depends only on the overflow, whatever the mission count.
+    expect(getPanTiming.length).toBe(2);
+    for (const count of [250, 251, 500, 501, 1152]) {
+      expect(getPanTiming(180 * 10, 180, count)).toEqual({ down: 50_000, up: 2000, pause: 1000, total: 54_000 });
+    }
   });
 });

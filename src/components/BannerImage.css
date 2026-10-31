@@ -24,6 +24,19 @@
   animation: bimg-pan 8s infinite;
 }
 
+/* Big banners (getPanSlowdown): down and back up at half speed above 250 missions
+   (10 s + 1 s + 2 s + 1 s = 14 s) and a quarter above 500 (20 + 1 + 4 + 1 = 26 s);
+   the pauses stay 1 s. Not on the banner page (steadyPan). */
+.bimg.pan.slow2 > .bimg-i {
+  animation-name: bimg-pan-2;
+  animation-duration: 14s;
+}
+
+.bimg.pan.slow4 > .bimg-i {
+  animation-name: bimg-pan-4;
+  animation-duration: 26s;
+}
+
 /* Too small to pan: the whole picture, centred. */
 .bimg.contain > .bimg-i {
   top: 0;
@@ -66,6 +79,58 @@
   }
 
   87.5% {
+    transform: translateY(0);
+    animation-timing-function: ease-in-out;
+  }
+
+  100% {
+    transform: translateY(0);
+  }
+}
+
+@keyframes bimg-pan-2 {
+  0% {
+    transform: translateY(0);
+    animation-timing-function: ease-in-out;
+  }
+
+  71.43% {
+    transform: translateY(var(--pan, 0%));
+    animation-timing-function: ease-in-out;
+  }
+
+  78.57% {
+    transform: translateY(var(--pan, 0%));
+    animation-timing-function: ease-in-out;
+  }
+
+  92.86% {
+    transform: translateY(0);
+    animation-timing-function: ease-in-out;
+  }
+
+  100% {
+    transform: translateY(0);
+  }
+}
+
+@keyframes bimg-pan-4 {
+  0% {
+    transform: translateY(0);
+    animation-timing-function: ease-in-out;
+  }
+
+  76.92% {
+    transform: translateY(var(--pan, 0%));
+    animation-timing-function: ease-in-out;
+  }
+
+  80.77% {
+    transform: translateY(var(--pan, 0%));
+    animation-timing-function: ease-in-out;
+  }
+
+  96.15% {
     transform: translateY(0);
     animation-timing-function: ease-in-out;
   }

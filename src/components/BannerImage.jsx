@@ -13,12 +13,33 @@ import "./BannerImage.css";
 //
 // Modes:
 //   pan      (default) the picture fills the box width and pans when it is taller.
+//            Above 250 / 500 missions it pans at half / a quarter speed unless
+//            steadyPan is set (the banner page).
 //            The box gets its size from minAspect (box aspect = the banner's own
 //            aspect, but never narrower than minAspect) or from the caller's CSS.
 //   contain  the whole picture, centred in a box sized by the caller's CSS
 //            (tiny thumbnails ≤ ~56 px tall: too small to pan).
 //   natural  a bare <img> at its own aspect, sized by the caller (shown whole).
 //   backdrop decorative background-image (e.g. the blurred hero backdrop).
+
+// Big banners pan slower outside the banner page (Michael, 2026-10-31): half the
+// speed above 250 missions, a quarter above 500 (down and back up; the 1 s pauses
+// stay). The banner page's own pictures keep the normal speed (steadyPan).
+export function getPanSlowdown(missionCount) {
+  const count = Number(missionCount) || 0;
+
+  if (count > 500) {
+    return 4;
+  }
+
+  return count > 250 ? 2 : 1;
+}
+
+// Class for the slower loops in BannerImage.css ("" = Bannergress's 8 s loop).
+export function getPanSpeedClass(banner, steadyPan = false) {
+  const slowdown = steadyPan ? 1 : getPanSlowdown(banner?.numberOfMissions);
+  return slowdown > 1 ? `slow${slowdown}` : "";
+}
 
 // Overflow smaller than this is not worth a pan: the picture stays still, centred.
 export const MIN_PAN_FRACTION = 0.03;
@@ -57,11 +78,12 @@ export function measurePan(box, image, fallbackAspect) {
     : "";
 }
 
-function PanningImage({ banner, url, minAspect, className, style, alt, eager, children }) {
+function PanningImage({ banner, url, minAspect, className, style, alt, eager, steadyPan, children }) {
   const boxRef = useRef(null);
   const imageRef = useRef(null);
   const [pan, setPan] = useState("");
   const aspect = getBannerAspect(banner);
+  const speedClass = getPanSpeedClass(banner, steadyPan);
 
   const measure = useCallback(() => {
     if (!boxRef.current) {
@@ -100,7 +122,7 @@ function PanningImage({ banner, url, minAspect, className, style, alt, eager, ch
   return (
     <span
       ref={boxRef}
-      className={`bimg${pan ? " pan" : ""}${className ? ` ${className}` : ""}`}
+      className={`bimg${pan ? " pan" : ""}${speedClass ? ` ${speedClass}` : ""}${className ? ` ${className}` : ""}`}
       style={pan ? { ...boxStyle, "--pan": pan } : boxStyle}
     >
       {url ? (
@@ -129,6 +151,7 @@ export default function BannerImage({
   style,
   alt = "",
   eager = false,
+  steadyPan = false,
   children,
 }) {
   const url = getBannerPictureUrl(banner);
@@ -176,6 +199,7 @@ export default function BannerImage({
       style={style}
       alt={alt}
       eager={eager}
+      steadyPan={steadyPan}
     >
       {children}
     </PanningImage>

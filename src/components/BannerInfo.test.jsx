@@ -128,7 +128,7 @@ test("Start with Overlay on desktop opens the install dialog", async () => {
   renderRow();
   await user.click(screen.getByRole("button", { name: "Start with OpenBanners Overlay" }));
 
-  const dialog = screen.getByRole("dialog", { name: "Install OpenBanners Overlay" });
+  const dialog = screen.getByRole("dialog", { name: "Install or update OpenBanners Overlay" });
   expect(within(dialog).getByText(/is an Android app/)).toBeInTheDocument();
   expect(within(dialog).getByRole("link", { name: "Open in F-Droid" })).toBeInTheDocument();
 });
@@ -136,7 +136,7 @@ test("Start with Overlay on desktop opens the install dialog", async () => {
 test("?overlay=missing (intent fallback) opens the install dialog once and drops the parameter", async () => {
   renderBannerPage("/banner/my-banner?overlay=missing&x=1");
 
-  const dialog = await screen.findByRole("dialog", { name: "Install OpenBanners Overlay" });
+  const dialog = await screen.findByRole("dialog", { name: "Install or update OpenBanners Overlay" });
   expect(within(dialog).getByText(/isn’t installed on this phone/)).toBeInTheDocument();
   expect(within(dialog).getByRole("link", { name: "Become a tester on Google Play" })).toBeInTheDocument();
   expect(within(dialog).getByRole("link", { name: "Download the latest release" })).toBeInTheDocument();
@@ -168,7 +168,7 @@ test("?overlay=missing while the banner loads: the dialog shows once it has load
   expect(screen.getByTestId("location")).toHaveTextContent("/banner/my-banner?overlay=missing");
 
   rerender(page(true));
-  expect(await screen.findByRole("dialog", { name: "Install OpenBanners Overlay" })).toBeInTheDocument();
+  expect(await screen.findByRole("dialog", { name: "Install or update OpenBanners Overlay" })).toBeInTheDocument();
   expect(screen.getByTestId("location")).toHaveTextContent(/^\/banner\/my-banner$/);
 });
 
@@ -262,7 +262,7 @@ describe("app link that doesn't leave the page", () => {
     expect(screen.queryByRole("dialog")).toBeNull();
 
     await act(() => vi.advanceTimersByTime(APP_LAUNCH_TIMEOUT_MS + 10));
-    const dialog = screen.getByRole("dialog", { name: "Install OpenBanners Overlay" });
+    const dialog = screen.getByRole("dialog", { name: "Install or update OpenBanners Overlay" });
     expect(within(dialog).getByText(/didn’t open/)).toBeInTheDocument();
   });
 
@@ -311,7 +311,7 @@ describe("app link that doesn't leave the page", () => {
     renderRow();
     await user.click(screen.getByRole("button", { name: "Start with OpenBanners Overlay" }));
     await act(() => vi.advanceTimersByTime(APP_LAUNCH_TIMEOUT_MS + 10));
-    expect(screen.getByRole("dialog", { name: "Install OpenBanners Overlay" })).toBeInTheDocument();
+    expect(screen.getByRole("dialog", { name: "Install or update OpenBanners Overlay" })).toBeInTheDocument();
     act(() => setVisibility("hidden"));
     act(() => setVisibility("visible"));
     await act(() => vi.advanceTimersByTime(500));

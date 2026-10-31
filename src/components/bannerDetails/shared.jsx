@@ -34,6 +34,7 @@ import {
 import BannerImage from "../BannerImage";
 import SimpleMarkdown from "./SimpleMarkdown";
 import { WaypointAnswer } from "./Passphrases";
+import MissionOverlayButton from "./MissionOverlayButton";
 import { useBannerPassphrases } from "../../passphraseApi";
 import {
   formatEvent,
@@ -313,7 +314,7 @@ export function HeroMosaic({ banner, missions, slots, colors }) {
   );
 }
 
-export function MissionItem({ mission, index, color, selected, expanded, onToggle, itemRef, showType = false, renderAnswer = null }) {
+export function MissionItem({ mission, index, color, selected, expanded, onToggle, itemRef, showType = false, renderAnswer = null, bannerId = null }) {
   const steps = getSteps(mission);
   const typeLabel = showType && mission?.type ? t(MISSION_TYPE_LABELS[mission.type] ?? mission.type) : "";
   const offline = isMissionOffline(mission);
@@ -470,6 +471,7 @@ export function MissionItem({ mission, index, color, selected, expanded, onToggl
                 <OpenInNew fontSize="small" />
                 {t("View on Intel")}
               </a>
+              {bannerId ? <MissionOverlayButton bannerId={bannerId} missionNumber={index + 1} /> : null}
             </div>
           ) : null}
         </div>
@@ -1191,6 +1193,7 @@ export function MissionList({ d }) {
           expanded={d.expandedMissions.has(index)}
           onToggle={() => d.toggleMission(index)}
           showType={d.missionTypes.length > 1}
+          bannerId={d.items?.id ?? d.bannerId}
           renderAnswer={
             mission.id
               ? (stepIndex) => (

@@ -84,7 +84,8 @@ export default function OverlayDownloadDialog({ onClose }) {
 
 // "Start with Overlay" without the app. reason:
 // - "missing": Chrome came back via the intent's browser_fallback_url
-//   (?overlay=missing), so the app isn't installed;
+//   (?overlay=missing), so the app isn't installed or is too old for the
+//   link (e.g. "Start with Overlay from here" needs a newer app);
 // - "notAndroid": iOS / desktop, opened straight away;
 // - "noResponse": the app link was fired but the page stayed in front
 //   (watchAppLaunch), e.g. a browser that ignores it or no app;
@@ -110,13 +111,13 @@ export function OverlayMissingDialog({ onClose, reason = "missing", onOpenInBann
 
   const intro = {
     notAndroid: t("OpenBanners Overlay is an Android app. Install it on your phone, then open this page there."),
-    noResponse: t("If OpenBanners Overlay didn’t open, it may not be installed yet. Install it below, then try again."),
+    noResponse: t("If OpenBanners Overlay didn’t open, it may not be installed yet or may need an update. Install or update it below, then try again."),
     inApp: t("Built-in browsers in apps like Telegram often can’t open other apps. Try the button; if nothing happens, open this page in your browser and start from there."),
-  }[reason] ?? t("OpenBanners Overlay isn’t installed on this phone (or it’s too old for this link). Install it, then try again.");
+  }[reason] ?? t("OpenBanners Overlay isn’t installed on this phone, or it’s too old for this link. Install or update it, then try again.");
 
   return (
     <ObModal
-      title={inApp ? t("Start with OpenBanners Overlay") : t("Install OpenBanners Overlay")}
+      title={inApp ? t("Start with OpenBanners Overlay") : t("Install or update OpenBanners Overlay")}
       onClose={onClose}
       labelId="overlay-missing-title"
     >
@@ -149,13 +150,13 @@ export function OverlayMissingDialog({ onClose, reason = "missing", onOpenInBann
           </div>
           {launchFailed ? (
             <p className="small" role="status">
-              {t("The app didn’t open. Open this page in your browser and try again there, or install the app below.")}
+              {t("The app didn’t open. Open this page in your browser and try again there, or install or update the app below.")}
             </p>
           ) : null}
-          <h3 className="ob-dl-sub">{t("Install OpenBanners Overlay")}</h3>
+          <h3 className="ob-dl-sub">{t("Install or update OpenBanners Overlay")}</h3>
         </>
       ) : onOpenInBannergress ? (
-        <h3 className="ob-dl-sub">{t("Install OpenBanners Overlay")}</h3>
+        <h3 className="ob-dl-sub">{t("Install or update OpenBanners Overlay")}</h3>
       ) : null}
       <OverlayDownloadOptions />
     </ObModal>

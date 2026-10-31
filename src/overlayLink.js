@@ -166,6 +166,43 @@ export function buildOverlayPlanLink(planId, origin) {
   return `${OVERLAY_SCHEME}://${overlayPlanPath(planId, origin)}`;
 }
 
+// "Start with Overlay from here" on one mission (app v49+):
+//   openbanners-overlay://mission/{bannerId}/{n}?start=1&origin={site}
+// n is the 1-based mission number as listed on the banner page (filler slots
+// left out, the same order the app keeps). The app begins at that mission and
+// opens it in Ingress. Its own host, so older apps don't match the intent and
+// Chrome comes back with ?overlay=missing (the install/update dialog).
+function overlayMissionPath(bannerId, missionNumber, origin) {
+  const query = new URLSearchParams({ start: "1" });
+  if (origin) {
+    query.set("origin", origin);
+  }
+  return `mission/${encodeURIComponent(bannerId)}/${missionNumber}?${query.toString()}`;
+}
+
+// A whole number from 1, else null (no link).
+function validMissionNumber(missionNumber) {
+  return Number.isInteger(missionNumber) && missionNumber >= 1 ? missionNumber : null;
+}
+
+export function buildOverlayMissionLink(bannerId, missionNumber, origin) {
+  const number = validMissionNumber(missionNumber);
+  return number ? `${OVERLAY_SCHEME}://${overlayMissionPath(bannerId, number, origin)}` : null;
+}
+
+export function buildOverlayMissionIntentUrl(bannerId, missionNumber, origin) {
+  const number = validMissionNumber(missionNumber);
+  if (!number) {
+    return null;
+  }
+  const fallback = overlayMissingUrl(origin, `/banner/${encodeURIComponent(bannerId)}`);
+  return (
+    `intent://${overlayMissionPath(bannerId, number, origin)}` +
+    `#Intent;scheme=${OVERLAY_SCHEME};package=${OVERLAY_PACKAGE};` +
+    `S.browser_fallback_url=${encodeURIComponent(fallback)};end`
+  );
+}
+
 export function buildOverlayPlanIntentUrl(planId, origin) {
   const fallback = overlayMissingUrl(origin, `/planner/${encodeURIComponent(planId)}`);
   return (

@@ -2,16 +2,25 @@
 // MapSection), so the banner page doesn't need Leaflet until the map shows:
 // on phones that's only when the Map tab is opened.
 import "../../leafletSetup";
-import React, { useMemo } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import L from "leaflet";
-import { CircleMarker, MapContainer, Marker, Polyline, Popup, TileLayer } from "react-leaflet";
+import { CircleMarker, MapContainer, Marker, Polyline, Popup, TileLayer, useMap } from "react-leaflet";
 import { WORLD_PLACEHOLDER } from "../../mapDefaults";
 import { buildGeoUrl } from "../../bannerDisplay";
 import userLocationIcon from "../../constants";
-import { t } from "../../i18n";
+import { t, tn } from "../../i18n";
+import { formatMissionNumbers } from "../../bannerFacts";
 import { areAdjacent } from "../../bannerMissions";
 import { FINISH_FLAG_SVG, getFinish, getStepPosition, getSteps, isOnStartMarker } from "./shared";
-import { getStartBadges, groupStartMarkers, pickBadgeMission } from "./startMarkers";
+import {
+  clusterStartGroups,
+  getClusterLabel,
+  getClusterReach,
+  getStartBadges,
+  groupStartMarkers,
+  pickBadgeMission,
+  WAYPOINTS_FROM_ZOOM,
+} from "./startMarkers";
 
 function createStartIcon(index, color, selected) {
   // Mission 1 is the start: same numbered circle as the others, in its own colour.
@@ -76,6 +85,43 @@ function createWaypointIcon(color) {
   });
 }
 
+// Several start markers that would overlap at this zoom: one pill with their numbers
+// ("12–40"), drawn as a little stack. Tapping it zooms in until they separate.
+function createClusterIcon(indexes, color, hasFirst) {
+  const label = getClusterLabel(indexes);
+  const width = Math.max(30, 12 + label.length * 7);
+
+  return L.divIcon({
+    className: `mk mk-cluster${hasFirst ? " first" : ""}`,
+    html: `<span style="--c:${color}">${label}</span>`,
+    iconSize: [width, 24],
+    iconAnchor: [width / 2, 12],
+  });
+}
+
+// Leaflet's view (zoom + a padded bounds), updated after every zoom or move.
+function useMapView(map) {
+  const read = () => {
+    const bounds = typeof map?.getBounds === "function" ? map.getBounds() : null;
+
+    return {
+      zoom: typeof map?.getZoom === "function" ? map.getZoom() : 0,
+      bounds: bounds && typeof bounds.pad === "function" ? bounds.pad(0.5) : null,
+    };
+  };
+  const [view, setView] = useState(read);
+
+  useEffect(() => {
+    const update = () => setView(read());
+    map?.on?.("zoomend moveend", update);
+    update();
+    return () => map?.off?.("zoomend moveend", update);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [map]);
+
+  return view;
+}
+
 export default function RouteMap({
   missions,
   colors,
@@ -88,9 +134,60 @@ export default function RouteMap({
   mapRef,
   onReady,
 }) {
+  const pointCount = missionPositions.reduce((total, positions) => total + positions.length, 0);
+
+  return (
+    <MapContainer
+      center={WORLD_PLACEHOLDER.center}
+      zoom={WORLD_PLACEHOLDER.zoom}
+      zoomControl={!isMobile}
+      scrollWheelZoom={true}
+      style={{ height: "100%", width: "100%" }}
+      ref={mapRef}
+      preferCanvas={pointCount > 200}
+      touchZoom={true}
+      whenReady={({ target }) => onReady(target)}
+    >
+      <TileLayer
+        attribution={t("© {osm} contributors. This website is NOT affiliated with Bannergress in any way!", {
+          osm: '<a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+        })}
+        url="https://tile.openstreetmap.org/{z}/{x}/{y}.png"
+      />
+      <RouteLayers
+        missions={missions}
+        colors={colors}
+        missionPositions={missionPositions}
+        missionSlots={missionSlots}
+        selectedMission={selectedMission}
+        onSelectMission={onSelectMission}
+        userLocation={userLocation}
+      />
+    </MapContainer>
+  );
+}
+
+// Everything on the map, the same rule for every banner (2026-10-31, Michael: a
+// 1152-mission banner drowned in waypoints): route lines always; start markers that
+// would overlap at this zoom merged into one cluster marker; the waypoints of every
+// mission only from zoom WAYPOINTS_FROM_ZOOM on, and only near the view; the selected
+// mission's waypoints and start marker always.
+function RouteLayers({
+  missions,
+  colors,
+  missionPositions,
+  missionSlots,
+  selectedMission,
+  onSelectMission,
+  userLocation,
+}) {
+  const map = useMap();
+  const { zoom, bounds } = useMapView(map);
+  const inView = (position) => !bounds || bounds.contains(position);
+  const groups = useMemo(() => groupStartMarkers(missionPositions), [missionPositions]);
   const startMarkers = useMemo(
     () =>
-      groupStartMarkers(missionPositions).map(({ position, indexes }) => {
+      groups.map(({ position, indexes }) => {
         if (indexes.length === 1) {
           const [index] = indexes;
 
@@ -105,8 +202,40 @@ export default function RouteMap({
 
         return { position, indexes, badges, icon: createStackIcon(badges, colors, selectedMission) };
       }),
-    [colors, missionPositions, selectedMission]
+    [colors, groups, selectedMission]
   );
+  // Start markers merged per zoom level; the selected mission's marker stays on its own.
+  const clusters = useMemo(() => {
+    const project =
+      typeof map?.project === "function" ? (position) => map.project(position, zoom) : () => null;
+
+    return clusterStartGroups(startMarkers, project, getClusterReach(missions.length), (marker) =>
+      marker.indexes.includes(selectedMission)
+    );
+  }, [map, missions.length, selectedMission, startMarkers, zoom]);
+  const zoomIntoCluster = (cluster) => {
+    const starts = cluster.indexes.map((index) => missionPositions[index]?.[0]).filter(Boolean);
+
+    if (starts.length && typeof map?.fitBounds === "function") {
+      map.fitBounds(starts, { padding: [56, 56], maxZoom: 18 });
+    }
+  };
+
+  // A mission picked in the list (or on the map) that isn't fully in view: show it.
+  useEffect(() => {
+    const positions = missionPositions[selectedMission];
+    const view = typeof map?.getBounds === "function" ? map.getBounds() : null;
+
+    if (!positions?.length || typeof view?.contains !== "function" || typeof map.fitBounds !== "function") {
+      return;
+    }
+
+    if (!positions.every((position) => view.contains(position))) {
+      map.fitBounds(positions, { padding: [48, 48], maxZoom: 17 });
+    }
+    // Only when the selection changes, not on every move.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedMission]);
   const onStartMarkerClick = (marker, event) => {
     if (!marker.badges) {
       onSelectMission(marker.indexes[0]);
@@ -136,8 +265,13 @@ export default function RouteMap({
     () => (selectedMission >= 0 ? createWaypointIcon(colors[selectedMission]) : null),
     [colors, selectedMission]
   );
-  const pointCount = missionPositions.reduce((total, positions) => total + positions.length, 0);
   const finish = useMemo(() => getFinish(missions), [missions]);
+  // Many lines and dots draw on one canvas. MapContainer's preferCanvas only counts when
+  // the map is created, which on desktop is before the banner has loaded.
+  const manyPoints = missionPositions.reduce((total, positions) => total + positions.length, 0) > 200;
+  const renderer = useMemo(() => (manyPoints ? L.canvas({ padding: 0.5 }) : undefined), [manyPoints]);
+  const showAllWaypoints = selectedMission < 0 && zoom >= WAYPOINTS_FROM_ZOOM;
+  const lineWeight = zoom < 12 ? 3 : 4;
   const finishIcon = useMemo(() => {
     if (!finish) {
       return null;
@@ -149,27 +283,12 @@ export default function RouteMap({
   }, [finish, startMarkers]);
 
   return (
-    <MapContainer
-      center={WORLD_PLACEHOLDER.center}
-      zoom={WORLD_PLACEHOLDER.zoom}
-      zoomControl={!isMobile}
-      scrollWheelZoom={true}
-      style={{ height: "100%", width: "100%" }}
-      ref={mapRef}
-      preferCanvas={pointCount > 200}
-      touchZoom={true}
-      whenReady={({ target }) => onReady(target)}
-    >
-      <TileLayer
-        attribution={t("© {osm} contributors. This website is NOT affiliated with Bannergress in any way!", {
-          osm: '<a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
-        })}
-        url="https://tile.openstreetmap.org/{z}/{x}/{y}.png"
-      />
+    <>
       {connectors.map((connector) => (
         <Polyline
           key={connector.key}
           positions={connector.positions}
+          renderer={renderer}
           pathOptions={{ color: "#666", weight: 2, dashArray: "4 6", opacity: 0.7, interactive: false }}
         />
       ))}
@@ -180,19 +299,20 @@ export default function RouteMap({
             positions={positions}
             pathOptions={{
               color: colors[index],
-              weight: selectedMission === index ? 6 : 4,
+              weight: selectedMission === index ? 6 : lineWeight,
               opacity: selectedMission >= 0 && selectedMission !== index ? 0.45 : 0.9,
             }}
+            renderer={renderer}
             eventHandlers={{ click: () => onSelectMission(index) }}
           />
         ) : null
       )}
-      {selectedMission < 0
+      {showAllWaypoints
         ? missions.flatMap((mission, missionIndex) =>
             getSteps(mission).map((step, stepIndex) => {
               const position = getStepPosition(step);
 
-              if (!position || stepIndex === 0 || step?.poi?.type === "unavailable") {
+              if (!position || stepIndex === 0 || step?.poi?.type === "unavailable" || !inView(position)) {
                 return null;
               }
 
@@ -209,6 +329,7 @@ export default function RouteMap({
                     fillColor: colors[missionIndex],
                     fillOpacity: 1,
                   }}
+                  renderer={renderer}
                 >
                   <Popup>
                     <div>
@@ -246,8 +367,36 @@ export default function RouteMap({
           </Marker>
         );
       })}
-      {[...startMarkers].reverse().map((marker) => {
-        const index = marker.indexes[0];
+      {[...clusters].reverse().map((cluster) => {
+        const index = cluster.indexes[0];
+        const zIndexOffset = index === 0 ? 1000 : 500 - index;
+
+        if (cluster.groups.length > 1) {
+          if (!inView(cluster.position)) {
+            return null;
+          }
+
+          return (
+            <Marker
+              key={`cluster-${cluster.indexes[0]}-${cluster.indexes.length}`}
+              position={cluster.position}
+              icon={createClusterIcon(cluster.indexes, colors[index], index === 0)}
+              title={`${tn(
+                "{count} mission starts here – tap to zoom in",
+                "{count} missions start here – tap to zoom in",
+                cluster.indexes.length
+              )}\n${formatMissionNumbers(cluster.indexes)}`}
+              zIndexOffset={zIndexOffset}
+              eventHandlers={{ click: () => zoomIntoCluster(cluster) }}
+            />
+          );
+        }
+
+        const [marker] = cluster.groups;
+
+        if (!inView(marker.position) && !marker.indexes.includes(selectedMission)) {
+          return null;
+        }
 
         return (
           <Marker
@@ -262,7 +411,7 @@ export default function RouteMap({
                 })
               )
               .join("\n")}
-            zIndexOffset={index === 0 ? 1000 : 500 - index}
+            zIndexOffset={marker.indexes.includes(selectedMission) ? 1200 : zIndexOffset}
             eventHandlers={{ click: (event) => onStartMarkerClick(marker, event) }}
           />
         );
@@ -295,6 +444,6 @@ export default function RouteMap({
           zIndexOffset={2000}
         />
       ) : null}
-    </MapContainer>
+    </>
   );
 }

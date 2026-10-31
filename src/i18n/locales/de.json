@@ -312,6 +312,7 @@
   "Hide": "Ausblenden",
   "Hide Done": "Erledigte ausblenden",
   "Hide done banners": "Erledigte Banner ausblenden",
+  "If OpenBanners Overlay didn’t open, it may not be installed yet. Install it below, then try again.": "Falls sich OpenBanners Overlay nicht geöffnet hat, ist es vielleicht noch nicht installiert. Installiere es unten und versuche es dann erneut.",
   "If nothing happens, open the ⋮ menu at the top and choose “Open in browser”, or copy the link and paste it into Chrome.": "Wenn nichts passiert: Öffne oben das Menü ⋮ und wähle „Im Browser öffnen“, oder kopiere den Link und füge ihn in Chrome ein.",
   "Import a banner before generating a reroute.": "Importiere ein Banner, bevor du einen Reroute erzeugst.",
   "Import an existing banner from an Ultimate Mission Maker (UMM) export, choose a start portal, optional end portal, and mission count, generate a reroute, and export the result back to UMM. All data you import stays on your machine and is not sent to OpenBanners and will never be. This tool works best when you import a very large banner or multiple banners, and then make a smaller banner out of it, since the tool uses portals from the imported banner(s) for rerouting.": "Importiere ein bestehendes Banner aus einem Ultimate-Mission-Maker-Export (UMM), wähle ein Startportal, optional ein Endportal und die Missionsanzahl, erzeuge einen Reroute und exportiere das Ergebnis zurück nach UMM. Alle importierten Daten bleiben auf deinem Gerät und werden nicht an OpenBanners gesendet, auch nie in Zukunft. Das Tool funktioniert am besten, wenn du ein sehr großes Banner oder mehrere Banner importierst und daraus ein kleineres Banner machst, da es die Portale aus den importierten Bannern für das Rerouting nutzt.",
@@ -537,7 +538,6 @@
   "Open this mission in Ingress": "Diese Mission in Ingress öffnen",
   "Open your browser’s menu and choose “Install app” or “Add to Home screen”. Chrome, Edge and Safari can install OpenBanners.": "Öffne das Menü deines Browsers und wähle „App installieren“ oder „Zum Startbildschirm hinzufügen“. Chrome, Edge und Safari können OpenBanners installieren.",
   "Open {mission} in Ingress": "{mission} in Ingress öffnen",
-  "If OpenBanners Overlay didn’t open, it may not be installed yet. Install it below, then try again.": "Falls sich OpenBanners Overlay nicht geöffnet hat, ist es vielleicht noch nicht installiert. Installiere es unten und versuche es dann erneut.",
   "OpenBanners Overlay is an Android app. Install it on your phone, then open this page there.": "OpenBanners Overlay ist eine Android-App. Installiere sie auf deinem Handy und öffne diese Seite dort.",
   "OpenBanners Overlay isn’t installed on this phone (or it’s too old for this link). Install it, then try again.": "OpenBanners Overlay ist auf diesem Handy nicht installiert (oder zu alt für diesen Link). Installiere es und versuche es noch einmal.",
   "OpenBanners banner": "OpenBanners-Banner",
@@ -675,12 +675,14 @@
   "Show hidden banners": "Ausgeblendete Banner anzeigen",
   "Show in list": "In Liste zeigen",
   "Show less": "Weniger zeigen",
+  "Show mission numbers": "Missionsnummern zeigen",
   "Show more": "Mehr zeigen",
   "Show my location": "Meinen Standort zeigen",
   "Show offline banners": "Offline-Banner anzeigen",
   "Show the banners closest to you": "Zeig die Banner in deiner Nähe",
   "Show the list": "Liste anzeigen",
   "Show the {count} without an answer": "Die {count} ohne Antwort zeigen",
+  "Show whole banner": "Ganzes Banner zeigen",
   "Show whole route": "Ganze Route zeigen",
   "Show {count} banners": {
     "one": "{count} Banner zeigen",
@@ -935,7 +937,9 @@
   "Yours": "Deine",
   "You’re an author of this banner": "Du bist Ersteller dieses Banners",
   "You’re looking at a read-only link, so you can’t change this plan.": "Du siehst einen Nur-Lesen-Link, daher kannst du diesen Plan nicht ändern.",
+  "Zoom in": "Hineinzoomen",
   "Zoom in to see banners": "Zoome hinein, um Banner zu sehen",
+  "Zoom out": "Herauszoomen",
   "Z–A": "Z–A",
   "about {length} including the walks between missions": "etwa {length} inklusive der Wege zwischen den Missionen",
   "any": "beliebig",
@@ -1040,6 +1044,10 @@
   "{count} missions planned": {
     "one": "{count} Mission geplant",
     "other": "{count} Missionen geplant"
+  },
+  "{count} missions start here – tap to zoom in": {
+    "one": "{count} Mission startet hier – tippe zum Hineinzoomen",
+    "other": "{count} Missionen starten hier – tippe zum Hineinzoomen"
   },
   "{count} offline": {
     "one": "{count} offline",

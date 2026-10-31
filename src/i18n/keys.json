@@ -281,6 +281,7 @@
   "Hide",
   "Hide Done",
   "Hide done banners",
+  "If OpenBanners Overlay didn’t open, it may not be installed yet. Install it below, then try again.",
   "If nothing happens, open the ⋮ menu at the top and choose “Open in browser”, or copy the link and paste it into Chrome.",
   "Import a banner before generating a reroute.",
   "Import an existing banner from an Ultimate Mission Maker (UMM) export, choose a start portal, optional end portal, and mission count, generate a reroute, and export the result back to UMM. All data you import stays on your machine and is not sent to OpenBanners and will never be. This tool works best when you import a very large banner or multiple banners, and then make a smaller banner out of it, since the tool uses portals from the imported banner(s) for rerouting.",
@@ -490,7 +491,6 @@
   "Open this mission in Ingress",
   "Open your browser’s menu and choose “Install app” or “Add to Home screen”. Chrome, Edge and Safari can install OpenBanners.",
   "Open {mission} in Ingress",
-  "If OpenBanners Overlay didn’t open, it may not be installed yet. Install it below, then try again.",
   "OpenBanners Overlay is an Android app. Install it on your phone, then open this page there.",
   "OpenBanners Overlay isn’t installed on this phone (or it’s too old for this link). Install it, then try again.",
   "OpenBanners banner",
@@ -604,12 +604,14 @@
   "Show hidden banners",
   "Show in list",
   "Show less",
+  "Show mission numbers",
   "Show more",
   "Show my location",
   "Show offline banners",
   "Show the banners closest to you",
   "Show the list",
   "Show the {count} without an answer",
+  "Show whole banner",
   "Show whole route",
   "Showing the first {count} matching portals. Narrow the search to inspect a smaller subset.",
   "Sign in",
@@ -832,7 +834,9 @@
   "Yours",
   "You’re an author of this banner",
   "You’re looking at a read-only link, so you can’t change this plan.",
+  "Zoom in",
   "Zoom in to see banners",
+  "Zoom out",
   "Z–A",
   "about {length} including the walks between missions",
   "any",
@@ -963,6 +967,10 @@
   {
    "one": "{count} mission planned",
    "other": "{count} missions planned"
+  },
+  {
+   "one": "{count} mission starts here – tap to zoom in",
+   "other": "{count} missions start here – tap to zoom in"
   },
   {
    "one": "{count} offline",

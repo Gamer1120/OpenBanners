@@ -328,6 +328,7 @@
   "Hide": "Skrýt",
   "Hide Done": "Skrýt hotové",
   "Hide done banners": "Skrýt hotové bannery",
+  "If OpenBanners Overlay didn’t open, it may not be installed yet. Install it below, then try again.": "Pokud se OpenBanners Overlay neotevřel, možná ještě není nainstalovaný. Nainstaluj ho níže a zkus to znovu.",
   "If nothing happens, open the ⋮ menu at the top and choose “Open in browser”, or copy the link and paste it into Chrome.": "Pokud se nic nestane, otevři nahoře nabídku ⋮ a zvol „Otevřít v prohlížeči“, nebo zkopíruj odkaz a vlož ho do Chrome.",
   "Import a banner before generating a reroute.": "Před generováním nové trasy importuj banner.",
   "Import an existing banner from an Ultimate Mission Maker (UMM) export, choose a start portal, optional end portal, and mission count, generate a reroute, and export the result back to UMM. All data you import stays on your machine and is not sent to OpenBanners and will never be. This tool works best when you import a very large banner or multiple banners, and then make a smaller banner out of it, since the tool uses portals from the imported banner(s) for rerouting.": "Importuj existující banner z exportu Ultimate Mission Maker (UMM), vyber startovní portál, volitelně koncový portál a počet misí, vygeneruj novou trasu a výsledek exportuj zpět do UMM. Všechna importovaná data zůstávají na tvém zařízení, neodesílají se do OpenBanners a nikdy nebudou. Nástroj funguje nejlépe, když importuješ hodně velký banner nebo víc bannerů a uděláš z nich menší banner, protože pro novou trasu používá portály z importovaných bannerů.",
@@ -561,7 +562,6 @@
   "Open this mission in Ingress": "Otevřít tuto misi v Ingressu",
   "Open your browser’s menu and choose “Install app” or “Add to Home screen”. Chrome, Edge and Safari can install OpenBanners.": "Otevři nabídku prohlížeče a zvol „Nainstalovat aplikaci“ nebo „Přidat na plochu“. OpenBanners umí nainstalovat Chrome, Edge a Safari.",
   "Open {mission} in Ingress": "Otevřít {mission} v Ingressu",
-  "If OpenBanners Overlay didn’t open, it may not be installed yet. Install it below, then try again.": "Pokud se OpenBanners Overlay neotevřel, možná ještě není nainstalovaný. Nainstaluj ho níže a zkus to znovu.",
   "OpenBanners Overlay is an Android app. Install it on your phone, then open this page there.": "OpenBanners Overlay je aplikace pro Android. Nainstalujte ji do telefonu a otevřete tuto stránku tam.",
   "OpenBanners Overlay isn’t installed on this phone (or it’s too old for this link). Install it, then try again.": "OpenBanners Overlay není v tomto telefonu nainstalovaná (nebo je pro tento odkaz příliš stará). Nainstalujte ji a zkuste to znovu.",
   "OpenBanners banner": "Banner na OpenBanners",
@@ -711,12 +711,14 @@
   "Show hidden banners": "Zobrazit skryté bannery",
   "Show in list": "Zobrazit v seznamu",
   "Show less": "Zobrazit méně",
+  "Show mission numbers": "Zobrazit čísla misí",
   "Show more": "Zobrazit víc",
   "Show my location": "Zobrazit mou polohu",
   "Show offline banners": "Zobrazit offline bannery",
   "Show the banners closest to you": "Zobrazit bannery nejblíž tobě",
   "Show the list": "Zobrazit seznam",
   "Show the {count} without an answer": "Zobrazit ty bez odpovědi ({count})",
+  "Show whole banner": "Zobrazit celý banner",
   "Show whole route": "Zobrazit celou trasu",
   "Show {count} banners": {
     "one": "Zobrazit {count} banner",
@@ -987,7 +989,9 @@
   "Yours": "Tvoje",
   "You’re an author of this banner": "Jsi autorem tohoto banneru",
   "You’re looking at a read-only link, so you can’t change this plan.": "Díváš se přes odkaz jen pro čtení, takže tento plán nemůžeš měnit.",
+  "Zoom in": "Přiblížit",
   "Zoom in to see banners": "Přibliž mapu a uvidíš bannery",
+  "Zoom out": "Oddálit",
   "Z–A": "Z–A",
   "about {length} including the walks between missions": "asi {length} včetně přesunů mezi misemi",
   "any": "libovolně",
@@ -1126,6 +1130,12 @@
     "few": "{count} naplánované mise",
     "many": "{count} naplánované mise",
     "other": "{count} naplánovaných misí"
+  },
+  "{count} missions start here – tap to zoom in": {
+    "one": "{count} mise tu začíná – klepni pro přiblížení",
+    "few": "{count} mise tu začínají – klepni pro přiblížení",
+    "many": "{count} mise tu začíná – klepni pro přiblížení",
+    "other": "{count} misí tu začíná – klepni pro přiblížení"
   },
   "{count} offline": {
     "one": "{count} offline",

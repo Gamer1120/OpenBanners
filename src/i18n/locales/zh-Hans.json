@@ -304,6 +304,7 @@
   "Hide": "隐藏",
   "Hide Done": "隐藏已完成",
   "Hide done banners": "隐藏已完成的横幅",
+  "If OpenBanners Overlay didn’t open, it may not be installed yet. Install it below, then try again.": "如果 OpenBanners Overlay 没有打开，可能是还没有安装。请在下方安装后再试一次。",
   "If nothing happens, open the ⋮ menu at the top and choose “Open in browser”, or copy the link and paste it into Chrome.": "如果没有反应，请打开顶部的 ⋮ 菜单并选择“在浏览器中打开”，或复制链接后粘贴到 Chrome 中。",
   "Import a banner before generating a reroute.": "生成改线前请先导入横幅。",
   "Import an existing banner from an Ultimate Mission Maker (UMM) export, choose a start portal, optional end portal, and mission count, generate a reroute, and export the result back to UMM. All data you import stays on your machine and is not sent to OpenBanners and will never be. This tool works best when you import a very large banner or multiple banners, and then make a smaller banner out of it, since the tool uses portals from the imported banner(s) for rerouting.": "从 Ultimate Mission Maker（UMM）导出文件中导入现有横幅，选择起点门户、可选的终点门户和任务数量，生成改线，再将结果导出回 UMM。你导入的所有数据都保留在你的设备上，不会也永远不会发送给 OpenBanners。由于本工具使用导入横幅中的门户来改线，最适合导入一个很大的横幅或多个横幅，再从中制作一个较小的横幅。",
@@ -525,7 +526,6 @@
   "Open this mission in Ingress": "在 Ingress 中打开此任务",
   "Open your browser’s menu and choose “Install app” or “Add to Home screen”. Chrome, Edge and Safari can install OpenBanners.": "打开浏览器菜单，选择“安装应用”或“添加到主屏幕”。Chrome、Edge 和 Safari 都可以安装 OpenBanners。",
   "Open {mission} in Ingress": "在 Ingress 中打开 {mission}",
-  "If OpenBanners Overlay didn’t open, it may not be installed yet. Install it below, then try again.": "如果 OpenBanners Overlay 没有打开，可能是还没有安装。请在下方安装后再试一次。",
   "OpenBanners Overlay is an Android app. Install it on your phone, then open this page there.": "OpenBanners Overlay 是一款 Android 应用。请在手机上安装，然后在手机上打开此页面。",
   "OpenBanners Overlay isn’t installed on this phone (or it’s too old for this link). Install it, then try again.": "这部手机上没有安装 OpenBanners Overlay（或版本太旧，无法打开此链接）。请安装后重试。",
   "OpenBanners banner": "OpenBanners 横幅",
@@ -657,12 +657,14 @@
   "Show hidden banners": "显示隐藏的横幅",
   "Show in list": "在列表中显示",
   "Show less": "收起",
+  "Show mission numbers": "显示任务编号",
   "Show more": "显示更多",
   "Show my location": "显示我的位置",
   "Show offline banners": "显示已下线的横幅",
   "Show the banners closest to you": "显示离你最近的横幅",
   "Show the list": "显示列表",
   "Show the {count} without an answer": "显示没有答案的 {count} 个",
+  "Show whole banner": "显示整个横幅",
   "Show whole route": "显示完整路线",
   "Show {count} banners": {
     "other": "显示 {count} 个横幅"
@@ -909,7 +911,9 @@
   "Yours": "你的",
   "You’re an author of this banner": "你是此横幅的作者之一",
   "You’re looking at a read-only link, so you can’t change this plan.": "你正在查看只读链接，因此无法修改此计划。",
+  "Zoom in": "放大",
   "Zoom in to see banners": "放大地图即可查看横幅",
+  "Zoom out": "缩小",
   "Z–A": "Z–A",
   "about {length} including the walks between missions": "约 {length}，含任务之间的步行",
   "any": "任意",
@@ -997,6 +1001,9 @@
   },
   "{count} missions planned": {
     "other": "已计划 {count} 个任务"
+  },
+  "{count} missions start here – tap to zoom in": {
+    "other": "{count} 个任务从这里开始 – 点按放大"
   },
   "{count} offline": {
     "other": "{count} 离线"

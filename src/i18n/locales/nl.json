@@ -312,6 +312,7 @@
   "Hide": "Verbergen",
   "Hide Done": "Gedaan verbergen",
   "Hide done banners": "Gedane banners verbergen",
+  "If OpenBanners Overlay didn’t open, it may not be installed yet. Install it below, then try again.": "Ging OpenBanners Overlay niet open? Dan is de app misschien nog niet geïnstalleerd. Installeer hem hieronder en probeer het opnieuw.",
   "If nothing happens, open the ⋮ menu at the top and choose “Open in browser”, or copy the link and paste it into Chrome.": "Gebeurt er niets? Open bovenin het menu ⋮ en kies “Openen in browser”, of kopieer de link en plak hem in Chrome.",
   "Import a banner before generating a reroute.": "Importeer een banner voordat je een nieuwe route genereert.",
   "Import an existing banner from an Ultimate Mission Maker (UMM) export, choose a start portal, optional end portal, and mission count, generate a reroute, and export the result back to UMM. All data you import stays on your machine and is not sent to OpenBanners and will never be. This tool works best when you import a very large banner or multiple banners, and then make a smaller banner out of it, since the tool uses portals from the imported banner(s) for rerouting.": "Importeer een bestaande banner uit een Ultimate Mission Maker (UMM)-export, kies een startportal, eventueel een eindportal en het aantal missies, genereer een nieuwe route en exporteer het resultaat terug naar UMM. Alle gegevens die je importeert blijven op je eigen apparaat en worden niet naar OpenBanners gestuurd, en dat zal ook nooit gebeuren. Deze tool werkt het best als je een heel grote banner of meerdere banners importeert en daar een kleinere banner van maakt, omdat de tool de portals uit de geïmporteerde banner(s) gebruikt voor de nieuwe route.",
@@ -537,7 +538,6 @@
   "Open this mission in Ingress": "Deze missie openen in Ingress",
   "Open your browser’s menu and choose “Install app” or “Add to Home screen”. Chrome, Edge and Safari can install OpenBanners.": "Open het menu van je browser en kies “App installeren” of “Toevoegen aan startscherm”. Chrome, Edge en Safari kunnen OpenBanners installeren.",
   "Open {mission} in Ingress": "{mission} openen in Ingress",
-  "If OpenBanners Overlay didn’t open, it may not be installed yet. Install it below, then try again.": "Ging OpenBanners Overlay niet open? Dan is de app misschien nog niet geïnstalleerd. Installeer hem hieronder en probeer het opnieuw.",
   "OpenBanners Overlay is an Android app. Install it on your phone, then open this page there.": "OpenBanners Overlay is een Android-app. Installeer hem op je telefoon en open deze pagina daar.",
   "OpenBanners Overlay isn’t installed on this phone (or it’s too old for this link). Install it, then try again.": "OpenBanners Overlay is niet geïnstalleerd op deze telefoon (of te oud voor deze link). Installeer hem en probeer het opnieuw.",
   "OpenBanners banner": "OpenBanners-banner",
@@ -675,12 +675,14 @@
   "Show hidden banners": "Verborgen banners tonen",
   "Show in list": "In lijst tonen",
   "Show less": "Minder tonen",
+  "Show mission numbers": "Missienummers tonen",
   "Show more": "Meer tonen",
   "Show my location": "Mijn locatie tonen",
   "Show offline banners": "Offline banners tonen",
   "Show the banners closest to you": "Toon de banners het dichtst bij jou",
   "Show the list": "Lijst tonen",
   "Show the {count} without an answer": "De {count} zonder antwoord tonen",
+  "Show whole banner": "Hele banner tonen",
   "Show whole route": "Hele route tonen",
   "Show {count} banners": {
     "one": "{count} banner tonen",
@@ -935,7 +937,9 @@
   "Yours": "Van jou",
   "You’re an author of this banner": "Je bent een maker van deze banner",
   "You’re looking at a read-only link, so you can’t change this plan.": "Je bekijkt een alleen-lezenlink, dus je kunt dit plan niet wijzigen.",
+  "Zoom in": "Inzoomen",
   "Zoom in to see banners": "Zoom in om banners te zien",
+  "Zoom out": "Uitzoomen",
   "Z–A": "Z–A",
   "about {length} including the walks between missions": "ongeveer {length} inclusief het lopen tussen missies",
   "any": "alle",
@@ -1040,6 +1044,10 @@
   "{count} missions planned": {
     "one": "{count} missie gepland",
     "other": "{count} missies gepland"
+  },
+  "{count} missions start here – tap to zoom in": {
+    "one": "{count} missie begint hier – tik om in te zoomen",
+    "other": "{count} missies beginnen hier – tik om in te zoomen"
   },
   "{count} offline": {
     "one": "{count} offline",

@@ -1,4 +1,4 @@
-import { render, screen, within } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
 import { EnlargeableArt, MissionMosaic } from "./shared";
@@ -10,7 +10,7 @@ const missions = [
 ];
 const colors = ["#f00", "#0f0"];
 
-test("tapping the banner artwork enlarges it instead of opening a mission", async () => {
+test("tapping the banner artwork opens the viewer instead of opening a mission", async () => {
   const user = userEvent.setup();
   render(
     <MemoryRouter>
@@ -22,17 +22,55 @@ test("tapping the banner artwork enlarges it instead of opening a mission", asyn
 
   expect(screen.queryByRole("button", { name: /mission 1/i })).not.toBeInTheDocument();
   await user.click(screen.getByRole("button", { name: /enlarge banner artwork/i }));
-  expect(screen.getByRole("dialog", { name: /banner artwork/i })).toBeInTheDocument();
+  const dialog = await screen.findByRole("dialog", { name: /banner artwork/i });
+  expect(dialog).toBeInTheDocument();
   await user.keyboard("{Escape}");
-  expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
 
-  // Tapping the enlarged artwork closes it (and doesn't reopen it).
+  // Tapping the artwork itself doesn't close it (it's for zooming); tapping beside it does.
   await user.click(screen.getByRole("button", { name: /enlarge banner artwork/i }));
-  await user.click(within(screen.getByRole("dialog")).getByRole("img"));
-  expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  await screen.findByRole("dialog");
+  await user.click(document.querySelector(".bv-art .mosaic"));
+  expect(screen.getByRole("dialog")).toBeInTheDocument();
+  await user.click(document.querySelector(".bv-scroll"));
+  await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+
   await user.click(screen.getByRole("button", { name: /enlarge banner artwork/i }));
+  await screen.findByRole("dialog");
   await user.click(screen.getByRole("button", { name: "Close" }));
-  expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+});
+
+test("the viewer zooms with its buttons and can number the tiles", async () => {
+  const user = userEvent.setup();
+  render(
+    <MemoryRouter>
+      <EnlargeableArt banner={banner} missions={missions} colors={colors}>
+        <MissionMosaic banner={banner} missions={missions} colors={colors} />
+      </EnlargeableArt>
+    </MemoryRouter>
+  );
+
+  await user.click(screen.getByRole("button", { name: /enlarge banner artwork/i }));
+  await screen.findByRole("dialog");
+  const mosaic = () => document.querySelector(".bv-art .mosaic");
+  await waitFor(() => expect(mosaic()).not.toBeNull());
+  const size = () => parseFloat(mosaic().style.getPropertyValue("--t"));
+  const start = size();
+  expect(start).toBeGreaterThan(0);
+  await user.click(screen.getByRole("button", { name: "Zoom in" }));
+  expect(size()).toBeGreaterThan(start);
+  await user.click(screen.getByRole("button", { name: "Zoom out" }));
+  await user.click(screen.getByRole("button", { name: "Zoom out" }));
+  expect(size()).toBeLessThan(start + 0.01);
+
+  const numbers = screen.getByRole("button", { name: "Show mission numbers" });
+  expect(numbers).toHaveAttribute("aria-pressed", "false");
+  await user.click(numbers);
+  expect(numbers).toHaveAttribute("aria-pressed", "true");
+  expect([...mosaic().querySelectorAll(".tile")].map((tile) => tile.dataset.n)).toEqual(["2", "1"]);
+  await user.click(screen.getByRole("button", { name: "Close" }));
+  await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
 });
 
 // Tiles of the mosaic from top-left: mission id, "gap" (filler slot) or "void" (padding).
@@ -82,4 +120,23 @@ test("without filler slots the mosaic is unchanged", () => {
   withSlots.unmount();
   const withoutSlots = render(<MissionMosaic banner={plainBanner} missions={plainMissions} colors={[]} />);
   expect(mosaicCells(withoutSlots.container)).toEqual(["void", "void", "3", "2", "1", "0"]);
+});
+
+test("the viewer's mosaic only loads the pictures of rows near the screen", () => {
+  const tallBanner = { id: "t", width: 2 };
+  const tallMissions = [0, 1, 2, 3, 4, 5].map((position) => ({ id: `m${position}`, picture: `https://example.com/${position}` }));
+  const { container } = render(
+    <MissionMosaic banner={tallBanner} missions={tallMissions} colors={[]} tile={50} rowRange={[1, 1]} />
+  );
+
+  // Rows from the top: [6, 5], [4, 3], [2, 1] in mission numbers; only the middle row has pictures.
+  expect([...container.querySelectorAll(".tile")].map((tile) => Boolean(tile.querySelector("img")))).toEqual([
+    false,
+    false,
+    true,
+    true,
+    false,
+    false,
+  ]);
+  expect(container.querySelector(".mosaic").style.getPropertyValue("--t")).toBe("50px");
 });

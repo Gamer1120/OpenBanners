@@ -304,6 +304,7 @@
   "Hide": "隱藏",
   "Hide Done": "隱藏已完成",
   "Hide done banners": "隱藏已完成的拼圖",
+  "If OpenBanners Overlay didn’t open, it may not be installed yet. Install it below, then try again.": "如果 OpenBanners Overlay 沒有開啟，可能是還沒有安裝。請在下方安裝後再試一次。",
   "If nothing happens, open the ⋮ menu at the top and choose “Open in browser”, or copy the link and paste it into Chrome.": "如果沒有反應，請開啟頂端的 ⋮ 選單並選擇「在瀏覽器中開啟」，或複製連結後貼到 Chrome。",
   "Import a banner before generating a reroute.": "產生重排路線前請先匯入拼圖。",
   "Import an existing banner from an Ultimate Mission Maker (UMM) export, choose a start portal, optional end portal, and mission count, generate a reroute, and export the result back to UMM. All data you import stays on your machine and is not sent to OpenBanners and will never be. This tool works best when you import a very large banner or multiple banners, and then make a smaller banner out of it, since the tool uses portals from the imported banner(s) for rerouting.": "從 Ultimate Mission Maker（UMM）匯出檔匯入現有拼圖，選擇起點能量塔、選擇性的終點能量塔和任務數量，產生重排路線，再將結果匯出回 UMM。你匯入的所有資料都只會留在你的裝置上，不會傳送給 OpenBanners，未來也不會。由於此工具會使用匯入拼圖中的能量塔來重排路線，最適合匯入一個非常大的拼圖或多個拼圖，再從中做出較小的拼圖。",
@@ -525,7 +526,6 @@
   "Open this mission in Ingress": "在 Ingress 中開啟此任務",
   "Open your browser’s menu and choose “Install app” or “Add to Home screen”. Chrome, Edge and Safari can install OpenBanners.": "開啟瀏覽器選單，選擇「安裝應用程式」或「新增至主畫面」。Chrome、Edge 和 Safari 都能安裝 OpenBanners。",
   "Open {mission} in Ingress": "在 Ingress 中開啟 {mission}",
-  "If OpenBanners Overlay didn’t open, it may not be installed yet. Install it below, then try again.": "如果 OpenBanners Overlay 沒有開啟，可能是還沒有安裝。請在下方安裝後再試一次。",
   "OpenBanners Overlay is an Android app. Install it on your phone, then open this page there.": "OpenBanners Overlay 是 Android 應用程式。請在手機上安裝，然後在手機上開啟此頁面。",
   "OpenBanners Overlay isn’t installed on this phone (or it’s too old for this link). Install it, then try again.": "這支手機沒有安裝 OpenBanners Overlay（或版本太舊，無法開啟此連結）。請安裝後再試一次。",
   "OpenBanners banner": "OpenBanners 拼圖",
@@ -657,12 +657,14 @@
   "Show hidden banners": "顯示隱藏的拼圖",
   "Show in list": "在清單中顯示",
   "Show less": "顯示較少",
+  "Show mission numbers": "顯示任務編號",
   "Show more": "顯示更多",
   "Show my location": "顯示我的位置",
   "Show offline banners": "顯示下線的拼圖",
   "Show the banners closest to you": "顯示離你最近的拼圖",
   "Show the list": "顯示清單",
   "Show the {count} without an answer": "顯示 {count} 個沒有答案的",
+  "Show whole banner": "顯示整個拼圖",
   "Show whole route": "顯示整條路線",
   "Show {count} banners": {
     "other": "顯示 {count} 個拼圖"
@@ -909,7 +911,9 @@
   "Yours": "你的",
   "You’re an author of this banner": "你是此拼圖的作者之一",
   "You’re looking at a read-only link, so you can’t change this plan.": "你正在查看唯讀連結，因此無法修改此計畫。",
+  "Zoom in": "放大",
   "Zoom in to see banners": "放大地圖即可查看拼圖",
+  "Zoom out": "縮小",
   "Z–A": "Z–A",
   "about {length} including the walks between missions": "約 {length}，包含任務之間的步行距離",
   "any": "任意",
@@ -997,6 +1001,9 @@
   },
   "{count} missions planned": {
     "other": "已規劃 {count} 個任務"
+  },
+  "{count} missions start here – tap to zoom in": {
+    "other": "{count} 個任務從這裡開始 – 點選放大"
   },
   "{count} offline": {
     "other": "{count} 個離線"

@@ -312,6 +312,7 @@
   "Hide": "Ocultar",
   "Hide Done": "Ocultar hechas",
   "Hide done banners": "Ocultar banners hechos",
+  "If OpenBanners Overlay didn’t open, it may not be installed yet. Install it below, then try again.": "Si OpenBanners Overlay no se abrió, puede que aún no esté instalada. Instálala abajo y vuelve a intentarlo.",
   "If nothing happens, open the ⋮ menu at the top and choose “Open in browser”, or copy the link and paste it into Chrome.": "Si no pasa nada, abre el menú ⋮ de arriba y elige “Abrir en el navegador”, o copia el enlace y pégalo en Chrome.",
   "Import a banner before generating a reroute.": "Importa un banner antes de generar una reruta.",
   "Import an existing banner from an Ultimate Mission Maker (UMM) export, choose a start portal, optional end portal, and mission count, generate a reroute, and export the result back to UMM. All data you import stays on your machine and is not sent to OpenBanners and will never be. This tool works best when you import a very large banner or multiple banners, and then make a smaller banner out of it, since the tool uses portals from the imported banner(s) for rerouting.": "Importa un banner existente desde una exportación de Ultimate Mission Maker (UMM), elige un portal inicial, un portal final opcional y el número de misiones, genera una reruta y exporta el resultado de nuevo a UMM. Todos los datos que importes se quedan en tu equipo; no se envían a OpenBanners ni se enviarán nunca. Esta herramienta funciona mejor si importas un banner muy grande o varios banners y luego haces con ellos un banner más pequeño, ya que usa los portales de los banners importados para la reruta.",
@@ -537,7 +538,6 @@
   "Open this mission in Ingress": "Abrir esta misión en Ingress",
   "Open your browser’s menu and choose “Install app” or “Add to Home screen”. Chrome, Edge and Safari can install OpenBanners.": "Abre el menú de tu navegador y elige “Instalar aplicación” o “Añadir a pantalla de inicio”. Chrome, Edge y Safari pueden instalar OpenBanners.",
   "Open {mission} in Ingress": "Abrir {mission} en Ingress",
-  "If OpenBanners Overlay didn’t open, it may not be installed yet. Install it below, then try again.": "Si OpenBanners Overlay no se abrió, puede que aún no esté instalada. Instálala abajo y vuelve a intentarlo.",
   "OpenBanners Overlay is an Android app. Install it on your phone, then open this page there.": "OpenBanners Overlay es una app de Android. Instálala en tu teléfono y abre esta página allí.",
   "OpenBanners Overlay isn’t installed on this phone (or it’s too old for this link). Install it, then try again.": "OpenBanners Overlay no está instalada en este teléfono (o es demasiado antigua para este enlace). Instálala y vuelve a intentarlo.",
   "OpenBanners banner": "Banner de OpenBanners",
@@ -675,12 +675,14 @@
   "Show hidden banners": "Mostrar banners ocultos",
   "Show in list": "Mostrar en la lista",
   "Show less": "Mostrar menos",
+  "Show mission numbers": "Mostrar números de misión",
   "Show more": "Mostrar más",
   "Show my location": "Mostrar mi ubicación",
   "Show offline banners": "Mostrar banners desactivados",
   "Show the banners closest to you": "Mostrar los banners más cercanos",
   "Show the list": "Mostrar la lista",
   "Show the {count} without an answer": "Mostrar las {count} sin respuesta",
+  "Show whole banner": "Mostrar el banner entero",
   "Show whole route": "Mostrar toda la ruta",
   "Show {count} banners": {
     "one": "Mostrar {count} banner",
@@ -935,7 +937,9 @@
   "Yours": "Tuyos",
   "You’re an author of this banner": "Eres autor de este banner",
   "You’re looking at a read-only link, so you can’t change this plan.": "Estás viendo un enlace de solo lectura, así que no puedes cambiar este plan.",
+  "Zoom in": "Acercar",
   "Zoom in to see banners": "Acerca el mapa para ver banners",
+  "Zoom out": "Alejar",
   "Z–A": "Z–A",
   "about {length} including the walks between missions": "unos {length} contando los trayectos entre misiones",
   "any": "cualquiera",
@@ -1040,6 +1044,10 @@
   "{count} missions planned": {
     "one": "{count} misión planificada",
     "other": "{count} misiones planificadas"
+  },
+  "{count} missions start here – tap to zoom in": {
+    "one": "{count} misión empieza aquí: toca para acercar",
+    "other": "{count} misiones empiezan aquí: toca para acercar"
   },
   "{count} offline": {
     "one": "{count} desactivada",

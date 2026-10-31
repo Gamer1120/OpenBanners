@@ -328,6 +328,7 @@
   "Hide": "Приховати",
   "Hide Done": "Сховати зроблені",
   "Hide done banners": "Приховати пройдені банери",
+  "If OpenBanners Overlay didn’t open, it may not be installed yet. Install it below, then try again.": "Якщо OpenBanners Overlay не відкрився, можливо, застосунок ще не встановлено. Встанови його нижче й спробуй знову.",
   "If nothing happens, open the ⋮ menu at the top and choose “Open in browser”, or copy the link and paste it into Chrome.": "Якщо нічого не відбувається, відкрий меню ⋮ угорі й вибери «Відкрити в браузері» або скопіюй посилання та встав його в Chrome.",
   "Import a banner before generating a reroute.": "Імпортуй банер, перш ніж генерувати новий маршрут.",
   "Import an existing banner from an Ultimate Mission Maker (UMM) export, choose a start portal, optional end portal, and mission count, generate a reroute, and export the result back to UMM. All data you import stays on your machine and is not sent to OpenBanners and will never be. This tool works best when you import a very large banner or multiple banners, and then make a smaller banner out of it, since the tool uses portals from the imported banner(s) for rerouting.": "Імпортуй наявний банер з експорту Ultimate Mission Maker (UMM), обери стартовий портал, за бажанням кінцевий портал і кількість місій, згенеруй новий маршрут і експортуй результат назад в UMM. Усі імпортовані дані залишаються на твоєму пристрої, не надсилаються до OpenBanners і ніколи не будуть надіслані. Інструмент найкраще працює, коли імпортуєш дуже великий банер або кілька банерів і робиш з них менший банер, адже для побудови маршруту він використовує портали з імпортованих банерів.",
@@ -561,7 +562,6 @@
   "Open this mission in Ingress": "Відкрити цю місію в Ingress",
   "Open your browser’s menu and choose “Install app” or “Add to Home screen”. Chrome, Edge and Safari can install OpenBanners.": "Відкрий меню браузера й вибери «Установити застосунок» або «Додати на головний екран». Установити OpenBanners можуть Chrome, Edge і Safari.",
   "Open {mission} in Ingress": "Відкрити {mission} в Ingress",
-  "If OpenBanners Overlay didn’t open, it may not be installed yet. Install it below, then try again.": "Якщо OpenBanners Overlay не відкрився, можливо, застосунок ще не встановлено. Встанови його нижче й спробуй знову.",
   "OpenBanners Overlay is an Android app. Install it on your phone, then open this page there.": "OpenBanners Overlay — застосунок для Android. Установіть його на телефон і відкрийте цю сторінку там.",
   "OpenBanners Overlay isn’t installed on this phone (or it’s too old for this link). Install it, then try again.": "OpenBanners Overlay не встановлено на цьому телефоні (або воно застаре для цього посилання). Установіть його й спробуйте ще раз.",
   "OpenBanners banner": "Банер OpenBanners",
@@ -711,12 +711,14 @@
   "Show hidden banners": "Показати приховані банери",
   "Show in list": "Показати в списку",
   "Show less": "Згорнути",
+  "Show mission numbers": "Показати номери місій",
   "Show more": "Показати більше",
   "Show my location": "Показати моє місцезнаходження",
   "Show offline banners": "Показати вимкнені банери",
   "Show the banners closest to you": "Показати найближчі до тебе банери",
   "Show the list": "Показати список",
   "Show the {count} without an answer": "Показати без відповіді ({count})",
+  "Show whole banner": "Показати весь банер",
   "Show whole route": "Показати весь маршрут",
   "Show {count} banners": {
     "one": "Показати {count} банер",
@@ -987,7 +989,9 @@
   "Yours": "Твої",
   "You’re an author of this banner": "Ти серед авторів цього банера",
   "You’re looking at a read-only link, so you can’t change this plan.": "Це посилання лише для перегляду, тож ти не можеш змінити цей план.",
+  "Zoom in": "Наблизити",
   "Zoom in to see banners": "Наблизь мапу, щоб побачити банери",
+  "Zoom out": "Віддалити",
   "Z–A": "Я–А",
   "about {length} including the walks between missions": "близько {length} разом із переходами між місіями",
   "any": "будь-яка",
@@ -1126,6 +1130,12 @@
     "few": "{count} місії заплановано",
     "many": "{count} місій заплановано",
     "other": "{count} місії заплановано"
+  },
+  "{count} missions start here – tap to zoom in": {
+    "one": "{count} місія починається тут – торкнися, щоб наблизити",
+    "few": "{count} місії починаються тут – торкнися, щоб наблизити",
+    "many": "{count} місій починається тут – торкнися, щоб наблизити",
+    "other": "{count} місії починаються тут – торкнися, щоб наблизити"
   },
   "{count} offline": {
     "one": "{count} офлайн",

@@ -304,6 +304,7 @@
   "Hide": "非表示にする",
   "Hide Done": "完了を隠す",
   "Hide done banners": "完了したバナーを非表示",
+  "If OpenBanners Overlay didn’t open, it may not be installed yet. Install it below, then try again.": "OpenBanners Overlay が開かなかった場合は、まだインストールされていない可能性があります。下からインストールしてから、もう一度お試しください。",
   "If nothing happens, open the ⋮ menu at the top and choose “Open in browser”, or copy the link and paste it into Chrome.": "何も起こらない場合は、上部の ⋮ メニューを開いて「ブラウザで開く」を選ぶか、リンクをコピーして Chrome に貼り付けてください。",
   "Import a banner before generating a reroute.": "リルートを生成する前にバナーをインポートしてください。",
   "Import an existing banner from an Ultimate Mission Maker (UMM) export, choose a start portal, optional end portal, and mission count, generate a reroute, and export the result back to UMM. All data you import stays on your machine and is not sent to OpenBanners and will never be. This tool works best when you import a very large banner or multiple banners, and then make a smaller banner out of it, since the tool uses portals from the imported banner(s) for rerouting.": "Ultimate Mission Maker (UMM) のエクスポートから既存のバナーをインポートし、開始ポータル、任意の終了ポータル、ミッション数を選んでリルートを生成し、結果を UMM にエクスポートします。インポートしたデータはすべてお使いの端末内に留まり、OpenBanners に送信されることはなく、今後も送信されません。このツールはインポートしたバナーのポータルを使ってリルートするため、非常に大きなバナーや複数のバナーをインポートし、そこから小さなバナーを作るときに最も効果を発揮します。",
@@ -525,7 +526,6 @@
   "Open this mission in Ingress": "このミッションを Ingress で開く",
   "Open your browser’s menu and choose “Install app” or “Add to Home screen”. Chrome, Edge and Safari can install OpenBanners.": "ブラウザのメニューを開き、「アプリをインストール」または「ホーム画面に追加」を選びます。Chrome、Edge、Safari で OpenBanners をインストールできます。",
   "Open {mission} in Ingress": "{mission} を Ingress で開く",
-  "If OpenBanners Overlay didn’t open, it may not be installed yet. Install it below, then try again.": "OpenBanners Overlay が開かなかった場合は、まだインストールされていない可能性があります。下からインストールしてから、もう一度お試しください。",
   "OpenBanners Overlay is an Android app. Install it on your phone, then open this page there.": "OpenBanners Overlay は Android アプリです。スマートフォンにインストールして、そこでこのページを開いてください。",
   "OpenBanners Overlay isn’t installed on this phone (or it’s too old for this link). Install it, then try again.": "このスマートフォンには OpenBanners Overlay がインストールされていません（またはこのリンクには古すぎます）。インストールしてからもう一度お試しください。",
   "OpenBanners banner": "OpenBanners のバナー",
@@ -657,12 +657,14 @@
   "Show hidden banners": "非表示のバナーを表示",
   "Show in list": "リストに表示",
   "Show less": "折りたたむ",
+  "Show mission numbers": "ミッション番号を表示",
   "Show more": "もっと見る",
   "Show my location": "現在地を表示",
   "Show offline banners": "オフラインのバナーを表示",
   "Show the banners closest to you": "いちばん近いバナーを表示",
   "Show the list": "リストを表示",
   "Show the {count} without an answer": "答えのない {count} 件を表示",
+  "Show whole banner": "バナー全体を表示",
   "Show whole route": "ルート全体を表示",
   "Show {count} banners": {
     "other": "{count} バナーを表示"
@@ -909,7 +911,9 @@
   "Yours": "自作",
   "You’re an author of this banner": "あなたはこのバナーの作者です",
   "You’re looking at a read-only link, so you can’t change this plan.": "閲覧専用リンクで表示しているため、このプランは変更できません。",
+  "Zoom in": "拡大",
   "Zoom in to see banners": "ズームインするとバナーが表示されます",
+  "Zoom out": "縮小",
   "Z–A": "Z–A",
   "about {length} including the walks between missions": "ミッション間の移動を含めて約 {length}",
   "any": "指定なし",
@@ -997,6 +1001,9 @@
   },
   "{count} missions planned": {
     "other": "{count} ミッションを計画済み"
+  },
+  "{count} missions start here – tap to zoom in": {
+    "other": "ここから {count} ミッションが始まります – タップして拡大"
   },
   "{count} offline": {
     "other": "{count} オフライン"

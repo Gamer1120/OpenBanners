@@ -1,6 +1,5 @@
 import { Link, useParams } from "react-router-dom";
 import React, { lazy, Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { createPortal } from "react-dom";
 import { Skeleton, useMediaQuery } from "@mui/material";
 import {
   CloudOff,
@@ -11,6 +10,7 @@ import {
   HourglassTop,
   Key,
   MyLocation,
+  OpenInFull,
   OpenInNew,
   Place,
   Warning,
@@ -52,9 +52,12 @@ import {
 } from "../../bannerFacts";
 import { getLanguage, t, tk, tn } from "../../i18n";
 import { getMissionEntries, getSlotCount } from "../../bannerMissions";
+import MissionMosaic, { hasMissionPictures } from "./MissionMosaic";
+import { getPanTiming, HERO_ROWS } from "./artViewer";
 
-// Leaflet comes with the map only (RouteMap.jsx).
+// Leaflet comes with the map only (RouteMap.jsx); the artwork viewer when it opens.
 const RouteMap = lazy(() => import("./RouteMap"));
+const BannerViewer = lazy(() => import("./BannerViewer"));
 
 const OBJECTIVES = {
   hack: tk("Hack"),
@@ -156,124 +159,99 @@ export function getFinish(missions) {
   return null;
 }
 
-// The banner artwork. Tiles aren't links: tapping the artwork opens it enlarged.
-// slots[i] is mission i's position in the banner; a position without a mission
-// (a filler slot) stays an empty tile, like on Bannergress.
-export function MissionMosaic({ banner, missions, slots, colors, large = false }) {
-  const width = Number(banner.width) || 6;
-  const count = missions.length;
-  const missionSlots =
-    Array.isArray(slots) && slots.length === count ? slots : missions.map((_, index) => index);
-  const slotCount = getSlotCount(missionSlots);
-  const indexBySlot = new Map(missionSlots.map((slot, index) => [slot, index]));
-  const rows = Math.max(1, Math.ceil(slotCount / width));
-  const padding = rows * width - slotCount;
-  const hasPictures = missions.some((mission) => mission?.picture);
+// The artwork is MissionMosaic.jsx; re-exported for the banner page's other modules.
+export { MissionMosaic };
 
-  if (!count || !hasPictures) {
-    // Shown whole (max-height in CSS), so no pan needed.
-    return (
-      <BannerImage
-        banner={banner}
-        mode="natural"
-        className={large ? "bp-lightbox-pic" : "bp-hero-pic"}
-        eager
-      />
-    );
-  }
+// The hero's artwork window: tiles fill the width (up to 56 px) and at most HERO_ROWS rows
+// show; a taller banner pans slowly through all its rows (Bannergress's loop, 5 s per
+// window height down), the same rule for every banner. The viewer shows it all.
+function PanningArt({ rows, children }) {
+  const windowRef = useRef(null);
 
-  const cells = [];
+  useLayoutEffect(() => {
+    const box = windowRef.current;
+    const inner = box?.firstElementChild;
 
-  for (let cell = 0; cell < rows * width; cell += 1) {
-    if (cell < padding) {
-      cells.push(<span key={`void-${cell}`} className="void" aria-hidden="true" />);
-      continue;
+    if (!box || !inner) {
+      return undefined;
     }
 
-    // Mission 1 is bottom-right, like in the Ingress scanner.
-    const slot = slotCount - 1 - (cell - padding);
-    const index = indexBySlot.get(slot);
+    let animation = null;
+    let lastWidth = -1;
+    const setup = () => {
+      const width = box.clientWidth;
 
-    if (index === undefined) {
-      cells.push(<span key={`gap-${slot}`} className="void gap" aria-hidden="true" />);
-      continue;
-    }
+      if (width === lastWidth) {
+        return;
+      }
 
-    const mission = missions[index];
+      lastWidth = width;
+      animation?.cancel();
+      animation = null;
+      box.classList.remove("pan");
+      box.style.height = "";
+      const cellHeight = inner.firstElementChild?.getBoundingClientRect().height || 0;
 
-    cells.push(
-      <span
-        key={mission.id ?? index}
-        className={`tile${isMissionOffline(mission) ? " off" : ""}`}
-        style={{ "--c": colors[index] }}
-      >
-        {mission.picture ? (
-          <img
-            src={`${mission.picture}=s${large ? 320 : 160}`}
-            alt=""
-            loading={large ? undefined : "lazy"}
-            referrerPolicy="no-referrer"
-          />
-        ) : null}
-      </span>
-    );
-  }
+      if (!cellHeight) {
+        lastWidth = -1;
+        return;
+      }
+
+      const gap = parseFloat(window.getComputedStyle(inner).rowGap) || 0;
+      const visible = Math.min(rows, HERO_ROWS);
+      const height = visible * cellHeight + (visible - 1) * gap;
+      const overflow = inner.getBoundingClientRect().height - height;
+
+      if (overflow < 2) {
+        return;
+      }
+
+      box.style.height = `${height}px`;
+      box.classList.add("pan");
+
+      if (typeof inner.animate !== "function") {
+        return;
+      }
+
+      const { down, up, pause, total } = getPanTiming(overflow, height);
+      const end = `translateY(${-overflow}px)`;
+      animation = inner.animate(
+        [
+          { transform: "translateY(0)", easing: "ease-in-out" },
+          { transform: end, offset: down / total, easing: "ease-in-out" },
+          { transform: end, offset: (down + pause) / total, easing: "ease-in-out" },
+          { transform: "translateY(0)", offset: (down + pause + up) / total },
+          { transform: "translateY(0)" },
+        ],
+        { duration: total, iterations: Infinity }
+      );
+    };
+
+    // Pause while a mouse is over it (not on touch screens, where hover sticks).
+    const onEnter = (event) => event.pointerType === "mouse" && animation?.pause();
+    const onLeave = () => animation?.play();
+    setup();
+    box.addEventListener("pointerenter", onEnter);
+    box.addEventListener("pointerleave", onLeave);
+    const observer = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(setup);
+    observer?.observe(box);
+
+    return () => {
+      observer?.disconnect();
+      box.removeEventListener("pointerenter", onEnter);
+      box.removeEventListener("pointerleave", onLeave);
+      animation?.cancel();
+    };
+  }, [rows]);
 
   return (
-    <div
-      className={`mosaic${large ? " large" : ""}`}
-      role="img"
-      aria-label={tn(
-        "Banner artwork: {count} mission tile, {width} per row.",
-        "Banner artwork: {count} mission tiles, {width} per row.",
-        count,
-        { width }
-      )}
-      style={{ "--w": width, "--rows": rows }}
-    >
-      {cells}
-    </div>
+    <span className="bp-art-window" ref={windowRef}>
+      {children}
+    </span>
   );
 }
 
-// Full-screen view of the artwork; tap anywhere, × or Escape closes it.
-export function BannerLightbox({ banner, missions, slots, colors, onClose }) {
-  useEffect(() => {
-    const onKey = (event) => {
-      if (event.key === "Escape") {
-        onClose();
-      }
-    };
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    window.addEventListener("keydown", onKey);
-    return () => {
-      document.body.style.overflow = previousOverflow;
-      window.removeEventListener("keydown", onKey);
-    };
-  }, [onClose]);
-
-  // Portal to <body>: inside the page the hero's stacking context let the tabs draw over it.
-  return createPortal(
-    <div className="bp-lightbox" role="dialog" aria-modal="true" aria-label={t("Banner artwork")}
-      onClick={(event) => {
-        // React bubbles portal clicks to the enlarge button, which would reopen it.
-        event.stopPropagation();
-        onClose();
-      }}
-    >
-      <button type="button" className="bp-lightbox-close" aria-label={t("Close")}>
-        ×
-      </button>
-      <div className="bp-lightbox-body">
-        <MissionMosaic banner={banner} missions={missions} slots={slots} colors={colors} large />
-      </div>
-    </div>,
-    document.body
-  );
-}
-
-// Tappable artwork that opens the lightbox.
+// Tappable artwork that opens the full-screen viewer.
 export function EnlargeableArt({ banner, missions, slots, colors, children }) {
   const [open, setOpen] = useState(false);
 
@@ -285,18 +263,52 @@ export function EnlargeableArt({ banner, missions, slots, colors, children }) {
         aria-label={t("Enlarge banner artwork")}
         onClick={() => setOpen(true)}
       >
-        {children}
+        <span className="bp-enlarge-art">
+          {children}
+          <span className="bp-enlarge-chip" aria-hidden="true">
+            <OpenInFull />
+          </span>
+        </span>
       </button>
       {open ? (
-        <BannerLightbox
-          banner={banner}
-          missions={missions}
-          slots={slots}
-          colors={colors}
-          onClose={() => setOpen(false)}
-        />
+        <Suspense fallback={null}>
+          <BannerViewer
+            banner={banner}
+            missions={missions}
+            slots={slots}
+            colors={colors}
+            onClose={() => setOpen(false)}
+          />
+        </Suspense>
       ) : null}
     </>
+  );
+}
+
+// The hero artwork: the mission tiles in a panning window, or the banner's own picture
+// when there are no mission pictures.
+export function HeroMosaic({ banner, missions, slots, colors }) {
+  const columns = Number(banner.width) || 6;
+  const missionSlots =
+    Array.isArray(slots) && slots.length === missions.length ? slots : missions.map((_, index) => index);
+  const rows = Math.max(1, Math.ceil(Math.max(1, getSlotCount(missionSlots)) / columns));
+
+  if (!hasMissionPictures(missions)) {
+    return (
+      <BannerImage
+        banner={banner}
+        mode="pan"
+        minAspect={columns / HERO_ROWS}
+        className="bp-hero-cpic"
+        eager
+      />
+    );
+  }
+
+  return (
+    <PanningArt rows={rows}>
+      <MissionMosaic banner={banner} missions={missions} slots={slots} colors={colors} />
+    </PanningArt>
   );
 }
 
@@ -893,7 +905,7 @@ export function HeroArt({ d }) {
 
   return (
     <EnlargeableArt banner={d.items} missions={d.missions} slots={d.missionSlots} colors={d.colors}>
-      <MissionMosaic banner={d.items} missions={d.missions} slots={d.missionSlots} colors={d.colors} />
+      <HeroMosaic banner={d.items} missions={d.missions} slots={d.missionSlots} colors={d.colors} />
     </EnlargeableArt>
   );
 }

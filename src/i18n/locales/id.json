@@ -304,6 +304,7 @@
   "Hide": "Sembunyikan",
   "Hide Done": "Sembunyikan selesai",
   "Hide done banners": "Sembunyikan banner selesai",
+  "If OpenBanners Overlay didn’t open, it may not be installed yet. Install it below, then try again.": "Kalau OpenBanners Overlay tidak terbuka, mungkin belum terpasang. Pasang di bawah, lalu coba lagi.",
   "If nothing happens, open the ⋮ menu at the top and choose “Open in browser”, or copy the link and paste it into Chrome.": "Kalau tidak terjadi apa-apa, buka menu ⋮ di atas dan pilih “Buka di browser”, atau salin tautannya lalu tempel di Chrome.",
   "Import a banner before generating a reroute.": "Impor banner dulu sebelum membuat rute ulang.",
   "Import an existing banner from an Ultimate Mission Maker (UMM) export, choose a start portal, optional end portal, and mission count, generate a reroute, and export the result back to UMM. All data you import stays on your machine and is not sent to OpenBanners and will never be. This tool works best when you import a very large banner or multiple banners, and then make a smaller banner out of it, since the tool uses portals from the imported banner(s) for rerouting.": "Impor banner yang sudah ada dari ekspor Ultimate Mission Maker (UMM), pilih portal awal, portal akhir (opsional), dan jumlah misi, buat rute ulang, lalu ekspor hasilnya kembali ke UMM. Semua data yang kamu impor tetap di perangkatmu dan tidak dikirim ke OpenBanners, dan tidak akan pernah. Alat ini paling cocok kalau kamu mengimpor banner yang sangat besar atau beberapa banner, lalu membuat banner yang lebih kecil darinya, karena alat ini memakai portal dari banner yang diimpor untuk membuat rute ulang.",
@@ -525,7 +526,6 @@
   "Open this mission in Ingress": "Buka misi ini di Ingress",
   "Open your browser’s menu and choose “Install app” or “Add to Home screen”. Chrome, Edge and Safari can install OpenBanners.": "Buka menu browser lalu pilih “Instal aplikasi” atau “Tambahkan ke Layar utama”. Chrome, Edge, dan Safari bisa menginstal OpenBanners.",
   "Open {mission} in Ingress": "Buka {mission} di Ingress",
-  "If OpenBanners Overlay didn’t open, it may not be installed yet. Install it below, then try again.": "Kalau OpenBanners Overlay tidak terbuka, mungkin belum terpasang. Pasang di bawah, lalu coba lagi.",
   "OpenBanners Overlay is an Android app. Install it on your phone, then open this page there.": "OpenBanners Overlay adalah aplikasi Android. Pasang di ponsel Anda, lalu buka halaman ini di sana.",
   "OpenBanners Overlay isn’t installed on this phone (or it’s too old for this link). Install it, then try again.": "OpenBanners Overlay belum terpasang di ponsel ini (atau versinya terlalu lama untuk tautan ini). Pasang, lalu coba lagi.",
   "OpenBanners banner": "Banner OpenBanners",
@@ -657,12 +657,14 @@
   "Show hidden banners": "Tampilkan banner tersembunyi",
   "Show in list": "Tampilkan di daftar",
   "Show less": "Tampilkan lebih sedikit",
+  "Show mission numbers": "Tampilkan nomor misi",
   "Show more": "Tampilkan lebih banyak",
   "Show my location": "Tampilkan lokasiku",
   "Show offline banners": "Tampilkan banner offline",
   "Show the banners closest to you": "Tampilkan banner terdekat",
   "Show the list": "Tampilkan daftar",
   "Show the {count} without an answer": "Tampilkan {count} yang belum ada jawabannya",
+  "Show whole banner": "Tampilkan seluruh banner",
   "Show whole route": "Tampilkan seluruh rute",
   "Show {count} banners": {
     "other": "Tampilkan {count} banner"
@@ -909,7 +911,9 @@
   "Yours": "Milikmu",
   "You’re an author of this banner": "Kamu salah satu pembuat banner ini",
   "You’re looking at a read-only link, so you can’t change this plan.": "Kamu membuka link hanya-baca, jadi kamu tidak bisa mengubah rencana ini.",
+  "Zoom in": "Perbesar",
   "Zoom in to see banners": "Perbesar peta untuk melihat banner",
+  "Zoom out": "Perkecil",
   "Z–A": "Z–A",
   "about {length} including the walks between missions": "sekitar {length} termasuk jalan kaki antar-misi",
   "any": "apa saja",
@@ -997,6 +1001,9 @@
   },
   "{count} missions planned": {
     "other": "{count} misi direncanakan"
+  },
+  "{count} missions start here – tap to zoom in": {
+    "other": "{count} misi dimulai di sini – ketuk untuk memperbesar"
   },
   "{count} offline": {
     "other": "{count} offline"

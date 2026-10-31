@@ -2527,6 +2527,12 @@ body {
   font-weight: 500;
 }
 
+/* "Your data was downloaded." on its own line under the "Next possible at" text. */
+.ob-setting .grow > [role="status"] {
+  display: block;
+  margin-top: 4px;
+}
+
 .ob-switch {
   flex: none;
   width: 52px;

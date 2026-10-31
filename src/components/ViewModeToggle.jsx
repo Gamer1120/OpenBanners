@@ -1,19 +1,25 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { GridView, ViewList } from "@mui/icons-material";
 import { t } from "../i18n";
+import { noteSettingChanged, onSyncedSettingsApplied } from "../settingsSyncState";
 
-const VIEW_MODE_STORAGE_KEY = "openbanners-banner-view-mode";
+export const VIEW_MODE_STORAGE_KEY = "openbanners-banner-view-mode";
+
+function readViewMode() {
+  try {
+    return window.localStorage.getItem(VIEW_MODE_STORAGE_KEY) === "compact"
+      ? "compact"
+      : "visual";
+  } catch {
+    return "visual";
+  }
+}
 
 export function useBannerViewMode() {
-  const [viewMode, setViewModeState] = useState(() => {
-    try {
-      return window.localStorage.getItem(VIEW_MODE_STORAGE_KEY) === "compact"
-        ? "compact"
-        : "visual";
-    } catch {
-      return "visual";
-    }
-  });
+  const [viewMode, setViewModeState] = useState(readViewMode);
+
+  // Wall/List chosen on another device (settings sync).
+  useEffect(() => onSyncedSettingsApplied(["viewMode"], () => setViewModeState(readViewMode())), []);
 
   const setViewMode = (nextViewMode) => {
     setViewModeState(nextViewMode);
@@ -21,6 +27,7 @@ export function useBannerViewMode() {
     try {
       window.localStorage.setItem(VIEW_MODE_STORAGE_KEY, nextViewMode);
     } catch {}
+    noteSettingChanged("viewMode");
   };
 
   return [viewMode, setViewMode];

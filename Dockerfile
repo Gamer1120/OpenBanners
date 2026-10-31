@@ -9,8 +9,8 @@ COPY server/banner-meta.mts server/page-meta.mjs /usr/share/nginx/server/
 COPY server/banner-meta-tests.mts /usr/share/nginx/server/banner-meta-tests.mts
 COPY server/banner-together-signal.mjs /usr/share/nginx/server/banner-together-signal.mjs
 COPY server/banner-together-signal-tests.mjs /usr/share/nginx/server/banner-together-signal-tests.mjs
-COPY server/passphrases.mjs server/passphrases-telegram.mjs server/passphrases-admin.mjs server/translations.mjs server/translations-telegram.mjs /usr/share/nginx/server/
-COPY server/passphrases-tests.mjs server/passphrases-telegram-tests.mjs server/translations-tests.mjs /usr/share/nginx/server/
+COPY server/passphrases.mjs server/passphrases-telegram.mjs server/passphrases-admin.mjs server/synced-settings.mjs server/translations.mjs server/translations-telegram.mjs /usr/share/nginx/server/
+COPY server/passphrases-tests.mjs server/passphrases-telegram-tests.mjs server/synced-settings-tests.mjs server/translations-tests.mjs /usr/share/nginx/server/
 # "Join on Telegram" (one-time codes + @OpenBannersBot invite links).
 COPY server/telegram-join.mjs server/telegram-join-tests.mjs /usr/share/nginx/server/
 # The translation editor checks suggestions against the English keys and the bundled locales.
@@ -21,9 +21,11 @@ RUN mkdir -p /run/nginx \
   && chmod +x /usr/local/bin/openbanners-entrypoint \
   && node --test /usr/share/nginx/server/banner-together-signal-tests.mjs /usr/share/nginx/server/banner-meta-tests.mts \
     /usr/share/nginx/server/passphrases-tests.mjs /usr/share/nginx/server/passphrases-telegram-tests.mjs \
+    /usr/share/nginx/server/synced-settings-tests.mjs \
     /usr/share/nginx/server/translations-tests.mjs /usr/share/nginx/server/telegram-join-tests.mjs \
   && rm /usr/share/nginx/server/banner-together-signal-tests.mjs /usr/share/nginx/server/banner-meta-tests.mts \
     /usr/share/nginx/server/passphrases-tests.mjs /usr/share/nginx/server/passphrases-telegram-tests.mjs \
+    /usr/share/nginx/server/synced-settings-tests.mjs \
     /usr/share/nginx/server/translations-tests.mjs /usr/share/nginx/server/telegram-join-tests.mjs \
   && mkdir -p /data && chown node:node /data \
   && if find /bin /sbin /usr/bin /usr/sbin /usr/local/bin /usr/local/sbin -name 'php*' | grep -q .; then echo "PHP must not be present in this image" >&2; exit 1; fi \

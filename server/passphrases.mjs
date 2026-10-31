@@ -20,6 +20,7 @@ import { createServer } from "node:http";
 import { dirname, resolve } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import { fileURLToPath } from "node:url";
+import { createSyncedSettings, SyncedSettingsError } from "./synced-settings.mjs";
 import { createTranslationService, loadI18nSource, TranslationError } from "./translations.mjs";
 
 export const BASE_PATH = "/_openbanners/passphrases/v1";
@@ -201,6 +202,7 @@ export function createPassphraseService({
     unlimitedAgents,
     onSubmitted: onTranslationSubmitted,
   });
+  const syncedSettings = createSyncedSettings({ db, now });
   const identityCache = new Map();
   const bannerCache = new Map();
 
@@ -794,6 +796,18 @@ export function createPassphraseService({
         throw error instanceof TranslationError ? new ApiError(error.status, error.code, error.message) : error;
       }
     }
+    // Settings that follow the account between devices (server/synced-settings.mjs).
+    if (path === "/preferences" && ["GET", "PUT", "DELETE"].includes(method)) {
+      const identity = await identify(headers.authorization);
+      try {
+        if (method === "GET") {
+          return syncedSettings.get(identity);
+        }
+        return method === "PUT" ? syncedSettings.put(identity, body) : syncedSettings.remove(identity);
+      } catch (error) {
+        throw error instanceof SyncedSettingsError ? new ApiError(error.status, error.code, error.message) : error;
+      }
+    }
     if (path === "/settings" && (method === "GET" || method === "POST")) {
       const identity = await identify(headers.authorization);
       return method === "GET" ? settings(identity) : updateSettings(identity, body);
@@ -1003,7 +1017,7 @@ export function createPassphraseServer(options = {}) {
         throw new ApiError(404, "not_found", "Not found.");
       }
       let body = null;
-      if (request.method === "POST") {
+      if (request.method === "POST" || request.method === "PUT") {
         const raw = await readBody(request);
         try {
           body = raw ? JSON.parse(raw) : null;

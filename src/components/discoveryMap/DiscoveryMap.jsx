@@ -14,6 +14,7 @@ import {
 import {
   DEFAULT_MAP_FILTERS,
   MAP_FILTERS_STORAGE_KEY,
+  MAP_ROW_FOLDED_STORAGE_KEY,
   MISSION_OPTIONS,
   STATUS_OPTIONS,
   applyMapFilters,
@@ -33,6 +34,7 @@ import { formatLength } from "../../bannerDisplay";
 import BannerImage from "../BannerImage";
 import { useRememberEntry, useRestoredEntry } from "../../scrollRestoration";
 import { t, tk, tn } from "../../i18n";
+import { noteSettingChanged, onSyncedSettingsApplied } from "../../settingsSyncState";
 import "./discoveryMap.css";
 
 const GROUPS = [
@@ -91,7 +93,21 @@ function sideListSpace() {
 }
 // The row sits this far above the bottom edge (clear of the OSM attribution).
 const ROW_BOTTOM = 18;
-const ROW_FOLDED_STORAGE_KEY = "openbanners.mapRowFolded";
+const ROW_FOLDED_STORAGE_KEY = MAP_ROW_FOLDED_STORAGE_KEY;
+
+// Saves a setting; a change from an earlier value counts as yours for settings
+// sync (the first save of the defaults on a first visit doesn't).
+function persistSetting(key, value, name) {
+  try {
+    const before = window.localStorage.getItem(key);
+    window.localStorage.setItem(key, value);
+    if (before !== null && before !== value) {
+      noteSettingChanged(name);
+    }
+  } catch {
+    // Private mode: remembered for this visit.
+  }
+}
 // Same breakpoint as the navigation rail (m3.css): wider screens get the side list.
 const WIDE_QUERY = "(min-width: 840px)";
 
@@ -325,12 +341,18 @@ export default function DiscoveryMap() {
   const summary = filterSummary(filters);
 
   useEffect(() => {
-    try {
-      window.localStorage.setItem(MAP_FILTERS_STORAGE_KEY, JSON.stringify(storedFilters));
-    } catch {
-      // Private mode: filters last for this visit.
-    }
+    persistSetting(MAP_FILTERS_STORAGE_KEY, JSON.stringify(normalizeMapFilters(storedFilters)), "mapFilters");
   }, [storedFilters]);
+
+  // Filters or the folded row from another device (settings sync).
+  useEffect(
+    () =>
+      onSyncedSettingsApplied(["mapFilters", "mapRowFolded"], () => {
+        setFilters(readStoredFilters());
+        setFolded(readFolded());
+      }),
+    []
+  );
 
   useEffect(() => {
     try {
@@ -341,11 +363,7 @@ export default function DiscoveryMap() {
   }, []);
 
   useEffect(() => {
-    try {
-      window.localStorage.setItem(ROW_FOLDED_STORAGE_KEY, folded ? "1" : "0");
-    } catch {
-      // Private mode: remembered for this visit.
-    }
+    persistSetting(ROW_FOLDED_STORAGE_KEY, folded ? "1" : "0", "mapRowFolded");
   }, [folded]);
 
   const matching = useMemo(() => applyMapFilters(banners, filters), [banners, filters]);

@@ -28,6 +28,8 @@ export const DEFAULT_MAP_FILTERS = Object.freeze({
 });
 // Key from the filters prototype, kept so saved filters survive.
 export const MAP_FILTERS_STORAGE_KEY = "openbanners.mapVariant.filters";
+// Phone row of banner cards folded away (DiscoveryMap).
+export const MAP_ROW_FOLDED_STORAGE_KEY = "openbanners.mapRowFolded";
 
 function findOption(options, id) {
   return options.find((option) => option.id === id) ?? options[0];

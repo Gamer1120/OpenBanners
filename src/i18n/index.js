@@ -1,4 +1,5 @@
 import { useSyncExternalStore } from "react";
+import { noteSettingChanged } from "../settingsSyncState";
 
 // OpenBanners in the user's language (Michael 2026-10-25: "We should be able to
 // use OpenBanners in most common languages, should be a user setting").
@@ -170,6 +171,7 @@ export function setLanguageChoice(next) {
   try {
     window.localStorage.setItem(LANGUAGE_STORAGE_KEY, choice);
   } catch {}
+  noteSettingChanged("language");
   language = choice === "auto" ? fromBrowser() : choice;
   return load(language);
 }

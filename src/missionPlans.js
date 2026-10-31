@@ -3,6 +3,7 @@ import { call } from "./passphraseApi";
 import { BANNERGRESS_ORIGIN } from "./bannerDisplay";
 import { toPrefixQuery } from "./components/BrowseBannerList";
 import { t } from "./i18n";
+import { noteSettingChanged } from "./settingsSyncState";
 
 // Mission Day plans (server/passphrases.mjs /plans): pick missions from one or
 // more banners and put them in your own order. Anyone with the link edits it.
@@ -16,8 +17,9 @@ export const deletePlan = (planId) => call(`/plans/${encodeURIComponent(planId)}
 export const editPlan = (planId, ops) =>
   call(`/plans/${encodeURIComponent(planId)}`, { method: "POST", body: { ops }, authenticate: false });
 
-// Plans you made or opened, newest first (this browser only).
-const RECENT_KEY = "openbanners-recent-plans";
+// Plans you made or opened, newest first (in this browser, and synced with
+// your account when you're signed in: src/settingsSync.js).
+export const RECENT_KEY = "openbanners-recent-plans";
 const MAX_RECENT = 20;
 
 export function readRecentPlans() {
@@ -33,10 +35,12 @@ export function rememberPlan(plan) {
   const entry = { id: plan.id, title: plan.title, missions: plan.items?.length ?? 0, readOnly: Boolean(plan.readOnly), openedAt: Date.now() };
   const next = [entry, ...readRecentPlans().filter((other) => other.id !== plan.id)].slice(0, MAX_RECENT);
   window.localStorage.setItem(RECENT_KEY, JSON.stringify(next));
+  noteSettingChanged("recentPlans");
 }
 
 export function forgetPlan(planId) {
   window.localStorage.setItem(RECENT_KEY, JSON.stringify(readRecentPlans().filter((entry) => entry.id !== planId)));
+  noteSettingChanged("recentPlans");
 }
 
 // Active Mission Days, as on the Bannergress home page: banners whose event is

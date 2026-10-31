@@ -10,6 +10,7 @@ import { useThemeMode } from "./themeMode";
 import App from "./App";
 import { i18nReady, useT } from "./i18n";
 import { registerServiceWorker } from "./pwaInstall";
+import { startSettingsSync } from "./settingsSync";
 
 registerServiceWorker();
 
@@ -26,10 +27,12 @@ function ThemedApp() {
   );
 }
 
-i18nReady.then(() =>
+i18nReady.then(() => {
   createRoot(document.getElementById("root")).render(
     <React.StrictMode>
       <ThemedApp />
     </React.StrictMode>
-  )
-);
+  );
+  // Signed in: settings follow the Bannergress account between devices.
+  startSettingsSync();
+});

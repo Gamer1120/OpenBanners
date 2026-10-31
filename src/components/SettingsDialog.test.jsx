@@ -6,6 +6,14 @@ import { describe, expect, it, vi } from "vitest";
 const save = vi.fn(async () => ({}));
 let state;
 vi.mock("../passphraseApi", () => ({ useUserSettings: () => state }));
+let syncState = { status: "ready", error: "" };
+const removeSyncedSettings = vi.fn(async () => {});
+const turnOnSettingsSync = vi.fn(async () => {});
+vi.mock("../settingsSync", () => ({
+  useSettingsSync: () => syncState,
+  removeSyncedSettings: () => removeSyncedSettings(),
+  turnOnSettingsSync: () => turnOnSettingsSync(),
+}));
 
 import SettingsDialog from "./SettingsDialog";
 
@@ -40,5 +48,24 @@ describe("settings", () => {
     state = { status: "idle", loggedIn: false, save, settings: null };
     render(<SettingsDialog onClose={() => {}} />);
     expect(screen.getByRole("button", { name: "Log in" })).toBeInTheDocument();
+    // Signed out nothing syncs, and nothing can be removed.
+    expect(screen.getByText(/Sign in with Bannergress to take your language/)).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Remove my synced settings" })).toBeNull();
+  });
+
+  it("removes the synced settings, and turns syncing back on", async () => {
+    const user = userEvent.setup();
+    state = { status: "ready", loggedIn: true, save, settings: { agent: null, askAfterDone: true, blockMyBanners: false, canBlockMyBanners: false } };
+    syncState = { status: "ready", error: "" };
+    const { rerender } = render(<SettingsDialog onClose={() => {}} />);
+    expect(screen.getByText("Saved on this device and synced with your account.")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Remove my synced settings" }));
+    expect(removeSyncedSettings).toHaveBeenCalledTimes(1);
+    syncState = { status: "off", error: "" };
+    rerender(<SettingsDialog onClose={() => {}} />);
+    expect(screen.getByText("Syncing is off. Your settings stay on this device only.")).toBeInTheDocument();
+    expect(screen.getByText("Saved on this device.")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Turn syncing on" }));
+    expect(turnOnSettingsSync).toHaveBeenCalledTimes(1);
   });
 });

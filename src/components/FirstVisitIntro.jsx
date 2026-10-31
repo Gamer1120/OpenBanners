@@ -1,9 +1,10 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { Close } from "@mui/icons-material";
 import OverlayDownloadDialog from "./OverlayDownloadDialog";
 import { BANNERGRESS_AUTH_STORAGE_KEY } from "../bannergressSync";
 import { t } from "../i18n";
+import { noteSettingChanged, onSyncedSettingsApplied } from "../settingsSyncState";
 
 export const INTRO_DISMISSED_STORAGE_KEY = "openbanners:intro-dismissed";
 // Signs of an earlier visit: signed in, used the map, or a city was picked.
@@ -31,6 +32,9 @@ export default function FirstVisitIntro() {
   const [visible, setVisible] = useState(shouldShowIntro);
   const [overlayOpen, setOverlayOpen] = useState(false);
 
+  // Closed on another device (settings sync).
+  useEffect(() => onSyncedSettingsApplied(["introDismissed"], () => setVisible(shouldShowIntro())), []);
+
   if (!visible) {
     return null;
   }
@@ -42,6 +46,7 @@ export default function FirstVisitIntro() {
     } catch {
       // Private mode: it just comes back next time.
     }
+    noteSettingChanged("introDismissed");
   };
 
   return (

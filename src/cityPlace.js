@@ -1,4 +1,5 @@
 import { getDistanceMeters } from "./bannerDisplay";
+import { noteSettingChanged } from "./settingsSyncState";
 
 const CITY_STORAGE_KEY = "openbanners-home-city";
 const CITY_MAX_AGE_MS = 24 * 60 * 60 * 1000;
@@ -41,12 +42,14 @@ function writeCachedCity(value) {
 
 export function savePickedCity(place) {
   writeCachedCity({ picked: true, place: slimPlace(place) });
+  noteSettingChanged("city");
 }
 
 export function clearCachedCity() {
   try {
     window.localStorage.removeItem(CITY_STORAGE_KEY);
   } catch {}
+  noteSettingChanged("city");
 }
 
 function isInsidePlace(place, latitude, longitude, margin = 0.02) {

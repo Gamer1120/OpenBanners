@@ -6,8 +6,11 @@ import { t } from "../i18n";
 // the server on 2026-10-30 (nginx logs ~15 days and not backed up; no
 // analytics, ads or cookies; token never stored by server/passphrases.mjs or
 // server/telegram-join.mjs; tables in server/passphrases.mjs; PENDING_DAYS;
-// Banner Together rooms in memory for at most 4 hours). Update it, and the
-// date, when any of that changes.
+// Banner Together rooms in memory for at most 4 hours) and on 2026-10-31
+// (synced settings: SYNCED_SETTING_NAMES in src/settingsSync.js and
+// server/synced-settings.mjs, only while signed in, picked city only, removed
+// in Settings; To do/Done/Hide go to api.bannergress.com /bnrs/:id/settings).
+// Update it, and the date, when any of that changes.
 const GITHUB_ISSUES = "https://github.com/Gamer1120/OpenBanners/issues";
 
 export default function PrivacyPage() {
@@ -30,7 +33,7 @@ export default function PrivacyPage() {
       <h2 className="ob-h2">{t("Signing in")}</h2>
       <p>
         {t(
-          "You sign in on Bannergress's own page (with Google). Your sign-in is kept in your browser. It's only sent to the OpenBanners server for notes, plans, passphrases and the Telegram invite, so the server can ask Bannergress who you are. The server doesn't store it."
+          "You sign in on Bannergress's own page (with Google). Your sign-in is kept in your browser. It's only sent to the OpenBanners server for notes, plans, synced settings, passphrases and the Telegram invite, so the server can ask Bannergress who you are. The server doesn't store it."
         )}
       </p>
 
@@ -39,6 +42,16 @@ export default function PrivacyPage() {
         <li>
           {t(
             "Your Bannergress account ID, together with what you save: notes, Mission Day plans, passphrase answers and votes, and your settings."
+          )}
+        </li>
+        <li>
+          {t(
+            "Synced settings: while you're signed in, your language, map filters, Wall/List view, chosen city, closed welcome note and recent plans are saved under your Bannergress account, so they follow you to other devices where you sign in. Your location isn't part of them."
+          )}
+        </li>
+        <li>
+          {t(
+            "Your To do, Done and Hide marks are kept by Bannergress, not by OpenBanners. Your browser keeps a copy so it can show them."
           )}
         </li>
         <li>
@@ -56,7 +69,7 @@ export default function PrivacyPage() {
       <h2 className="ob-h2">{t("Deleting your data")}</h2>
       <p>
         {t(
-          "You can delete a Mission Day plan you made on its page, and empty a note to remove it. For anything else, open an issue on GitHub and it will be removed."
+          "You can delete a Mission Day plan you made on its page, empty a note to remove it, and remove your synced settings in ⋮ → Settings (that also turns syncing off). For anything else, open an issue on GitHub and it will be removed."
         )}{" "}
         <a href={GITHUB_ISSUES} target="_blank" rel="noopener noreferrer">
           {t("OpenBanners on GitHub")}
@@ -73,14 +86,14 @@ export default function PrivacyPage() {
       <h2 className="ob-h2">{t("On your device")}</h2>
       <p>
         {t(
-          "Your settings, language, filters, recent plans and sign-in are kept in your browser's storage. Signing out or clearing this site's data in your browser removes them."
+          "Your sign-in, settings, recent plans, recent searches and map position are kept in your browser's storage. Apart from the synced settings, they stay there. Clearing this site's data in your browser removes them."
         )}
       </p>
       <p>
         <a href="/overlay/privacy">{t("Privacy of the OpenBanners Overlay app")}</a>
       </p>
 
-      <p className="small muted">{t("Last updated: 30 October 2026")}</p>
+      <p className="small muted">{t("Last updated: 31 October 2026")}</p>
       <p>
         <Link className="btn tonal sl" to="/">
           {t("Go to home page")}

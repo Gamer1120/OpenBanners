@@ -31,6 +31,7 @@ import {
 } from "../missionPlans";
 import PlanMap from "./PlanMap";
 import { t, tn } from "../i18n";
+import { onSyncedSettingsApplied } from "../settingsSyncState";
 import "./MissionDayPlanner.css";
 
 const MIN_QUERY = 2;
@@ -120,6 +121,9 @@ function PlannerStart() {
   const [recent, setRecent] = useState(readRecentPlans);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+
+  // Plans opened on another device (settings sync).
+  useEffect(() => onSyncedSettingsApplied(["recentPlans"], () => setRecent(readRecentPlans())), []);
 
   useEffect(() => {
     let cancelled = false;

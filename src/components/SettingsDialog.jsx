@@ -3,10 +3,59 @@ import ObModal from "./ObModal";
 import { BANNERGRESS_AUTH_REQUEST_EVENT } from "../bannergressSync";
 import { useUserSettings } from "../passphraseApi";
 import { LANGUAGES, getLanguageChoice, setLanguageChoice, t } from "../i18n";
+import { removeSyncedSettings, turnOnSettingsSync, useSettingsSync } from "../settingsSync";
+
+// Settings sync (src/settingsSync.js): on while signed in, until removed here.
+function SyncSection({ loggedIn }) {
+  const sync = useSettingsSync();
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const run = (action) => {
+    setBusy(true);
+    setError("");
+    action()
+      .catch(() => setError(t("Couldn't sync your settings right now. They're still saved on this device.")))
+      .finally(() => setBusy(false));
+  };
+
+  if (!loggedIn) {
+    return (
+      <p className="small muted">
+        {t("Sign in with Bannergress to take your language, map filters, view, city and recent plans to your other devices.")}
+      </p>
+    );
+  }
+  const off = sync.status === "off";
+  return (
+    <div className="ob-setting">
+      <span className="grow">
+        <span className="small">
+          {off
+            ? t("Syncing is off. Your settings stay on this device only.")
+            : t("Your language, map filters, view, city and recent plans are saved with your Bannergress account, so they follow you to other devices where you sign in.")}
+        </span>
+        {error || sync.status === "error" ? (
+          <span className="small pp-error" role="alert">
+            {error || t("Couldn't sync your settings right now. They're still saved on this device.")}
+          </span>
+        ) : null}
+      </span>
+      <button
+        type="button"
+        className="btn tonal sl"
+        disabled={busy || sync.status === "syncing"}
+        onClick={() => run(off ? turnOnSettingsSync : removeSyncedSettings)}
+      >
+        {off ? t("Turn syncing on") : t("Remove my synced settings")}
+      </button>
+    </div>
+  );
+}
 
 // Account settings (stored per Bannergress account by the passphrase service).
 export default function SettingsDialog({ onClose }) {
   const { status, settings, loggedIn, save, error: loadError } = useUserSettings(true);
+  const sync = useSettingsSync();
   const [confirmBlock, setConfirmBlock] = useState(false);
   const [error, setError] = useState("");
   const change = (changes) => {
@@ -20,7 +69,11 @@ export default function SettingsDialog({ onClose }) {
       <label className="ob-setting">
         <span className="grow">
           <b>{t("Language")}</b>
-          <span className="small muted">{t("Saved on this device.")}</span>
+          <span className="small muted">
+            {loggedIn && sync.status !== "off"
+              ? t("Saved on this device and synced with your account.")
+              : t("Saved on this device.")}
+          </span>
         </span>
         <select
           className="ob-select"
@@ -36,6 +89,8 @@ export default function SettingsDialog({ onClose }) {
           ))}
         </select>
       </label>
+      <h3 className="ob-settings-h">{t("Sync between devices")}</h3>
+      <SyncSection loggedIn={loggedIn} />
       <h3 className="ob-settings-h">{t("Passphrases")}</h3>
       {!loggedIn ? (
         <div className="ob-setting">

@@ -32,7 +32,26 @@ function DataSection() {
   }, []);
 
   const waitText = (iso) => t("You can download your data once an hour. Next possible at {time}.", { time: formatLocalTime(iso) });
-  const tooSoon = Boolean(nextAt && new Date(nextAt).getTime() > Date.now());
+  // The button stays greyed out until nextAt, and comes back by itself then,
+  // also while the dialog stays open (a timer to that moment, plus a slow
+  // tick in case the device slept). The server keeps its own limit.
+  const [now, setNow] = useState(() => Date.now());
+  const nextTime = nextAt ? new Date(nextAt).getTime() : NaN;
+  const tooSoon = Number.isFinite(nextTime) && nextTime > now;
+  useEffect(() => {
+    if (!tooSoon) {
+      return undefined;
+    }
+    const tick = () => setNow(Date.now());
+    const timer = setTimeout(tick, Math.min(Math.max(nextTime - Date.now(), 0) + 250, 2 ** 31 - 1));
+    const interval = setInterval(tick, 15 * 1000);
+    document.addEventListener("visibilitychange", tick);
+    return () => {
+      clearTimeout(timer);
+      clearInterval(interval);
+      document.removeEventListener("visibilitychange", tick);
+    };
+  }, [tooSoon, nextTime]);
 
   const download = () => {
     setBusy(true);
@@ -40,13 +59,15 @@ function DataSection() {
     setMessage("");
     downloadMyData()
       .then(({ nextExportAt }) => {
+        setNow(Date.now());
         setNextAt(nextExportAt);
         setMessage(t("Your data was downloaded."));
       })
       .catch((e) => {
-        if (e?.code === "export_limit") {
-          setNextAt(e.data?.nextExportAt ?? null);
-          setError(waitText(e.data?.nextExportAt));
+        if (e?.code === "export_limit" && e.data?.nextExportAt) {
+          // Refused by the server (e.g. another device downloaded it): grey out until then.
+          setNow(Date.now());
+          setNextAt(e.data.nextExportAt);
         } else {
           setError(t("Couldn't download your data. Try again later."));
         }
@@ -71,14 +92,21 @@ function DataSection() {
       <div className="ob-setting">
         <span className="grow">
           <b>{t("Download my data")}</b>
-          <span className="small muted">
-            {tooSoon && !error
+          <span className="small muted" id="ob-export-when">
+            {tooSoon
               ? waitText(nextAt)
               : t("One JSON file with everything OpenBanners stores for your account. Once an hour.")}
           </span>
-          {message ? <span className="small" role="status">{message}</span> : null}
+          {message && tooSoon ? <span className="small" role="status">{message}</span> : null}
         </span>
-        <button type="button" className="btn tonal sl" disabled={busy} onClick={download}>
+        <button
+          type="button"
+          className="btn tonal sl"
+          disabled={busy || tooSoon}
+          aria-describedby="ob-export-when"
+          title={tooSoon ? waitText(nextAt) : undefined}
+          onClick={download}
+        >
           {t("Download my data")}
         </button>
       </div>

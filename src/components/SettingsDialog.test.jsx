@@ -1,5 +1,5 @@
 import React from "react";
-import { render, screen, within } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
@@ -17,7 +17,7 @@ vi.mock("../settingsSync", () => ({
 
 const accountData = {
   getExportStatus: vi.fn(async () => ({ lastExportAt: null, nextExportAt: null })),
-  downloadMyData: vi.fn(async () => ({ nextExportAt: "2026-10-31T13:00:00.000Z" })),
+  downloadMyData: vi.fn(async () => ({ nextExportAt: new Date(Date.now() + 60 * 60 * 1000).toISOString() })),
   getOverlayBackup: vi.fn(async () => ({ backup: { createdAt: "2026-10-30T09:15:00.000Z", appVersion: 51, settings: {} } })),
   deleteOverlayBackup: vi.fn(async () => ({ backup: null })),
 };
@@ -86,20 +86,50 @@ describe("settings", () => {
     expect(turnOnSettingsSync).toHaveBeenCalledTimes(1);
   });
 
-  it("downloads my data, and says when the next one is possible after a refusal", async () => {
+  it("downloads my data, then greys the button out until the next possible time", async () => {
     const user = userEvent.setup();
     state = { status: "ready", loggedIn: true, save, settings: { agent: null, askAfterDone: true, blockMyBanners: false, canBlockMyBanners: false } };
     syncState = { status: "ready", error: "" };
     render(<SettingsDialog onClose={() => {}} />);
-    await user.click(screen.getByRole("button", { name: "Download my data" }));
+    const button = screen.getByRole("button", { name: "Download my data" });
+    await waitFor(() => expect(accountData.getExportStatus).toHaveBeenCalled());
+    expect(button).toBeEnabled();
+    await user.click(button);
     expect(accountData.downloadMyData).toHaveBeenCalledTimes(1);
     expect(await screen.findByText("Your data was downloaded.")).toBeInTheDocument();
     expect(screen.getByText(/You can download your data once an hour\. Next possible at/)).toBeInTheDocument();
+    expect(button).toBeDisabled();
+    expect(button).toHaveAccessibleDescription(/Next possible at/);
+  });
+
+  it("learns the next time from the status call and enables the button again when it passes", async () => {
+    state = { status: "ready", loggedIn: true, save, settings: { agent: null, askAfterDone: true, blockMyBanners: false, canBlockMyBanners: false } };
+    accountData.getExportStatus.mockResolvedValueOnce({ lastExportAt: null, nextExportAt: new Date(Date.now() + 1500).toISOString() });
+    render(<SettingsDialog onClose={() => {}} />);
+    const button = screen.getByRole("button", { name: "Download my data" });
+    await waitFor(() => expect(button).toBeDisabled());
+    expect(screen.getByText(/Next possible at/)).toBeInTheDocument();
+    await waitFor(() => expect(button).toBeEnabled(), { timeout: 4000 });
+    expect(screen.queryByText(/Next possible at/)).toBeNull();
+    expect(screen.getByText(/One JSON file with everything/)).toBeInTheDocument();
+  });
+
+  it("a refusal by the server (another device) greys the button out too", async () => {
+    const user = userEvent.setup();
+    state = { status: "ready", loggedIn: true, save, settings: { agent: null, askAfterDone: true, blockMyBanners: false, canBlockMyBanners: false } };
     accountData.downloadMyData.mockRejectedValueOnce(
-      Object.assign(new Error("You can download your data once an hour."), { code: "export_limit", status: 429, data: { nextExportAt: "2026-10-31T13:00:00.000Z" } })
+      Object.assign(new Error("You can download your data once an hour."), {
+        code: "export_limit",
+        status: 429,
+        data: { nextExportAt: new Date(Date.now() + 30 * 60 * 1000).toISOString() },
+      })
     );
-    await user.click(screen.getByRole("button", { name: "Download my data" }));
-    expect(await screen.findByRole("alert")).toHaveTextContent(/once an hour\. Next possible at/);
+    render(<SettingsDialog onClose={() => {}} />);
+    const button = screen.getByRole("button", { name: "Download my data" });
+    await waitFor(() => expect(accountData.getExportStatus).toHaveBeenCalled());
+    await user.click(button);
+    await waitFor(() => expect(button).toBeDisabled());
+    expect(screen.getByText(/once an hour\. Next possible at/)).toBeInTheDocument();
   });
 
   it("shows the Overlay backup's date and deletes it after confirming", async () => {

@@ -1,8 +1,9 @@
 import { requestBannergressAccessToken } from "./bannergressSync";
 
 // Client for server/telegram-join.mjs ("Join on Telegram"). The Bannergress
-// token goes along only so the server can check you're a verified agent; it
-// never stores it, and nothing links the code to your account.
+// token goes along only so the server can check you're signed in with
+// Bannergress (any account; no verified agent name needed); it never stores
+// it, and nothing links the code to your account.
 export const TELEGRAM_JOIN_BASE = "/_openbanners/telegram/v1";
 
 async function call(path, { method = "GET", token = null } = {}) {

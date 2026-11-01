@@ -1,11 +1,14 @@
 // "Join on Telegram": invite links for the OpenBanners Telegram channel and
-// group, only for people signed in with Bannergress (a verified agent).
+// group, for anyone signed in with Bannergress. A verified agent name isn't
+// needed (Michael's decision, 2026-11-01): any Bannergress account will do.
 //
 // Privacy rules (keep them):
 // - The site asks POST /_openbanners/telegram/v1/code with the Bannergress
 //   access token. The token is checked once with Bannergress `GET /user`
-//   (verified agent required) and is never stored or logged; neither is the
-//   agent name.
+//   (it must accept the token; nothing else is checked) and is never stored or
+//   logged. Nothing about the account (id, agent name) is kept either; there
+//   is no per-account counter. Abuse limits are the nginx per-IP request limit
+//   and the cap on open codes (MAX_CODES).
 // - The answer is a random one-time code (192 bits, base64url). Only
 //   sha256(code), its expiry (10 minutes) and a used flag are kept, in memory.
 //   Nothing links a code to the account that asked for it.
@@ -126,9 +129,10 @@ export function createJoinService({
 } = {}) {
   const enabled = () => chats.length > 0;
 
-  // Same check as server/passphrases.mjs, without any cache: Bannergress says
-  // whose token it is; a verified agent is required. Nothing is kept.
-  async function requireVerifiedAgent(authorization) {
+  // Same check as server/passphrases.mjs, without any cache: Bannergress must
+  // accept the token. Any account will do; a verified agent name isn't needed.
+  // Nothing from the answer is read or kept.
+  async function requireBannergressLogin(authorization) {
     const match = /^Bearer ([A-Za-z0-9._~+/-]+=*)$/.exec(authorization ?? "");
     if (!match) {
       throw new ApiError(401, "login_required", "Log in with Bannergress first.");
@@ -144,10 +148,6 @@ export function createJoinService({
     }
     if (!response.ok) {
       throw new ApiError(502, "bannergress_unavailable", "Bannergress didn't answer. Try again later.");
-    }
-    const user = await response.json().catch(() => null);
-    if (typeof user?.agent?.name !== "string" || !user.agent.name) {
-      throw new ApiError(403, "not_verified", "Verify your agent name on Bannergress first.");
     }
   }
 
@@ -165,7 +165,7 @@ export function createJoinService({
       if (!enabled()) {
         throw new ApiError(503, "not_configured", "Joining on Telegram isn't available yet.");
       }
-      await requireVerifiedAgent(headers.authorization);
+      await requireBannergressLogin(headers.authorization);
       const { code, expires } = store.issue();
       const bot = botUsername();
       return { code, bot, url: `https://t.me/${bot}?start=${code}`, expiresAt: expires };

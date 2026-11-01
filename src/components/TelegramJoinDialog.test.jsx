@@ -70,15 +70,12 @@ describe("Join on Telegram dialog", () => {
     expect(getCode).toHaveBeenCalledTimes(2);
   });
 
-  it("tells unverified agents to verify, and offers a retry on errors", async () => {
+  it("offers a retry on errors and never asks to verify an agent name", async () => {
     auth = { accessToken: "t" };
     getStatus.mockResolvedValue({ enabled: true, bot: "OpenBannersBot" });
-    getCode.mockRejectedValueOnce(Object.assign(new Error("x"), { code: "not_verified" }));
-    const { unmount } = render(<TelegramJoinDialog onClose={() => {}} />);
-    expect(await screen.findByText(/Verify your agent name/)).toBeInTheDocument();
-    unmount();
     getCode.mockRejectedValueOnce(Object.assign(new Error("x"), { code: "bannergress_unavailable" }));
     render(<TelegramJoinDialog onClose={() => {}} />);
     expect(await screen.findByRole("button", { name: "Retry" })).toBeInTheDocument();
+    expect(screen.queryByText(/Verify your agent name/)).not.toBeInTheDocument();
   });
 });

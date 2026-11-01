@@ -37,7 +37,7 @@ export default function TelegramJoinDialog({ onClose }) {
       } catch (error) {
         const code = error?.code;
         set({
-          status: code === "login_required" ? "signin" : code === "not_configured" ? "off" : code === "not_verified" ? "unverified" : "error",
+          status: code === "login_required" ? "signin" : code === "not_configured" ? "off" : "error",
         });
       }
     })();
@@ -63,7 +63,6 @@ export default function TelegramJoinDialog({ onClose }) {
       </p>
       {state.status === "loading" ? <p className="small muted">{t("Loading…")}</p> : null}
       {state.status === "off" ? <p className="small muted">{t("Joining on Telegram isn’t available yet.")}</p> : null}
-      {state.status === "unverified" ? <p className="small muted">{t("Verify your agent name on Bannergress to use this.")}</p> : null}
       {state.status === "signin" ? (
         <>
           <p className="small">{t("Sign in with Bannergress to join.")}</p>

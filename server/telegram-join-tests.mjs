@@ -14,7 +14,8 @@ import {
 const CHATS = parseChats("-1001,-1002", "News");
 const TOKEN = "eyJ.verified.sig";
 
-// Bannergress stand-in: "verified" has an agent name, "plain" doesn't.
+// Bannergress stand-in: TOKEN has a verified agent name, "plain" is a signed-in
+// account without one (Bannergress answers /user without `agent`).
 function bannergress(calls = []) {
   return async (url, { headers = {} } = {}) => {
     calls.push({ url, authorization: headers.Authorization });
@@ -63,15 +64,56 @@ test("status is public and says whether joining is configured", async () => {
   assert.equal((await setup({ chats: [] }).service.handle("GET", "/status", {})).enabled, false);
 });
 
-test("a code needs a Bannergress login of a verified agent", async () => {
+test("a code needs a Bannergress login; no login or a refused token gets nothing", async () => {
   const { service, calls } = setup();
   await assert.rejects(service.handle("POST", "/code", {}), { status: 401, code: "login_required" });
-  await assert.rejects(service.handle("POST", "/code", { authorization: "Basic x" }), { status: 401 });
-  await assert.rejects(service.handle("POST", "/code", auth("expired")), { status: 401 });
-  await assert.rejects(service.handle("POST", "/code", auth("plain")), { status: 403, code: "not_verified" });
+  await assert.rejects(service.handle("POST", "/code", { authorization: "Basic abc" }), { status: 401, code: "login_required" });
+  await assert.rejects(service.handle("POST", "/code", { authorization: "Bearer " }), { status: 401, code: "login_required" });
+  await assert.rejects(service.handle("POST", "/code", auth("expired")), { status: 401, code: "login_required" });
   await assert.rejects(service.handle("GET", "/code", auth()), { status: 405 });
   assert.ok(calls.every((call) => call.url === "https://api.bannergress.com/user"));
   assert.equal(service.store.size(), 0);
+});
+
+test("a signed-in account without a verified agent name gets a code too", async () => {
+  const { service, calls, now } = setup();
+  const invite = await service.handle("POST", "/code", auth("plain"));
+  assert.match(invite.code, /^[A-Za-z0-9_-]{32,64}$/);
+  assert.equal(invite.url, `https://t.me/OpenBannersBot?start=${invite.code}`);
+  assert.equal(calls.at(-1).url, "https://api.bannergress.com/user");
+  assert.equal(calls.at(-1).authorization, auth("plain").authorization);
+  // ...and the bot turns it into invite links like any other code.
+  const tg = telegram();
+  const bot = createJoinBot({ token: "T", chats: CHATS, store: service.store, fetchImpl: tg.fetchImpl, now });
+  await bot.handleUpdate(dm(`/start ${invite.code}`));
+  assert.equal(tg.calls.filter((call) => call.method === "createChatInviteLink").length, 2);
+  assert.match(tg.calls.at(-1).payload.text, /personal invite links/);
+});
+
+test("Bannergress errors aren't treated as a login", async () => {
+  const down = createJoinService({ chats: CHATS, fetchImpl: async () => ({ ok: false, status: 500, json: async () => ({}) }) });
+  await assert.rejects(down.handle("POST", "/code", auth()), { status: 502, code: "bannergress_unavailable" });
+  const offline = createJoinService({
+    chats: CHATS,
+    fetchImpl: async () => {
+      throw new Error("offline");
+    },
+  });
+  await assert.rejects(offline.handle("POST", "/code", auth()), { status: 502, code: "bannergress_unavailable" });
+  assert.equal(down.store.size() + offline.store.size(), 0);
+});
+
+test("nothing about the account is kept, verified or not", async () => {
+  const { service } = setup();
+  await service.handle("POST", "/code", auth());
+  await service.handle("POST", "/code", auth("plain"));
+  const stored = JSON.stringify(service.store.dump());
+  for (const secret of [TOKEN, "plain", "Agent"]) {
+    assert.ok(!stored.includes(secret), `store must not contain ${secret}`);
+  }
+  for (const row of service.store.dump()) {
+    assert.deepEqual(Object.keys(row).sort(), ["expires", "hash", "used"]);
+  }
 });
 
 test("unconfigured: 401 without a token, not_configured with one, and Bannergress isn't asked", async () => {

@@ -70,6 +70,32 @@ describe("settings", () => {
     expect(screen.queryByRole("button", { name: "Remove my synced settings" })).toBeNull();
   });
 
+  it("links unverified agents to their Bannergress account page", () => {
+    state = { status: "ready", loggedIn: true, save, settings: { agent: null, askAfterDone: true, blockMyBanners: false, canBlockMyBanners: false } };
+    render(<SettingsDialog onClose={() => {}} />);
+    const link = screen.getByRole("link", { name: "Verify your agent name on Bannergress to use this." });
+    expect(link).toHaveAttribute("href", "https://bannergress.com/account");
+    expect(link).toHaveAttribute("target", "_blank");
+    expect(link).toHaveAttribute("rel", "noopener noreferrer");
+  });
+
+  it("shows its own verify link, not the server's text, for a not_verified error", async () => {
+    const user = userEvent.setup();
+    const refuse = vi.fn(async () => {
+      throw Object.assign(new Error("Server English text"), { code: "not_verified", status: 403 });
+    });
+    state = { status: "ready", loggedIn: true, save: refuse, settings: { agent: "Maker", askAfterDone: true, blockMyBanners: false, canBlockMyBanners: true } };
+    render(<SettingsDialog onClose={() => {}} />);
+    await user.click(screen.getByRole("switch", { name: /Never allow passphrases for my banners/ }));
+    await user.click(screen.getByRole("button", { name: "Delete and block" }));
+    const alert = await screen.findByRole("alert");
+    expect(within(alert).getByRole("link", { name: "Verify your agent name on Bannergress to use this." })).toHaveAttribute(
+      "href",
+      "https://bannergress.com/account"
+    );
+    expect(screen.queryByText("Server English text")).toBeNull();
+  });
+
   it("removes the synced settings, and turns syncing back on", async () => {
     const user = userEvent.setup();
     state = { status: "ready", loggedIn: true, save, settings: { agent: null, askAfterDone: true, blockMyBanners: false, canBlockMyBanners: false } };

@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import ObModal from "./ObModal";
+import VerifyAgentLink from "./VerifyAgentLink";
 import { BANNERGRESS_AUTH_REQUEST_EVENT } from "../bannergressSync";
 import { useUserSettings } from "../passphraseApi";
 import { LANGUAGES, getLanguageChoice, setLanguageChoice, t } from "../i18n";
@@ -205,7 +206,8 @@ export default function SettingsDialog({ onClose }) {
   const [error, setError] = useState("");
   const change = (changes) => {
     setError("");
-    return save(changes).catch((e) => setError(e.message));
+    // not_verified: our own translated text with the verify link, not the server's English.
+    return save(changes).catch((e) => setError(e?.code === "not_verified" ? <VerifyAgentLink /> : e.message));
   };
 
   return (
@@ -280,7 +282,7 @@ export default function SettingsDialog({ onClose }) {
               <span className="small muted">
                 {settings.canBlockMyBanners
                   ? t("For every banner by {agent}. Turning this on deletes their answers for good.", { agent: settings.agent })
-                  : t("Verify your agent name on Bannergress to use this.")}
+                  : <VerifyAgentLink />}
               </span>
             </span>
             <input

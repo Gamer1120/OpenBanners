@@ -2231,6 +2231,12 @@ body {
   color: var(--primary);
 }
 
+/* "Verify your agent name on Bannergress" (VerifyAgentLink): a link even in muted text. */
+.ob-verify-agent-link {
+  color: var(--primary);
+  text-decoration: underline;
+}
+
 /* Scope path on the Banners page: Near you · All countries › … */
 .crumbs.scope {
   align-items: center;

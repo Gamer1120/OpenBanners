@@ -372,7 +372,7 @@ export default function ListsPage() {
                 <b>{t("Link your Ingress agent first")}</b>
                 <span className="small">
                   {accountBeforeLink}
-                  <a href={BANNERGRESS_ACCOUNT_URL} target="_blank" rel="noreferrer">
+                  <a href={BANNERGRESS_ACCOUNT_URL} target="_blank" rel="noopener noreferrer">
                     {t("Bannergress account page")}
                   </a>
                   {accountAfterLink}

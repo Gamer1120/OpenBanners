@@ -413,8 +413,12 @@ export function createModerationBot({
       const banners = moderation.bannersToReview();
       const languages = translationReviews?.openLanguages() ?? [];
       if (!banners.length && !languages.length) {
-        const approved = moderation.approvedBanners().reduce((sum, row) => sum + row.count, 0);
-        return send(chatId, `Nothing to review.${approved ? ` ${plural(approved, "approved answer")} waiting out the 30 days: /approved` : ""}`);
+        const approvedBanners = moderation.approvedBanners();
+        const approved = approvedBanners.reduce((sum, row) => sum + row.count, 0);
+        return send(
+          chatId,
+          `Nothing to review.${approved ? ` ${plural(approved, "approved answer")} on ${plural(approvedBanners.length, "banner")} waiting out the 30 days: /approved` : ""}`,
+        );
       }
       for (const bannerId of banners.slice(0, 20)) {
         await postBanner(bannerId);

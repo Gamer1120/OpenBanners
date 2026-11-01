@@ -187,7 +187,12 @@ test("/pending shows only answers still to decide on", async () => {
 
   service.moderation.decide(byAnswer("Green").id, "reject");
   await command(bot, "/pending");
-  assert.equal(sent().at(-1).body.text, "Nothing to review. 1 approved answer waiting out the 30 days: /approved");
+  assert.equal(sent().at(-1).body.text, "Nothing to review. 1 approved answer on 1 banner waiting out the 30 days: /approved");
+
+  await submit("m2", 1, "Yellow");
+  service.moderation.decide(byAnswer("Yellow").id, "approve");
+  await command(bot, "/pending");
+  assert.equal(sent().at(-1).body.text, "Nothing to review. 2 approved answers on 1 banner waiting out the 30 days: /approved");
 });
 
 test("/approved lists banners with their date; a banner button posts its answers with Publish now", async () => {

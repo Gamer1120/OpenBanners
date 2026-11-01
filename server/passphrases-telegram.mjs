@@ -5,7 +5,9 @@
 //   banner (Approve all = visible after the 30 days, Publish all now, Reject
 //   all) and "Per answer" for single decisions. New answers for the same banner
 //   replace the old message with a fresh one, so there is one per banner.
-// - Commands: /pending, /blocks, /block, /unblock, /contact.
+// - Commands: /pending (only answers awaiting a decision), /approved (approved,
+//   waiting out their 30 days; a banner button opens its answers with Publish
+//   now), /live (recently published), /blocks, /block, /unblock, /contact.
 // - Anyone else who writes to the bot (an author objecting via Telegram) gets
 //   told how to object, and the message is forwarded to the moderators.
 // Only Telegram user ids in OPENBANNERS_TELEGRAM_MODERATORS can moderate.
@@ -17,6 +19,9 @@ import { createTranslationReviewer } from "./translations-telegram.mjs";
 const API = "https://api.telegram.org";
 const MAX_TEXT = 3800;
 const MAX_ITEM_ROWS = 30;
+const MAX_BANNER_BUTTONS = 30;
+const DAY = 24 * 60 * 60 * 1000;
+const LIVE_DAYS = 7;
 
 const escapeHtml = (value) =>
   String(value ?? "").replace(/[&<>"]/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[char]);
@@ -36,6 +41,82 @@ function stateOf(row) {
 }
 
 const ICON = { review: "⏳", approved: "✅", live: "🚀", rejected: "🗑" };
+const plural = (count, word) => `${count} ${word}${count === 1 ? "" : "s"}`;
+const clip = (value, length) => (value.length > length ? `${value.slice(0, length - 1)}…` : value);
+const bannerLink = (siteUrl, bannerId, title) =>
+  `<a href="${escapeHtml(`${siteUrl}/banner/${encodeURIComponent(bannerId)}`)}">${escapeHtml(title || bannerId)}</a>`;
+
+// /approved: one line per banner, soonest visible first, with a button that
+// opens the banner's approved answers (Publish all now / Reject / Per answer).
+export function renderApproved(banners, siteUrl) {
+  if (!banners.length) {
+    return { text: "Nothing approved that's still waiting out its 30 days." };
+  }
+  const total = banners.reduce((sum, row) => sum + row.count, 0);
+  let text = [
+    `✅ <b>Approved, waiting out their 30 days</b> · ${plural(total, "answer")} on ${plural(banners.length, "banner")}`,
+    "<i>Tap a banner for its answers, with Publish now and Reject.</i>",
+    "",
+  ].join("\n");
+  const keyboard = [];
+  for (const row of banners) {
+    const from = shortDate(row.firstAt);
+    const to = shortDate(row.lastAt);
+    const line = `• ${bannerLink(siteUrl, row.bannerId, row.title)} · ${plural(row.count, "answer")} · visible ${from === to ? from : `${from} to ${to}`}\n`;
+    if (keyboard.length >= MAX_BANNER_BUTTONS || text.length + line.length + 80 > MAX_TEXT) {
+      break;
+    }
+    text += line;
+    keyboard.push([{ text: `📋 ${clip(row.title || row.bannerId, 40)} · ${from.slice(5)}`, callback_data: `pp:ab:${row.anyId}` }]);
+  }
+  if (keyboard.length < banners.length) {
+    text += `…and ${plural(banners.length - keyboard.length, "more banner")} (visible later)\n`;
+  }
+  return { text: text.trimEnd(), reply_markup: { inline_keyboard: keyboard } };
+}
+
+// /live: answers published in the last few days, grouped per banner, newest first.
+export function renderLive(rows, siteUrl, days) {
+  const period = days === 1 ? "the last day" : `the last ${days} days`;
+  if (!rows.length) {
+    return `Nothing went live in ${period}.`;
+  }
+  const banners = new Map();
+  for (const row of rows) {
+    if (!banners.has(row.banner_id)) {
+      banners.set(row.banner_id, { first: row, rows: [] });
+    }
+    banners.get(row.banner_id).rows.push(row);
+  }
+  let text = `🚀 <b>Live in ${period}</b> · ${plural(rows.length, "answer")} on ${plural(banners.size, "banner")}\n\n`;
+  let shown = 0;
+  for (const [bannerId, { first, rows: answers }] of banners) {
+    const sorted = [...answers].sort((a, b) => a.mission_index - b.mission_index || a.step_index - b.step_index);
+    let list = "";
+    let listed = 0;
+    for (const row of sorted) {
+      const entry = `${row.mission_index + 1}.${row.step_index + 1} <code>${escapeHtml(row.answer)}</code>`;
+      if (list.length + entry.length > 300) {
+        break;
+      }
+      list += `${listed ? " · " : ""}${entry}`;
+      listed += 1;
+    }
+    if (listed < sorted.length) {
+      list += ` · +${sorted.length - listed} more`;
+    }
+    const block = `${bannerLink(siteUrl, bannerId, first.title)} · ${plural(answers.length, "answer")} · ${shortDate(first.visible_at)}\n${list}\n\n`;
+    if (text.length + block.length + 80 > MAX_TEXT) {
+      break;
+    }
+    text += block;
+    shown += 1;
+  }
+  if (shown < banners.size) {
+    text += `…and ${plural(banners.size - shown, "more banner")} (older)\n`;
+  }
+  return text.trimEnd();
+}
 const DONE = { a: "Approved", p: "Published", r: "Rejected" };
 const ACTIONS = { a: "approve", p: "publish", r: "reject" };
 
@@ -127,7 +208,9 @@ export function keyboardFor(review, rows) {
 const HELP = [
   "<b>OpenBanners passphrase moderation</b>",
   "Answers come in as one message per banner, once nobody has added any for a while.",
-  "/pending: a fresh message for every banner with answers to review, or approved ones still in their 30 days, and for every language with translation suggestions",
+  "/pending: a fresh message for every banner with answers still to decide on, and for every language with translation suggestions",
+  "/approved: approved answers still waiting out their 30 days, per banner with the date they become visible; tap a banner to publish now",
+  `/live [days]: answers that went live in the last ${LIVE_DAYS} days (or the number of days you give)`,
   "/blocks: banners and authors that objected",
   "/block banner &lt;banner-id&gt; or /block author &lt;agent&gt;: delete their answers and block new ones",
   "/unblock banner|author &lt;key&gt;",
@@ -197,9 +280,11 @@ export function createModerationBot({
     });
   }
 
-  // One fresh message for this banner per moderator; older open ones go away.
-  async function postBanner(bannerId) {
-    const rows = moderation.openForBanner(bannerId);
+  // One fresh message for this banner per moderator; older open ones of the same
+  // kind go away. kind 'review': answers awaiting a decision; 'approved': approved
+  // ones in their 30 days (only to the moderator who asked).
+  async function postBanner(bannerId, { kind = "review", chats = moderators } = {}) {
+    const rows = moderation.openForBanner(bannerId, kind);
     if (!rows.length) {
       return false;
     }
@@ -212,8 +297,8 @@ export function createModerationBot({
       by: row.submitter_agent,
       ...(row.others ? { alt: row.others } : {}),
     }));
-    for (const chatId of moderators) {
-      for (const old of moderation.reviews.openFor(bannerId, chatId)) {
+    for (const chatId of chats) {
+      for (const old of moderation.reviews.openFor(bannerId, chatId, kind)) {
         moderation.reviews.close(old.id);
         if (old.message_id) {
           await api("deleteMessage", { chat_id: chatId, message_id: old.message_id }).catch(() =>
@@ -221,7 +306,7 @@ export function createModerationBot({
           );
         }
       }
-      const id = moderation.reviews.create(bannerId, chatId, items);
+      const id = moderation.reviews.create(bannerId, chatId, items, kind);
       const review = moderation.reviews.get(id);
       const { text } = renderReview(review, rows, siteUrl);
       const message = await send(chatId, text, { reply_markup: keyboardFor(review, rows) });
@@ -269,11 +354,20 @@ export function createModerationBot({
     }
     const chatId = String(query.message?.chat?.id ?? query.from.id);
     const messageId = query.message?.message_id;
+    // A banner button under /approved: post that banner's approved answers.
+    const approvedBanner = /^pp:ab:(\d+)$/.exec(query.data ?? "");
+    if (approvedBanner) {
+      const row = moderation.get(Number(approvedBanner[1]));
+      if (!row || !(await postBanner(row.banner_id, { kind: "approved", chats: [chatId] }))) {
+        return reply("Nothing approved is waiting on this banner any more. Send /approved for a fresh list.");
+      }
+      return reply("Sent.");
+    }
     const bulk = /^pp:r:(\d+):(a|p|r|items|back)$/.exec(query.data ?? "");
     const single = /^pp:i:(\d+):(\d+):(a|p|r|o)$/.exec(query.data ?? "");
     const review = moderation.reviews.get(Number((bulk ?? single)?.[1]));
     if (!review || review.closed) {
-      return reply("This message is outdated. Send /pending for a fresh one.");
+      return reply(`This message is outdated. Send ${review?.kind === "approved" ? "/approved" : "/pending"} for a fresh one.`);
     }
     if (bulk) {
       const action = bulk[2];
@@ -316,10 +410,11 @@ export function createModerationBot({
     const [command, ...args] = text.trim().split(/\s+/);
     const name = command.replace(/@.*$/, "").toLowerCase();
     if (name === "/pending") {
-      const banners = moderation.bannersWithOpenAnswers();
+      const banners = moderation.bannersToReview();
       const languages = translationReviews?.openLanguages() ?? [];
       if (!banners.length && !languages.length) {
-        return send(chatId, "Nothing to review, and nothing approved that's still waiting.");
+        const approved = moderation.approvedBanners().reduce((sum, row) => sum + row.count, 0);
+        return send(chatId, `Nothing to review.${approved ? ` ${plural(approved, "approved answer")} waiting out the 30 days: /approved` : ""}`);
       }
       for (const bannerId of banners.slice(0, 20)) {
         await postBanner(bannerId);
@@ -328,6 +423,15 @@ export function createModerationBot({
         await translationReviews.postLanguage(language);
       }
       return banners.length > 20 ? send(chatId, `…and ${banners.length - 20} more banners. Handle these first, then /pending again.`) : null;
+    }
+    if (name === "/approved") {
+      const { text: body, reply_markup } = renderApproved(moderation.approvedBanners(), siteUrl);
+      return send(chatId, body, reply_markup ? { reply_markup } : {});
+    }
+    if (name === "/live") {
+      const asked = Number.parseInt(args[0], 10);
+      const days = Number.isInteger(asked) && asked > 0 ? Math.min(asked, 365) : LIVE_DAYS;
+      return send(chatId, renderLive(moderation.liveSince(now() - days * DAY), siteUrl, days));
     }
     if (name === "/blocks") {
       const rows = moderation.blocks();

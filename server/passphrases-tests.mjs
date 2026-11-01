@@ -1,5 +1,9 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
+import { mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { DatabaseSync } from "node:sqlite";
 import { createPassphraseService, openDatabase, PENDING_DAYS } from "./passphrases.mjs";
 
 const DAY = 24 * 60 * 60 * 1000;
@@ -296,4 +300,23 @@ test("plans: the read-only link shows the plan but can't change it or reveal the
   assert.ok(!JSON.stringify(viewed).includes(plan.id));
   assert.deepEqual(viewed.items.map((item) => item.missionId), ["m1"]);
   await assert.rejects(service.handle("POST", `/plans/${plan.viewId}`, {}, { ops: [{ op: "remove", missionId: "m1" }] }), { status: 403, code: "read_only" });
+});
+
+test("review messages from before /approved get kind 'review'", () => {
+  const dir = mkdtempSync(join(tmpdir(), "ob-pp-"));
+  try {
+    const file = join(dir, "old.sqlite");
+    const old = new DatabaseSync(file);
+    old.exec(`CREATE TABLE reviews (id INTEGER PRIMARY KEY, banner_id TEXT NOT NULL, chat_id TEXT NOT NULL, message_id INTEGER,
+      items TEXT NOT NULL, mode TEXT NOT NULL DEFAULT 'banner', closed INTEGER NOT NULL DEFAULT 0, created_at INTEGER NOT NULL)`);
+    old.prepare("INSERT INTO reviews (banner_id, chat_id, items, created_at) VALUES ('b1', '42', '[]', 1)").run();
+    old.close();
+    const service = createPassphraseService({ db: openDatabase(file), fetchImpl: async () => ({ ok: false, status: 500 }), now: () => 1 });
+    assert.equal(service.moderation.reviews.openFor("b1", "42").length, 1);
+    assert.equal(service.moderation.reviews.openFor("b1", "42", "approved").length, 0);
+    const id = service.moderation.reviews.create("b1", "42", [], "approved");
+    assert.equal(service.moderation.reviews.get(id).kind, "approved");
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
 });

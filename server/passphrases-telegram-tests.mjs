@@ -167,3 +167,94 @@ test("a correction shows the answer it replaces, and the old one can be removed"
   const banner = await service.handle("GET", "/banners/b1", {}, null);
   assert.deepEqual(banner.answers.map((a) => a.answer), ["Red"]);
 });
+
+const command = (bot, text, from = 42) => bot.handleUpdate({ message: { chat: { id: from, type: "private" }, from: { id: from }, text } });
+
+test("/pending shows only answers still to decide on", async () => {
+  const { service, bot, submit, sent } = setup();
+  await submit("m1", 0, "Blue");
+  await submit("m1", 1, "Red");
+  await submit("m2", 0, "Green");
+  const byAnswer = (answer) => service.moderation.openForBanner("b1").find((row) => row.answer === answer);
+  service.moderation.decide(byAnswer("Blue").id, "approve");
+  service.moderation.decide(byAnswer("Red").id, "publish");
+  await command(bot, "/pending");
+  const { text, reply_markup } = sent().at(-1).body;
+  assert.match(text, /Green/);
+  assert.doesNotMatch(text, /Blue|Red/);
+  assert.match(text, /1 answer \(mission\.waypoint\) · 1 to review/);
+  assert.ok(reply_markup.inline_keyboard.flat().some((b) => b.text === "✅ Approve all"));
+
+  service.moderation.decide(byAnswer("Green").id, "reject");
+  await command(bot, "/pending");
+  assert.equal(sent().at(-1).body.text, "Nothing to review. 1 approved answer waiting out the 30 days: /approved");
+});
+
+test("/approved lists banners with their date; a banner button posts its answers with Publish now", async () => {
+  const { service, bot, submit, sent, press, buttons, calls } = setup();
+  await command(bot, "/approved");
+  assert.match(sent().at(-1).body.text, /Nothing approved/);
+  await submit("m1", 0, "Blue");
+  await submit("m2", 1, "Pink");
+  await command(bot, "/pending");
+  const pendingMessage = sent().at(-1).body;
+  const reviewId = buttons(pendingMessage.reply_markup)[0].split(":")[2];
+  await press(`pp:r:${reviewId}:a`, 102);
+  await submit("m1", 1, "Late");
+
+  await command(bot, "/approved");
+  const list = sent().at(-1).body;
+  assert.match(list.text, /2 answers on 1 banner/);
+  assert.match(list.text, /Banner One<\/a> · 2 answers · visible 2026-11-22/);
+  assert.doesNotMatch(list.text, /Late/);
+  const [open] = buttons(list.reply_markup);
+  assert.match(open, /^pp:ab:\d+$/);
+
+  await press(open, 103);
+  const detail = sent().at(-1).body;
+  assert.equal(detail.chat_id, "42");
+  assert.match(detail.text, /✅ 1\.1 {2}<code>Blue<\/code> · visible 2026-11-22/);
+  assert.match(detail.text, /✅ 2\.2 {2}<code>Pink<\/code>/);
+  assert.doesNotMatch(detail.text, /Late/);
+  assert.deepEqual(buttons(detail.reply_markup).map((b) => b.split(":").pop()), ["p", "r", "items"]);
+  // The /pending message for the same banner stays; the two kinds don't replace each other.
+  assert.equal(calls.filter((c) => c.method === "deleteMessage").length, 0);
+
+  const detailReview = buttons(detail.reply_markup)[0].split(":")[2];
+  await press(`pp:r:${detailReview}:p`, Number(calls.filter((c) => c.method === "sendMessage").length + 100));
+  assert.deepEqual(service.moderation.approvedBanners(), []);
+  assert.deepEqual(service.moderation.openForBanner("b1", "review").map((row) => row.answer), ["Late"]);
+  await press(open, 103);
+  assert.match(calls.at(-1).body.text, /Nothing approved is waiting/);
+});
+
+test("/live lists recently published answers per banner", async () => {
+  const { service, bot, submit, sent, advance } = setup();
+  await submit("m1", 0, "Blue");
+  await submit("m2", 0, "Green");
+  await submit("m1", 1, "Waiting");
+  const byAnswer = (answer) => service.moderation.openForBanner("b1").find((row) => row.answer === answer);
+  service.moderation.decide(byAnswer("Green").id, "publish");
+  service.moderation.decide(byAnswer("Blue").id, "publish");
+  service.moderation.decide(byAnswer("Waiting").id, "approve");
+  await command(bot, "/live");
+  const { text } = sent().at(-1).body;
+  assert.match(text, /Live in the last 7 days<\/b> · 2 answers on 1 banner/);
+  assert.match(text, /Banner One<\/a> · 2 answers · 2026-10-23\n1\.1 <code>Blue<\/code> · 2\.1 <code>Green<\/code>/);
+  assert.doesNotMatch(text, /Waiting/);
+  advance(8 * 24 * 60 * MIN);
+  await command(bot, "/live");
+  assert.equal(sent().at(-1).body.text, "Nothing went live in the last 7 days.");
+  await command(bot, "/live 30");
+  assert.match(sent().at(-1).body.text, /Live in the last 30 days<\/b> · 2 answers/);
+});
+
+test("the new commands are for moderators only, and /help lists them", async () => {
+  const { bot, sent } = setup();
+  await command(bot, "/approved", 5);
+  assert.match(sent()[0].body.text, /This bot handles passphrase answers/);
+  await command(bot, "/live", 5);
+  assert.ok(sent().filter((call) => call.body.chat_id === "5").every((call) => !/Live in|Nothing went live/.test(call.body.text)));
+  await command(bot, "/help");
+  assert.match(sent().at(-1).body.text, /\/approved:[\s\S]*\/live \[days\]/);
+});

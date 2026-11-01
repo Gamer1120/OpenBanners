@@ -15,7 +15,7 @@ const day = 24 * 60 * 60 * 1000;
 const out = (line) => process.stdout.write(`${line}\n`);
 
 if (command === "pending") {
-  const rows = db.prepare(`SELECT a.banner_id, b.title, COUNT(*) AS n, MIN(a.visible_at) AS first
+  const rows = db.prepare(`SELECT a.banner_id, b.title, COUNT(*) AS n, SUM(a.approved_at IS NULL) AS undecided, MIN(a.visible_at) AS first
     FROM answers a LEFT JOIN banners b ON b.banner_id = a.banner_id
     WHERE a.status = 'pending' AND a.visible_at > ? GROUP BY a.banner_id ORDER BY first`).all(Date.now());
   if (!rows.length) {
@@ -25,7 +25,7 @@ if (command === "pending") {
     const authors = db.prepare("SELECT agent FROM banner_authors WHERE banner_id = ?").all(row.banner_id).map((r) => r.agent);
     const days = Math.ceil((row.first - Date.now()) / day);
     out(`${row.title ?? row.banner_id}  (${row.banner_id})`);
-    out(`  ${row.n} pending, first visible in ${days} days · https://openbanners.org/banner/${encodeURIComponent(row.banner_id)}`);
+    out(`  ${row.n} pending (${row.undecided} to review, ${row.n - row.undecided} approved), first visible in ${days} days · https://openbanners.org/banner/${encodeURIComponent(row.banner_id)}`);
     out(`  authors: ${authors.join(", ") || "unknown (no logged-in submitter saw them)"}`);
     for (const agent of authors) {
       for (const c of db.prepare("SELECT channel, note, at FROM contact_attempts WHERE agent = ? ORDER BY at").all(agent)) {

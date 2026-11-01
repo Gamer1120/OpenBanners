@@ -168,6 +168,10 @@ export function openDatabase(path) {
     closed INTEGER NOT NULL DEFAULT 0,
     created_at INTEGER NOT NULL
   )`);
+  // kind: 'review' (answers awaiting a decision, /pending) or 'approved' (approved, in their 30 days, /approved).
+  if (!new Set(db.prepare("PRAGMA table_info(reviews)").all().map((column) => column.name)).has("kind")) {
+    db.exec("ALTER TABLE reviews ADD COLUMN kind TEXT NOT NULL DEFAULT 'review'");
+  }
   return db;
 }
 
@@ -923,13 +927,16 @@ export function createPassphraseService({
     unnotified: () => db.prepare(`${REVIEW_SQL} WHERE a.approved_at IS NULL AND a.notified_at IS NULL ORDER BY a.submitted_at`).all(),
     markNotified: (id) => db.prepare("UPDATE answers SET notified_at = ? WHERE id = ?").run(now(), id),
     get: (id) => db.prepare(`${REVIEW_SQL} WHERE a.id = ?`).get(id) ?? null,
-    // Answers still open for moderation (to review, or approved and in their 30 days) on one banner.
+    // Answers still open for moderation on one banner: scope 'review' = awaiting a decision,
+    // 'approved' = approved and in their 30 days, anything else = both.
     // `others`: the live answers on the same waypoint, when this one is a correction.
-    openForBanner: (bannerId) =>
+    openForBanner: (bannerId, scope = "open") =>
       db.prepare(`SELECT x.*, (SELECT group_concat(o.answer, ' / ') FROM answers o
           WHERE o.banner_id = x.banner_id AND o.mission_id = x.mission_id AND o.step_index = x.step_index
             AND o.status = 'live' AND o.id != x.id) AS others
-        FROM (${REVIEW_SQL} WHERE a.banner_id = ? AND (a.approved_at IS NULL OR a.status = 'pending')) x
+        FROM (${REVIEW_SQL} WHERE a.banner_id = ? AND ${
+          scope === "review" ? "a.approved_at IS NULL" : scope === "approved" ? "a.approved_at IS NOT NULL AND a.status = 'pending'" : "(a.approved_at IS NULL OR a.status = 'pending')"
+        }) x
         ORDER BY x.mission_index, x.step_index, x.submitted_at`).all(bannerId),
     // Deletes the other live answers on this answer's waypoint (the ones it corrects).
     removeOthers(id) {
@@ -945,8 +952,25 @@ export function createPassphraseService({
     // Banners with answers nobody was told about yet, with when the last one came in.
     unnotifiedBanners: () =>
       db.prepare("SELECT banner_id AS bannerId, MAX(submitted_at) AS lastAt, COUNT(*) AS count FROM answers WHERE approved_at IS NULL AND notified_at IS NULL GROUP BY banner_id").all(),
-    bannersWithOpenAnswers: () =>
-      db.prepare("SELECT DISTINCT banner_id AS bannerId FROM answers WHERE approved_at IS NULL OR status = 'pending' ORDER BY banner_id").all().map((row) => row.bannerId),
+    // Banners with answers awaiting a moderator's decision (/pending).
+    bannersToReview: () =>
+      db.prepare("SELECT DISTINCT banner_id AS bannerId FROM answers WHERE approved_at IS NULL ORDER BY banner_id").all().map((row) => row.bannerId),
+    // Per banner: approved answers still in their 30 days, soonest visible first (/approved).
+    // anyId: one of its answers, to point at the banner from a button.
+    approvedBanners() {
+      promote();
+      return db.prepare(`SELECT a.banner_id AS bannerId, b.title, COUNT(*) AS count,
+          MIN(a.visible_at) AS firstAt, MAX(a.visible_at) AS lastAt, MIN(a.id) AS anyId
+        FROM answers a LEFT JOIN banners b ON b.banner_id = a.banner_id
+        WHERE a.approved_at IS NOT NULL AND a.status = 'pending'
+        GROUP BY a.banner_id ORDER BY firstAt, a.banner_id`).all();
+    },
+    // Answers that went live since `since` (ms), newest first (/live).
+    liveSince(since) {
+      promote();
+      return db.prepare(`${REVIEW_SQL} WHERE a.status = 'live' AND a.visible_at >= ? AND a.visible_at <= ?
+        ORDER BY a.visible_at DESC, a.mission_index, a.step_index`).all(since, now());
+    },
     // approve: visible once its 30 days are over; publish: visible now; reject: deleted.
     decide(id, action) {
       const row = moderation.get(id);
@@ -994,8 +1018,8 @@ export function createPassphraseService({
       db.prepare("INSERT INTO contact_attempts (agent, banner_id, channel, note, at) VALUES (?, ?, ?, ?, ?)").run(agentKey(agent), bannerId, channel, note, now());
     },
     reviews: {
-      create: (bannerId, chatId, items) =>
-        Number(db.prepare("INSERT INTO reviews (banner_id, chat_id, items, created_at) VALUES (?, ?, ?, ?)").run(bannerId, chatId, JSON.stringify(items), now()).lastInsertRowid),
+      create: (bannerId, chatId, items, kind = "review") =>
+        Number(db.prepare("INSERT INTO reviews (banner_id, chat_id, items, kind, created_at) VALUES (?, ?, ?, ?, ?)").run(bannerId, chatId, JSON.stringify(items), kind, now()).lastInsertRowid),
       setMessage: (id, messageId) => db.prepare("UPDATE reviews SET message_id = ? WHERE id = ?").run(messageId, id),
       setMode: (id, mode) => db.prepare("UPDATE reviews SET mode = ? WHERE id = ?").run(mode, id),
       markAltRemoved(id, answerId) {
@@ -1008,8 +1032,8 @@ export function createPassphraseService({
         const row = db.prepare("SELECT * FROM reviews WHERE id = ?").get(id);
         return row ? { ...row, items: JSON.parse(row.items) } : null;
       },
-      openFor: (bannerId, chatId) =>
-        db.prepare("SELECT * FROM reviews WHERE banner_id = ? AND chat_id = ? AND closed = 0").all(bannerId, chatId).map((row) => ({ ...row, items: JSON.parse(row.items) })),
+      openFor: (bannerId, chatId, kind = "review") =>
+        db.prepare("SELECT * FROM reviews WHERE banner_id = ? AND chat_id = ? AND kind = ? AND closed = 0").all(bannerId, chatId, kind).map((row) => ({ ...row, items: JSON.parse(row.items) })),
     },
     getValue: (key) => db.prepare("SELECT value FROM kv WHERE key = ?").get(key)?.value ?? null,
     setValue: (key, value) => db.prepare("INSERT INTO kv (key, value) VALUES (?, ?) ON CONFLICT (key) DO UPDATE SET value = excluded.value").run(key, String(value)),

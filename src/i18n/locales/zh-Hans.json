@@ -1,6 +1,5 @@
 {
   "#{number} of {banner}": "{banner} 第 {number} 个",
-  "&copy; {osm} contributors. This website is NOT affiliated with Bannergress in any way!": "&copy; {osm} 贡献者。本网站与 Bannergress 没有任何关联！",
   "(no longer in Ingress)": "（已不在 Ingress 中）",
   "? missions": "? 个任务",
   "A connected participant needs to enable list sharing before comparisons appear.": "需要有已连接的参与者开启列表共享后，才会显示对比结果。",
@@ -1100,13 +1099,11 @@
   "{minutes}m {seconds}s": "{minutes}分{seconds}秒",
   "{name} (you)": "{name}（你）",
   "{objective} at {title}, open in maps app": "在 {title} {objective}，在地图应用中打开",
-  "{osm} contributors. Not affiliated with Bannergress.": "{osm} 贡献者。与 Bannergress 无关。",
   "{seconds}s": "{seconds}秒",
   "{time} walk": "步行 {time}",
   "{title} – Mission Day plan": "{title} – 任务日计划",
   "{title} – Mission Day plan (view only)": "{title} – 任务日计划（仅查看）",
   "© {osm} contributors": "© {osm} 贡献者",
-  "© {osm} contributors. Not affiliated with Bannergress.": "© {osm} 贡献者。与 Bannergress 无关。",
   "“{title}” was deleted.": "“{title}”已删除。",
   "↓ {length} to the next start": "↓ 距下一个起点 {length}"
 }

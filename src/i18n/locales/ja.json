@@ -1,6 +1,5 @@
 {
   "#{number} of {banner}": "{banner} の #{number}",
-  "&copy; {osm} contributors. This website is NOT affiliated with Bannergress in any way!": "&copy; {osm} の貢献者。このウェブサイトは Bannergress とは一切関係ありません!",
   "(no longer in Ingress)": "(Ingress から削除済み)",
   "? missions": "? ミッション",
   "A connected participant needs to enable list sharing before comparisons appear.": "比較を表示するには、接続中の参加者がリスト共有を有効にする必要があります。",
@@ -1100,13 +1099,11 @@
   "{minutes}m {seconds}s": "{minutes}分{seconds}秒",
   "{name} (you)": "{name} (あなた)",
   "{objective} at {title}, open in maps app": "{title} で {objective}、地図アプリで開く",
-  "{osm} contributors. Not affiliated with Bannergress.": "{osm} の貢献者。Bannergress とは関係ありません。",
   "{seconds}s": "{seconds}秒",
   "{time} walk": "徒歩 {time}",
   "{title} – Mission Day plan": "{title} – ミッションデイ・プラン",
   "{title} – Mission Day plan (view only)": "{title} – ミッションデイ・プラン (閲覧のみ)",
   "© {osm} contributors": "© {osm} の貢献者",
-  "© {osm} contributors. Not affiliated with Bannergress.": "© {osm} の貢献者。Bannergress とは関係ありません。",
   "“{title}” was deleted.": "「{title}」を削除しました。",
   "↓ {length} to the next start": "↓ 次のスタートまで {length}"
 }

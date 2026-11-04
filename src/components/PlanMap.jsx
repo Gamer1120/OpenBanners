@@ -85,9 +85,9 @@ export default function PlanMap({ missions, items, here, flyRequest, onToggle })
   return (
     <MapContainer center={WORLD_PLACEHOLDER.center} zoom={WORLD_PLACEHOLDER.zoom} scrollWheelZoom style={{ height: "100%", width: "100%" }}>
       <TileLayer
-        attribution={`&copy; ${t("{osm} contributors. Not affiliated with Bannergress.", {
+        attribution={t("© {osm} contributors", {
           osm: '<a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
-        })}`}
+        })}
         url="https://tile.openstreetmap.org/{z}/{x}/{y}.png"
       />
       <FitOnce points={points} fitKey={fitKey} />

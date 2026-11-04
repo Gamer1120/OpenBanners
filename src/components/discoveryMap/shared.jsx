@@ -94,7 +94,7 @@ export function DiscoveryBaseMap({ vm, onMapClick, children }) {
       whenReady={(event) => vm.handleViewportChange(event.target)}
     >
       <TileLayer
-        attribution={t("© {osm} contributors. Not affiliated with Bannergress.", {
+        attribution={t("© {osm} contributors", {
           osm: '<a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
         })}
         url="https://tile.openstreetmap.org/{z}/{x}/{y}.png"

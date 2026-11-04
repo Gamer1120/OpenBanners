@@ -1,7 +1,6 @@
 {
  "singular": [
   "#{number} of {banner}",
-  "&copy; {osm} contributors. This website is NOT affiliated with Bannergress in any way!",
   "(no longer in Ingress)",
   "? missions",
   "A connected participant needs to enable list sharing before comparisons appear.",
@@ -936,13 +935,11 @@
   "{minutes}m {seconds}s",
   "{name} (you)",
   "{objective} at {title}, open in maps app",
-  "{osm} contributors. Not affiliated with Bannergress.",
   "{seconds}s",
   "{time} walk",
   "{title} – Mission Day plan",
   "{title} – Mission Day plan (view only)",
   "© {osm} contributors",
-  "© {osm} contributors. Not affiliated with Bannergress.",
   "“{title}” was deleted.",
   "↓ {length} to the next start"
  ],

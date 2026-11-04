@@ -1,6 +1,5 @@
 {
   "#{number} of {banner}": "№{number} з {banner}",
-  "&copy; {osm} contributors. This website is NOT affiliated with Bannergress in any way!": "&copy; учасники {osm}. Цей сайт ніяк НЕ пов’язаний з Bannergress!",
   "(no longer in Ingress)": "(більше немає в Ingress)",
   "? missions": "? місій",
   "A connected participant needs to enable list sharing before comparisons appear.": "Щоб з’явилися порівняння, підключений учасник має увімкнути поширення списків.",
@@ -1265,13 +1264,11 @@
   "{minutes}m {seconds}s": "{minutes} хв {seconds} с",
   "{name} (you)": "{name} (ти)",
   "{objective} at {title}, open in maps app": "{objective} у {title}, відкрити в застосунку мап",
-  "{osm} contributors. Not affiliated with Bannergress.": "Учасники {osm}. Не пов’язано з Bannergress.",
   "{seconds}s": "{seconds} с",
   "{time} walk": "{time} пішки",
   "{title} – Mission Day plan": "{title} – план Mission Day",
   "{title} – Mission Day plan (view only)": "{title} – план Mission Day (лише перегляд)",
   "© {osm} contributors": "© учасники {osm}",
-  "© {osm} contributors. Not affiliated with Bannergress.": "© учасники {osm}. Не пов’язано з Bannergress.",
   "“{title}” was deleted.": "«{title}» видалено.",
   "↓ {length} to the next start": "↓ {length} до наступного старту"
 }

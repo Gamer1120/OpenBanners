@@ -1,6 +1,5 @@
 {
   "#{number} of {banner}": "{banner}의 {number}번",
-  "&copy; {osm} contributors. This website is NOT affiliated with Bannergress in any way!": "&copy; {osm} 기여자. 이 웹사이트는 Bannergress와 전혀 관련이 없습니다!",
   "(no longer in Ingress)": "(Ingress에서 더 이상 제공되지 않음)",
   "? missions": "? 미션",
   "A connected participant needs to enable list sharing before comparisons appear.": "비교가 표시되려면 연결된 참가자가 목록 공유를 켜야 합니다.",
@@ -1100,13 +1099,11 @@
   "{minutes}m {seconds}s": "{minutes}분 {seconds}초",
   "{name} (you)": "{name}(나)",
   "{objective} at {title}, open in maps app": "{title}에서 {objective}, 지도 앱에서 열기",
-  "{osm} contributors. Not affiliated with Bannergress.": "{osm} 기여자. Bannergress와 관련 없음.",
   "{seconds}s": "{seconds}초",
   "{time} walk": "도보 {time}",
   "{title} – Mission Day plan": "{title} – Mission Day 계획",
   "{title} – Mission Day plan (view only)": "{title} – Mission Day 계획(보기 전용)",
   "© {osm} contributors": "© {osm} 기여자",
-  "© {osm} contributors. Not affiliated with Bannergress.": "© {osm} 기여자. Bannergress와 관련 없음.",
   "“{title}” was deleted.": "“{title}”이(가) 삭제되었습니다.",
   "↓ {length} to the next start": "↓ 다음 시작점까지 {length}"
 }

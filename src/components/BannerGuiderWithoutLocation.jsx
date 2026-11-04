@@ -150,7 +150,7 @@ export default function Map() {
         preferCanvas={missionCoordinates.length > 200}
       >
         <TileLayer
-          attribution={t("&copy; {osm} contributors. This website is NOT affiliated with Bannergress in any way!", {
+          attribution={t("© {osm} contributors", {
             osm: '<a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
           })}
           url="https://tile.openstreetmap.org/{z}/{x}/{y}.png"

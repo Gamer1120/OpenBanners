@@ -1,6 +1,5 @@
 {
   "#{number} of {banner}": "N.º {number} de {banner}",
-  "&copy; {osm} contributors. This website is NOT affiliated with Bannergress in any way!": "&copy; Colaboradores de {osm}. ¡Este sitio web NO tiene ninguna relación con Bannergress!",
   "(no longer in Ingress)": "(ya no está en Ingress)",
   "? missions": "? misiones",
   "A connected participant needs to enable list sharing before comparisons appear.": "Un participante conectado tiene que activar el uso compartido de listas para que aparezcan comparaciones.",
@@ -1155,13 +1154,11 @@
   "{minutes}m {seconds}s": "{minutes}m {seconds}s",
   "{name} (you)": "{name} (tú)",
   "{objective} at {title}, open in maps app": "{objective} en {title}, abrir en la app de mapas",
-  "{osm} contributors. Not affiliated with Bannergress.": "Colaboradores de {osm}. Sin relación con Bannergress.",
   "{seconds}s": "{seconds}s",
   "{time} walk": "{time} a pie",
   "{title} – Mission Day plan": "{title} – plan de Mission Day",
   "{title} – Mission Day plan (view only)": "{title} – plan de Mission Day (solo lectura)",
   "© {osm} contributors": "© Colaboradores de {osm}",
-  "© {osm} contributors. Not affiliated with Bannergress.": "© Colaboradores de {osm}. Sin relación con Bannergress.",
   "“{title}” was deleted.": "«{title}» se ha eliminado.",
   "↓ {length} to the next start": "↓ {length} hasta el siguiente inicio"
 }

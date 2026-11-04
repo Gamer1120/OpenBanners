@@ -1105,8 +1105,8 @@
   "{time} walk": "步行 {time}",
   "{title} – Mission Day plan": "{title} – Mission Day 計畫",
   "{title} – Mission Day plan (view only)": "{title} – Mission Day 計畫（僅供檢視）",
+  "© {osm} contributors": "© {osm} 貢獻者",
   "© {osm} contributors. Not affiliated with Bannergress.": "© {osm} 貢獻者。與 Bannergress 無關。",
-  "© {osm} contributors. This website is NOT affiliated with Bannergress in any way!": "© {osm} 貢獻者。本網站與 Bannergress 完全無關！",
   "“{title}” was deleted.": "「{title}」已刪除。",
   "↓ {length} to the next start": "↓ 距離下一個起點 {length}"
 }

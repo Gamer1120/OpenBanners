@@ -1270,8 +1270,8 @@
   "{time} walk": "{time} пешком",
   "{title} – Mission Day plan": "{title} – план Mission Day",
   "{title} – Mission Day plan (view only)": "{title} – план Mission Day (только просмотр)",
+  "© {osm} contributors": "© участники {osm}",
   "© {osm} contributors. Not affiliated with Bannergress.": "© участники {osm}. Не связано с Bannergress.",
-  "© {osm} contributors. This website is NOT affiliated with Bannergress in any way!": "© участники {osm}. Этот сайт НИКАК НЕ связан с Bannergress!",
   "“{title}” was deleted.": "«{title}» удалён.",
   "↓ {length} to the next start": "↓ {length} до следующего старта"
 }

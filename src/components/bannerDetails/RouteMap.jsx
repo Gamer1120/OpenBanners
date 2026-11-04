@@ -149,7 +149,7 @@ export default function RouteMap({
       whenReady={({ target }) => onReady(target)}
     >
       <TileLayer
-        attribution={t("© {osm} contributors. This website is NOT affiliated with Bannergress in any way!", {
+        attribution={t("© {osm} contributors", {
           osm: '<a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
         })}
         url="https://tile.openstreetmap.org/{z}/{x}/{y}.png"

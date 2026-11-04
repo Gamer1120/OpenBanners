@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { ROW_PAGE, buildRow, rowCountFor } from "./rowModel";
+import { LIST_STEP, ROW_PAGE, ROW_STEP, buildRow, rowCountFor } from "./rowModel";
 
-// The next ROW_PAGE cards render once the end of the list is this close to
+// The next cards render once the end of the list is this close to
 // the visible part of it (a few cards ahead, so a flick rarely reaches the end).
-export const LOAD_AHEAD_PX = 900;
+export const LOAD_AHEAD_PX = 1500;
 
 function startOf(element, horizontal) {
   return horizontal ? element.offsetLeft : element.offsetTop;
@@ -56,7 +56,7 @@ function cardFor(scroller, id) {
 
 // Infinite scroll for the banners-in-view row/list. sorted: every banner in
 // view in row order (already loaded for the map). Renders ROW_PAGE cards, and
-// ROW_PAGE more each time the sentinel after the last card comes within
+// ROW_STEP / LIST_STEP more each time the sentinel after the last card comes within
 // LOAD_AHEAD_PX of view (IntersectionObserver on the scroller), so the DOM only
 // holds the cards scrolled past plus a few screens.
 //
@@ -175,8 +175,8 @@ export default function useIncrementalRow({ sorted, focusId, resetKey, horizonta
       return undefined;
     }
 
-    const grow = () =>
-      setState((current) => ({ ...current, count: Math.max(current.count, shown) + ROW_PAGE }));
+    const step = horizontal ? ROW_STEP : LIST_STEP;
+    const grow = () => setState((current) => ({ ...current, count: Math.max(current.count, shown) + step }));
 
     if (typeof IntersectionObserver === "function") {
       // A new observer after every step: its first callback says whether the

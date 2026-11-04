@@ -2,9 +2,13 @@ import { bannerPoint } from "./mapMath";
 
 // The "banners in view" row (phone carousel / desktop side list) lists every
 // banner in view, but renders its cards in steps (infinite scroll): ROW_PAGE
-// at first, ROW_PAGE more whenever the end of the list scrolls near
-// (useIncrementalRow). The banners themselves are already loaded for the map.
+// at first, then ROW_STEP (phone row) / LIST_STEP (desktop list) more whenever
+// the end of the list scrolls near (useIncrementalRow). Small steps keep each
+// one short on slow phones (30 row cards at once were a 125-150 ms task at 4x
+// CPU throttling). The banners themselves are already loaded for the map.
 export const ROW_PAGE = 30;
+export const ROW_STEP = 10;
+export const LIST_STEP = 15;
 // A selected banner up to this many cards past the rendered ones extends the
 // list down to it; one further away gets its own card at the end, so a dot
 // tapped at the edge of a crowded view doesn't render hundreds of cards.

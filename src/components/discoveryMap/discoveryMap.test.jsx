@@ -3,7 +3,7 @@ import { MemoryRouter, Route, Routes, useParams } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import DiscoveryMap from "./DiscoveryMap";
 import { useBannerRoute } from "./bannerRoute";
-import { FOCUS_REACH, ROW_PAGE, buildRow, sortByDistance } from "./rowModel";
+import { FOCUS_REACH, LIST_STEP, ROW_PAGE, ROW_STEP, buildRow, sortByDistance } from "./rowModel";
 import {
   MAP_FILTERS_STORAGE_KEY,
   applyMapFilters,
@@ -418,23 +418,24 @@ describe("banners in view row (phone)", () => {
     const many = (count) =>
       Array.from({ length: count }, (_, index) => mapBanner(`b${String(index).padStart(3, "0")}`, 52 + index * 0.00001, 6));
 
-    test("renders 30 cards, then 30 more each time the end comes near, without duplicates or a more card", () => {
-      setVm(many(75), area(52, 6));
+    test("renders 30 cards, then 10 more each time the end comes near, without duplicates or a more card", () => {
+      setVm(many(45), area(52, 6));
       render(ui());
 
       expect(cardTitles()).toEqual(many(30).map((item) => item.id));
-      expect(screen.getByText("75 banners here")).toBeInTheDocument();
+      expect(screen.getByText("45 banners here")).toBeInTheDocument();
       expect(screen.queryByRole("button", { name: /more/ })).not.toBeInTheDocument();
       // Watches the end of the row, a few cards ahead.
       expect(observers).toHaveLength(1);
       expect(observers[0].options.root).toBe(document.querySelector(".mv-row-scroll"));
-      expect(observers[0].options.rootMargin).toBe("0px 900px 0px 0px");
+      expect(observers[0].options.rootMargin).toBe("0px 1500px 0px 0px");
 
+      expect(ROW_STEP).toBe(10);
       reachEnd();
-      expect(cardTitles()).toHaveLength(60);
+      expect(cardTitles()).toHaveLength(40);
       reachEnd();
-      expect(cardTitles()).toEqual(many(75).map((item) => item.id));
-      expect(new Set(cardTitles()).size).toBe(75);
+      expect(cardTitles()).toEqual(many(45).map((item) => item.id));
+      expect(new Set(cardTitles()).size).toBe(45);
       // Everything rendered: nothing left to watch.
       expect(observers).toHaveLength(0);
     });
@@ -443,12 +444,12 @@ describe("banners in view row (phone)", () => {
       setVm(many(75), area(52, 6));
       const { rerender } = render(ui());
       reachEnd();
-      expect(cardTitles()).toHaveLength(60);
+      expect(cardTitles()).toHaveLength(40);
 
       // A page of banners arrives for the same view.
       setVm([...vm.banners, mapBanner("late", 52.0009, 6)], vm.liveArea);
       rerender(ui());
-      expect(cardTitles()).toHaveLength(60);
+      expect(cardTitles()).toHaveLength(40);
       expect(screen.getByText("76 banners here")).toBeInTheDocument();
 
       // The map moved.
@@ -802,7 +803,9 @@ describe("banners in view row (phone)", () => {
         const scroller = document.querySelector(".mv-side-list");
 
         expect(cardTitles()).toHaveLength(30);
-        expect(observers[0].options).toEqual({ root: scroller, rootMargin: "0px 0px 900px 0px" });
+        expect(observers[0].options).toEqual({ root: scroller, rootMargin: "0px 0px 1500px 0px" });
+        act(() => observers[0].callback([{ isIntersecting: true }]));
+        expect(cardTitles()).toHaveLength(30 + LIST_STEP);
         act(() => observers[0].callback([{ isIntersecting: true }]));
         expect(cardTitles()).toHaveLength(50);
 

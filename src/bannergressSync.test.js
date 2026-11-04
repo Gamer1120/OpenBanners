@@ -1,7 +1,9 @@
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import {
   BANNERGRESS_AGENT_STORAGE_KEY,
+  BANNERGRESS_RETRY_DELAY_MS,
   clearBannergressAuthData,
+  fetchBannergress,
   getBannergressAccountId,
   getBannergressAgentName,
   getBannergressDisplayName,
@@ -322,17 +324,163 @@ test("list sync retries a rejected page once without attributes, then fails", as
   expect(String(global.fetch.mock.calls[1][0])).not.toContain("attributes");
 });
 
-test("list sync fails at once on server errors and 429", async () => {
-  for (const status of [500, 503, 429]) {
-    saveFreshAccessToken();
-    global.fetch.mockReset();
-    global.fetch.mockImplementation(() => jsonResponse(null, status));
+test("list sync fails at once on 500 and 429, after one retry on 502-504", async () => {
+  vi.useFakeTimers();
 
-    await expect(requestBannergressSyncData()).rejects.toMatchObject({
-      code: "REQUEST_FAILED",
-      status,
+  try {
+    for (const [status, calls] of [[500, 1], [429, 1], [503, 2]]) {
+      saveFreshAccessToken();
+      global.fetch.mockReset();
+      global.fetch.mockImplementation(() => jsonResponse(null, status));
+
+      const sync = requestBannergressSyncData();
+      const assertion = expect(sync).rejects.toMatchObject({
+        code: "REQUEST_FAILED",
+        status,
+      });
+      await vi.advanceTimersByTimeAsync(BANNERGRESS_RETRY_DELAY_MS + 10);
+      await assertion;
+      expect(global.fetch).toHaveBeenCalledTimes(calls);
+    }
+  } finally {
+    vi.useRealTimers();
+  }
+});
+
+function withAuth(options) {
+  return Boolean(new Headers(options?.headers ?? {}).get("Authorization"));
+}
+
+test("list sync retries a request that got no answer once", async () => {
+  vi.useFakeTimers();
+
+  try {
+    saveFreshAccessToken();
+    let failed = false;
+    global.fetch.mockImplementation(() => {
+      if (!failed) {
+        failed = true;
+        return Promise.reject(new TypeError("Failed to fetch"));
+      }
+
+      return jsonResponse([]);
     });
+
+    const sync = requestBannergressSyncData();
+    await vi.advanceTimersByTimeAsync(BANNERGRESS_RETRY_DELAY_MS + 10);
+    await expect(sync).resolves.toMatchObject({ bannerLists: {} });
+    // todo (failed + retry), done, blacklist
+    expect(global.fetch).toHaveBeenCalledTimes(4);
+  } finally {
+    vi.useRealTimers();
+  }
+});
+
+test("list sync: a refused token that looks like a network error is a sign-in problem", async () => {
+  vi.useFakeTimers();
+
+  try {
+    saveFreshAccessToken();
+    // Bannergress's 401 for a bad token has no CORS header: the browser only
+    // sees "Failed to fetch". Without the token it answers 401 normally.
+    global.fetch.mockImplementation((input, options) =>
+      withAuth(options)
+        ? Promise.reject(new TypeError("Failed to fetch"))
+        : jsonResponse(null, 401)
+    );
+
+    const sync = requestBannergressSyncData();
+    const assertion = expect(sync).rejects.toMatchObject({ code: "AUTH_REQUIRED", status: 401 });
+    await vi.advanceTimersByTimeAsync(BANNERGRESS_RETRY_DELAY_MS + 10);
+    await assertion;
+    expect(global.fetch).toHaveBeenCalledTimes(3);
+    expect(loadBannergressAuthData().accessToken).toBe("fresh-access-token");
+  } finally {
+    vi.useRealTimers();
+  }
+});
+
+test("list sync reports NETWORK when Bannergress doesn't answer at all", async () => {
+  vi.useFakeTimers();
+
+  try {
+    saveFreshAccessToken();
+    global.fetch.mockImplementation(() => Promise.reject(new TypeError("Failed to fetch")));
+
+    const sync = requestBannergressSyncData();
+    const assertion = expect(sync).rejects.toMatchObject({ code: "NETWORK" });
+    await vi.advanceTimersByTimeAsync(BANNERGRESS_RETRY_DELAY_MS + 10);
+    await assertion;
+  } finally {
+    vi.useRealTimers();
+  }
+});
+
+test("a refused token refresh (no CORS header) asks to sign in again", async () => {
+  vi.useFakeTimers();
+
+  try {
+    saveExpiredAccessToken();
+    global.fetch.mockImplementation((input) =>
+      String(input).includes("openid-configuration")
+        ? jsonResponse({ issuer: "x" })
+        : Promise.reject(new TypeError("Failed to fetch"))
+    );
+
+    const sync = requestBannergressSyncData();
+    const assertion = expect(sync).rejects.toMatchObject({ code: "AUTH_REQUIRED" });
+    await vi.advanceTimersByTimeAsync(BANNERGRESS_RETRY_DELAY_MS + 10);
+    await assertion;
+    expect(loadBannergressAuthData().refreshToken).toBeNull();
+  } finally {
+    vi.useRealTimers();
+  }
+});
+
+test("a token refresh without any answer stays a connection problem", async () => {
+  vi.useFakeTimers();
+
+  try {
+    saveExpiredAccessToken();
+    global.fetch.mockImplementation(() => Promise.reject(new TypeError("Failed to fetch")));
+
+    const sync = requestBannergressSyncData();
+    const assertion = expect(sync).rejects.toMatchObject({ code: "NETWORK" });
+    await vi.advanceTimersByTimeAsync(BANNERGRESS_RETRY_DELAY_MS + 10);
+    await assertion;
+    expect(loadBannergressAuthData().refreshToken).toBe("refresh-token");
+  } finally {
+    vi.useRealTimers();
+  }
+});
+
+test("fetchBannergress retries a GET once and falls back to a public request", async () => {
+  vi.useFakeTimers();
+
+  try {
+    saveFreshAccessToken();
+    global.fetch.mockImplementation((input, options) =>
+      withAuth(options)
+        ? Promise.reject(new TypeError("Failed to fetch"))
+        : jsonResponse({ id: "banner" })
+    );
+
+    const request = fetchBannergress("https://api.bannergress.com/bnrs/banner");
+    await vi.advanceTimersByTimeAsync(BANNERGRESS_RETRY_DELAY_MS + 10);
+    const response = await request;
+    expect(response.status).toBe(200);
+    expect(global.fetch).toHaveBeenCalledTimes(3);
+    expect(withAuth(global.fetch.mock.calls[2][1])).toBe(false);
+
+    // POSTs are never repeated.
+    global.fetch.mockReset();
+    global.fetch.mockImplementation(() => Promise.reject(new TypeError("Failed to fetch")));
+    await expect(
+      fetchBannergress("https://api.bannergress.com/bnrs/banner/settings", { method: "POST" })
+    ).rejects.toThrow("Failed to fetch");
     expect(global.fetch).toHaveBeenCalledTimes(1);
+  } finally {
+    vi.useRealTimers();
   }
 });
 

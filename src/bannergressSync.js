@@ -43,6 +43,12 @@ const SYNC_PAGE_SIZE = 100;
 // Every Bannergress request in the list sync gives up after this long, so the
 // Lists counters can't wait forever on one stuck request.
 export const BANNERGRESS_REQUEST_TIMEOUT_MS = 15 * 1000;
+// A Bannergress request that fails without an answer is tried once more after
+// this pause (see fetchWithRecovery).
+export const BANNERGRESS_RETRY_DELAY_MS = 1000;
+const RETRY_STATUSES = new Set([502, 503, 504]);
+const BANNERGRESS_OIDC_DISCOVERY_URL =
+  "https://login.bannergress.com/auth/realms/bannergress/.well-known/openid-configuration";
 // 100 pages of 100 = 10,000 banners per list; past that the API is looping.
 const SYNC_MAX_PAGES = 100;
 const SYNC_DEBUG =
@@ -87,6 +93,76 @@ export function withTimeout(task, timeoutMs, label = "request") {
     timeout,
   ]).finally(() => clearTimeout(timer));
 }
+function isAbort(error, signal) {
+  return Boolean(signal?.aborted) || error?.name === "AbortError";
+}
+
+function pause(ms, signal) {
+  return new Promise((resolve, reject) => {
+    if (signal?.aborted) {
+      reject(signal.reason ?? new DOMException("Aborted", "AbortError"));
+      return;
+    }
+
+    const timer = setTimeout(resolve, ms);
+    signal?.addEventListener?.(
+      "abort",
+      () => {
+        clearTimeout(timer);
+        reject(signal.reason ?? new DOMException("Aborted", "AbortError"));
+      },
+      { once: true }
+    );
+  });
+}
+
+// A fetch that fails without any answer (TypeError "Failed to fetch") is not
+// always a lost connection: Bannergress sends a refused token (API 401) and a
+// refused token refresh (login 400) without CORS headers, so the browser
+// reports those the same way. And on phones a request often dies when the
+// network switches or the app comes back from the background.
+// So: try again once after a short pause (also for 502/503/504), and if it
+// still fails, run probe() - the same question without credentials. If the
+// probe gets an answer, Bannergress is reachable and the credentials were
+// refused: onReachable(probeResponse, error) decides what to return or throw.
+// Without an answer the original error is thrown (really no connection).
+export async function fetchWithRecovery(request, { signal, probe, onReachable } = {}) {
+  try {
+    const response = await request();
+
+    if (!RETRY_STATUSES.has(response?.status)) {
+      return response;
+    }
+  } catch (error) {
+    if (isAbort(error, signal)) {
+      throw error;
+    }
+  }
+
+  await pause(BANNERGRESS_RETRY_DELAY_MS, signal);
+
+  try {
+    return await request();
+  } catch (error) {
+    if (isAbort(error, signal) || !probe) {
+      throw error;
+    }
+
+    let probeResponse;
+
+    try {
+      probeResponse = await probe();
+    } catch {
+      throw error;
+    }
+
+    syncDebug("Request failed but Bannergress answers without credentials.", {
+      probeStatus: probeResponse?.status ?? null,
+    });
+    return onReachable ? onReachable(probeResponse, error) : probeResponse;
+  }
+}
+
 const EMPTY_SYNC_STATE = Object.freeze({
   syncedAt: null,
   bannerLists: {},
@@ -936,14 +1012,31 @@ async function refreshBannergressAuthData(currentAuthData) {
   // A refresh that never answers used to hold the shared refresh lock forever,
   // so every later sync waited on it too.
   const { response, result } = await withTimeout(async (signal) => {
-    const tokenResponse = await fetch(BANNERGRESS_OIDC_CONFIGURATION.tokenUrl, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/x-www-form-urlencoded",
-      },
-      body,
-      signal,
-    });
+    // Keycloak answers a refused refresh (expired/ended session) without CORS
+    // headers, so it looks like a network error. If Bannergress's login
+    // server answers a plain GET, treat it as refused (status 400).
+    const tokenResponse = await fetchWithRecovery(
+      () =>
+        fetch(BANNERGRESS_OIDC_CONFIGURATION.tokenUrl, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/x-www-form-urlencoded",
+          },
+          body,
+          signal,
+        }),
+      {
+        signal,
+        probe: () => fetch(BANNERGRESS_OIDC_DISCOVERY_URL, { signal }),
+        onReachable: (probeResponse, error) => {
+          if (!probeResponse?.ok) {
+            throw error;
+          }
+
+          return { ok: false, status: 400, json: () => Promise.resolve(null) };
+        },
+      }
+    );
 
     return {
       response: tokenResponse,
@@ -1123,12 +1216,32 @@ async function requestSyncPage(url, accessToken, timeoutMs) {
     let response;
 
     try {
-      response = await fetch(url, {
-        headers: { Authorization: `Bearer ${accessToken}` },
-        signal,
-      });
+      response = await fetchWithRecovery(
+        () =>
+          fetch(url, {
+            headers: { Authorization: `Bearer ${accessToken}` },
+            signal,
+          }),
+        {
+          signal,
+          probe: () => fetch(url, { signal }),
+          onReachable: (probeResponse, error) => {
+            if (probeResponse?.status === 401 || probeResponse?.status === 403) {
+              // Bannergress answers, but not to this token. Not cleared here:
+              // "Sign in again" replaces it.
+              throw Object.assign(new Error(t("Authenticate with Bannergress again.")), {
+                code: "AUTH_REQUIRED",
+                status: probeResponse.status,
+                cause: error,
+              });
+            }
+
+            throw error;
+          },
+        }
+      );
     } catch (error) {
-      if (signal?.aborted) {
+      if (signal?.aborted || error?.code === "AUTH_REQUIRED") {
         throw error;
       }
 
@@ -1299,9 +1412,25 @@ export async function fetchBannergress(url, options = {}) {
     headers.set("Authorization", `Bearer ${token}`);
   }
 
-  return fetch(url, {
-    ...fetchOptions,
-    headers,
+  const method = String(fetchOptions.method ?? "GET").toUpperCase();
+  const send = () => fetch(url, { ...fetchOptions, headers });
+
+  if (method !== "GET") {
+    return send();
+  }
+
+  // GETs are retried once; if the signed-in request still gets no answer,
+  // the same request without the token shows whether Bannergress refused the
+  // token (401/403 for list requests; public data just loads).
+  return fetchWithRecovery(send, {
+    signal: fetchOptions.signal,
+    probe: headers.has("Authorization")
+      ? () => {
+          const publicHeaders = new Headers(headers);
+          publicHeaders.delete("Authorization");
+          return fetch(url, { ...fetchOptions, headers: publicHeaders });
+        }
+      : null,
   });
 }
 

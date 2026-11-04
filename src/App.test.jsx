@@ -3935,9 +3935,12 @@ test("shows a retryable error when banner details fail to load", async () => {
     { route: "/banner/broken-banner" }
   );
 
+  // After one automatic retry (1 s).
   expect(
     await screen.findByText(
-      "Bannergress, where the banner data comes from, isn’t responding right now. Try again in a minute."
+      "Bannergress, where the banner data comes from, isn’t responding right now. Try again in a minute.",
+      {},
+      { timeout: 3000 }
     )
   ).toBeInTheDocument();
   expect(screen.getByRole("button", { name: /retry/i })).toBeInTheDocument();
@@ -3962,7 +3965,13 @@ test("Bannergress trouble (5xx) says so and offers Retry, which loads the banner
     { route: "/banner/flaky-banner" }
   );
 
-  expect(await screen.findByText(/isn’t responding right now/)).toBeInTheDocument();
+  // A 503 is retried once automatically (1 s) before the page says so.
+  expect(
+    await screen.findByText(/isn’t responding right now/, {}, { timeout: 3000 })
+  ).toBeInTheDocument();
+  expect(
+    global.fetch.mock.calls.filter(([url]) => String(url).includes("/bnrs/flaky-banner"))
+  ).toHaveLength(2);
   expect(screen.queryByText(/doesn’t exist/)).toBeNull();
   bannergressUp = true;
   await user.click(screen.getByRole("button", { name: /retry/i }));

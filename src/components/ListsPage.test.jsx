@@ -1,5 +1,5 @@
 import React from "react";
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { ThemeProvider, createTheme } from "@mui/material/styles";
 import { MemoryRouter } from "react-router-dom";
@@ -176,4 +176,149 @@ test("a failed list sync shows the error with Retry", async () => {
 
   await screen.findByText(/synced/i);
   expect(screen.queryByText(/Couldn’t load your lists/)).not.toBeInTheDocument();
+});
+
+function listCalls() {
+  return global.fetch.mock.calls
+    .map(([input]) => new URL(String(input)))
+    .filter((url) => url.pathname === "/bnrs" && url.searchParams.get("limit") === "24");
+}
+
+function lastListParams() {
+  const calls = listCalls();
+  return calls[calls.length - 1]?.searchParams;
+}
+
+function mockListApi() {
+  global.fetch = vi.fn((input) => {
+    const url = new URL(String(input));
+    return json(
+      url.searchParams.get("limit") === "24"
+        ? [{ id: "b-1", title: "Banner One", numberOfMissions: 6, lengthMeters: 1000 }]
+        : []
+    );
+  });
+}
+
+function mockGeolocation(result) {
+  const getCurrentPosition = vi.fn((onSuccess, onError) =>
+    result ? onSuccess({ coords: result }) : onError({ code: 1, message: "denied" })
+  );
+  Object.defineProperty(global.navigator, "geolocation", {
+    configurable: true,
+    value: { getCurrentPosition },
+  });
+  return getCurrentPosition;
+}
+
+test("lists sort by date added by default and show every banner", async () => {
+  window.sessionStorage.clear();
+  mockListApi();
+  renderPage();
+
+  expect(await screen.findByText("Banner One")).toBeInTheDocument();
+  const params = lastListParams();
+  expect(params.get("listTypes")).toBe("todo");
+  expect(params.get("orderBy")).toBe("listAdded");
+  expect(params.get("orderDirection")).toBe("DESC");
+  expect(params.has("online")).toBe(false);
+  expect(params.has("query")).toBe(false);
+  expect(screen.getByRole("button", { name: /sort: recently added/i })).toBeInTheDocument();
+});
+
+test("Closest and Furthest sort by distance from the current location", async () => {
+  window.sessionStorage.clear();
+  mockListApi();
+  const getCurrentPosition = mockGeolocation({ latitude: 52.1, longitude: 5.2 });
+  const user = userEvent.setup();
+  renderPage();
+  await screen.findByText("Banner One");
+
+  await user.click(screen.getByRole("button", { name: /sort:/i }));
+  await user.click(screen.getByRole("menuitem", { name: /closest first/i }));
+
+  await waitFor(() => expect(lastListParams().get("orderBy")).toBe("proximityStartPoint"));
+  let params = lastListParams();
+  expect(params.get("orderDirection")).toBe("ASC");
+  expect(params.get("proximityLatitude")).toBe("52.1");
+  expect(params.get("proximityLongitude")).toBe("5.2");
+  expect(getCurrentPosition).toHaveBeenCalledTimes(1);
+
+  await user.click(screen.getByRole("button", { name: /sort: closest first/i }));
+  await user.click(screen.getByRole("menuitem", { name: /furthest first/i }));
+
+  await waitFor(() => expect(lastListParams().get("orderDirection")).toBe("DESC"));
+  params = lastListParams();
+  expect(params.get("orderBy")).toBe("proximityStartPoint");
+  expect(JSON.parse(window.localStorage.getItem("openbanners-lists-view")).sort).toBe("furthest");
+});
+
+test("without a location the list keeps its sort and says why", async () => {
+  window.sessionStorage.clear();
+  mockListApi();
+  vi.spyOn(console, "error").mockImplementation(() => {});
+  mockGeolocation(null);
+  const user = userEvent.setup();
+  renderPage();
+  await screen.findByText("Banner One");
+  const callsBefore = listCalls().length;
+
+  await user.click(screen.getByRole("button", { name: /sort:/i }));
+  await user.click(screen.getByRole("menuitem", { name: /closest first/i }));
+
+  expect(
+    await screen.findByText(/couldn’t get your location, so the list stays sorted by “recently added”/i)
+  ).toBeInTheDocument();
+  expect(screen.getByRole("button", { name: /sort: recently added/i })).toBeInTheDocument();
+  expect(listCalls()).toHaveLength(callsBefore);
+  expect(screen.getByText("Banner One")).toBeInTheDocument();
+});
+
+test("a remembered Closest sort falls back when the location is denied", async () => {
+  window.sessionStorage.clear();
+  window.localStorage.setItem(
+    "openbanners-lists-view",
+    JSON.stringify({ sort: "closest", yoursSort: "created-desc", status: "all" })
+  );
+  mockListApi();
+  vi.spyOn(console, "error").mockImplementation(() => {});
+  mockGeolocation(null);
+  renderPage();
+
+  expect(await screen.findByText("Banner One")).toBeInTheDocument();
+  expect(screen.getByText(/couldn’t get your location/i)).toBeInTheDocument();
+  expect(listCalls().every((url) => url.searchParams.get("orderBy") === "listAdded")).toBe(true);
+});
+
+test("status filter and search go to Bannergress and are remembered", async () => {
+  window.sessionStorage.clear();
+  mockListApi();
+  const user = userEvent.setup();
+  renderPage();
+  await screen.findByText("Banner One");
+
+  await user.click(screen.getByRole("button", { name: /^offline$/i }));
+  await waitFor(() => expect(lastListParams().get("online")).toBe("false"));
+
+  await user.click(screen.getByRole("button", { name: /^online$/i }));
+  await waitFor(() => expect(lastListParams().get("online")).toBe("true"));
+  expect(JSON.parse(window.localStorage.getItem("openbanners-lists-view")).status).toBe("online");
+
+  await user.type(screen.getByRole("searchbox", { name: /search this list/i }), "amst");
+  await waitFor(() => expect(lastListParams().get("query")).toBe("amst*"));
+  expect(lastListParams().get("listTypes")).toBe("todo");
+});
+
+test("Yours has no date-added sorts", async () => {
+  window.sessionStorage.clear();
+  mockApi({ user: { agent: { name: "Gamer1120" } }, yours: [{ id: "own-1", title: "Mine" }] });
+  const user = userEvent.setup();
+  renderPage();
+
+  await user.click(screen.getByRole("button", { name: /^yours$/i }));
+  await screen.findByText("Mine");
+  await user.click(screen.getByRole("button", { name: /sort: newest banners/i }));
+
+  expect(screen.queryByRole("menuitem", { name: /recently added/i })).not.toBeInTheDocument();
+  expect(screen.getByRole("menuitem", { name: /closest first/i })).toBeInTheDocument();
 });

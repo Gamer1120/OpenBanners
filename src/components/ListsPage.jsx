@@ -1,10 +1,22 @@
-import React, { useCallback, useEffect, useRef, useState } from "react";
-import { Login } from "@mui/icons-material";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Button, Menu, MenuItem } from "@mui/material";
+import { Login, Sort } from "@mui/icons-material";
 import { useLocation, useNavigate } from "react-router-dom";
 import BannerTogetherLauncher from "./BannerTogetherLauncher";
 import BannerWall, { BannerRows, useInfiniteScroll } from "./BannerWall";
 import { useRememberEntry, useRestoredEntry } from "../scrollRestoration";
 import ViewModeToggle, { useBannerViewMode } from "./ViewModeToggle";
+import { loadCachedNearbyLocation, saveCachedNearbyLocation } from "./BannersNearMe";
+import { toPrefixQuery } from "./BrowseBannerList";
+import {
+  LIST_STATUS_FILTERS,
+  applyListSortFilter,
+  effectiveSortId,
+  getListSort,
+  readListView,
+  saveListView,
+  sortsFor,
+} from "../listSortFilter";
 import {
   BANNERGRESS_AUTH_REQUEST_EVENT,
   BANNERGRESS_REQUEST_TIMEOUT_MS,
@@ -42,6 +54,8 @@ export async function fetchOwnAgentName() {
   return name;
 }
 const PAGE_SIZE = 24;
+const SEARCH_DEBOUNCE_MS = 400;
+const LOCATION_OPTIONS = { enableHighAccuracy: false, maximumAge: 5 * 60 * 1000, timeout: 10000 };
 const COUNT_SYNC_INTERVAL_MS = 60 * 1000;
 let lastCountSync = { at: 0, promise: null };
 
@@ -120,6 +134,116 @@ export default function ListsPage() {
   const [countsSyncing, setCountsSyncing] = useState(false);
   const [countsError, setCountsError] = useState(null);
   const [countsAttempt, setCountsAttempt] = useState(0);
+  // Sort + filters (remembered in localStorage; the search text only for Back).
+  const [view, setView] = useState(readListView);
+  const [searchText, setSearchText] = useState(restored?.query ?? "");
+  const [query, setQuery] = useState(restored?.query ?? "");
+  const [position, setPosition] = useState(loadCachedNearbyLocation);
+  const [locating, setLocating] = useState(false);
+  const [locationNote, setLocationNote] = useState("");
+  const [sortMenuAnchor, setSortMenuAnchor] = useState(null);
+  const locationAttemptRef = useRef(false);
+  const sortKey = listType === "yours" ? "yoursSort" : "sort";
+  const sortId = effectiveSortId(view[sortKey], listType);
+  const sort = getListSort(sortId);
+  const status = view.status;
+  const latitude = sort.needsLocation ? position?.latitude : null;
+  const longitude = sort.needsLocation ? position?.longitude : null;
+  const proximity = useMemo(
+    () => (latitude == null || longitude == null ? null : { latitude, longitude }),
+    [latitude, longitude]
+  );
+  const waitingForLocation = Boolean(sort.needsLocation && !proximity);
+  const filtered = status !== "all" || Boolean(query);
+
+  const updateView = useCallback((changes) => {
+    setView((current) => {
+      const next = { ...current, ...changes };
+      saveListView(next);
+      return next;
+    });
+  }, []);
+
+  useEffect(() => {
+    const trimmed = searchText.trim();
+
+    if (trimmed === query) {
+      return undefined;
+    }
+
+    const timer = setTimeout(() => setQuery(trimmed), SEARCH_DEBOUNCE_MS);
+    return () => clearTimeout(timer);
+  }, [query, searchText]);
+
+  // Closest / Furthest need the visitor's position. Without it the list keeps
+  // (or, on a fresh visit, goes back to) the sort it had, with a note.
+  const locate = useCallback((onSuccess, onFailure) => {
+    if (typeof navigator === "undefined" || !navigator.geolocation) {
+      onFailure();
+      return;
+    }
+
+    setLocating(true);
+    navigator.geolocation.getCurrentPosition(
+      (geoPosition) => {
+        const next = {
+          latitude: geoPosition.coords.latitude,
+          longitude: geoPosition.coords.longitude,
+        };
+        saveCachedNearbyLocation(next);
+        setPosition(next);
+        setLocating(false);
+        onSuccess(next);
+      },
+      (positionError) => {
+        console.error("Couldn't get the location for sorting.", positionError);
+        setLocating(false);
+        onFailure();
+      },
+      LOCATION_OPTIONS
+    );
+  }, []);
+
+  const locationFailedNote = (fallbackSortId) =>
+    t("Couldn’t get your location, so the list stays sorted by “{order}”.", {
+      order: t(getListSort(fallbackSortId).label),
+    });
+
+  const chooseSort = (nextSortId) => {
+    setSortMenuAnchor(null);
+    setLocationNote("");
+    const nextSort = getListSort(nextSortId);
+
+    if (!nextSort.needsLocation || position) {
+      updateView({ [sortKey]: nextSortId });
+      return;
+    }
+
+    const previousSortId = sortId;
+    locate(
+      () => updateView({ [sortKey]: nextSortId }),
+      () => setLocationNote(locationFailedNote(previousSortId))
+    );
+  };
+
+  // A remembered Closest / Furthest sort on a new visit: ask for the position
+  // once; if that fails, use the tab's default sort.
+  useEffect(() => {
+    if (!signedIn || togetherOpen || !waitingForLocation || locating || locationAttemptRef.current) {
+      return;
+    }
+
+    locationAttemptRef.current = true;
+    const fallbackSortId = effectiveSortId(null, listType);
+    locate(
+      () => {},
+      () => {
+        updateView({ [sortKey]: fallbackSortId });
+        setLocationNote(locationFailedNote(fallbackSortId));
+      }
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [signedIn, togetherOpen, waitingForLocation, locating]);
 
   useEffect(() => {
     if (!signedIn || !isBannergressAuthSupportedOrigin()) {
@@ -152,13 +276,16 @@ export default function ListsPage() {
       if (listType === "yours") {
         agentNameRef.current = agentNameRef.current ?? (await fetchOwnAgentName());
         url.searchParams.set("author", agentNameRef.current);
-        url.searchParams.set("orderBy", "created");
       } else {
         url.searchParams.set("listTypes", listType);
-        url.searchParams.set("orderBy", "listAdded");
       }
 
-      url.searchParams.set("orderDirection", "DESC");
+      applyListSortFilter(url, {
+        sortId,
+        status,
+        query: query ? toPrefixQuery(query) : "",
+        location: proximity,
+      });
       url.searchParams.set("limit", String(PAGE_SIZE));
       url.searchParams.set("offset", String(offset));
       const data = await withTimeout(async (signal) => {
@@ -177,13 +304,23 @@ export default function ListsPage() {
 
       return data;
     },
-    [listType]
+    [listType, proximity, query, sortId, status]
   );
+  const loadPageRef = useRef(loadPage);
+  loadPageRef.current = loadPage;
 
   useEffect(() => {
     if (!signedIn || togetherOpen) {
       skipInitialLoadRef.current = false;
       setBanners([]);
+      return undefined;
+    }
+
+    if (waitingForLocation) {
+      // The location request (effect above or chooseSort) starts the load.
+      setBanners([]);
+      setHasMore(false);
+      setLoading(true);
       return undefined;
     }
 
@@ -228,7 +365,7 @@ export default function ListsPage() {
     return () => {
       ignore = true;
     };
-  }, [loadPage, signedIn, togetherOpen]);
+  }, [loadPage, signedIn, togetherOpen, waitingForLocation]);
 
   const handleLoadMore = useCallback(() => {
     if (!hasMore || loading || inFlightRef.current) {
@@ -239,6 +376,11 @@ export default function ListsPage() {
     setLoadingMore(true);
     loadPage(banners.length)
       .then((data) => {
+        // The sort or a filter changed meanwhile: this page belongs to the old list.
+        if (loadPageRef.current !== loadPage) {
+          return;
+        }
+
         setBanners((current) => {
           const seen = new Set(current.map((banner) => banner.id));
           return [...current, ...data.filter((banner) => !seen.has(banner.id))];
@@ -252,11 +394,24 @@ export default function ListsPage() {
       });
   }, [banners.length, hasMore, loadPage, loading]);
 
+  // Bannergress puts banners without a start point (all missions gone) first
+  // when sorting by distance descending; show them after the loaded ones.
+  const shownBanners = useMemo(
+    () =>
+      sortId === "furthest"
+        ? [
+            ...banners.filter((banner) => Number.isFinite(banner?.startLatitude)),
+            ...banners.filter((banner) => !Number.isFinite(banner?.startLatitude)),
+          ]
+        : banners,
+    [banners, sortId]
+  );
+
   useRememberEntry(
     entryKey,
     "lists",
     signedIn && !togetherOpen && !loading && !error
-      ? { listType, banners, hasMore }
+      ? { listType, banners, hasMore, query: searchText }
       : null
   );
 
@@ -316,6 +471,72 @@ export default function ListsPage() {
           <ViewModeToggle viewMode={viewMode} onChange={setViewMode} />
         )}
       </div>
+      {togetherOpen || !signedIn ? null : (
+        <div className="toolbar lists-filters">
+          <Button
+            variant="outlined"
+            size="small"
+            startIcon={<Sort />}
+            aria-haspopup="menu"
+            aria-expanded={Boolean(sortMenuAnchor)}
+            aria-label={t("Sort: {order}", { order: t(sort.label) })}
+            onClick={(event) => setSortMenuAnchor(event.currentTarget)}
+          >
+            {t(sort.label)}
+          </Button>
+          <Menu
+            anchorEl={sortMenuAnchor}
+            open={Boolean(sortMenuAnchor)}
+            onClose={() => setSortMenuAnchor(null)}
+          >
+            {sortsFor(listType).map((option) => (
+              <MenuItem
+                key={option.id}
+                selected={option.id === sortId}
+                disabled={locating && option.needsLocation}
+                onClick={() => chooseSort(option.id)}
+              >
+                {t(option.label)}
+              </MenuItem>
+            ))}
+          </Menu>
+          <div className="seg" role="group" aria-label={t("Status")}>
+            {LIST_STATUS_FILTERS.map((filter) => (
+              <button
+                type="button"
+                key={filter.id}
+                className="sl"
+                aria-pressed={status === filter.id}
+                onClick={() => updateView({ status: filter.id })}
+              >
+                {t(filter.label)}
+              </button>
+            ))}
+          </div>
+          <input
+            className="cloud-filter lists-search"
+            type="search"
+            autoComplete="off"
+            placeholder={t("Search this list")}
+            aria-label={t("Search this list")}
+            value={searchText}
+            onChange={(event) => setSearchText(event.target.value)}
+          />
+        </div>
+      )}
+      {!togetherOpen && signedIn && locating ? (
+        <p className="small muted" role="status">
+          {t("Finding your location…")}
+        </p>
+      ) : null}
+      {!togetherOpen && signedIn && locationNote ? (
+        <div className="ob-alert" role="alert">
+          <div className="grow">{locationNote}</div>
+          <button type="button" className="btn text sl" onClick={() => setLocationNote("")}>
+            {t("Close")}
+          </button>
+        </div>
+      ) : null}
       {signedIn && countsError && !countsSyncing ? (
         <div className="ob-alert bad lists-sync-error" role="alert">
           <div className="grow">
@@ -387,7 +608,9 @@ export default function ListsPage() {
           {loading ? (
             <BannerWall banners={[]} skeletonCount={8} label={t("Loading list")} />
           ) : banners.length === 0 && !error ? (
-            listType === "yours" ? (
+            filtered ? (
+              <div className="ob-alert">{t("No banners on this list match your search or filter.")}</div>
+            ) : listType === "yours" ? (
               <div className="ob-alert">
                 <div className="grow">
                   <b>{t("You haven’t created any banners yet")}</b>
@@ -404,9 +627,9 @@ export default function ListsPage() {
               <div className="ob-alert">{t("Nothing on this list yet.")}</div>
             )
           ) : viewMode === "compact" ? (
-            <BannerRows banners={banners} loadingMore={loadingMore} label={t("List banners")} />
+            <BannerRows banners={shownBanners} loadingMore={loadingMore} label={t("List banners")} />
           ) : (
-            <BannerWall banners={banners} loadingMore={loadingMore} label={t("List banners")} />
+            <BannerWall banners={shownBanners} loadingMore={loadingMore} label={t("List banners")} />
           )}
           {hasMore ? <div ref={sentinelRef} style={{ height: 1 }} /> : null}
         </>

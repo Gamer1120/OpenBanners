@@ -2220,6 +2220,13 @@ body {
   display: none;
 }
 
+/* Lists sort / status / search row */
+.lists-search {
+  flex: 1 1 180px;
+  width: auto;
+  max-width: 320px;
+}
+
 @media (max-width: 480px) {
   .lists-seg button {
     padding: 0 12px;

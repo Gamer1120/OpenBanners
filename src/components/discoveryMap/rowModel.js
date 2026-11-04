@@ -1,10 +1,14 @@
 import { bannerPoint } from "./mapMath";
 
-// The "banners in view" row (phone carousel / desktop side list).
-// With more than ROW_LIMIT banners in view the row shows the nearest ROW_CAP
-// and ends with a "+N more · show list" card.
-export const ROW_LIMIT = 40;
-export const ROW_CAP = 30;
+// The "banners in view" row (phone carousel / desktop side list) lists every
+// banner in view, but renders its cards in steps (infinite scroll): ROW_PAGE
+// at first, ROW_PAGE more whenever the end of the list scrolls near
+// (useIncrementalRow). The banners themselves are already loaded for the map.
+export const ROW_PAGE = 30;
+// A selected banner up to this many cards past the rendered ones extends the
+// list down to it; one further away gets its own card at the end, so a dot
+// tapped at the edge of a crowded view doesn't render hundreds of cards.
+export const FOCUS_REACH = 120;
 
 export function areaCenter(area) {
   if (!area) {
@@ -43,14 +47,24 @@ export function sortByDistance(banners, center) {
     .map((entry) => entry.banner);
 }
 
-// Cards for the row: everything up to ROW_LIMIT, otherwise the nearest ROW_CAP
-// (plus the focused banner when it is further away, so it always has a card).
-export function buildRow(sorted, focusId, { limit = ROW_LIMIT, cap = ROW_CAP } = {}) {
-  if (sorted.length <= limit) {
-    return { items: sorted, moreCount: 0 };
+// How many of the sorted cards to render so the focused one is among them
+// (when it is within FOCUS_REACH of the rendered ones).
+export function rowCountFor(sorted, focusId, count) {
+  const shown = Math.min(sorted.length, count);
+
+  if (!focusId) {
+    return shown;
   }
 
-  const items = sorted.slice(0, cap);
+  const index = sorted.findIndex((banner) => banner.id === focusId);
+  return index >= shown && index < shown + FOCUS_REACH ? index + 1 : shown;
+}
+
+// Cards to render: the first `count` (see rowCountFor), plus the focused banner
+// at the end when it is further down than that. hasMore: cards left to render.
+export function buildRow(sorted, focusId, count) {
+  const shown = rowCountFor(sorted, focusId, count);
+  const items = sorted.slice(0, shown);
 
   if (focusId && !items.some((banner) => banner.id === focusId)) {
     const focused = sorted.find((banner) => banner.id === focusId);
@@ -60,5 +74,5 @@ export function buildRow(sorted, focusId, { limit = ROW_LIMIT, cap = ROW_CAP } =
     }
   }
 
-  return { items, moreCount: sorted.length - items.length };
+  return { items, shown, hasMore: shown < sorted.length };
 }

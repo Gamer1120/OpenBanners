@@ -1,4 +1,4 @@
-import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import {
   Bookmark,
@@ -18,6 +18,7 @@ import {
 import { t, tk, tn } from "../../i18n";
 import { formatMinutes, walkingMinutes } from "./mapMath";
 import { StatusChip } from "./shared";
+import useIncrementalRow from "./useIncrementalRow";
 
 // Card thumbnail: 100 wide (84 on cards under 280 px), at most 100 × 74;
 // taller banners pan. Cards at least 340 px wide (CSS) widen it to 132-160 px
@@ -246,14 +247,32 @@ const RowCard = memo(function RowCard({ banner, selected, onToggle, onHover, onK
       )}
     </li>
   );
-});
+}, sameCard);
 
-function MoreCard({ count, onMore }) {
+// Every new page of banners (and every list-status change) rebuilds the banner
+// objects; a card only re-renders when something it shows changed, so a long
+// scrolled list doesn't re-render all its cards for each page.
+const CARD_FIELDS = ["id", "title", "picture", "numberOfMissions", "lengthMeters", "_status", "_listType"];
+
+function sameCard(previous, next) {
+  for (const key of ["selected", "onToggle", "onHover", "onKeyDown", "itemRef", "stacked"]) {
+    if (previous[key] !== next[key]) {
+      return false;
+    }
+  }
+
   return (
-    <li className="mv-rc-item mv-rc-more-item">
-      <button type="button" className="mv-rc mv-rc-more" onClick={onMore}>
-        {tn("+{count} more · show list", "+{count} more · show list", count)}
-      </button>
+    previous.banner === next.banner ||
+    CARD_FIELDS.every((field) => previous.banner[field] === next.banner[field])
+  );
+}
+
+// After the last card: what IntersectionObserver watches to render the next
+// cards, and "Loading…" while the map is still fetching banners for the view.
+function RowEnd({ sentinelRef, loading }) {
+  return (
+    <li className={`mv-row-end${loading ? " loading" : ""}`} ref={sentinelRef} aria-hidden={loading ? undefined : "true"}>
+      {loading ? <span role="status">{t("Loading…")}</span> : null}
     </li>
   );
 }
@@ -312,12 +331,12 @@ function useItemRefs() {
 // far enough (like scrollIntoView "nearest"). A re-sort without a selection puts
 // the row back at its start.
 export function BannerCarousel({
-  items,
-  moreCount,
+  sorted,
+  resetKey,
+  loadingMore,
   count,
   focusId,
   onToggle,
-  onMore,
   inGroup,
   onExitGroup,
   routeStatus,
@@ -326,25 +345,30 @@ export function BannerCarousel({
   onUnfold,
   rowRef,
 }) {
-  const scrollerRef = useRef(null);
   const [itemRefs, refFor] = useItemRefs();
   const thawTimer = useRef(null);
   const touching = useRef(false);
-  // The card order shown while the user is touching/scrolling the row.
+  // The card order (and view) shown while the user is touching/scrolling the row.
   const [frozen, setFrozen] = useState(null);
-  const shown = frozen ?? items;
-  const shownRef = useRef(shown);
-  const itemsKey = useMemo(() => shown.map((banner) => banner.id).join("|"), [shown]);
+  const view = frozen ?? { sorted, resetKey };
+  const viewRef = useRef(view);
+  const { items: shown, hasMore, scrollerRef, setScroller, sentinelRef } = useIncrementalRow({
+    sorted: view.sorted,
+    focusId,
+    resetKey: view.resetKey,
+    horizontal: true,
+  });
   // What the row was last brought in line with.
-  const last = useRef({ itemsKey: null, focusId: null, scroller: null });
+  const last = useRef({ resetKey: null, focusId: null, scroller: null });
   const touchStart = useRef(null);
 
-  shownRef.current = shown;
+  viewRef.current = view;
 
   // Bring the selected card into view, as little as needed: smoothly when it was
-  // just selected, at once when the cards were re-sorted or the row (re)appeared.
-  // Re-sorted without a selection: back to the start. Never while a finger is on
-  // the row.
+  // just selected, at once when the map moved (new view, filters) or the row
+  // (re)appeared. A new view without a selection: back to the start. Never while
+  // a finger is on the row. (More banners arriving for the same view keep the
+  // row where it is: useIncrementalRow.)
   useLayoutEffect(() => {
     const scroller = scrollerRef.current;
 
@@ -352,9 +376,9 @@ export function BannerCarousel({
       return;
     }
 
-    const reordered = last.current.itemsKey !== itemsKey || last.current.scroller !== scroller;
+    const reordered = last.current.resetKey !== view.resetKey || last.current.scroller !== scroller;
     const refocused = last.current.focusId !== focusId;
-    last.current = { itemsKey, focusId, scroller };
+    last.current = { resetKey: view.resetKey, focusId, scroller };
     const card = focusId ? itemRefs.current.get(focusId) : null;
     let target = null;
 
@@ -391,7 +415,7 @@ export function BannerCarousel({
     }
 
     scroller.scrollTo({ left: target, behavior: reordered || prefersReducedMotion() ? "instant" : "smooth" });
-  }, [focusId, itemsKey, itemRefs, folded, frozen]);
+  }, [focusId, view.resetKey, itemRefs, folded, frozen, scrollerRef]);
 
   useEffect(() => () => clearTimeout(thawTimer.current), []);
 
@@ -417,7 +441,7 @@ export function BannerCarousel({
   const onTouchDown = () => {
     touching.current = true;
     clearTimeout(thawTimer.current);
-    setFrozen((current) => current ?? shownRef.current);
+    setFrozen((current) => current ?? viewRef.current);
   };
 
   const onTouchUp = (event) => {
@@ -489,7 +513,7 @@ export function BannerCarousel({
       </RowHead>
       <ul
         className="mv-row-scroll"
-        ref={scrollerRef}
+        ref={setScroller}
         onScroll={onScroll}
         onTouchStart={onTouchDown}
         onTouchEnd={onTouchUp}
@@ -504,7 +528,7 @@ export function BannerCarousel({
             itemRef={refFor(banner.id)}
           />
         ))}
-        {moreCount ? <MoreCard count={moreCount} onMore={onMore} /> : null}
+        <RowEnd sentinelRef={sentinelRef} loading={!hasMore && loadingMore} />
       </ul>
     </section>
   );
@@ -514,19 +538,43 @@ export function BannerCarousel({
 // dot, a click selects (route) or deselects, the card's Details button opens the
 // banner. Arrow keys only move between the cards (Enter/Space toggles).
 export function BannerSideList({
-  items,
-  moreCount,
+  sorted,
+  resetKey,
+  loadingMore,
   count,
   focusId,
   onToggle,
   onHover,
-  onMore,
   inGroup,
   onExitGroup,
   routeStatus,
 }) {
-  const listRef = useRef(null);
   const [itemRefs, refFor] = useItemRefs();
+  const { items, hasMore, scrollerRef: listRef, setScroller, sentinelRef } = useIncrementalRow({
+    sorted,
+    focusId,
+    resetKey,
+  });
+  const lastResetKey = useRef(resetKey);
+
+  // A new view (map moved, filters, group): back to the top, or to the
+  // selected card.
+  useLayoutEffect(() => {
+    if (lastResetKey.current === resetKey) {
+      return;
+    }
+
+    lastResetKey.current = resetKey;
+
+    if (listRef.current) {
+      listRef.current.scrollTop = 0;
+    }
+
+    const card = focusId ? itemRefs.current.get(focusId) : null;
+    card?.scrollIntoView?.({ block: "nearest" });
+    // Only when the view changes; a new selection is handled below.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [resetKey]);
 
   useEffect(() => {
     const card = focusId ? itemRefs.current.get(focusId) : null;
@@ -553,7 +601,7 @@ export function BannerSideList({
   return (
     <section className="mv-side" aria-label={t("Banners in view")}>
       <RowHead count={count} inGroup={inGroup} onExitGroup={onExitGroup} routeStatus={routeStatus} />
-      <ul className="mv-side-list" ref={listRef}>
+      <ul className="mv-side-list" ref={setScroller}>
         {items.map((banner) => (
           <RowCard
             key={banner.id}
@@ -566,7 +614,7 @@ export function BannerSideList({
             stacked
           />
         ))}
-        {moreCount ? <MoreCard count={moreCount} onMore={onMore} /> : null}
+        <RowEnd sentinelRef={sentinelRef} loading={!hasMore && loadingMore} />
       </ul>
     </section>
   );

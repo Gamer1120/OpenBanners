@@ -2,9 +2,6 @@
   "#{number} of {banner}": "{banner} の #{number}",
   "&copy; {osm} contributors. This website is NOT affiliated with Bannergress in any way!": "&copy; {osm} の貢献者。このウェブサイトは Bannergress とは一切関係ありません!",
   "(no longer in Ingress)": "(Ingress から削除済み)",
-  "+{count} more · show list": {
-    "other": "他 {count} 件 · リストを表示"
-  },
   "? missions": "? ミッション",
   "A connected participant needs to enable list sharing before comparisons appear.": "比較を表示するには、接続中の参加者がリスト共有を有効にする必要があります。",
   "A copy of your data": "データのコピー",
@@ -144,7 +141,6 @@
   "Clear workspace?": "ワークスペースを消去しますか?",
   "Close": "閉じる",
   "Close filters": "フィルターを閉じる",
-  "Close list": "リストを閉じる",
   "Closest first": "近い順",
   "Closest first, with filters": "近い順、フィルター付き",
   "Closest start point first.": "スタート地点が近い順。",

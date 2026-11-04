@@ -2,10 +2,6 @@
   "#{number} of {banner}": "N.º {number} de {banner}",
   "&copy; {osm} contributors. This website is NOT affiliated with Bannergress in any way!": "&copy; Colaboradores de {osm}. ¡Este sitio web NO tiene ninguna relación con Bannergress!",
   "(no longer in Ingress)": "(ya no está en Ingress)",
-  "+{count} more · show list": {
-    "one": "+{count} más · ver lista",
-    "other": "+{count} más · ver lista"
-  },
   "? missions": "? misiones",
   "A connected participant needs to enable list sharing before comparisons appear.": "Un participante conectado tiene que activar el uso compartido de listas para que aparezcan comparaciones.",
   "A copy of your data": "Una copia de tus datos",
@@ -147,7 +143,6 @@
   "Clear workspace?": "¿Vaciar espacio de trabajo?",
   "Close": "Cerrar",
   "Close filters": "Cerrar filtros",
-  "Close list": "Cerrar lista",
   "Closest first": "Más cercanos primero",
   "Closest first, with filters": "Más cercanos primero, con filtros",
   "Closest start point first.": "Punto de inicio más cercano primero.",

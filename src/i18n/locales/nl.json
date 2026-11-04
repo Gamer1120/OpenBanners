@@ -2,10 +2,6 @@
   "#{number} of {banner}": "#{number} van {banner}",
   "&copy; {osm} contributors. This website is NOT affiliated with Bannergress in any way!": "&copy; {osm}-bijdragers. Deze website is op GEEN ENKELE manier verbonden aan Bannergress!",
   "(no longer in Ingress)": "(niet meer in Ingress)",
-  "+{count} more · show list": {
-    "one": "+{count} meer · toon lijst",
-    "other": "+{count} meer · toon lijst"
-  },
   "? missions": "? missies",
   "A connected participant needs to enable list sharing before comparisons appear.": "Een verbonden deelnemer moet het delen van lijsten aanzetten voordat er vergelijkingen verschijnen.",
   "A copy of your data": "Een kopie van je gegevens",
@@ -147,7 +143,6 @@
   "Clear workspace?": "Werkruimte wissen?",
   "Close": "Sluiten",
   "Close filters": "Filters sluiten",
-  "Close list": "Lijst sluiten",
   "Closest first": "Dichtstbij eerst",
   "Closest first, with filters": "Dichtstbijzijnde eerst, met filters",
   "Closest start point first.": "Dichtstbijzijnde startpunt eerst.",

@@ -2,12 +2,6 @@
   "#{number} of {banner}": "#{number} z {banner}",
   "&copy; {osm} contributors. This website is NOT affiliated with Bannergress in any way!": "&copy; współtwórcy {osm}. Ta strona NIE jest w żaden sposób powiązana z Bannergress!",
   "(no longer in Ingress)": "(już nie ma w Ingress)",
-  "+{count} more · show list": {
-    "one": "+{count} kolejny · pokaż listę",
-    "few": "+{count} kolejne · pokaż listę",
-    "many": "+{count} kolejnych · pokaż listę",
-    "other": "+{count} kolejnego · pokaż listę"
-  },
   "? missions": "? misji",
   "A connected participant needs to enable list sharing before comparisons appear.": "Porównania pojawią się, gdy połączony uczestnik włączy udostępnianie list.",
   "A copy of your data": "Kopia twoich danych",
@@ -153,7 +147,6 @@
   "Clear workspace?": "Wyczyścić obszar roboczy?",
   "Close": "Zamknij",
   "Close filters": "Zamknij filtry",
-  "Close list": "Zamknij listę",
   "Closest first": "Najbliższe najpierw",
   "Closest first, with filters": "Najbliższe najpierw, z filtrami",
   "Closest start point first.": "Najbliższy punkt startowy najpierw.",

@@ -2,9 +2,6 @@
   "#{number} of {banner}": "#{number} dari {banner}",
   "&copy; {osm} contributors. This website is NOT affiliated with Bannergress in any way!": "&copy; Kontributor {osm}. Situs ini sama sekali TIDAK terafiliasi dengan Bannergress!",
   "(no longer in Ingress)": "(sudah tidak ada di Ingress)",
-  "+{count} more · show list": {
-    "other": "+{count} lagi · lihat daftar"
-  },
   "? missions": "? misi",
   "A connected participant needs to enable list sharing before comparisons appear.": "Peserta yang terhubung perlu mengaktifkan berbagi daftar sebelum perbandingan muncul.",
   "A copy of your data": "Salinan datamu",
@@ -144,7 +141,6 @@
   "Clear workspace?": "Kosongkan ruang kerja?",
   "Close": "Tutup",
   "Close filters": "Tutup filter",
-  "Close list": "Tutup daftar",
   "Closest first": "Terdekat dulu",
   "Closest first, with filters": "Terdekat dulu, dengan filter",
   "Closest start point first.": "Titik awal terdekat dulu.",

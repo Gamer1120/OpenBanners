@@ -136,7 +136,6 @@
   "Clear workspace?",
   "Close",
   "Close filters",
-  "Close list",
   "Closest first",
   "Closest first, with filters",
   "Closest start point first.",
@@ -1067,10 +1066,6 @@
   {
    "one": "{known} of {count} answer known",
    "other": "{known} of {count} answers known"
-  },
-  {
-   "one": "+{count} more · show list",
-   "other": "+{count} more · show list"
   },
   {
    "one": "Anyone with this link can see your complete to-do list for this place ({count} banner ID). A copied snapshot cannot be revoked.",

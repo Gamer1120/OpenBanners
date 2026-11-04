@@ -2,12 +2,6 @@
   "#{number} of {banner}": "№{number} з {banner}",
   "&copy; {osm} contributors. This website is NOT affiliated with Bannergress in any way!": "&copy; учасники {osm}. Цей сайт ніяк НЕ пов’язаний з Bannergress!",
   "(no longer in Ingress)": "(більше немає в Ingress)",
-  "+{count} more · show list": {
-    "one": "Ще {count} · показати список",
-    "few": "Ще {count} · показати список",
-    "many": "Ще {count} · показати список",
-    "other": "Ще {count} · показати список"
-  },
   "? missions": "? місій",
   "A connected participant needs to enable list sharing before comparisons appear.": "Щоб з’явилися порівняння, підключений учасник має увімкнути поширення списків.",
   "A copy of your data": "Копія твоїх даних",
@@ -153,7 +147,6 @@
   "Clear workspace?": "Очистити робочу область?",
   "Close": "Закрити",
   "Close filters": "Закрити фільтри",
-  "Close list": "Закрити список",
   "Closest first": "Спершу найближчі",
   "Closest first, with filters": "Спершу найближчі, з фільтрами",
   "Closest start point first.": "Спершу найближчі точки старту.",

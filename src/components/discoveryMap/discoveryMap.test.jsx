@@ -3,7 +3,7 @@ import { MemoryRouter, Route, Routes, useParams } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import DiscoveryMap from "./DiscoveryMap";
 import { useBannerRoute } from "./bannerRoute";
-import { buildRow, sortByDistance } from "./rowModel";
+import { FOCUS_REACH, ROW_PAGE, buildRow, sortByDistance } from "./rowModel";
 import {
   MAP_FILTERS_STORAGE_KEY,
   applyMapFilters,
@@ -184,17 +184,24 @@ describe("banners in view row (helpers)", () => {
     expect(sortByDistance(list, null).map((item) => item.id)).toEqual(["far", "near", "mid", "tie"]);
   });
 
-  test("caps a long row at 30 cards plus a more card, keeping the focused one", () => {
-    const list = Array.from({ length: 45 }, (_, index) => banner(`b${index}`, 52, 6));
-    expect(buildRow(list.slice(0, 40), null)).toEqual({ items: list.slice(0, 40), moreCount: 0 });
+  test("renders the first cards, extends to a nearby focused one and appends a far one", () => {
+    const list = Array.from({ length: 400 }, (_, index) => banner(`b${index}`, 52, 6));
+    expect(buildRow(list.slice(0, 20), null, ROW_PAGE)).toEqual({ items: list.slice(0, 20), shown: 20, hasMore: false });
 
-    const capped = buildRow(list, "b2");
-    expect(capped.items).toHaveLength(30);
-    expect(capped.moreCount).toBe(15);
+    const first = buildRow(list, "b2", ROW_PAGE);
+    expect(first.items).toEqual(list.slice(0, ROW_PAGE));
+    expect(first.hasMore).toBe(true);
 
-    const withFar = buildRow(list, "b44");
-    expect(withFar.items.map((item) => item.id).slice(-1)).toEqual(["b44"]);
-    expect(withFar.moreCount).toBe(14);
+    // Within reach: the cards run on down to it (no gap, no duplicate).
+    const near = buildRow(list, "b40", ROW_PAGE);
+    expect(near.items).toEqual(list.slice(0, 41));
+    expect(near.shown).toBe(41);
+
+    // Further away: the first cards plus its own card at the end.
+    const farIndex = ROW_PAGE + FOCUS_REACH + 5;
+    const far = buildRow(list, `b${farIndex}`, ROW_PAGE);
+    expect(far.items.map((item) => item.id)).toEqual([...list.slice(0, ROW_PAGE).map((item) => item.id), `b${farIndex}`]);
+    expect(far.shown).toBe(ROW_PAGE);
   });
 });
 
@@ -245,7 +252,7 @@ describe("banners in view row (phone)", () => {
   const cards = () =>
     within(screen.getByRole("region", { name: "Banners in view" }))
       .getAllByRole("button")
-      .filter((button) => button.classList.contains("mv-rc") && !button.classList.contains("mv-rc-more"));
+      .filter((button) => button.classList.contains("mv-rc"));
   const cardTitles = () => cards().map((card) => card.querySelector(".mv-rc-title").textContent);
   const card = (title) => cards().find((item) => item.querySelector(".mv-rc-title").textContent === title);
   const current = () =>
@@ -374,22 +381,112 @@ describe("banners in view row (phone)", () => {
     expect(routeFor()).toBeNull();
   });
 
-  test("more than 40 in view: 30 cards and a more card that opens the full list", () => {
-    setVm(
-      Array.from({ length: 45 }, (_, index) => mapBanner(`b${String(index).padStart(2, "0")}`, 52 + index * 0.0001, 6)),
-      area(52, 6)
-    );
-    render(ui());
+  describe("infinite scroll", () => {
+    // IntersectionObserver stand-in: the test says when the end of the list is near.
+    let observers;
 
-    expect(cardTitles()).toHaveLength(30);
-    fireEvent.click(screen.getByRole("button", { name: "+15 more · show list" }));
-    const sheet = screen.getByRole("dialog", { name: "45 banners here" });
-    expect(within(sheet).getAllByRole("button", { name: /b\d\d/ })).toHaveLength(45);
-    expect(screen.queryByRole("region", { name: "Banners in view" })).not.toBeInTheDocument();
+    beforeEach(() => {
+      observers = [];
+      globalThis.IntersectionObserver = class {
+        constructor(callback, options) {
+          this.callback = callback;
+          this.options = options;
+          this.targets = [];
+          observers.push(this);
+        }
+        observe(target) {
+          this.targets.push(target);
+        }
+        disconnect() {
+          this.targets = [];
+          observers = observers.filter((observer) => observer !== this);
+        }
+      };
+    });
 
-    fireEvent.click(within(sheet).getByRole("button", { name: /b40/ }));
-    expect(cardTitles()).toHaveLength(31);
-    expect(current()).toBe("b40");
+    afterEach(() => {
+      delete globalThis.IntersectionObserver;
+    });
+
+    // The end of the list comes into view.
+    const reachEnd = () =>
+      act(() => {
+        for (const observer of [...observers]) {
+          observer.callback(observer.targets.map((target) => ({ target, isIntersecting: true })));
+        }
+      });
+    const many = (count) =>
+      Array.from({ length: count }, (_, index) => mapBanner(`b${String(index).padStart(3, "0")}`, 52 + index * 0.00001, 6));
+
+    test("renders 30 cards, then 30 more each time the end comes near, without duplicates or a more card", () => {
+      setVm(many(75), area(52, 6));
+      render(ui());
+
+      expect(cardTitles()).toEqual(many(30).map((item) => item.id));
+      expect(screen.getByText("75 banners here")).toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: /more/ })).not.toBeInTheDocument();
+      // Watches the end of the row, a few cards ahead.
+      expect(observers).toHaveLength(1);
+      expect(observers[0].options.root).toBe(document.querySelector(".mv-row-scroll"));
+      expect(observers[0].options.rootMargin).toBe("0px 900px 0px 0px");
+
+      reachEnd();
+      expect(cardTitles()).toHaveLength(60);
+      reachEnd();
+      expect(cardTitles()).toEqual(many(75).map((item) => item.id));
+      expect(new Set(cardTitles()).size).toBe(75);
+      // Everything rendered: nothing left to watch.
+      expect(observers).toHaveLength(0);
+    });
+
+    test("a new view starts over at 30 cards; more banners for the same view keep the rendered ones", () => {
+      setVm(many(75), area(52, 6));
+      const { rerender } = render(ui());
+      reachEnd();
+      expect(cardTitles()).toHaveLength(60);
+
+      // A page of banners arrives for the same view.
+      setVm([...vm.banners, mapBanner("late", 52.0009, 6)], vm.liveArea);
+      rerender(ui());
+      expect(cardTitles()).toHaveLength(60);
+      expect(screen.getByText("76 banners here")).toBeInTheDocument();
+
+      // The map moved.
+      setVm(vm.banners, area(52.0001, 6));
+      rerender(ui());
+      expect(cardTitles()).toHaveLength(30);
+    });
+
+    test("says Loading… at the end while the map still fetches banners for the view", () => {
+      setVm(many(35), area(52, 6));
+      vm.loading = true;
+      const { rerender } = render(ui());
+
+      expect(screen.queryByText("Loading…", { selector: ".mv-row-end span" })).not.toBeInTheDocument();
+      reachEnd();
+      expect(cardTitles()).toHaveLength(35);
+      expect(screen.getByText("Loading…", { selector: ".mv-row-end span" })).toBeInTheDocument();
+
+      setVm(vm.banners, vm.liveArea);
+      rerender(ui());
+      expect(screen.queryByText("Loading…", { selector: ".mv-row-end span" })).not.toBeInTheDocument();
+    });
+
+    test("a dot far down the list gets its card", () => {
+      setVm(many(300), area(52, 6));
+      render(ui());
+
+      // Within reach of the rendered cards: the list runs on to it.
+      fireEvent.click(screen.getByTestId(`marker-${52 + 40 * 0.00001},6`));
+      expect(current()).toBe("b040");
+      expect(cardTitles()).toHaveLength(41);
+
+      // Far away: its own card at the end.
+      fireEvent.click(screen.getByTestId(`marker-${52 + 290 * 0.00001},6`));
+      expect(current()).toBe("b290");
+      expect(cardTitles()).toHaveLength(42);
+      expect(cardTitles().slice(-1)).toEqual(["b290"]);
+    });
   });
 
   test("a group that zooming can't split becomes the row", () => {
@@ -585,6 +682,30 @@ describe("banners in view row (phone)", () => {
       expect(current()).toBeUndefined();
       expect(scrollTo).toHaveBeenLastCalledWith({ left: 0, behavior: "instant" });
     });
+
+    test("more banners for the same view keep the card in view where it was", () => {
+      setVm(fourBanners(), area(52, 6));
+      const { rerender } = render(ui());
+
+      // b (112–212) is the first card in view at 174.
+      swipeTo(174);
+      act(() => vi.advanceTimersByTime(1000));
+      // A page with a nearer banner arrives: b moves one card to the right
+      // (212–312), the row follows it instead of jumping.
+      setVm([mapBanner("z", 52.0005, 6), ...vm.banners], vm.liveArea);
+      rerender(ui());
+      expect(cardTitles()).toEqual(["z", "a", "b", "c", "d"]);
+      expect(scroller().scrollLeft).toBe(274);
+      expect(scrollTo).not.toHaveBeenCalled();
+
+      // At the start the row stays at the start.
+      swipeTo(0);
+      act(() => vi.advanceTimersByTime(1000));
+      setVm([mapBanner("y", 52.0002, 6), ...vm.banners], vm.liveArea);
+      rerender(ui());
+      expect(cardTitles()[0]).toBe("y");
+      expect(scroller().scrollLeft).toBe(0);
+    });
   });
 
   describe("desktop side list", () => {
@@ -657,6 +778,42 @@ describe("banners in view row (phone)", () => {
         expect(updateBannergressBannerListType).toHaveBeenLastCalledWith("a", "blacklist", { keepHiddenVisible: true })
       );
       expect(current()).toBeUndefined();
+    });
+
+    test("scrolls on to more cards and goes back to the top when the map moves", () => {
+      let observers = [];
+      globalThis.IntersectionObserver = class {
+        constructor(callback, options) {
+          Object.assign(this, { callback, options, targets: [] });
+          observers.push(this);
+        }
+        observe(target) {
+          this.targets.push(target);
+        }
+        disconnect() {
+          observers = observers.filter((observer) => observer !== this);
+        }
+      };
+
+      try {
+        const list = Array.from({ length: 50 }, (_, index) => mapBanner(`d${index}`, 52 + index * 0.00001, 6));
+        setVm(list, area(52, 6));
+        const { rerender } = render(ui());
+        const scroller = document.querySelector(".mv-side-list");
+
+        expect(cardTitles()).toHaveLength(30);
+        expect(observers[0].options).toEqual({ root: scroller, rootMargin: "0px 0px 900px 0px" });
+        act(() => observers[0].callback([{ isIntersecting: true }]));
+        expect(cardTitles()).toHaveLength(50);
+
+        scroller.scrollTop = 800;
+        setVm(vm.banners, area(52.0001, 6));
+        rerender(ui());
+        expect(cardTitles()).toHaveLength(30);
+        expect(scroller.scrollTop).toBe(0);
+      } finally {
+        delete globalThis.IntersectionObserver;
+      }
     });
   });
 

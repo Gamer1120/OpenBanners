@@ -420,6 +420,8 @@
   list-style: none;
   overflow-x: auto;
   overscroll-behavior-x: contain;
+  /* useIncrementalRow keeps the card in view in place when more banners load. */
+  overflow-anchor: none;
   /* A free scroll: no snapping, a flick glides as far as its momentum goes. */
   scrollbar-width: none;
   /* Horizontal swipes are the browser's; vertical ones are ours (fold). */
@@ -607,13 +609,26 @@
   visibility: hidden;
 }
 
-.mv-rc-more {
-  justify-content: center;
-  border-style: dashed;
-  border-color: rgba(126, 200, 255, 0.5);
-  color: var(--mv-accent);
-  font: 600 14px/1.3 var(--mv-font);
-  text-align: center;
+/* After the last card: the infinite-scroll sentinel (1 px), or "Loading…"
+   while the map still fetches banners for the view. */
+.mv-row-end {
+  flex: 0 0 1px;
+  min-width: 1px;
+  min-height: 1px;
+}
+
+.mv-row-end.loading {
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  padding: 0 16px;
+  color: var(--mv-muted);
+  font: 500 13px/1.3 var(--mv-font);
+  white-space: nowrap;
+}
+
+.mv-side .mv-row-end.loading {
+  padding: 12px 0 8px;
 }
 
 .mv-row-handle {
@@ -685,8 +700,13 @@
   margin: 0;
   padding: 2px;
   list-style: none;
+  overflow-x: hidden;
   overflow-y: auto;
   scrollbar-width: thin;
+  /* Card offsets are relative to the list (useIncrementalRow); it keeps the
+     card in view in place itself when more banners load. */
+  position: relative;
+  overflow-anchor: none;
 }
 
 .mv-side .mv-rc {
@@ -1057,49 +1077,6 @@
   background: var(--mv-accent);
   color: #06233a;
   font-weight: 600;
-}
-
-.mv-cluster-list {
-  list-style: none;
-  margin: 8px 0 0;
-  padding: 0;
-}
-
-.mv-cluster-row {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  width: 100%;
-  padding: 8px 0;
-  border: 0;
-  border-top: 1px solid rgba(255, 255, 255, 0.08);
-  background: none;
-  color: inherit;
-  font: inherit;
-  text-align: left;
-  cursor: pointer;
-}
-
-/* tiny <BannerImage mode="contain">: the whole banner */
-.mv-cluster-thumb {
-  flex: 0 0 48px;
-  height: 48px;
-  border-radius: 10px;
-  background: #2a3138;
-}
-
-.mv-cluster-text {
-  display: flex;
-  flex: 1;
-  min-width: 0;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.mv-cluster-text b {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 /* custom distance range in the filter sheet */

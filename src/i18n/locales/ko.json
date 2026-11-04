@@ -2,9 +2,6 @@
   "#{number} of {banner}": "{banner}의 {number}번",
   "&copy; {osm} contributors. This website is NOT affiliated with Bannergress in any way!": "&copy; {osm} 기여자. 이 웹사이트는 Bannergress와 전혀 관련이 없습니다!",
   "(no longer in Ingress)": "(Ingress에서 더 이상 제공되지 않음)",
-  "+{count} more · show list": {
-    "other": "{count}개 더 · 목록 보기"
-  },
   "? missions": "? 미션",
   "A connected participant needs to enable list sharing before comparisons appear.": "비교가 표시되려면 연결된 참가자가 목록 공유를 켜야 합니다.",
   "A copy of your data": "내 데이터 사본",
@@ -144,7 +141,6 @@
   "Clear workspace?": "작업 공간을 비울까요?",
   "Close": "닫기",
   "Close filters": "필터 닫기",
-  "Close list": "목록 닫기",
   "Closest first": "가까운 순",
   "Closest first, with filters": "가까운 순, 필터 적용",
   "Closest start point first.": "시작점이 가까운 순입니다.",

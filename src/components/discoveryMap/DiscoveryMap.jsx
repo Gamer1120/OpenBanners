@@ -7,7 +7,6 @@ import {
   DiscoveryBaseMap,
   LocateButton,
   MapStatusPill,
-  StatusChip,
   clusterIcon,
   statusDotIcon,
 } from "./shared";
@@ -27,11 +26,9 @@ import {
 import { useBannerRoute } from "./bannerRoute";
 import { useBannergressAuth } from "../../bannergressSync";
 import { clusterByPixels, isInsideArea } from "./mapMath";
-import { areaCenter, buildRow, sortByDistance } from "./rowModel";
+import { areaCenter, sortByDistance } from "./rowModel";
 import { BannerCarousel, BannerSideList } from "./BannerRow";
 import { FINISH_FLAG_SVG, missionColors } from "../BannerDetailsPage";
-import { formatLength } from "../../bannerDisplay";
-import BannerImage from "../BannerImage";
 import { useRememberEntry, useRestoredEntry } from "../../scrollRestoration";
 import { t, tk, tn } from "../../i18n";
 import { noteSettingChanged, onSyncedSettingsApplied } from "../../settingsSyncState";
@@ -268,46 +265,6 @@ function FilterSheet({ filters, onChange, onClose, focusKey, matchCount }) {
   );
 }
 
-// Banner list sheet: everything in view (from the "+N more" card).
-function ClusterSheet({ banners, onPick, onClose }) {
-  const heading = tn("{count} banner here", "{count} banners here", banners.length);
-
-  return (
-    <div className="mv-sheet mv-filter-sheet" role="dialog" aria-label={heading}>
-      <div className="mv-grip" aria-hidden="true" />
-      <div className="mv-card-head">
-        <div className="mv-card-title">{heading}</div>
-        <button type="button" className="mv-btn icon ghost" aria-label={t("Close list")} onClick={onClose}>
-          ×
-        </button>
-      </div>
-      <ul className="mv-cluster-list">
-        {banners.map((banner) => {
-          const missions = Number(banner.numberOfMissions);
-
-          return (
-            <li key={banner.id}>
-              <button type="button" className="mv-cluster-row" onClick={() => onPick(banner)}>
-                <BannerImage banner={banner} mode="contain" className="mv-cluster-thumb" />
-                <span className="mv-cluster-text">
-                  <b>{banner.title}</b>
-                  <span className="mv-muted">
-                    {formatLength(banner.lengthMeters)} ·{" "}
-                    {Number.isFinite(missions)
-                      ? tn("{count} mission", "{count} missions", missions)
-                      : t("? missions")}
-                  </span>
-                </span>
-                <StatusChip status={banner._status} />
-              </button>
-            </li>
-          );
-        })}
-      </ul>
-    </div>
-  );
-}
-
 // /map: status-coloured dots with filter chips; banners reload for whatever is in view.
 // The banners in view are cards (phone: a scrolling row above the bottom bar,
 // desktop: a list beside the map), nearest to the map centre first. Nothing is
@@ -325,7 +282,6 @@ export default function DiscoveryMap() {
   const loggedIn = Boolean(auth?.accessToken || auth?.refreshToken);
   const filters = useMemo(() => signedOutMapFilters(storedFilters, loggedIn), [storedFilters, loggedIn]);
   const [sheet, setSheet] = useState(null); // group key that opened the sheet
-  const [moreOpen, setMoreOpen] = useState(false);
   // Back from a banner reselects its card (the viewport itself is remembered
   // in useDiscoveryMap).
   const { entryKey, restored } = useRestoredEntry("map");
@@ -380,7 +336,19 @@ export default function DiscoveryMap() {
   );
   const inGroup = Boolean(groupList?.length);
   const rowList = inGroup ? groupList : sortedInView;
-  const row = useMemo(() => buildRow(rowList, focusId), [focusId, rowList]);
+  // The row starts over (first cards, scrolled to the start) for a new view,
+  // other filters or a group; more banners loading for the same view don't.
+  const rowResetKey = useMemo(
+    () =>
+      [
+        liveArea
+          ? [liveArea.minLatitude, liveArea.maxLatitude, liveArea.minLongitude, liveArea.maxLongitude].join(",")
+          : "",
+        JSON.stringify(filters),
+        pinned ? pinned.join(",") : "",
+      ].join("|"),
+    [filters, liveArea, pinned]
+  );
 
   // The group ends once none of its banners are in view any more.
   useEffect(() => {
@@ -408,7 +376,7 @@ export default function DiscoveryMap() {
 
   useRememberEntry(entryKey, "map", { focusId, selected: focused });
 
-  const rowVisible = !isWide && !sheet && !moreOpen && rowList.length > 0;
+  const rowVisible = !isWide && !sheet && rowList.length > 0;
   const rowOpen = rowVisible && !folded;
   // What the map shows as selected: the tapped card (on phones not while the row
   // is folded or hidden). Its route loads right away.
@@ -461,7 +429,6 @@ export default function DiscoveryMap() {
   }, [map, matching, vm.zoom]);
 
   const selectBanner = (id) => {
-    setMoreOpen(false);
     setFolded(false);
     setFocusId(id);
 
@@ -516,7 +483,6 @@ export default function DiscoveryMap() {
   };
   const showGroup = (members) => {
     setPinned(members.map((banner) => banner.id));
-    setMoreOpen(false);
     setFolded(false);
   };
   const openClusterRef = useRef(openCluster);
@@ -562,12 +528,13 @@ export default function DiscoveryMap() {
   );
   const hovered = isWide && hoverId && hoverId !== selectedId ? byId.get(hoverId) : null;
   const rowProps = {
-    items: row.items,
-    moreCount: row.moreCount,
+    sorted: rowList,
+    resetKey: rowResetKey,
+    // More banners are still coming for this view (shown at the end of the list).
+    loadingMore: Boolean(vm.loading) && !inGroup,
     count: rowList.length,
     focusId,
     onToggle: toggleBanner,
-    onMore: () => setMoreOpen(true),
     inGroup,
     onExitGroup: () => setPinned(null),
     routeStatus,
@@ -577,10 +544,7 @@ export default function DiscoveryMap() {
     <div className={`mv-root${isWide ? " wide" : ""}${L.Browser.mobile ? "" : " zoomctl"}`}>
       <DiscoveryBaseMap
         vm={vm}
-        onMapClick={() => {
-          setMoreOpen(false);
-          setFocusId(null);
-        }}
+        onMapClick={() => setFocusId(null)}
       >
         {markers}
         {hovered ? (
@@ -660,13 +624,6 @@ export default function DiscoveryMap() {
         />
       ) : null}
       {isWide && rowList.length ? <BannerSideList {...rowProps} onHover={setHoverId} /> : null}
-      {moreOpen && !sheet ? (
-        <ClusterSheet
-          banners={rowList}
-          onClose={() => setMoreOpen(false)}
-          onPick={(banner) => selectBanner(banner.id)}
-        />
-      ) : null}
       {sheet ? (
         <FilterSheet
           filters={filters}

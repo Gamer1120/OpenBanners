@@ -2,12 +2,6 @@
   "#{number} of {banner}": "#{number} z {banner}",
   "&copy; {osm} contributors. This website is NOT affiliated with Bannergress in any way!": "&copy; přispěvatelé {osm}. Tento web NEMÁ s Bannergress nic společného!",
   "(no longer in Ingress)": "(už není v Ingressu)",
-  "+{count} more · show list": {
-    "one": "+{count} další · zobrazit seznam",
-    "few": "+{count} další · zobrazit seznam",
-    "many": "+{count} dalšího · zobrazit seznam",
-    "other": "+{count} dalších · zobrazit seznam"
-  },
   "? missions": "? misí",
   "A connected participant needs to enable list sharing before comparisons appear.": "Než se zobrazí porovnání, musí připojený účastník zapnout sdílení seznamů.",
   "A copy of your data": "Kopie tvých dat",
@@ -153,7 +147,6 @@
   "Clear workspace?": "Vyčistit pracovní plochu?",
   "Close": "Zavřít",
   "Close filters": "Zavřít filtry",
-  "Close list": "Zavřít seznam",
   "Closest first": "Nejbližší první",
   "Closest first, with filters": "Nejbližší první, s filtry",
   "Closest start point first.": "Nejbližší start první.",

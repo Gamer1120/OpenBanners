@@ -468,8 +468,9 @@ export default function DiscoveryMap() {
       return;
     }
 
-    // Find the first zoom level where the group splits; otherwise list the group.
-    for (let zoomLevel = map.getZoom() + 1; zoomLevel <= maxZoom; zoomLevel += 1) {
+    // Find the first zoom step (half a level) where the group splits; otherwise list the group.
+    const zoomStep = map.options?.zoomDelta || 1;
+    for (let zoomLevel = map.getZoom() + zoomStep; zoomLevel <= maxZoom; zoomLevel += zoomStep) {
       if (splitsAt(zoomLevel)) {
         // Centre the group in the uncovered part of the map.
         const offset = padBottomRight.subtract(padTopLeft).divideBy(2);

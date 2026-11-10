@@ -138,7 +138,7 @@ test("?overlay=missing (intent fallback) opens the install dialog once and drops
 
   const dialog = await screen.findByRole("dialog", { name: "Install or update OpenBanners Overlay" });
   expect(within(dialog).getByText(/isn’t installed on this phone/)).toBeInTheDocument();
-  expect(within(dialog).getByRole("link", { name: "Become a tester on Google Play" })).toBeInTheDocument();
+  expect(within(dialog).getByRole("link", { name: "Open in Google Play" })).toBeInTheDocument();
   expect(within(dialog).getByRole("link", { name: "Download the latest release" })).toBeInTheDocument();
   expect(within(dialog).getByRole("button", { name: "Open in Bannergress Overlay" })).toBeInTheDocument();
   expect(screen.getByTestId("location")).toHaveTextContent("/banner/my-banner?x=1");

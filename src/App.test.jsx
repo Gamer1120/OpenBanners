@@ -1652,14 +1652,14 @@ test("top menu opens the OpenBanners Overlay download dialog with its three sour
       return link.getAttribute("href");
     });
   expect(hrefs).toEqual([
-    "https://groups.google.com/g/openbanners-overlay",
-    "https://play.google.com/apps/testing/org.openbanners.overlay",
+    "https://play.google.com/store/apps/details?id=org.openbanners.overlay",
     "https://f-droid.org/packages/org.openbanners.overlay/",
     "https://github.com/Gamer1120/OpenBanners-overlay/releases/latest",
   ]);
   expect(within(dialog).getByText("Google Play")).toBeInTheDocument();
   expect(within(dialog).getByText("F-Droid")).toBeInTheDocument();
-  expect(within(dialog).getByText(/wait about 2 minutes/i)).toBeInTheDocument();
+  expect(within(dialog).getByRole("link", { name: "Open in Google Play" })).toBeInTheDocument();
+  expect(within(dialog).queryByText(/tester|google group/i)).not.toBeInTheDocument();
 
   await user.click(within(dialog).getByRole("button", { name: /close/i }));
   expect(screen.queryByRole("dialog")).not.toBeInTheDocument();

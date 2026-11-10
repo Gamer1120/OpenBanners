@@ -5,8 +5,7 @@ import { watchAppLaunch } from "../overlayLink";
 import { t } from "../i18n";
 
 export const OVERLAY_LINKS = {
-  googleGroup: "https://groups.google.com/g/openbanners-overlay",
-  playTesting: "https://play.google.com/apps/testing/org.openbanners.overlay",
+  play: "https://play.google.com/store/apps/details?id=org.openbanners.overlay",
   fdroid: "https://f-droid.org/packages/org.openbanners.overlay/",
   githubRelease: "https://github.com/Gamer1120/OpenBanners-overlay/releases/latest",
 };
@@ -20,8 +19,7 @@ function ExternalButton({ href, variant, children }) {
 }
 
 // The three ways to get the app (separate repo Gamer1120/OpenBanners-overlay).
-// Google Play first: it is still a closed test there, so people join the
-// Google Group first and wait a moment.
+// Google Play first: the app is public there (production) since 2026-11-10.
 export function OverlayDownloadOptions() {
   return (
     <>
@@ -30,25 +28,10 @@ export function OverlayDownloadOptions() {
           <h3 id="overlay-dl-play">Google Play</h3>
           <span className="ob-dl-badge">{t("Recommended")}</span>
         </div>
-        <p className="small">{t("The app is still in testing on Google Play, so there’s one extra step.")}</p>
-        <ol className="ob-dl-steps small">
-          <li>
-            {t("Join the Google Group with the Google account you use on Google Play.")}
-            <ExternalButton href={OVERLAY_LINKS.googleGroup} variant="filled">
-              {t("Join the Google Group")}
-            </ExternalButton>
-          </li>
-          <li>
-            <strong>{t("Wait about 2 minutes.")}</strong> {t("This matters: Google Play needs a moment to let you in.")}
-          </li>
-          <li>
-            {t("Open the testing page, become a tester and download the app.")}
-            <ExternalButton href={OVERLAY_LINKS.playTesting} variant="filled">
-              {t("Become a tester on Google Play")}
-            </ExternalButton>
-          </li>
-          <li>{t("Can’t download it yet? Wait another 2 minutes and try again.")}</li>
-        </ol>
+        <p className="small">{t("Install it from Google Play like any other app. Updates arrive automatically.")}</p>
+        <ExternalButton href={OVERLAY_LINKS.play} variant="filled">
+          {t("Open in Google Play")}
+        </ExternalButton>
       </section>
 
       <section className="ob-dl-option" aria-labelledby="overlay-dl-fdroid">

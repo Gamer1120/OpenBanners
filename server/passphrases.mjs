@@ -938,6 +938,11 @@ export function createPassphraseService({
           scope === "review" ? "a.approved_at IS NULL" : scope === "approved" ? "a.approved_at IS NOT NULL AND a.status = 'pending'" : "(a.approved_at IS NULL OR a.status = 'pending')"
         }) x
         ORDER BY x.mission_index, x.step_index, x.submitted_at`).all(bannerId),
+    // Every answer still on a banner (to review, approved or live; rejected ones are deleted), in banner order.
+    allForBanner: (bannerId) =>
+      db.prepare(`${REVIEW_SQL} WHERE a.banner_id = ? ORDER BY a.mission_index, a.step_index, a.submitted_at`).all(bannerId),
+    // The banner's missions with their passphrase steps (public Bannergress data, cached).
+    passphraseSteps: async (bannerId) => passphraseStepsOf(await loadBanner(bannerId)),
     // Deletes the other live answers on this answer's waypoint (the ones it corrects).
     removeOthers(id) {
       const row = moderation.get(id);

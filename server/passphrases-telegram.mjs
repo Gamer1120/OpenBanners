@@ -5,6 +5,8 @@
 //   banner (Approve all = visible after the 30 days, Publish all now, Reject
 //   all) and "Per answer" for single decisions. New answers for the same banner
 //   replace the old message with a fresh one, so there is one per banner.
+//   "✉️ Message to author" sends a ready-made request to the banner author
+//   (all its answers that aren't rejected) as one tap-to-copy <pre> block.
 // - Commands: /pending (only answers awaiting a decision), /approved (approved,
 //   waiting out their 30 days; a banner button opens its answers with Publish
 //   now), /live (recently published), /blocks, /block, /unblock, /contact.
@@ -184,7 +186,8 @@ export function keyboardFor(review, rows) {
   }
   const toReview = open.some(({ state }) => state === "review");
   return {
-    inline_keyboard: toReview
+    inline_keyboard: [
+      ...(toReview
       ? [
           [
             { text: "✅ Approve all", callback_data: cb("a") },
@@ -201,8 +204,79 @@ export function keyboardFor(review, rows) {
             { text: "🗑 Reject all", callback_data: cb("r") },
           ],
           [{ text: "✏️ Per answer", callback_data: cb("items") }],
-        ],
+        ]),
+      ...messageRow(review, rows),
+    ],
   };
+}
+
+// ✉️ Message to author: while the message lists any answer that isn't rejected,
+// also once every answer is decided (then it is the only button).
+export function messageRow(review, rows) {
+  const byId = new Map(rows.filter(Boolean).map((row) => [row.id, row]));
+  return review.items.some((item) => stateOf(byId.get(item.id)) !== "rejected")
+    ? [[{ text: "✉️ Message to author", callback_data: `pp:m:${review.id}` }]]
+    : [];
+}
+
+// The ✉️ button: a ready-made message Michael sends the banner author himself,
+// asking whether its passphrase answers may be published. Plain text; the bot
+// sends it inside <pre> so one tap copies all of it (copy_text buttons stop at
+// 256 characters). rows: the banner's answers still there (rejected ones are
+// deleted), any order. missions: passphraseStepsOf() of the banner, or null
+// when Bannergress didn't answer (then the waypoint number stands in).
+export function authorMessage(bannerId, rows, siteUrl, missions = null) {
+  const link = `${siteUrl}/banner/${encodeURIComponent(bannerId)}`;
+  const passphraseNumber = (missionIndex, stepIndex) => {
+    const steps = missions?.[missionIndex]?.steps;
+    if (!steps?.[stepIndex]?.passphrase) {
+      return stepIndex + 1;
+    }
+    return steps.slice(0, stepIndex + 1).filter((step) => step.passphrase).length;
+  };
+  const sorted = [...rows].sort(
+    (a, b) => a.mission_index - b.mission_index || a.step_index - b.step_index || (a.submitted_at ?? 0) - (b.submitted_at ?? 0)
+  );
+  // Several answers on one passphrase (a correction): one line.
+  const lines = new Map();
+  for (const row of sorted) {
+    const key = `${row.mission_index}:${row.step_index}`;
+    if (!lines.has(key)) {
+      lines.set(key, { label: `Mission ${row.mission_index + 1}, passphrase ${passphraseNumber(row.mission_index, row.step_index)}`, answers: [] });
+    }
+    const entry = lines.get(key);
+    if (!entry.answers.includes(row.answer)) {
+      entry.answers.push(row.answer);
+    }
+  }
+  const intro = [
+    "Hi! Do you play Ingress? I'm asking because I think you made this banner:",
+    link,
+    "",
+    "I run OpenBanners, a site where people can view banners from Bannergress, and I'd like to add the answers to its passphrase missions so more people can complete it.",
+    "",
+    'Is that okay with you? Just reply "no" if you\'d rather I didn\'t, and I won\'t publish them. If I don\'t hear back within 30 days, I\'ll assume it\'s fine. You can always ask me to remove them later or opt out from having passphrases from this or any of your banners added to OpenBanners.',
+    "",
+    "These passphrases were submitted:",
+    "",
+    "",
+  ].join("\n");
+  return { intro, answers: [...lines.values()].map(({ label, answers }) => `${label}: ${answers.join(" / ")}`) };
+}
+
+// Telegram messages hold 4096 characters: the text in as few <pre> blocks as fit.
+export function authorMessageBlocks({ intro, answers }, limit = MAX_TEXT) {
+  const blocks = [];
+  let current = intro;
+  for (const line of answers) {
+    if (escapeHtml(`${current}${line}\n`).length > limit && current !== intro) {
+      blocks.push(current);
+      current = "";
+    }
+    current += `${line}\n`;
+  }
+  blocks.push(current);
+  return blocks.map((block) => `<pre>${escapeHtml(block.trimEnd())}</pre>`);
 }
 
 const HELP = [
@@ -262,9 +336,11 @@ export function createModerationBot({
     const review = moderation.reviews.get(reviewId);
     const rows = rowsOf(review);
     const { text } = renderReview(review, rows, siteUrl);
-    const keyboard = keyboardFor(review, rows);
+    let keyboard = keyboardFor(review, rows);
     if (!keyboard) {
       moderation.reviews.close(review.id);
+      const row = messageRow(review, rows);
+      keyboard = row.length ? { inline_keyboard: row } : undefined;
     }
     await api("editMessageText", {
       chat_id: chatId,
@@ -362,6 +438,24 @@ export function createModerationBot({
         return reply("Nothing approved is waiting on this banner any more. Send /approved for a fresh list.");
       }
       return reply("Sent.");
+    }
+    // ✉️ Message to author: read-only, so it works on decided (closed) messages too.
+    const message = /^pp:m:(\d+)$/.exec(query.data ?? "");
+    if (message) {
+      const review = moderation.reviews.get(Number(message[1]));
+      const rows = review ? moderation.allForBanner(review.banner_id) : [];
+      if (!rows.length) {
+        return reply("No answers left on this banner.");
+      }
+      const missions = await moderation.passphraseSteps?.(review.banner_id).catch((error) => {
+        log(`author message: ${error.message}`);
+        return null;
+      });
+      await reply("Tap the text to copy it.");
+      for (const block of authorMessageBlocks(authorMessage(review.banner_id, rows, siteUrl, missions))) {
+        await send(chatId, block);
+      }
+      return null;
     }
     const bulk = /^pp:r:(\d+):(a|p|r|items|back)$/.exec(query.data ?? "");
     const single = /^pp:i:(\d+):(\d+):(a|p|r|o)$/.exec(query.data ?? "");

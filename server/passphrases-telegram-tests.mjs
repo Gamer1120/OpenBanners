@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { createPassphraseService, openDatabase } from "./passphrases.mjs";
-import { createModerationBot } from "./passphrases-telegram.mjs";
+import { authorMessage, authorMessageBlocks, createModerationBot } from "./passphrases-telegram.mjs";
 
 const token = (sub) => `x.${Buffer.from(JSON.stringify({ sub })).toString("base64url")}.y`;
 const MIN = 60 * 1000;
@@ -57,7 +57,8 @@ test("answers for one banner become one message, once the banner is quiet", asyn
   assert.match(text, /⏳ 1\.1 {2}<code>Blue<\/code>/);
   assert.match(text, /⏳ 1\.2 {2}<code>Red<\/code>/);
   assert.match(text, /2 to review/);
-  assert.equal(buttons(reply_markup).length, 4);
+  assert.equal(buttons(reply_markup).length, 5);
+  assert.match(buttons(reply_markup).at(-1), /^pp:m:\d+$/);
 });
 
 test("Approve all keeps Publish all now; Publish all makes them live", async () => {
@@ -71,11 +72,12 @@ test("Approve all keeps Publish all now; Publish all makes them live", async () 
   await press(`pp:r:${review}:a`, 101);
   let edit = calls.filter((c) => c.method === "editMessageText").at(-1).body;
   assert.match(edit.text, /✅ 1\.1 .*visible 2026-11-22/);
-  assert.deepEqual(buttons(edit.reply_markup).map((b) => b.split(":").pop()), ["p", "r", "items"]);
+  assert.deepEqual(buttons(edit.reply_markup).map((b) => b.split(":")[3] ?? "m"), ["p", "r", "items", "m"]);
   await press(`pp:r:${review}:p`, 101);
   edit = calls.filter((c) => c.method === "editMessageText").at(-1).body;
   assert.match(edit.text, /🚀 1\.1 .*live/);
-  assert.equal(edit.reply_markup, undefined);
+  // All decided: only the author-message button stays.
+  assert.deepEqual(buttons(edit.reply_markup), [`pp:m:${review}`]);
   assert.equal(service.moderation.openForBanner("b1").length, 0);
 });
 
@@ -221,7 +223,7 @@ test("/approved lists banners with their date; a banner button posts its answers
   assert.match(detail.text, /✅ 1\.1 {2}<code>Blue<\/code> · visible 2026-11-22/);
   assert.match(detail.text, /✅ 2\.2 {2}<code>Pink<\/code>/);
   assert.doesNotMatch(detail.text, /Late/);
-  assert.deepEqual(buttons(detail.reply_markup).map((b) => b.split(":").pop()), ["p", "r", "items"]);
+  assert.deepEqual(buttons(detail.reply_markup).map((b) => b.split(":")[3] ?? "m"), ["p", "r", "items", "m"]);
   // The /pending message for the same banner stays; the two kinds don't replace each other.
   assert.equal(calls.filter((c) => c.method === "deleteMessage").length, 0);
 
@@ -262,4 +264,81 @@ test("the new commands are for moderators only, and /help lists them", async () 
   assert.ok(sent().filter((call) => call.body.chat_id === "5").every((call) => !/Live in|Nothing went live/.test(call.body.text)));
   await command(bot, "/help");
   assert.match(sent().at(-1).body.text, /\/approved:[\s\S]*\/live \[days\]/);
+});
+
+test("✉️ Message to author sends the ready-made text in one copyable block, without rejected answers", async () => {
+  const { service, bot, submit, sent, press, buttons, calls, advance } = setup();
+  await submit("m2", 0, '<Green & "x">');
+  await submit("m1", 0, "Blue");
+  await submit("m1", 1, "Wrong");
+  advance(20 * MIN);
+  await bot.notifyPending();
+  const review = buttons(sent()[0].body.reply_markup)[0].split(":")[2];
+  const wrong = service.moderation.openForBanner("b1").find((row) => row.answer === "Wrong");
+  await press(`pp:i:${review}:${wrong.id}:r`, 101);
+  const blue = service.moderation.openForBanner("b1").find((row) => row.answer === "Blue");
+  await press(`pp:i:${review}:${blue.id}:p`, 101);
+  const before = sent().length;
+
+  // Not a moderator: nothing is sent.
+  await bot.handleUpdate({ callback_query: { id: "q", from: { id: 7 }, data: `pp:m:${review}`, message: { message_id: 101, chat: { id: 7 } } } });
+  assert.equal(calls.at(-1).body.text, "Not allowed.");
+  assert.equal(sent().length, before);
+
+  await press(`pp:m:${review}`, 101);
+  assert.equal(sent().length, before + 1);
+  const { text, chat_id } = sent().at(-1).body;
+  assert.equal(chat_id, "42");
+  assert.equal(
+    text,
+    [
+      "<pre>Hi! Do you play Ingress? I'm asking because I think you made this banner:",
+      "https://test.example/banner/b1",
+      "",
+      "I run OpenBanners, a site where people can view banners from Bannergress, and I'd like to add the answers to its passphrase missions so more people can complete it.",
+      "",
+      "Is that okay with you? Just reply &quot;no&quot; if you'd rather I didn't, and I won't publish them. If I don't hear back within 30 days, I'll assume it's fine. You can always ask me to remove them later or opt out from having passphrases from this or any of your banners added to OpenBanners.",
+      "",
+      "These passphrases were submitted:",
+      "",
+      "Mission 1, passphrase 1: Blue",
+      "Mission 2, passphrase 1: &lt;Green &amp; &quot;x&quot;&gt;</pre>",
+    ].join("\n")
+  );
+  assert.ok(calls.some((c) => c.method === "answerCallbackQuery" && /copy/.test(c.body.text)));
+
+  // Still works once every answer is decided and the message is closed.
+  const green = service.moderation.openForBanner("b1").find((row) => row.answer.startsWith("<Green"));
+  await press(`pp:i:${review}:${green.id}:p`, 101);
+  assert.equal(service.moderation.reviews.get(Number(review)).closed, 1);
+  await press(`pp:m:${review}`, 101);
+  assert.equal(sent().length, before + 2);
+  assert.match(sent().at(-1).body.text, /Mission 2, passphrase 1: &lt;Green/);
+});
+
+test("author message: passphrase numbers count passphrase steps only, banner URL is encoded", () => {
+  const rows = [
+    { mission_index: 2, step_index: 0, answer: "5", submitted_at: 2 },
+    { mission_index: 1, step_index: 2, answer: "late", submitted_at: 3 },
+    { mission_index: 1, step_index: 2, answer: "fixed", submitted_at: 4 },
+    { mission_index: 1, step_index: 0, answer: "2", submitted_at: 1 },
+  ];
+  const missions = [
+    { steps: [] },
+    { steps: [{ passphrase: true }, { passphrase: false }, { passphrase: true }] },
+    { steps: [{ passphrase: true }] },
+  ];
+  const message = authorMessage("中大校训-8c48", rows, "https://openbanners.org", missions);
+  assert.match(message.intro, /^Hi! Do you play Ingress\? I'm asking because I think you made this banner:\nhttps:\/\/openbanners\.org\/banner\/%E4%B8%AD%E5%A4%A7%E6%A0%A1%E8%AE%AD-8c48\n\n/);
+  assert.deepEqual(message.answers, ["Mission 2, passphrase 1: 2", "Mission 2, passphrase 2: late / fixed", "Mission 3, passphrase 1: 5"]);
+  // Bannergress unavailable: the waypoint number stands in.
+  assert.equal(authorMessage("b", rows, "https://x", null).answers[1], "Mission 2, passphrase 3: late / fixed");
+  // Too long for one Telegram message: more blocks, each one a complete <pre>.
+  const many = Array.from({ length: 300 }, (_, i) => ({ mission_index: i, step_index: 0, answer: `answer number ${i}` }));
+  const blocks = authorMessageBlocks(authorMessage("b", many, "https://x"));
+  assert.ok(blocks.length > 1);
+  for (const block of blocks) {
+    assert.ok(block.length <= 3900 && block.startsWith("<pre>") && block.endsWith("</pre>"));
+  }
+  assert.match(blocks.at(-1), /Mission 300, passphrase 1: answer number 299<\/pre>$/);
 });

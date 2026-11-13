@@ -266,7 +266,7 @@ test("the new commands are for moderators only, and /help lists them", async () 
   assert.match(sent().at(-1).body.text, /\/approved:[\s\S]*\/live \[days\]/);
 });
 
-test("✉️ Message to author sends the ready-made text in one copyable block, without rejected answers", async () => {
+test("✉️ Message to author sends the ready-made text as one plain message, without rejected answers", async () => {
   const { service, bot, submit, sent, press, buttons, calls, advance } = setup();
   await submit("m2", 0, '<Green & "x">');
   await submit("m1", 0, "Blue");
@@ -287,25 +287,28 @@ test("✉️ Message to author sends the ready-made text in one copyable block, 
 
   await press(`pp:m:${review}`, 101);
   assert.equal(sent().length, before + 1);
-  const { text, chat_id } = sent().at(-1).body;
+  const { text, chat_id, parse_mode, link_preview_options, reply_markup } = sent().at(-1).body;
   assert.equal(chat_id, "42");
+  assert.equal(parse_mode, undefined);
+  assert.deepEqual(link_preview_options, { is_disabled: true });
+  assert.equal(reply_markup, undefined);
   assert.equal(
     text,
     [
-      "<pre>Hi! Do you play Ingress? I'm asking because I think you made this banner:",
+      "Hi! Do you play Ingress? I'm asking because I think you made this banner:",
       "https://test.example/banner/b1",
       "",
       "I run OpenBanners, a site where people can view banners from Bannergress, and I'd like to add the answers to its passphrase missions so more people can complete it.",
       "",
-      "Is that okay with you? Just reply &quot;no&quot; if you'd rather I didn't, and I won't publish them. If I don't hear back within 30 days, I'll assume it's fine. You can always ask me to remove them later or opt out from having passphrases from this or any of your banners added to OpenBanners.",
+      "Is that okay with you? Just reply \"no\" if you'd rather I didn't, and I won't publish them. If I don't hear back within 30 days, I'll assume it's fine. You can always ask me to remove them later or opt out from having passphrases from this or any of your banners added to OpenBanners.",
       "",
       "These passphrases were submitted:",
       "",
       "Mission 1, passphrase 1: Blue",
-      "Mission 2, passphrase 1: &lt;Green &amp; &quot;x&quot;&gt;</pre>",
+      'Mission 2, passphrase 1: <Green & "x">',
     ].join("\n")
   );
-  assert.ok(calls.some((c) => c.method === "answerCallbackQuery" && /copy/.test(c.body.text)));
+  assert.ok(calls.some((c) => c.method === "answerCallbackQuery" && /Long-press the message and choose Copy/.test(c.body.text)));
 
   // Still works once every answer is decided and the message is closed.
   const green = service.moderation.openForBanner("b1").find((row) => row.answer.startsWith("<Green"));
@@ -313,7 +316,7 @@ test("✉️ Message to author sends the ready-made text in one copyable block, 
   assert.equal(service.moderation.reviews.get(Number(review)).closed, 1);
   await press(`pp:m:${review}`, 101);
   assert.equal(sent().length, before + 2);
-  assert.match(sent().at(-1).body.text, /Mission 2, passphrase 1: &lt;Green/);
+  assert.match(sent().at(-1).body.text, /Mission 2, passphrase 1: <Green & "x">/);
 });
 
 test("author message: passphrase numbers count passphrase steps only, banner URL is encoded", () => {
@@ -333,12 +336,13 @@ test("author message: passphrase numbers count passphrase steps only, banner URL
   assert.deepEqual(message.answers, ["Mission 2, passphrase 1: 2", "Mission 2, passphrase 2: late / fixed", "Mission 3, passphrase 1: 5"]);
   // Bannergress unavailable: the waypoint number stands in.
   assert.equal(authorMessage("b", rows, "https://x", null).answers[1], "Mission 2, passphrase 3: late / fixed");
-  // Too long for one Telegram message: more blocks, each one a complete <pre>.
+  // Too long for one Telegram message: more plain messages, split between lines.
   const many = Array.from({ length: 300 }, (_, i) => ({ mission_index: i, step_index: 0, answer: `answer number ${i}` }));
   const blocks = authorMessageBlocks(authorMessage("b", many, "https://x"));
   assert.ok(blocks.length > 1);
   for (const block of blocks) {
-    assert.ok(block.length <= 3900 && block.startsWith("<pre>") && block.endsWith("</pre>"));
+    assert.ok(block.length <= 3800 && !block.includes("<pre>"));
   }
-  assert.match(blocks.at(-1), /Mission 300, passphrase 1: answer number 299<\/pre>$/);
+  assert.equal(blocks.join("\n"), authorMessage("b", many, "https://x").intro + many.map((_, i) => `Mission ${i + 1}, passphrase 1: answer number ${i}`).join("\n"));
+  assert.match(blocks.at(-1), /Mission 300, passphrase 1: answer number 299$/);
 });

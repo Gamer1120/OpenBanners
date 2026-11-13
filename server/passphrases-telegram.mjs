@@ -6,7 +6,7 @@
 //   all) and "Per answer" for single decisions. New answers for the same banner
 //   replace the old message with a fresh one, so there is one per banner.
 //   "✉️ Message to author" sends a ready-made request to the banner author
-//   (all its answers that aren't rejected) as one tap-to-copy <pre> block.
+//   (all its answers that aren't rejected) as a plain-text message to copy.
 // - Commands: /pending (only answers awaiting a decision), /approved (approved,
 //   waiting out their 30 days; a banner button opens its answers with Publish
 //   now), /live (recently published), /blocks, /block, /unblock, /contact.
@@ -220,9 +220,11 @@ export function messageRow(review, rows) {
 }
 
 // The ✉️ button: a ready-made message Michael sends the banner author himself,
-// asking whether its passphrase answers may be published. Plain text; the bot
-// sends it inside <pre> so one tap copies all of it (copy_text buttons stop at
-// 256 characters). rows: the banner's answers still there (rejected ones are
+// asking whether its passphrase answers may be published. Sent as a plain
+// message (no parse_mode, no <pre>, no link preview) so long-press → Copy gives
+// normal text (copy_text buttons stop at 256 characters; a <pre> block copies
+// as monospace). No t.me/share/url button: Telegram puts the url parameter
+// first, which would move the banner link above the greeting. rows: the banner's answers still there (rejected ones are
 // deleted), any order. missions: passphraseStepsOf() of the banner, or null
 // when Bannergress didn't answer (then the waypoint number stands in).
 export function authorMessage(bannerId, rows, siteUrl, missions = null) {
@@ -264,19 +266,20 @@ export function authorMessage(bannerId, rows, siteUrl, missions = null) {
   return { intro, answers: [...lines.values()].map(({ label, answers }) => `${label}: ${answers.join(" / ")}`) };
 }
 
-// Telegram messages hold 4096 characters: the text in as few <pre> blocks as fit.
+// Telegram messages hold 4096 characters: the text in as few plain messages as
+// fit, split between answer lines.
 export function authorMessageBlocks({ intro, answers }, limit = MAX_TEXT) {
   const blocks = [];
   let current = intro;
   for (const line of answers) {
-    if (escapeHtml(`${current}${line}\n`).length > limit && current !== intro) {
+    if (`${current}${line}\n`.length > limit && current !== intro) {
       blocks.push(current);
       current = "";
     }
     current += `${line}\n`;
   }
   blocks.push(current);
-  return blocks.map((block) => `<pre>${escapeHtml(block.trimEnd())}</pre>`);
+  return blocks.map((block) => block.trimEnd());
 }
 
 const HELP = [
@@ -451,9 +454,9 @@ export function createModerationBot({
         log(`author message: ${error.message}`);
         return null;
       });
-      await reply("Tap the text to copy it.");
+      await reply("Long-press the message and choose Copy.");
       for (const block of authorMessageBlocks(authorMessage(review.banner_id, rows, siteUrl, missions))) {
-        await send(chatId, block);
+        await api("sendMessage", { chat_id: chatId, text: block, link_preview_options: { is_disabled: true } });
       }
       return null;
     }

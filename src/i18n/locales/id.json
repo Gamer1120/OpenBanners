@@ -255,6 +255,12 @@
   "Explore Bannergress banners on an interactive map.": "Jelajahi banner Bannergress di peta interaktif.",
   "Export": "Ekspor",
   "Export current UMM": "Ekspor UMM saat ini",
+  "Fetched {fetched} of up to {count} banners": {
+    "other": "{fetched} dari maksimal {count} banner dimuat"
+  },
+  "Fetched {fetched} of {count} banners": {
+    "other": "{fetched} dari {count} banner dimuat"
+  },
   "Fewest missions": "Misi paling sedikit",
   "Fewest missions per km": "Misi per km paling sedikit",
   "Fill in the rest": "Isi sisanya",

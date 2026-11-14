@@ -255,6 +255,12 @@
   "Explore Bannergress banners on an interactive map.": "在互動地圖上探索 Bannergress 拼圖。",
   "Export": "匯出",
   "Export current UMM": "匯出目前的 UMM",
+  "Fetched {fetched} of up to {count} banners": {
+    "other": "已載入 {fetched} / 最多 {count} 個拼圖"
+  },
+  "Fetched {fetched} of {count} banners": {
+    "other": "已載入 {fetched} / {count} 個拼圖"
+  },
   "Fewest missions": "任務最少",
   "Fewest missions per km": "每公里任務最少",
   "Fill in the rest": "填入其餘部分",

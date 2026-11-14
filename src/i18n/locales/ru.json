@@ -267,6 +267,18 @@
   "Explore Bannergress banners on an interactive map.": "Ищи баннеры Bannergress на интерактивной карте.",
   "Export": "Экспорт",
   "Export current UMM": "Экспорт текущего в UMM",
+  "Fetched {fetched} of up to {count} banners": {
+    "one": "Загружено {fetched} из максимум {count} баннера",
+    "few": "Загружено {fetched} из максимум {count} баннеров",
+    "many": "Загружено {fetched} из максимум {count} баннеров",
+    "other": "Загружено {fetched} из максимум {count} баннера"
+  },
+  "Fetched {fetched} of {count} banners": {
+    "one": "Загружено {fetched} из {count} баннера",
+    "few": "Загружено {fetched} из {count} баннеров",
+    "many": "Загружено {fetched} из {count} баннеров",
+    "other": "Загружено {fetched} из {count} баннера"
+  },
   "Fewest missions": "Меньше всего миссий",
   "Fewest missions per km": "Меньше всего миссий на км",
   "Fill in the rest": "Заполнить остальные",

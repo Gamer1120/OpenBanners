@@ -267,6 +267,18 @@
   "Explore Bannergress banners on an interactive map.": "Odkrywaj banery Bannergress na interaktywnej mapie.",
   "Export": "Eksportuj",
   "Export current UMM": "Eksportuj bieżący UMM",
+  "Fetched {fetched} of up to {count} banners": {
+    "one": "Pobrano {fetched} z maksymalnie {count} banera",
+    "few": "Pobrano {fetched} z maksymalnie {count} banerów",
+    "many": "Pobrano {fetched} z maksymalnie {count} banerów",
+    "other": "Pobrano {fetched} z maksymalnie {count} banera"
+  },
+  "Fetched {fetched} of {count} banners": {
+    "one": "Pobrano {fetched} z {count} banera",
+    "few": "Pobrano {fetched} z {count} banerów",
+    "many": "Pobrano {fetched} z {count} banerów",
+    "other": "Pobrano {fetched} z {count} banera"
+  },
   "Fewest missions": "Najmniej misji",
   "Fewest missions per km": "Najmniej misji na km",
   "Fill in the rest": "Uzupełnij resztę",

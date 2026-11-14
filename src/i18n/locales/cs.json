@@ -267,6 +267,18 @@
   "Explore Bannergress banners on an interactive map.": "Objevuj bannery z Bannergressu na interaktivní mapě.",
   "Export": "Exportovat",
   "Export current UMM": "Exportovat aktuální UMM",
+  "Fetched {fetched} of up to {count} banners": {
+    "one": "Načteno {fetched} z nejvýš {count} banneru",
+    "few": "Načteno {fetched} z nejvýš {count} bannerů",
+    "many": "Načteno {fetched} z nejvýš {count} banneru",
+    "other": "Načteno {fetched} z nejvýš {count} bannerů"
+  },
+  "Fetched {fetched} of {count} banners": {
+    "one": "Načteno {fetched} z {count} banneru",
+    "few": "Načteno {fetched} z {count} bannerů",
+    "many": "Načteno {fetched} z {count} banneru",
+    "other": "Načteno {fetched} z {count} bannerů"
+  },
   "Fewest missions": "Nejméně misí",
   "Fewest missions per km": "Nejméně misí na km",
   "Fill in the rest": "Doplnit zbytek",

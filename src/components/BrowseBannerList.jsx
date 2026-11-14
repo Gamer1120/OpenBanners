@@ -24,7 +24,7 @@ import {
   DEFAULT_BANNER_FILTERS,
   getMissionCountBounds,
 } from "../bannerFilters";
-import { t } from "../i18n";
+import { getLanguage, t, tn } from "../i18n";
 import {
   getBrowseStateScope,
   readBrowseState,
@@ -116,6 +116,9 @@ export default function BrowseBannerList({
   heading = null,
   label = t("Banners"),
   onStatusChange,
+  // The place's banner count (Bannergress counts offline ones too), for the
+  // Efficiency progress line.
+  placeBannerCount = null,
   // Search while typing: a new query keeps the sort and shows the current
   // banners until the new ones are in (no skeleton flash between letters).
   liveQuery = false,
@@ -145,6 +148,8 @@ export default function BrowseBannerList({
     useState(initialBrowseState.bannersFetchedForEfficiency);
   const [loading, setLoading] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
+  // Banners fetched so far while Efficiency loads all of them (null otherwise).
+  const [efficiencyFetchedCount, setEfficiencyFetchedCount] = useState(null);
   const [hasMore, setHasMore] = useState(initialBrowseState.hasMore);
   const [requestedOffset, setRequestedOffset] = useState(
     initialBrowseState.requestedOffset
@@ -319,6 +324,8 @@ export default function BrowseBannerList({
           let offset = 0;
           let allBanners = [];
 
+          setEfficiencyFetchedCount(0);
+
           while (!ignore) {
             const response = await fetchBannergress(
               buildBannersUrl({
@@ -345,6 +352,7 @@ export default function BrowseBannerList({
             }
 
             allBanners = [...allBanners, ...data];
+            setEfficiencyFetchedCount(allBanners.length);
 
             if (
               data.length === 0 ||
@@ -413,6 +421,7 @@ export default function BrowseBannerList({
         }
       } finally {
         if (!ignore) {
+          setEfficiencyFetchedCount(null);
           if (requestedOffset === 0) {
             setLoading(false);
           } else {
@@ -427,6 +436,7 @@ export default function BrowseBannerList({
     return () => {
       ignore = true;
       controller.abort();
+      setEfficiencyFetchedCount(null);
     };
   }, [
     activeBrowseQueryKey,
@@ -532,6 +542,30 @@ export default function BrowseBannerList({
     stateScope,
   ]);
 
+  // Search: Efficiency sorts at most SEARCH_EFFICIENCY_MAX_BANNERS. Place:
+  // its count is exact only with offline and hidden banners shown.
+  const efficiencyTotal = query
+    ? SEARCH_EFFICIENCY_MAX_BANNERS
+    : Number.isFinite(placeBannerCount)
+      ? placeBannerCount
+      : null;
+  const efficiencyTotalIsExact =
+    !query && bannerFilters.showOfflineBanners && bannerFilters.showHiddenBanners;
+  const efficiencyProgress =
+    efficiencyFetchedCount !== null && efficiencyTotal !== null
+      ? (() => {
+          const total = Math.max(efficiencyTotal, efficiencyFetchedCount);
+          const vars = {
+            fetched: efficiencyFetchedCount.toLocaleString(getLanguage()),
+            count: total.toLocaleString(getLanguage()),
+          };
+
+          return efficiencyTotalIsExact
+            ? tn("Fetched {fetched} of {count} banner", "Fetched {fetched} of {count} banners", total, vars)
+            : tn("Fetched {fetched} of up to {count} banner", "Fetched {fetched} of up to {count} banners", total, vars);
+        })()
+      : null;
+
   const listReady = stateScope === browseStateScope && hasLoaded && !loading;
   const listCount = banners.length;
 
@@ -623,6 +657,11 @@ export default function BrowseBannerList({
             {t("Retry")}
           </button>
         </div>
+      ) : null}
+      {efficiencyProgress ? (
+        <p className="small muted" role="status" style={{ margin: 0 }}>
+          {efficiencyProgress}
+        </p>
       ) : null}
       {showPlaceholder ? (
         <div aria-busy="true" className="list-refreshing">

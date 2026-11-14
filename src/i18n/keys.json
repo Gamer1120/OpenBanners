@@ -1075,6 +1075,14 @@
    "other": "Considered {count} candidate routes so far."
   },
   {
+   "one": "Fetched {fetched} of {count} banner",
+   "other": "Fetched {fetched} of {count} banners"
+  },
+  {
+   "one": "Fetched {fetched} of up to {count} banner",
+   "other": "Fetched {fetched} of up to {count} banners"
+  },
+  {
    "one": "Follows the {count} mission still to do as one route and ticks it off here as you go.",
    "other": "Follows the {count} missions still to do as one route and ticks them off here as you go."
   },

@@ -255,6 +255,12 @@
   "Explore Bannergress banners on an interactive map.": "在交互式地图上探索 Bannergress 横幅。",
   "Export": "导出",
   "Export current UMM": "导出当前 UMM",
+  "Fetched {fetched} of up to {count} banners": {
+    "other": "已加载 {fetched} / 最多 {count} 个横幅"
+  },
+  "Fetched {fetched} of {count} banners": {
+    "other": "已加载 {fetched} / {count} 个横幅"
+  },
   "Fewest missions": "任务最少",
   "Fewest missions per km": "每公里任务最少",
   "Fill in the rest": "填写其余部分",

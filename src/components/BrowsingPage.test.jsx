@@ -260,3 +260,64 @@ test("search place links reset the target browse filters", async () => {
   expect(readBrowseState(placeScope).filters).toEqual(DEFAULT_BANNER_FILTERS);
   expect(readBrowseState(placeScope).banners).toEqual([]);
 });
+
+test("Efficiency shows how many banners are fetched while it loads them all", async () => {
+  const makeBanners = (offset, count) =>
+    Array.from({ length: count }, (_, index) => ({
+      id: `eff-${offset + index}`,
+      title: `Efficiency Banner ${offset + index}`,
+      picture: "/images/eff.jpg",
+      numberOfMissions: 6 + ((offset + index) % 30),
+      lengthMeters: 1000 + offset + index,
+      formattedAddress: "Utrecht, NL",
+      numberOfDisabledMissions: 0,
+    }));
+  const pending = {};
+  global.fetch.mockImplementation((url) => {
+    if (url.includes("/places/efficiency-place")) {
+      return jsonResponse({ id: "efficiency-place", formattedAddress: "Efficiency Place", numberOfBanners: 612 });
+    }
+
+    if (url.includes("/places?used=true&parentPlaceId=efficiency-place")) {
+      return jsonResponse([]);
+    }
+
+    if (url.includes("/bnrs?") && url.includes("orderBy=created")) {
+      return jsonResponse(makeBanners(0, 1));
+    }
+
+    if (url.includes("/bnrs?") && url.includes("limit=100")) {
+      const offset = Number(new URL(url).searchParams.get("offset"));
+      return new Promise((resolve) => {
+        pending[offset] = () => resolve({ json: () => Promise.resolve(makeBanners(offset, offset < 500 ? 100 : offset === 500 ? 12 : 0)) });
+      });
+    }
+
+    throw new Error(`Unhandled fetch: ${url}`);
+  });
+
+  const user = userEvent.setup();
+  renderWithProviders(<BrowsingPage placeId="efficiency-place" />, { route: "/browse/efficiency-place" });
+
+  expect(await screen.findByText("Efficiency Banner 0")).toBeInTheDocument();
+  await screen.findByText(/612 banners/);
+  await user.click(screen.getByRole("button", { name: /^sort:/i }));
+  await user.click(screen.getByRole("menuitem", { name: /^efficiency$/i }));
+
+  expect(await screen.findByText("Fetched 0 of up to 612 banners")).toHaveAttribute("role", "status");
+  await waitFor(() => expect(pending[0]).toBeTypeOf("function"));
+  pending[0]();
+  expect(await screen.findByText("Fetched 100 of up to 612 banners")).toBeInTheDocument();
+  await waitFor(() => expect(pending[100]).toBeTypeOf("function"));
+  pending[100]();
+  expect(await screen.findByText("Fetched 200 of up to 612 banners")).toBeInTheDocument();
+
+  for (const offset of [200, 300, 400, 500, 600]) {
+    await waitFor(() => expect(pending[offset]).toBeTypeOf("function"));
+    pending[offset]();
+  }
+
+  expect(await screen.findByText("Efficiency Banner 29")).toBeInTheDocument();
+  await waitFor(() => expect(screen.queryByText(/^Fetched /)).not.toBeInTheDocument());
+});
+

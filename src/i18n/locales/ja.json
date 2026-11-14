@@ -255,6 +255,12 @@
   "Explore Bannergress banners on an interactive map.": "インタラクティブな地図で Bannergress のバナーを探せます。",
   "Export": "エクスポート",
   "Export current UMM": "現在の UMM をエクスポート",
+  "Fetched {fetched} of up to {count} banners": {
+    "other": "バナーを最大 {count} 件中 {fetched} 件取得済み"
+  },
+  "Fetched {fetched} of {count} banners": {
+    "other": "バナーを {count} 件中 {fetched} 件取得済み"
+  },
   "Fewest missions": "ミッション数が少ない順",
   "Fewest missions per km": "1 km あたりのミッション数が少ない順",
   "Fill in the rest": "残りを入力",

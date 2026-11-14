@@ -259,6 +259,14 @@
   "Explore Bannergress banners on an interactive map.": "Ontdek Bannergress-banners op een interactieve kaart.",
   "Export": "Exporteren",
   "Export current UMM": "Huidige UMM exporteren",
+  "Fetched {fetched} of up to {count} banners": {
+    "one": "{fetched} van maximaal {count} banner opgehaald",
+    "other": "{fetched} van maximaal {count} banners opgehaald"
+  },
+  "Fetched {fetched} of {count} banners": {
+    "one": "{fetched} van {count} banner opgehaald",
+    "other": "{fetched} van {count} banners opgehaald"
+  },
   "Fewest missions": "Minste missies",
   "Fewest missions per km": "Minste missies per km",
   "Fill in the rest": "Rest invullen",

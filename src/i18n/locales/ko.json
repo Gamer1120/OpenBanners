@@ -255,6 +255,12 @@
   "Explore Bannergress banners on an interactive map.": "인터랙티브 지도에서 Bannergress 배너를 살펴보세요.",
   "Export": "내보내기",
   "Export current UMM": "현재 UMM 내보내기",
+  "Fetched {fetched} of up to {count} banners": {
+    "other": "배너 최대 {count}개 중 {fetched}개 불러옴"
+  },
+  "Fetched {fetched} of {count} banners": {
+    "other": "배너 {count}개 중 {fetched}개 불러옴"
+  },
   "Fewest missions": "미션 적은 순",
   "Fewest missions per km": "km당 미션 적은 순",
   "Fill in the rest": "나머지 채우기",

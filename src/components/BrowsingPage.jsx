@@ -178,6 +178,9 @@ export default function BrowsingPage({
         authorName={authorName}
         bannerFilters={bannerFilters}
         onBannerFiltersChange={onBannerFiltersChange}
+        placeBannerCount={
+          placeId && currentPlace?.id === placeId ? currentPlace.numberOfBanners : null
+        }
       />
 
       <AboutNotice />

@@ -122,6 +122,10 @@
   "Browse: {place}": "閲覧: {place}",
   "Build rerouted banners from imported UMM data.": "インポートした UMM データからリルートしたバナーを作成します。",
   "Built-in browsers in apps like Telegram often can’t open other apps. Try the button; if nothing happens, open this page in your browser and start from there.": "Telegram などのアプリ内ブラウザーは、他のアプリを開けないことがよくあります。ボタンを試して、何も起きなければこのページをブラウザーで開いてそこから始めてください。",
+  "Cached results from less than a minute ago": "キャッシュ済みの結果（1 分以内に取得）",
+  "Cached results from {count} minutes ago": {
+    "other": "キャッシュ済みの結果（{count} 分前に取得）"
+  },
   "Can't be combined with Show hidden banners or Show done banners.": "「非表示のバナーを表示」または「完了したバナーを表示」とは併用できません。",
   "Can't be combined with Show hidden banners.": "「非表示のバナーを表示」とは併用できません。",
   "Cancel": "キャンセル",
@@ -607,6 +611,7 @@
   "Recent searches": "最近の検索",
   "Recently added": "最近追加した順",
   "Recommended": "おすすめ",
+  "Refresh": "更新",
   "Refresh lists": "リストを更新",
   "Refresh my to-do list": "やることリストを更新",
   "Regions and cities": "地域と都市",

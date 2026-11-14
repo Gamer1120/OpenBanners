@@ -17,8 +17,15 @@ import SortingButtons from "./SortingButtons";
 import {
   fetchBannergress,
   forgetTemporarilyVisibleHiddenBanners,
+  getBannergressAccountId,
   useBannergressSync,
 } from "../bannergressSync";
+import {
+  deleteEfficiencyCache,
+  getEfficiencyCacheKey,
+  readEfficiencyCache,
+  writeEfficiencyCache,
+} from "../efficiencyCache";
 import {
   applyBannerFilters,
   DEFAULT_BANNER_FILTERS,
@@ -150,6 +157,14 @@ export default function BrowseBannerList({
   const [loadingMore, setLoadingMore] = useState(false);
   // Banners fetched so far while Efficiency loads all of them (null otherwise).
   const [efficiencyFetchedCount, setEfficiencyFetchedCount] = useState(null);
+  // When the Efficiency banners came from the browser cache: when they were
+  // fetched (ms). null for a fresh fetch.
+  const [efficiencyCachedAt, setEfficiencyCachedAt] = useState(
+    initialBrowseState.efficiencyCachedAt ?? null
+  );
+  // Refresh: the next Efficiency load skips (and replaces) the cache.
+  const efficiencyRefreshRef = useRef(false);
+  const [cacheAgeNow, setCacheAgeNow] = useState(() => Date.now());
   const [hasMore, setHasMore] = useState(initialBrowseState.hasMore);
   const [requestedOffset, setRequestedOffset] = useState(
     initialBrowseState.requestedOffset
@@ -188,12 +203,19 @@ export default function BrowseBannerList({
       }
     } else {
       setBannersFetchedForEfficiency(false);
+      setEfficiencyCachedAt(null);
       setSortOption(option);
       setSortOrder("DESC");
     }
   };
 
   const handleRetry = () => {
+    setReloadToken((currentValue) => currentValue + 1);
+  };
+
+  const handleEfficiencyRefresh = () => {
+    efficiencyRefreshRef.current = true;
+    setEfficiencyCachedAt(null);
     setReloadToken((currentValue) => currentValue + 1);
   };
 
@@ -209,6 +231,7 @@ export default function BrowseBannerList({
       setPlaceholderBanners(displayedBannersRef.current);
       setBanners([]);
       setBannersFetchedForEfficiency(false);
+      setEfficiencyCachedAt(null);
       setHasMore(true);
       setRequestedOffset(0);
       setActiveBrowseQueryKey(null);
@@ -228,6 +251,7 @@ export default function BrowseBannerList({
     setSortOrder(nextState.sortOrder);
     setBanners(nextState.banners);
     setBannersFetchedForEfficiency(nextState.bannersFetchedForEfficiency);
+    setEfficiencyCachedAt(nextState.efficiencyCachedAt ?? null);
     setHasMore(nextState.hasMore);
     setRequestedOffset(nextState.requestedOffset);
     setIsPlacesListExpanded(nextState.isPlacesListExpanded);
@@ -267,6 +291,7 @@ export default function BrowseBannerList({
 
     setBanners([]);
     setBannersFetchedForEfficiency(false);
+    setEfficiencyCachedAt(null);
     setHasLoaded(false);
     setLoading(false);
     setLoadingMore(false);
@@ -321,9 +346,46 @@ export default function BrowseBannerList({
             return;
           }
 
+          // Same set for both directions and for the filters applied here.
+          const cacheKey = getEfficiencyCacheKey({
+            placeId,
+            authorName,
+            query,
+            showOfflineBanners: bannerFilters.showOfflineBanners,
+            showHiddenBanners: bannerFilters.showHiddenBanners,
+            accountId: getBannergressAccountId(),
+          });
+
+          if (efficiencyRefreshRef.current) {
+            efficiencyRefreshRef.current = false;
+            await deleteEfficiencyCache(cacheKey);
+          } else {
+            const cached = await readEfficiencyCache(cacheKey);
+
+            if (ignore) {
+              return;
+            }
+
+            if (cached) {
+              setBanners(sortJsonByMissionsPerLength(cached.banners, sortOrder));
+              setEfficiencyCachedAt(cached.savedAt);
+              setCacheAgeNow(Date.now());
+              setBannersFetchedForEfficiency(true);
+              setHasMore(false);
+              setHasLoaded(true);
+              return;
+            }
+          }
+
+          if (ignore) {
+            return;
+          }
+
           let offset = 0;
           let allBanners = [];
+          let complete = true;
 
+          setEfficiencyCachedAt(null);
           setEfficiencyFetchedCount(0);
 
           while (!ignore) {
@@ -348,6 +410,7 @@ export default function BrowseBannerList({
             if (!Array.isArray(data)) {
               console.error("Invalid response data:", data);
               setError(t("Couldn't load banners for this place."));
+              complete = false;
               break;
             }
 
@@ -367,6 +430,9 @@ export default function BrowseBannerList({
           }
 
           if (!ignore) {
+            if (complete) {
+              writeEfficiencyCache(cacheKey, allBanners);
+            }
             setBanners(sortJsonByMissionsPerLength(allBanners, sortOrder));
             setBannersFetchedForEfficiency(true);
             setHasMore(false);
@@ -496,6 +562,7 @@ export default function BrowseBannerList({
     hasMore,
     requestedOffset,
     bannersFetchedForEfficiency,
+    efficiencyCachedAt,
     isPlacesListExpanded,
     scrollY: 0,
     queryKey: browseQueryKey,
@@ -515,17 +582,21 @@ export default function BrowseBannerList({
       return;
     }
 
+    // Efficiency's full set lives in its own cache (efficiencyCache.js), so
+    // after a reload it comes from there, with its age and an expiry.
+    const efficiency = sortOption === "Efficiency";
+
     saveBrowseState(browseStateScope, {
       filters: bannerFilters,
       sortOption,
       sortOrder,
-      banners,
+      banners: efficiency ? [] : banners,
       hasMore,
       requestedOffset,
-      bannersFetchedForEfficiency,
+      bannersFetchedForEfficiency: efficiency ? false : bannersFetchedForEfficiency,
       isPlacesListExpanded,
       queryKey: browseQueryKey,
-      hasLoaded,
+      hasLoaded: efficiency ? false : hasLoaded,
     });
   }, [
     bannerFilters,
@@ -565,6 +636,37 @@ export default function BrowseBannerList({
             : tn("Fetched {fetched} of up to {count} banner", "Fetched {fetched} of up to {count} banners", total, vars);
         })()
       : null;
+
+  const showEfficiencyCacheNote =
+    sortOption === "Efficiency" &&
+    efficiencyCachedAt !== null &&
+    !loading &&
+    !efficiencyProgress;
+
+  // Keeps the age current while the note is up.
+  useEffect(() => {
+    if (!showEfficiencyCacheNote) {
+      return undefined;
+    }
+
+    setCacheAgeNow(Date.now());
+    const timer = setInterval(() => setCacheAgeNow(Date.now()), 30 * 1000);
+    return () => clearInterval(timer);
+  }, [showEfficiencyCacheNote]);
+
+  const efficiencyCacheAgeMinutes = showEfficiencyCacheNote
+    ? Math.max(0, Math.floor((cacheAgeNow - efficiencyCachedAt) / 60000))
+    : 0;
+  const efficiencyCacheNote = !showEfficiencyCacheNote
+    ? null
+    : efficiencyCacheAgeMinutes < 1
+      ? t("Cached results from less than a minute ago")
+      : tn(
+          "Cached results from {count} minute ago",
+          "Cached results from {count} minutes ago",
+          efficiencyCacheAgeMinutes,
+          { count: efficiencyCacheAgeMinutes.toLocaleString(getLanguage()) }
+        );
 
   const listReady = stateScope === browseStateScope && hasLoaded && !loading;
   const listCount = banners.length;
@@ -661,6 +763,27 @@ export default function BrowseBannerList({
       {efficiencyProgress ? (
         <p className="small muted" role="status" style={{ margin: 0 }}>
           {efficiencyProgress}
+        </p>
+      ) : null}
+      {efficiencyCacheNote ? (
+        <p className="small muted" style={{ margin: 0 }}>
+          <span>{efficiencyCacheNote}</span>
+          {" · "}
+          <button
+            type="button"
+            onClick={handleEfficiencyRefresh}
+            style={{
+              background: "none",
+              border: 0,
+              padding: 0,
+              font: "inherit",
+              color: "var(--primary)",
+              textDecoration: "underline",
+              cursor: "pointer",
+            }}
+          >
+            {t("Refresh")}
+          </button>
         </p>
       ) : null}
       {showPlaceholder ? (

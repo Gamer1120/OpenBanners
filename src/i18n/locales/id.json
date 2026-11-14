@@ -122,6 +122,10 @@
   "Browse: {place}": "Jelajahi: {place}",
   "Build rerouted banners from imported UMM data.": "Buat banner dengan rute ulang dari data UMM yang diimpor.",
   "Built-in browsers in apps like Telegram often can’t open other apps. Try the button; if nothing happens, open this page in your browser and start from there.": "Browser bawaan di aplikasi seperti Telegram sering tidak bisa membuka aplikasi lain. Coba tombolnya; jika tidak terjadi apa-apa, buka halaman ini di browser Anda dan mulai dari sana.",
+  "Cached results from less than a minute ago": "Hasil tersimpan dari kurang dari semenit yang lalu",
+  "Cached results from {count} minutes ago": {
+    "other": "Hasil tersimpan dari {count} menit yang lalu"
+  },
   "Can't be combined with Show hidden banners or Show done banners.": "Tidak bisa digabung dengan Tampilkan banner tersembunyi atau Tampilkan banner selesai.",
   "Can't be combined with Show hidden banners.": "Tidak bisa digabung dengan Tampilkan banner tersembunyi.",
   "Cancel": "Batal",
@@ -607,6 +611,7 @@
   "Recent searches": "Pencarian terakhir",
   "Recently added": "Baru ditambahkan",
   "Recommended": "Disarankan",
+  "Refresh": "Segarkan",
   "Refresh lists": "Muat ulang daftar",
   "Refresh my to-do list": "Muat ulang daftar to-do-ku",
   "Regions and cities": "Wilayah dan kota",

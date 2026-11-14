@@ -122,6 +122,10 @@
   "Browse: {place}": "瀏覽：{place}",
   "Build rerouted banners from imported UMM data.": "用匯入的 UMM 資料建立重排路線的拼圖。",
   "Built-in browsers in apps like Telegram often can’t open other apps. Try the button; if nothing happens, open this page in your browser and start from there.": "Telegram 等應用程式的內建瀏覽器通常無法開啟其他應用程式。請試試按鈕；如果沒有反應，請在你的瀏覽器中開啟此頁面，再從那裡開始。",
+  "Cached results from less than a minute ago": "快取結果（不到 1 分鐘前）",
+  "Cached results from {count} minutes ago": {
+    "other": "快取結果（{count} 分鐘前）"
+  },
   "Can't be combined with Show hidden banners or Show done banners.": "無法與「顯示隱藏的拼圖」或「顯示已完成的拼圖」同時使用。",
   "Can't be combined with Show hidden banners.": "無法與「顯示隱藏的拼圖」同時使用。",
   "Cancel": "取消",
@@ -607,6 +611,7 @@
   "Recent searches": "最近的搜尋",
   "Recently added": "最近加入",
   "Recommended": "推薦",
+  "Refresh": "重新整理",
   "Refresh lists": "重新整理清單",
   "Refresh my to-do list": "重新整理我的待辦清單",
   "Regions and cities": "地區和城市",

@@ -124,6 +124,11 @@
   "Browse: {place}": "Durchsuchen: {place}",
   "Build rerouted banners from imported UMM data.": "Erstelle neu geroutete Banner aus importierten UMM-Daten.",
   "Built-in browsers in apps like Telegram often can’t open other apps. Try the button; if nothing happens, open this page in your browser and start from there.": "Eingebaute Browser in Apps wie Telegram können oft keine anderen Apps öffnen. Probier den Button; wenn nichts passiert, öffne diese Seite in deinem Browser und starte von dort.",
+  "Cached results from less than a minute ago": "Zwischengespeicherte Ergebnisse von vor weniger als einer Minute",
+  "Cached results from {count} minutes ago": {
+    "one": "Zwischengespeicherte Ergebnisse von vor {count} Minute",
+    "other": "Zwischengespeicherte Ergebnisse von vor {count} Minuten"
+  },
   "Can't be combined with Show hidden banners or Show done banners.": "Nicht kombinierbar mit „Ausgeblendete Banner anzeigen“ oder „Erledigte Banner anzeigen“.",
   "Can't be combined with Show hidden banners.": "Nicht kombinierbar mit „Ausgeblendete Banner anzeigen“.",
   "Cancel": "Abbrechen",
@@ -622,6 +627,7 @@
   "Recent searches": "Letzte Suchen",
   "Recently added": "Zuletzt hinzugefügt",
   "Recommended": "Empfohlen",
+  "Refresh": "Aktualisieren",
   "Refresh lists": "Listen aktualisieren",
   "Refresh my to-do list": "Meine To-do-Liste aktualisieren",
   "Regions and cities": "Regionen und Städte",

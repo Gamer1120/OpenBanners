@@ -33,6 +33,8 @@ When a workflow, deployment step, testing note, or project-specific convention i
 
 Multiple agents may work in this repository at the same time. Before starting larger or risky work, check the current branch and worktree state, avoid overwriting unrelated changes, and prefer a separate `git worktree` for isolated parallel work when it would reduce coordination risk.
 
+Efficiency sort (Browse/search) fetches the whole set and keeps it for an hour in IndexedDB (`src/efficiencyCache.js`; key = place/agent/search + show offline + show hidden, plus the signed-in account when hidden banners are left out; not the sort direction or browser-side filters; at most 8 lists). A list from that cache shows "Cached results from N minutes ago · Refresh"; the browse state in localStorage doesn't keep Efficiency banners, so a reload goes through the cache. jsdom has no IndexedDB: tests use `setEfficiencyCacheBackend(createMemoryEfficiencyCacheBackend())`.
+
 ## Testing Guidelines
 
 The test stack is Vitest, jsdom, and Testing Library, configured in `vite.config.mjs` with setup in `src/setupTests.js`. Add focused regression tests for route behavior, filtering, map interactions, rerouting logic, and API-state handling when those areas change. Mock external services and browser APIs in tests; the live app depends on Bannergress, OpenStreetMap, Google Fonts, Google Maps links, and Ingress links.

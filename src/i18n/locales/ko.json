@@ -122,6 +122,10 @@
   "Browse: {place}": "둘러보기: {place}",
   "Build rerouted banners from imported UMM data.": "가져온 UMM 데이터로 경로를 다시 짠 배너를 만듭니다.",
   "Built-in browsers in apps like Telegram often can’t open other apps. Try the button; if nothing happens, open this page in your browser and start from there.": "Telegram 같은 앱의 내장 브라우저는 다른 앱을 열지 못하는 경우가 많습니다. 버튼을 눌러 보고, 아무 일도 일어나지 않으면 이 페이지를 브라우저에서 열어 거기서 시작하세요.",
+  "Cached results from less than a minute ago": "캐시된 결과(1분 이내)",
+  "Cached results from {count} minutes ago": {
+    "other": "캐시된 결과({count}분 전)"
+  },
   "Can't be combined with Show hidden banners or Show done banners.": "숨긴 배너 표시 또는 완료한 배너 표시와 함께 사용할 수 없습니다.",
   "Can't be combined with Show hidden banners.": "숨긴 배너 표시와 함께 사용할 수 없습니다.",
   "Cancel": "취소",
@@ -607,6 +611,7 @@
   "Recent searches": "최근 검색",
   "Recently added": "최근 추가순",
   "Recommended": "추천",
+  "Refresh": "새로고침",
   "Refresh lists": "목록 새로고침",
   "Refresh my to-do list": "내 할 일 목록 새로고침",
   "Regions and cities": "지역 및 도시",

@@ -13,6 +13,13 @@ import {
   readBrowseState,
   saveBrowseState,
 } from "../browseState";
+import { clearHistoryEntryState } from "../scrollRestoration";
+import {
+  createMemoryEfficiencyCacheBackend,
+  setEfficiencyCacheBackend,
+} from "../efficiencyCache";
+
+let efficiencyCache;
 
 const theme = createTheme({
   palette: {
@@ -43,6 +50,8 @@ beforeEach(() => {
 
   global.fetch = vi.fn();
   window.localStorage.clear();
+  efficiencyCache = createMemoryEfficiencyCacheBackend();
+  setEfficiencyCacheBackend(efficiencyCache);
   Object.defineProperty(window, "scrollY", {
     configurable: true,
     get: () => scrollY,
@@ -321,3 +330,121 @@ test("Efficiency shows how many banners are fetched while it loads them all", as
   await waitFor(() => expect(screen.queryByText(/^Fetched /)).not.toBeInTheDocument());
 });
 
+function mockEfficiencyPlace() {
+  const makeBanners = (offset, count) =>
+    Array.from({ length: count }, (_, index) => ({
+      id: `cache-${offset + index}`,
+      title: `Cache Banner ${offset + index}`,
+      picture: "/images/eff.jpg",
+      numberOfMissions: 6 + ((offset + index) % 30),
+      lengthMeters: 1000 + offset + index,
+      formattedAddress: "Utrecht, NL",
+      numberOfDisabledMissions: 0,
+    }));
+  const pending = {};
+  let holdPages = false;
+  global.fetch.mockImplementation((url) => {
+    if (url.includes("/places/cache-place")) {
+      return jsonResponse({ id: "cache-place", formattedAddress: "Cache Place", numberOfBanners: 150 });
+    }
+
+    if (url.includes("/places?used=true&parentPlaceId=cache-place")) {
+      return jsonResponse([]);
+    }
+
+    if (url.includes("/bnrs?") && url.includes("orderBy=created")) {
+      return jsonResponse(makeBanners(0, 1));
+    }
+
+    if (url.includes("/bnrs?") && url.includes("limit=100")) {
+      const offset = Number(new URL(url).searchParams.get("offset"));
+      const page = makeBanners(offset, offset === 0 ? 100 : offset === 100 ? 50 : 0);
+      if (!holdPages) {
+        return jsonResponse(page);
+      }
+      return new Promise((resolve) => {
+        pending[offset] = () => resolve({ json: () => Promise.resolve(page) });
+      });
+    }
+
+    throw new Error(`Unhandled fetch: ${url}`);
+  });
+
+  return {
+    pending,
+    holdPages: (value) => {
+      holdPages = value;
+    },
+    efficiencyFetches: () =>
+      global.fetch.mock.calls.filter(([url]) => url.includes("/bnrs?") && url.includes("limit=100")).length,
+  };
+}
+
+async function chooseEfficiency(user) {
+  await user.click(await screen.findByRole("button", { name: /^sort:/i }));
+  await user.click(screen.getByRole("menuitem", { name: /^efficiency$/i }));
+}
+
+test("Efficiency keeps its banners for an hour and says when they come from the cache", async () => {
+  const api = mockEfficiencyPlace();
+  const user = userEvent.setup();
+  const first = renderWithProviders(<BrowsingPage placeId="cache-place" />, { route: "/browse/cache-place" });
+
+  expect(await screen.findByText("Cache Banner 0")).toBeInTheDocument();
+  await chooseEfficiency(user);
+  expect(await screen.findByText("Cache Banner 149")).toBeInTheDocument();
+  // Fresh fetch: no note. offsets 0, 100, 200 (empty page ends it).
+  expect(api.efficiencyFetches()).toBe(3);
+  expect(screen.queryByText(/^Cached results/)).not.toBeInTheDocument();
+  await waitFor(() => expect(efficiencyCache.entries.size).toBe(1));
+  const [entry] = efficiencyCache.entries.values();
+  expect(entry.banners).toHaveLength(150);
+
+  // The other direction sorts the same set: no new requests.
+  await user.click(screen.getByRole("button", { name: /^sort:/i }));
+  await user.click(screen.getByRole("menuitem", { name: /^efficiency$/i }));
+  expect(await screen.findByRole("button", { name: /fewest missions per km/i })).toBeInTheDocument();
+  expect(api.efficiencyFetches()).toBe(3);
+
+  // A reload (no in-memory history state): the list comes from the cache at
+  // once, with its age.
+  first.unmount();
+  clearHistoryEntryState();
+  entry.savedAt = Date.now() - 12 * 60 * 1000 - 5000;
+  renderWithProviders(<BrowsingPage placeId="cache-place" />, { route: "/browse/cache-place" });
+  expect(await screen.findByText("Cached results from 12 minutes ago")).toBeInTheDocument();
+  expect(screen.getByText("Cache Banner 149")).toBeInTheDocument();
+  expect(api.efficiencyFetches()).toBe(3);
+
+  // Refresh drops the entry and fetches again, with the progress line.
+  api.holdPages(true);
+  await user.click(screen.getByRole("button", { name: "Refresh" }));
+  expect(await screen.findByText("Fetched 0 of up to 150 banners")).toBeInTheDocument();
+  expect(screen.queryByText(/^Cached results/)).not.toBeInTheDocument();
+  for (const offset of [0, 100, 200]) {
+    await waitFor(() => expect(api.pending[offset]).toBeTypeOf("function"));
+    api.pending[offset]();
+  }
+  await waitFor(() => expect(screen.queryByText(/^Fetched /)).not.toBeInTheDocument());
+  expect(api.efficiencyFetches()).toBe(6);
+  expect(screen.queryByText(/^Cached results/)).not.toBeInTheDocument();
+  await waitFor(() => expect([...efficiencyCache.entries.values()][0].savedAt).toBeGreaterThan(Date.now() - 60 * 1000));
+});
+
+test("Efficiency fetches again once the cached banners are an hour old", async () => {
+  const api = mockEfficiencyPlace();
+  const user = userEvent.setup();
+  const first = renderWithProviders(<BrowsingPage placeId="cache-place" />, { route: "/browse/cache-place" });
+
+  await chooseEfficiency(user);
+  expect(await screen.findByText("Cache Banner 149")).toBeInTheDocument();
+  await waitFor(() => expect(efficiencyCache.entries.size).toBe(1));
+  first.unmount();
+  clearHistoryEntryState();
+
+  [...efficiencyCache.entries.values()][0].savedAt = Date.now() - 61 * 60 * 1000;
+  renderWithProviders(<BrowsingPage placeId="cache-place" />, { route: "/browse/cache-place" });
+  expect(await screen.findByText("Cache Banner 149")).toBeInTheDocument();
+  await waitFor(() => expect(api.efficiencyFetches()).toBe(6));
+  expect(screen.queryByText(/^Cached results/)).not.toBeInTheDocument();
+});

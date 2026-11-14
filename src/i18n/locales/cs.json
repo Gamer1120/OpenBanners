@@ -128,6 +128,13 @@
   "Browse: {place}": "Procházet: {place}",
   "Build rerouted banners from imported UMM data.": "Vytvoř bannery s novou trasou z importovaných dat UMM.",
   "Built-in browsers in apps like Telegram often can’t open other apps. Try the button; if nothing happens, open this page in your browser and start from there.": "Vestavěné prohlížeče v aplikacích jako Telegram často neumí otevřít jiné aplikace. Zkuste tlačítko; pokud se nic nestane, otevřete tuto stránku ve svém prohlížeči a začněte odtud.",
+  "Cached results from less than a minute ago": "Výsledky z mezipaměti z doby před méně než minutou",
+  "Cached results from {count} minutes ago": {
+    "one": "Výsledky z mezipaměti z doby před {count} minutou",
+    "few": "Výsledky z mezipaměti z doby před {count} minutami",
+    "many": "Výsledky z mezipaměti z doby před {count} minuty",
+    "other": "Výsledky z mezipaměti z doby před {count} minutami"
+  },
   "Can't be combined with Show hidden banners or Show done banners.": "Nelze kombinovat se Zobrazit skryté bannery ani se Zobrazit hotové bannery.",
   "Can't be combined with Show hidden banners.": "Nelze kombinovat se Zobrazit skryté bannery.",
   "Cancel": "Zrušit",
@@ -652,6 +659,7 @@
   "Recent searches": "Nedávná hledání",
   "Recently added": "Naposledy přidané",
   "Recommended": "Doporučeno",
+  "Refresh": "Obnovit",
   "Refresh lists": "Obnovit seznamy",
   "Refresh my to-do list": "Obnovit můj seznam k udělání",
   "Regions and cities": "Regiony a města",

@@ -128,6 +128,13 @@
   "Browse: {place}": "Огляд: {place}",
   "Build rerouted banners from imported UMM data.": "Створюй банери з новими маршрутами з імпортованих даних UMM.",
   "Built-in browsers in apps like Telegram often can’t open other apps. Try the button; if nothing happens, open this page in your browser and start from there.": "Вбудовані браузери в застосунках на кшталт Telegram часто не можуть відкривати інші застосунки. Спробуйте кнопку; якщо нічого не станеться, відкрийте цю сторінку у своєму браузері й почніть звідти.",
+  "Cached results from less than a minute ago": "Результати з кешу, отримані менш ніж хвилину тому",
+  "Cached results from {count} minutes ago": {
+    "one": "Результати з кешу, отримані {count} хвилину тому",
+    "few": "Результати з кешу, отримані {count} хвилини тому",
+    "many": "Результати з кешу, отримані {count} хвилин тому",
+    "other": "Результати з кешу, отримані {count} хвилини тому"
+  },
   "Can't be combined with Show hidden banners or Show done banners.": "Не можна поєднувати з «Показати приховані банери» або «Показати пройдені банери».",
   "Can't be combined with Show hidden banners.": "Не можна поєднувати з «Показати приховані банери».",
   "Cancel": "Скасувати",
@@ -652,6 +659,7 @@
   "Recent searches": "Нещодавні пошуки",
   "Recently added": "Нещодавно додані",
   "Recommended": "Рекомендовано",
+  "Refresh": "Оновити",
   "Refresh lists": "Оновити списки",
   "Refresh my to-do list": "Оновити мій список запланованого",
   "Regions and cities": "Регіони та міста",

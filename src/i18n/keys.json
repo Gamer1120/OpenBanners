@@ -117,6 +117,7 @@
   "Browse: {place}",
   "Build rerouted banners from imported UMM data.",
   "Built-in browsers in apps like Telegram often can’t open other apps. Try the button; if nothing happens, open this page in your browser and start from there.",
+  "Cached results from less than a minute ago",
   "Can't be combined with Show hidden banners or Show done banners.",
   "Can't be combined with Show hidden banners.",
   "Cancel",
@@ -563,6 +564,7 @@
   "Recent searches",
   "Recently added",
   "Recommended",
+  "Refresh",
   "Refresh lists",
   "Refresh my to-do list",
   "Regions and cities",
@@ -938,6 +940,10 @@
   "↓ {length} to the next start"
  ],
  "plural": [
+  {
+   "one": "Cached results from {count} minute ago",
+   "other": "Cached results from {count} minutes ago"
+  },
   {
    "one": "{banners} banners in {count} country",
    "other": "{banners} banners in {count} countries"

@@ -122,6 +122,10 @@
   "Browse: {place}": "浏览：{place}",
   "Build rerouted banners from imported UMM data.": "根据导入的 UMM 数据制作改线后的横幅。",
   "Built-in browsers in apps like Telegram often can’t open other apps. Try the button; if nothing happens, open this page in your browser and start from there.": "Telegram 等应用的内置浏览器通常无法打开其他应用。请试试按钮；如果没有反应，请在你的浏览器中打开此页面，再从那里开始。",
+  "Cached results from less than a minute ago": "缓存结果（不到 1 分钟前）",
+  "Cached results from {count} minutes ago": {
+    "other": "缓存结果（{count} 分钟前）"
+  },
   "Can't be combined with Show hidden banners or Show done banners.": "不能与“显示隐藏的横幅”或“显示已完成的横幅”同时使用。",
   "Can't be combined with Show hidden banners.": "不能与“显示隐藏的横幅”同时使用。",
   "Cancel": "取消",
@@ -607,6 +611,7 @@
   "Recent searches": "最近搜索",
   "Recently added": "最近添加",
   "Recommended": "推荐",
+  "Refresh": "刷新",
   "Refresh lists": "刷新列表",
   "Refresh my to-do list": "刷新我的待办列表",
   "Regions and cities": "地区和城市",

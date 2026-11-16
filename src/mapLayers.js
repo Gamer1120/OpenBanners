@@ -3,9 +3,11 @@ import { t, tk } from "./i18n";
 
 // The map layers every map on the site offers (2026-11-16, Michael: the
 // default map is difficult to see sometimes). One choice for all maps,
-// remembered in localStorage on this device (not a synced setting). Without a
-// choice each map keeps its own default: "dark" (OpenStreetMap darkened by the
-// .ob-tiles-dark CSS filter) inside the app, "osm" on the BannerGuider pages.
+// remembered in localStorage on this device (not a synced setting; only an
+// explicit pick is stored, never the default). Without a choice every map
+// shows "osm", OpenStreetMap in its normal colours (2026-11-16, Michael: make
+// OpenStreetMap the default; before that the app defaulted to "dark", the
+// tiles darkened by the .ob-tiles-dark CSS filter).
 // Free tiles without a key; a new tile host must also go into the CSP
 // (docker/openbanners-security-headers.conf, img-src) on the VPS.
 export const MAP_LAYER_STORAGE_KEY = "openbanners-map-layer";
@@ -55,10 +57,13 @@ export const MAP_LAYERS = [
   },
 ];
 
-export const DEFAULT_MAP_LAYER = "dark";
+export const DEFAULT_MAP_LAYER = "osm";
 
 export function getMapLayer(id) {
-  return MAP_LAYERS.find((layer) => layer.id === id) ?? MAP_LAYERS[0];
+  return (
+    MAP_LAYERS.find((layer) => layer.id === id) ??
+    MAP_LAYERS.find((layer) => layer.id === DEFAULT_MAP_LAYER)
+  );
 }
 
 export function getMapLayerPreview(layer) {
@@ -106,7 +111,7 @@ function subscribe(listener) {
   };
 }
 
-// The layer a map shows: the visitor's choice, else the map's own default.
+// The layer a map shows: the visitor's choice, else the default (OpenStreetMap).
 export function useMapLayer(defaultId = DEFAULT_MAP_LAYER) {
   const choice = useSyncExternalStore(subscribe, readMapLayerChoice, () => null);
   return getMapLayer(choice ?? defaultId);

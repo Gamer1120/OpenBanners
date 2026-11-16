@@ -150,8 +150,8 @@ export default function Map() {
         whenReady={handleMapContainerReady}
         preferCanvas={missionCoordinates.length > 200}
       >
-        <MapTileLayer defaultLayer="osm" />
-        <MapLayerControl defaultLayer="osm" />
+        <MapTileLayer />
+        <MapLayerControl />
         <BannerMarkers
           missions={missions}
           currentMission={currentMission}

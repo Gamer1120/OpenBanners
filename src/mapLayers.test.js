@@ -2,6 +2,7 @@ import { act, renderHook } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 import {
   MAP_LAYERS,
+  DEFAULT_MAP_LAYER,
   MAP_LAYER_STORAGE_KEY,
   getMapLayer,
   getMapLayerPreview,
@@ -21,7 +22,8 @@ describe("map layers", () => {
     expect(getMapLayer("dark").className).toBe("ob-tiles-dark");
     expect(getMapLayer("osm").className).toBeUndefined();
     expect(getMapLayer("satellite").className).toBeUndefined();
-    expect(getMapLayer("nonsense").id).toBe("dark");
+    expect(getMapLayer("nonsense").id).toBe("osm");
+    expect(DEFAULT_MAP_LAYER).toBe("osm");
   });
 
   it("credits every provider", () => {
@@ -42,12 +44,15 @@ describe("map layers", () => {
     );
   });
 
-  it("uses each map's own default until the visitor picks one, then that one everywhere", () => {
-    const guider = renderHook(() => useMapLayer("osm"));
+  it("shows OpenStreetMap until the visitor picks a layer, then that one everywhere", () => {
+    const guider = renderHook(() => useMapLayer());
     const banner = renderHook(() => useMapLayer());
     expect(guider.result.current.id).toBe("osm");
-    expect(banner.result.current.id).toBe("dark");
+    expect(banner.result.current.id).toBe("osm");
+    expect(banner.result.current.className).toBeUndefined();
     expect(readMapLayerChoice()).toBeNull();
+    // Showing the default writes nothing, so a later default change reaches everyone.
+    expect(window.localStorage.getItem(MAP_LAYER_STORAGE_KEY)).toBeNull();
 
     act(() => setMapLayerChoice("satellite"));
 
@@ -56,10 +61,17 @@ describe("map layers", () => {
     expect(banner.result.current.id).toBe("satellite");
   });
 
+  it("keeps an explicit pick of the Dark layer", () => {
+    window.localStorage.setItem(MAP_LAYER_STORAGE_KEY, "dark");
+    const { result } = renderHook(() => useMapLayer());
+    expect(result.current.id).toBe("dark");
+    expect(result.current.className).toBe("ob-tiles-dark");
+  });
+
   it("ignores unknown stored values", () => {
     window.localStorage.setItem(MAP_LAYER_STORAGE_KEY, "terrain");
     expect(readMapLayerChoice()).toBeNull();
-    const { result } = renderHook(() => useMapLayer("osm"));
+    const { result } = renderHook(() => useMapLayer());
     expect(result.current.id).toBe("osm");
     setMapLayerChoice("terrain");
     expect(window.localStorage.getItem(MAP_LAYER_STORAGE_KEY)).toBe("terrain");

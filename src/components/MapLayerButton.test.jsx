@@ -17,7 +17,9 @@ describe("MapLayerButton", () => {
     fireEvent.click(button);
     const items = screen.getAllByRole("menuitemradio");
     expect(items.map((item) => item.textContent)).toEqual(["Dark", "OpenStreetMap", "Streets", "Satellite"]);
-    expect(screen.getByRole("menuitemradio", { name: "Dark" })).toHaveAttribute("aria-checked", "true");
+    expect(screen.getByRole("menuitemradio", { name: "OpenStreetMap" })).toHaveAttribute("aria-checked", "true");
+    expect(screen.getByRole("menuitemradio", { name: "Dark" })).toHaveAttribute("aria-checked", "false");
+    expect(window.localStorage.getItem(MAP_LAYER_STORAGE_KEY)).toBeNull();
 
     fireEvent.click(screen.getByRole("menuitemradio", { name: "Satellite" }));
     expect(window.localStorage.getItem(MAP_LAYER_STORAGE_KEY)).toBe("satellite");
@@ -28,7 +30,7 @@ describe("MapLayerButton", () => {
   });
 
   it("closes on Escape and on a press outside", () => {
-    render(<MapLayerButton defaultLayer="osm" />);
+    render(<MapLayerButton />);
     const button = screen.getByRole("button", { name: "Map layers" });
     fireEvent.click(button);
     expect(screen.getByRole("menuitemradio", { name: "OpenStreetMap" })).toHaveAttribute("aria-checked", "true");

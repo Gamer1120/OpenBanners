@@ -55,6 +55,7 @@ import { getLanguage, t, tk, tn } from "../../i18n";
 import { getMissionEntries, getSlotCount } from "../../bannerMissions";
 import MissionMosaic, { hasMissionPictures } from "./MissionMosaic";
 import { getPanTiming, HERO_ROWS } from "./artViewer";
+import { MapLayerButton } from "../MapLayerButton";
 
 // Leaflet comes with the map only (RouteMap.jsx); the artwork viewer when it opens.
 const RouteMap = lazy(() => import("./RouteMap"));
@@ -1293,6 +1294,7 @@ export function MapSection({ d, className = "", sheet = true, onShowInList, chil
         >
           <FitScreen />
         </button>
+        <MapLayerButton className="icon-btn sl" />
       </div>
       {d.isLoading || d.locationError ? (
         <div className="bp-note" role={d.locationError ? "alert" : undefined}>

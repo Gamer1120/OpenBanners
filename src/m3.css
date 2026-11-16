@@ -1855,9 +1855,8 @@ body {
   font-weight: 500;
 }
 
-.ob-app .leaflet-tile-pane {
-  filter: invert(1) hue-rotate(180deg) brightness(0.95) contrast(0.9) saturate(0.5);
-}
+/* The darkened OpenStreetMap tiles (the "Dark" map layer) are .ob-tiles-dark in
+   components/MapLayers.css. */
 
 /* pages not (yet) redesigned keep their original dark look */
 .legacy-dark {

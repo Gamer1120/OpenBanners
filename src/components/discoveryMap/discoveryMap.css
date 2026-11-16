@@ -143,6 +143,18 @@
   transition: bottom 200ms ease;
 }
 
+/* Map layer picker (LayersButton), stacked above the locate button. */
+.mv-root .ob-layers.mv-layers {
+  position: absolute;
+  right: 12px;
+  z-index: 1000;
+  transition: bottom 200ms ease;
+}
+
+.mv-layers .mv-fab {
+  position: static;
+}
+
 .mv-fab svg {
   width: 22px;
   height: 22px;

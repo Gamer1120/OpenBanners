@@ -32,7 +32,8 @@ import {
   Restore,
   UploadFile,
 } from "@mui/icons-material";
-import { MapContainer, TileLayer, useMap } from "react-leaflet";
+import { MapContainer, useMap } from "react-leaflet";
+import { MapLayerControl, MapTileLayer } from "./MapLayers";
 import L from "leaflet";
 import BannerMarkers from "./BannerMarkers";
 import {
@@ -63,8 +64,6 @@ import { getLanguage, t, tk, tn } from "../i18n";
 const DEFAULT_MAP_CENTER = WORLD_PLACEHOLDER.center;
 const PORTAL_LIST_LIMIT = 120;
 const DISTANCE_INPUT_DEBOUNCE_MS = 250;
-const TILE_URL = "https://tile.openstreetmap.org/{z}/{x}/{y}.png";
-const TILE_ATTRIBUTION = "&copy; OpenStreetMap contributors";
 const LOOP_CLOSURE_OPTIONS = [
   {
     value: LOOP_CLOSURE_MODE_STRICT,
@@ -2000,7 +1999,8 @@ export default function BannerRerouterPage() {
                     zoom={WORLD_PLACEHOLDER.zoom}
                     style={{ height: "100%", width: "100%" }}
                   >
-                    <TileLayer attribution={TILE_ATTRIBUTION} url={TILE_URL} />
+                    <MapTileLayer />
+                    <MapLayerControl />
                     <PreviewBoundsController coordinates={previewCoordinates} />
                     <BannerMarkers
                       missions={previewMissions}

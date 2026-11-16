@@ -1,7 +1,8 @@
 import "../leafletSetup";
 import { getMissionList } from "../bannerMissions";
 import { WORLD_PLACEHOLDER } from "../mapDefaults";
-import { MapContainer, TileLayer } from "react-leaflet";
+import { MapContainer } from "react-leaflet";
+import { MapLayerControl, MapTileLayer } from "./MapLayers";
 import BannerMarkers from "./BannerMarkers";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import MapOverlay from "./MapOverlay";
@@ -149,12 +150,8 @@ export default function Map() {
         whenReady={handleMapContainerReady}
         preferCanvas={missionCoordinates.length > 200}
       >
-        <TileLayer
-          attribution={t("© {osm} contributors", {
-            osm: '<a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
-          })}
-          url="https://tile.openstreetmap.org/{z}/{x}/{y}.png"
-        />
+        <MapTileLayer defaultLayer="osm" />
+        <MapLayerControl defaultLayer="osm" />
         <BannerMarkers
           missions={missions}
           currentMission={currentMission}

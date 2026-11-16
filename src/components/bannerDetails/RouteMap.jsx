@@ -4,7 +4,8 @@
 import "../../leafletSetup";
 import React, { useEffect, useMemo, useState } from "react";
 import L from "leaflet";
-import { CircleMarker, MapContainer, Marker, Polyline, Popup, TileLayer, useMap } from "react-leaflet";
+import { CircleMarker, MapContainer, Marker, Polyline, Popup, useMap } from "react-leaflet";
+import { MapTileLayer } from "../MapLayers";
 import { WORLD_PLACEHOLDER } from "../../mapDefaults";
 import { buildGeoUrl } from "../../bannerDisplay";
 import userLocationIcon from "../../constants";
@@ -148,12 +149,7 @@ export default function RouteMap({
       touchZoom={true}
       whenReady={({ target }) => onReady(target)}
     >
-      <TileLayer
-        attribution={t("© {osm} contributors", {
-          osm: '<a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
-        })}
-        url="https://tile.openstreetmap.org/{z}/{x}/{y}.png"
-      />
+      <MapTileLayer />
       <RouteLayers
         missions={missions}
         colors={colors}

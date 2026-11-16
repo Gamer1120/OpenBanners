@@ -5,6 +5,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, use
 import useDiscoveryMap from "./useDiscoveryMap";
 import {
   DiscoveryBaseMap,
+  LayersButton,
   LocateButton,
   MapStatusPill,
   clusterIcon,
@@ -607,6 +608,7 @@ export default function DiscoveryMap() {
           {t("Loading…")}
         </div>
       ) : null}
+      <LayersButton style={{ bottom: controlsBottom + 24 + 52 }} />
       <LocateButton vm={vm} style={{ bottom: controlsBottom + 24 }} />
       <MapStatusPill
         vm={vm}

@@ -95,7 +95,8 @@ export default function PrivacyPage() {
       <p>
         {t(
           "Bannergress (banner data and sign-in), Google (mission pictures and sign-in) and OpenStreetMap (map tiles). They have their own privacy policies."
-        )}
+        )}{" "}
+        {t("If you pick the Streets or Satellite map layer, its map tiles come from Esri.")}
       </p>
 
       <h2 className="ob-h2">{t("On your device")}</h2>

@@ -62,6 +62,27 @@ vi.mock("leaflet", () => {
     Browser: {
       mobile: false,
     },
+    // MapLayerControl (components/MapLayers.jsx) adds the layer button as a
+    // Leaflet control.
+    control: vi.fn(() => {
+      const control = {
+        addTo: () => {
+          control.element = control.onAdd?.() ?? document.createElement("div");
+          document.body.appendChild(control.element);
+          return control;
+        },
+        getContainer: () => control.element,
+        remove: () => control.element?.remove(),
+      };
+      return control;
+    }),
+    DomUtil: {
+      create: vi.fn((tag, className = "") => Object.assign(document.createElement(tag), { className })),
+    },
+    DomEvent: {
+      disableClickPropagation: vi.fn(),
+      disableScrollPropagation: vi.fn(),
+    },
   };
 
   globalThis.L = {

@@ -1,6 +1,7 @@
 import "../../leafletSetup";
 import L from "leaflet";
-import { MapContainer, Marker, TileLayer, useMapEvents } from "react-leaflet";
+import { MapContainer, Marker, useMapEvents } from "react-leaflet";
+import { MapLayerButton, MapTileLayer } from "../MapLayers";
 import { Link } from "react-router-dom";
 import { t } from "../../i18n";
 import { getStatusStyle } from "./mapStatus";
@@ -93,12 +94,7 @@ export function DiscoveryBaseMap({ vm, onMapClick, children }) {
       style={{ height: "100%", width: "100%" }}
       whenReady={(event) => vm.handleViewportChange(event.target)}
     >
-      <TileLayer
-        attribution={t("© {osm} contributors", {
-          osm: '<a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
-        })}
-        url="https://tile.openstreetmap.org/{z}/{x}/{y}.png"
-      />
+      <MapTileLayer />
       {vm.userLocation ? (
         <Marker
           position={[vm.userLocation.latitude, vm.userLocation.longitude]}
@@ -128,6 +124,11 @@ export function LocateButton({ vm, style }) {
       </svg>
     </button>
   );
+}
+
+// The map layer picker, a round button above LocateButton.
+export function LayersButton({ style }) {
+  return <MapLayerButton rootClassName="mv-layers" style={style} className="mv-fab" placement="up" />;
 }
 
 // "Loading…", errors and the empty state, as a small pill.

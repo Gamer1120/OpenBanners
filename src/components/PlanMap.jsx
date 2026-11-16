@@ -2,7 +2,8 @@ import "../leafletSetup";
 import { WORLD_PLACEHOLDER } from "../mapDefaults";
 import React, { useEffect, useMemo, useRef } from "react";
 import L from "leaflet";
-import { CircleMarker, MapContainer, Marker, Polyline, Popup, TileLayer, useMap } from "react-leaflet";
+import { CircleMarker, MapContainer, Marker, Polyline, Popup, useMap } from "react-leaflet";
+import { MapLayerControl, MapTileLayer } from "./MapLayers";
 import { buildIngressMissionUrl, formatLength, getDistanceMeters } from "../bannerDisplay";
 import { missionColors } from "./bannerDetails/shared";
 import { t } from "../i18n";
@@ -84,12 +85,8 @@ export default function PlanMap({ missions, items, here, flyRequest, onToggle })
 
   return (
     <MapContainer center={WORLD_PLACEHOLDER.center} zoom={WORLD_PLACEHOLDER.zoom} scrollWheelZoom style={{ height: "100%", width: "100%" }}>
-      <TileLayer
-        attribution={t("© {osm} contributors", {
-          osm: '<a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
-        })}
-        url="https://tile.openstreetmap.org/{z}/{x}/{y}.png"
-      />
+      <MapTileLayer />
+      <MapLayerControl />
       <FitOnce points={points} fitKey={fitKey} />
       <FlyToMe here={here} request={flyRequest} />
       {/* Not added: thin grey lines underneath. Added: rainbow on top, with a

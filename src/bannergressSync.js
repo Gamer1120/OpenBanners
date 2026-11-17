@@ -182,6 +182,14 @@ let cachedAuthStorageValue = null;
 let cachedAuthSnapshot = EMPTY_AUTH_STATE;
 let refreshAuthPromise = null;
 const temporarilyVisibleHiddenBannerIds = new Set();
+// Responses to requests that carried a Bannergress token. fetchWithRecovery
+// may answer with the same request without the token instead (refused or
+// failing token); only signed-in answers tell which list a banner is on.
+const signedInResponses = new WeakSet();
+// List changes saved in this tab (user actions): a sequence number per banner,
+// so a banner page can tell whether its banner changed while it loaded.
+let bannerListWriteSequence = 0;
+const bannerListWrites = new Map();
 
 function normalizeListType(listType) {
   if (listType === "todo" || listType === "done") {
@@ -1413,7 +1421,16 @@ export async function fetchBannergress(url, options = {}) {
   }
 
   const method = String(fetchOptions.method ?? "GET").toUpperCase();
-  const send = () => fetch(url, { ...fetchOptions, headers });
+  const signedIn = Boolean(token) && headers.get("Authorization") === `Bearer ${token}`;
+  const send = async () => {
+    const response = await fetch(url, { ...fetchOptions, headers });
+
+    if (signedIn && response && typeof response === "object") {
+      signedInResponses.add(response);
+    }
+
+    return response;
+  };
 
   if (method !== "GET") {
     return send();
@@ -1460,6 +1477,9 @@ export function saveBannergressBannerListType(
   const currentState = loadBannergressSyncData();
   const bannerLists = { ...(currentState.bannerLists ?? {}) };
 
+  bannerListWriteSequence += 1;
+  bannerListWrites.set(bannerId, bannerListWriteSequence);
+
   if (normalizedListType) {
     bannerLists[bannerId] = normalizedListType;
   } else {
@@ -1476,6 +1496,82 @@ export function saveBannergressBannerListType(
     syncedAt: new Date().toISOString(),
     bannerLists,
   });
+}
+
+// A successful answer to a request sent with the user's Bannergress token
+// (not the token-less fallback, not a signed-out request).
+export function isSignedInBannergressResponse(response) {
+  return (
+    Boolean(response) &&
+    typeof response === "object" &&
+    response.ok === true &&
+    signedInResponses.has(response)
+  );
+}
+
+// Taken right before a banner page asks Bannergress for its banner; see
+// saveFetchedBannerListType.
+export function readBannerListSnapshot() {
+  return {
+    sequence: bannerListWriteSequence,
+    bannerLists: loadBannergressSyncData().bannerLists ?? {},
+  };
+}
+
+// Like Bannergress's own site, a banner page shows the list status that the
+// signed-in GET /bnrs/<id> just returned, and keeps the saved lists in step
+// (e.g. marked Done with the overlay on the phone while this browser's list
+// sync failed). Bannergress leaves listType out when the banner is on no list
+// (BannerListType.none -> null, @JsonInclude(NON_NULL)) - but also for every
+// signed-out request, so only signed-in answers count. A change made while the
+// request ran (here, in another tab or by a list sync) wins over the answer.
+// Returns true when the saved lists were updated.
+export function saveFetchedBannerListType(response, banner, snapshot) {
+  const bannerId = typeof banner?.id === "string" ? banner.id : "";
+
+  if (!bannerId || !snapshot || !isSignedInBannergressResponse(response)) {
+    return false;
+  }
+
+  const rawListType = banner.listType ?? null;
+  const fetchedListType =
+    rawListType === null || rawListType === "none" ? null : normalizeListType(rawListType);
+
+  if (rawListType !== null && rawListType !== "none" && !fetchedListType) {
+    // A list Bannergress added later: don't guess.
+    return false;
+  }
+
+  if ((bannerListWrites.get(bannerId) ?? 0) > (snapshot.sequence ?? 0)) {
+    return false;
+  }
+
+  const currentState = loadBannergressSyncData();
+  const currentLists = currentState.bannerLists ?? {};
+  const snapshotLists = snapshot.bannerLists ?? {};
+
+  if (
+    Object.hasOwn(currentLists, bannerId) !== Object.hasOwn(snapshotLists, bannerId) ||
+    currentLists[bannerId] !== snapshotLists[bannerId]
+  ) {
+    return false;
+  }
+
+  if (getBannerListType(currentState, bannerId, null) === fetchedListType) {
+    return false;
+  }
+
+  try {
+    // Not a full list sync: keep its time ("Last synced").
+    saveBannergressSyncData({
+      syncedAt: currentState.syncedAt,
+      bannerLists: { ...currentLists, [bannerId]: fetchedListType ?? "none" },
+    });
+    return true;
+  } catch (error) {
+    console.error("Couldn't save the banner's list status.", error);
+    return false;
+  }
 }
 
 export async function updateBannergressBannerListType(

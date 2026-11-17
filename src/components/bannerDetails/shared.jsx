@@ -20,6 +20,8 @@ import {
   fetchBannergress,
   getBannerListType,
   isBannergressAuthSupportedOrigin,
+  readBannerListSnapshot,
+  saveFetchedBannerListType,
   useBannergressSync,
 } from "../../bannergressSync";
 import { applyPageMetadata, buildBannerMetadata, resetPageMetadata } from "../../seo";
@@ -578,6 +580,7 @@ export function useBannerDetails({ tabs = true } = {}) {
       setErrorKind("");
 
       try {
+        const listSnapshot = readBannerListSnapshot();
         const response = await fetchBannergress(`https://api.bannergress.com/bnrs/${bannerId}`, {
           signal: bannerFetchTimeoutSignal(),
         });
@@ -586,6 +589,9 @@ export function useBannerDetails({ tabs = true } = {}) {
 
         if (!ignore) {
           if (result && typeof result === "object" && result.id) {
+            // Signed in, Bannergress's answer has the banner's current list
+            // (it may have changed elsewhere, e.g. in the overlay).
+            saveFetchedBannerListType(response, result, listSnapshot);
             setItems(result);
           } else {
             setItems({});

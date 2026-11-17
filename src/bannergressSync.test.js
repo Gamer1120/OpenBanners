@@ -2,8 +2,16 @@ import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import {
   BANNERGRESS_AGENT_STORAGE_KEY,
   BANNERGRESS_RETRY_DELAY_MS,
+  BANNERGRESS_SYNC_CHANGE_EVENT,
   clearBannergressAuthData,
   fetchBannergress,
+  getBannerListType,
+  isSignedInBannergressResponse,
+  loadBannergressSyncData,
+  readBannerListSnapshot,
+  saveBannergressBannerListType,
+  saveBannergressSyncData,
+  saveFetchedBannerListType,
   getBannergressAccountId,
   getBannergressAgentName,
   getBannergressDisplayName,
@@ -550,4 +558,138 @@ test("the shared /user request reports sign-in problems and caches the agent", a
 
   global.fetch.mockReturnValue(userResponse({ agent: null }));
   await expect(fetchBannergressUserAgentName()).resolves.toBeNull();
+});
+
+// Banner page: the list status in a signed-in GET /bnrs/<id> answer.
+async function fetchBannerAnswer(bannerId, banner, status = 200) {
+  global.fetch.mockImplementation(() => jsonResponse(banner, status));
+  const snapshot = readBannerListSnapshot();
+  const response = await fetchBannergress(`https://api.bannergress.com/bnrs/${bannerId}`);
+  return { snapshot, response, banner: await response.json() };
+}
+
+function saveLists(bannerLists) {
+  saveBannergressSyncData({ syncedAt: "2026-11-01T10:00:00.000Z", bannerLists });
+}
+
+test("a signed-in banner answer overrides the saved list status and saves it", async () => {
+  saveFreshAccessToken();
+  saveLists({ "fetched-done": "todo", other: "todo" });
+  const changes = vi.fn();
+  window.addEventListener(BANNERGRESS_SYNC_CHANGE_EVENT, changes);
+
+  try {
+    const answer = await fetchBannerAnswer("fetched-done", { id: "fetched-done", listType: "done" });
+    expect(isSignedInBannergressResponse(answer.response)).toBe(true);
+    expect(saveFetchedBannerListType(answer.response, answer.banner, answer.snapshot)).toBe(true);
+
+    const saved = loadBannergressSyncData();
+    expect(saved.bannerLists).toEqual({ "fetched-done": "done", other: "todo" });
+    // Not a full list sync: "Last synced" stays.
+    expect(saved.syncedAt).toBe("2026-11-01T10:00:00.000Z");
+    expect(changes).toHaveBeenCalledTimes(1);
+
+    // Same answer again: nothing to save, no change event.
+    const again = await fetchBannerAnswer("fetched-done", { id: "fetched-done", listType: "done" });
+    expect(saveFetchedBannerListType(again.response, again.banner, again.snapshot)).toBe(false);
+    expect(changes).toHaveBeenCalledTimes(1);
+  } finally {
+    window.removeEventListener(BANNERGRESS_SYNC_CHANGE_EVENT, changes);
+  }
+});
+
+test("a signed-in answer without listType means the banner is on no list", async () => {
+  // Bannergress maps BannerListType.none to null and leaves nulls out.
+  saveFreshAccessToken();
+  saveLists({ "fetched-none": "todo", "fetched-null": "done", "never-saved": undefined });
+
+  const absent = await fetchBannerAnswer("fetched-none", { id: "fetched-none", title: "x" });
+  expect(saveFetchedBannerListType(absent.response, absent.banner, absent.snapshot)).toBe(true);
+  const explicitNull = await fetchBannerAnswer("fetched-null", { id: "fetched-null", listType: null });
+  expect(saveFetchedBannerListType(explicitNull.response, explicitNull.banner, explicitNull.snapshot)).toBe(true);
+
+  const saved = loadBannergressSyncData();
+  expect(getBannerListType(saved, "fetched-none", "todo")).toBe(null);
+  expect(getBannerListType(saved, "fetched-null", "done")).toBe(null);
+
+  // Not saved and on no list: nothing to write.
+  const unknown = await fetchBannerAnswer("never-saved", { id: "never-saved" });
+  expect(saveFetchedBannerListType(unknown.response, unknown.banner, unknown.snapshot)).toBe(false);
+  expect(Object.hasOwn(loadBannergressSyncData().bannerLists, "never-saved")).toBe(false);
+});
+
+test("signed-out, token-less or refused banner answers leave the saved lists alone", async () => {
+  saveLists({ "signed-out": "todo" });
+  const before = window.localStorage.getItem("openbanners-bannergress-sync");
+
+  // No session: the request goes out without a token.
+  for (const banner of [{ id: "signed-out" }, { id: "signed-out", listType: "done" }]) {
+    const answer = await fetchBannerAnswer("signed-out", banner);
+    expect(isSignedInBannergressResponse(answer.response)).toBe(false);
+    expect(saveFetchedBannerListType(answer.response, answer.banner, answer.snapshot)).toBe(false);
+  }
+
+  // Signed in, but the token is refused (looks like a network error): the
+  // public fallback answer has no listType and must not clear the saved Todo.
+  saveFreshAccessToken();
+  vi.useFakeTimers();
+
+  try {
+    global.fetch.mockImplementation((input, options) =>
+      withAuth(options)
+        ? Promise.reject(new TypeError("Failed to fetch"))
+        : jsonResponse({ id: "signed-out" })
+    );
+    const snapshot = readBannerListSnapshot();
+    const request = fetchBannergress("https://api.bannergress.com/bnrs/signed-out");
+    await vi.advanceTimersByTimeAsync(BANNERGRESS_RETRY_DELAY_MS + 10);
+    const response = await request;
+    expect(response.status).toBe(200);
+    expect(isSignedInBannergressResponse(response)).toBe(false);
+    expect(saveFetchedBannerListType(response, await response.json(), snapshot)).toBe(false);
+  } finally {
+    vi.useRealTimers();
+  }
+
+  // A refused answer with the token.
+  const refused = await fetchBannerAnswer("signed-out", null, 401);
+  expect(saveFetchedBannerListType(refused.response, { id: "signed-out" }, refused.snapshot)).toBe(false);
+
+  // A list type Bannergress might add later isn't guessed at.
+  const future = await fetchBannerAnswer("signed-out", { id: "signed-out", listType: "favourite" });
+  expect(saveFetchedBannerListType(future.response, future.banner, future.snapshot)).toBe(false);
+
+  expect(window.localStorage.getItem("openbanners-bannergress-sync")).toBe(before);
+});
+
+test("a list change made while the banner loaded wins over the answer", async () => {
+  saveFreshAccessToken();
+  saveLists({ "user-change": "todo", "back-and-forth": "todo", "synced-meanwhile": "todo" });
+
+  // The user marks it Hidden after the request went out; the answer says Done.
+  const userChange = await fetchBannerAnswer("user-change", { id: "user-change", listType: "done" });
+  saveBannergressBannerListType("user-change", "blacklist");
+  expect(saveFetchedBannerListType(userChange.response, userChange.banner, userChange.snapshot)).toBe(false);
+
+  // Done and back to To do: same value as before, but still the user's change.
+  const backAndForth = await fetchBannerAnswer("back-and-forth", { id: "back-and-forth", listType: "done" });
+  saveBannergressBannerListType("back-and-forth", "done");
+  saveBannergressBannerListType("back-and-forth", "todo");
+  expect(saveFetchedBannerListType(backAndForth.response, backAndForth.banner, backAndForth.snapshot)).toBe(false);
+
+  // Another tab or a list sync saved a newer value meanwhile.
+  const synced = await fetchBannerAnswer("synced-meanwhile", { id: "synced-meanwhile", listType: "todo" });
+  saveLists({ ...loadBannergressSyncData().bannerLists, "synced-meanwhile": "done" });
+  expect(saveFetchedBannerListType(synced.response, synced.banner, synced.snapshot)).toBe(false);
+
+  expect(loadBannergressSyncData().bannerLists).toMatchObject({
+    "user-change": "blacklist",
+    "back-and-forth": "todo",
+    "synced-meanwhile": "done",
+  });
+
+  // A user change before the request doesn't block the answer.
+  const later = await fetchBannerAnswer("user-change", { id: "user-change", listType: "done" });
+  expect(saveFetchedBannerListType(later.response, later.banner, later.snapshot)).toBe(true);
+  expect(loadBannergressSyncData().bannerLists["user-change"]).toBe("done");
 });

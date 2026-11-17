@@ -3774,6 +3774,68 @@ test("shows bannergress list action buttons on the banner overview page", async 
 });
 
 
+function renderListStatusBanner(bannerId, listType, { signedIn }) {
+  if (signedIn) {
+    window.localStorage.setItem(
+      BANNERGRESS_AUTH_STORAGE_KEY,
+      JSON.stringify({ accessToken: "test-access-token", refreshToken: "test-refresh-token", accessExpiresAt: Date.now() + 300000, refreshExpiresAt: Date.now() + 1800000, updatedAt: Date.now() })
+    );
+  }
+  bannergressSync.saveBannergressSyncData({ bannerLists: { [bannerId]: "todo" } });
+  global.fetch.mockImplementation((url, options) => {
+    if (url.endsWith(`/bnrs/${bannerId}`)) {
+      const withToken = Boolean(new Headers(options?.headers ?? {}).get("Authorization"));
+      return Promise.resolve({
+        ok: true,
+        status: 200,
+        json: () =>
+          Promise.resolve({
+            id: bannerId,
+            title: "List Status Banner",
+            picture: "/images/detail.jpg",
+            numberOfMissions: 1,
+            lengthMeters: 500,
+            missions: {},
+            // Bannergress only sends listType to signed-in requests.
+            ...(withToken && listType ? { listType } : {}),
+          }),
+      });
+    }
+    return Promise.resolve({ ok: false, status: 404, json: () => Promise.resolve(null) });
+  });
+
+  renderWithProviders(
+    <Routes>
+      <Route path="/banner/:bannerId" element={<BannerDetailsPage />} />
+    </Routes>,
+    { route: `/banner/${bannerId}` }
+  );
+}
+
+test("banner page shows the list status from a signed-in answer and saves it", async () => {
+  renderListStatusBanner("status-done-banner", "done", { signedIn: true });
+
+  expect(await screen.findByText("List Status Banner")).toBeInTheDocument();
+  await waitFor(() => {
+    expect(screen.getByRole("button", { name: /done/i })).toHaveAttribute("aria-pressed", "true");
+  });
+  expect(screen.getByRole("button", { name: /to do/i })).toHaveAttribute("aria-pressed", "false");
+  expect(JSON.parse(window.localStorage.getItem(BANNERGRESS_SYNC_STORAGE_KEY)).bannerLists).toEqual({
+    "status-done-banner": "done",
+  });
+});
+
+test("banner page keeps the saved list status when signed out", async () => {
+  renderListStatusBanner("status-signed-out-banner", "done", { signedIn: false });
+
+  expect(await screen.findByText("List Status Banner")).toBeInTheDocument();
+  expect(screen.getByRole("button", { name: /to do/i })).toHaveAttribute("aria-pressed", "true");
+  expect(JSON.parse(window.localStorage.getItem(BANNERGRESS_SYNC_STORAGE_KEY)).bannerLists).toEqual({
+    "status-signed-out-banner": "todo",
+  });
+});
+
+
 test("shows unique mission authors on the banner details page when the api returns them", async () => {
   global.fetch.mockImplementation((url) => {
     if (url.endsWith("/bnrs/authored-banner")) {

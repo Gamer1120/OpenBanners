@@ -33,6 +33,8 @@ When a workflow, deployment step, testing note, or project-specific convention i
 
 Multiple agents may work in this repository at the same time. Before starting larger or risky work, check the current branch and worktree state, avoid overwriting unrelated changes, and prefer a separate `git worktree` for isolated parallel work when it would reduce coordination risk.
 
+Browse filters (2026-11-17, Michael: a distance filter like the map's): the Filters menu of Browse/agent/search lists (`SortingButtons`) and Near you has Distance = banner `lengthMeters` with the map's presets (Any, < 5/10/15/20 km, Custom min–max km; max exclusive, min inclusive) next to Number of missions; state `kilometerFilterMode`/`minimumKilometers`/`maximumKilometers` in `bannerFilters.js`, saved with the other browse filters. Bannergress `/bnrs` has no length or mission-count filter, so both are applied in the browser on the fetched pages; `BrowseBannerList` keeps fetching pages until 48 banners match (or the list ends) and stops paging early when sorted by Distance and the last banner is past the bound (`isPastKilometerFilter`).
+
 Efficiency sort (Browse/search) fetches the whole set and keeps it for an hour in IndexedDB (`src/efficiencyCache.js`; key = place/agent/search + show offline + show hidden, plus the signed-in account when hidden banners are left out; not the sort direction or browser-side filters; at most 8 lists). A list from that cache shows "Cached results from N minutes ago · Refresh"; the browse state in localStorage doesn't keep Efficiency banners, so a reload goes through the cache. jsdom has no IndexedDB: tests use `setEfficiencyCacheBackend(createMemoryEfficiencyCacheBackend())`.
 
 ## Testing Guidelines

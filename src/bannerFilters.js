@@ -4,6 +4,8 @@ import {
 } from "./bannergressSync";
 
 export const PRESET_MISSION_COUNT_FILTERS = Object.freeze([0, 6, 12, 18]);
+// Distance (banner length) presets, as on the map: "< 5 km" … "< 20 km".
+export const PRESET_MAXIMUM_KILOMETER_FILTERS = Object.freeze([5, 10, 15, 20]);
 
 export const DEFAULT_BANNER_FILTERS = Object.freeze({
   showOfflineBanners: false,
@@ -14,6 +16,9 @@ export const DEFAULT_BANNER_FILTERS = Object.freeze({
   missionCountFilterMode: "preset",
   customMinimumMissions: "",
   customMaximumMissions: "",
+  // "preset": Any (both empty) or "< N km" (maximumKilometers = N);
+  // "custom": the min–max fields.
+  kilometerFilterMode: "preset",
   minimumKilometers: "",
   maximumKilometers: "",
 });
@@ -88,6 +93,53 @@ export function getKilometerBounds(filters) {
       (minimumKilometers !== null && minimumKilometers > 0) ||
       maximumKilometers !== null,
   };
+}
+
+// Banner length (lengthMeters) within the Distance filter: minimum inclusive,
+// maximum exclusive ("< 5 km"), like the map. Unknown lengths only pass
+// without a filter.
+export function bannerMatchesKilometerFilter(banner, filters) {
+  const { minimumKilometers, maximumKilometers, hasKilometerFilter } =
+    getKilometerBounds(filters);
+
+  if (!hasKilometerFilter) {
+    return true;
+  }
+
+  const meters = Number(banner?.lengthMeters);
+
+  if (banner?.lengthMeters === null || banner?.lengthMeters === undefined || !Number.isFinite(meters)) {
+    return false;
+  }
+
+  if (minimumKilometers !== null && meters < minimumKilometers * 1000) {
+    return false;
+  }
+
+  if (maximumKilometers !== null && meters >= maximumKilometers * 1000) {
+    return false;
+  }
+
+  return true;
+}
+
+// A list sorted by length has no more matches after its last banner once it
+// passed the Distance filter's bound (Shortest first beyond the maximum,
+// Longest first below the minimum), so paging can stop there.
+export function isPastKilometerFilter(lastBanner, filters, sortOrder) {
+  const { minimumKilometers, maximumKilometers, hasKilometerFilter } =
+    getKilometerBounds(filters);
+  const meters = Number(lastBanner?.lengthMeters);
+
+  if (!hasKilometerFilter || lastBanner?.lengthMeters == null || !Number.isFinite(meters)) {
+    return false;
+  }
+
+  if (sortOrder === "ASC") {
+    return maximumKilometers !== null && meters >= maximumKilometers * 1000;
+  }
+
+  return minimumKilometers !== null && minimumKilometers > 0 && meters < minimumKilometers * 1000;
 }
 
 export function countActiveBannerFilters(

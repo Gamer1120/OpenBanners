@@ -448,3 +448,83 @@ test("Efficiency fetches again once the cached banners are an hour old", async (
   await waitFor(() => expect(api.efficiencyFetches()).toBe(6));
   expect(screen.queryByText(/^Cached results/)).not.toBeInTheDocument();
 });
+
+function distanceBanners(offset, kms) {
+  return kms.map((km, index) => ({
+    id: `dist-${offset + index}`,
+    title: `Distance Banner ${offset + index} (${km} km)`,
+    picture: "/images/dist.jpg",
+    numberOfMissions: 6,
+    lengthMeters: km * 1000,
+    formattedAddress: "Utrecht, NL",
+    numberOfDisabledMissions: 0,
+  }));
+}
+
+function mockDistancePlace(pages) {
+  global.fetch.mockImplementation((url) => {
+    if (url.includes("/places/distance-place")) {
+      return jsonResponse({ id: "distance-place", formattedAddress: "Distance Place", numberOfBanners: 100 });
+    }
+
+    if (url.includes("/places?used=true&parentPlaceId=distance-place")) {
+      return jsonResponse([]);
+    }
+
+    if (url.includes("/bnrs?") && url.includes("placeId=distance-place")) {
+      const offset = Number(new URL(url).searchParams.get("offset"));
+      return jsonResponse(pages(offset, url));
+    }
+
+    throw new Error(`Unhandled fetch: ${url}`);
+  });
+}
+
+test("Distance filter hides longer banners and keeps paging until enough match", async () => {
+  // Newest first: one in four banners is under 5 km.
+  mockDistancePlace((offset) =>
+    offset >= 96
+      ? []
+      : distanceBanners(offset, Array.from({ length: 24 }, (_, index) => (index % 4 === 0 ? 3 : 12)))
+  );
+
+  renderWithProviders(
+    <BrowsingPage
+      placeId="distance-place"
+      bannerFilters={{ ...DEFAULT_BANNER_FILTERS, maximumKilometers: "5" }}
+    />,
+    { route: "/browse/distance-place" }
+  );
+
+  expect(await screen.findByText("Distance Banner 0 (3 km)")).toBeInTheDocument();
+  await waitFor(() => expect(getBannerFetchCalls().length).toBeGreaterThanOrEqual(2));
+  expect(screen.queryByText(/\(12 km\)/)).not.toBeInTheDocument();
+  expect(screen.getByText("Distance Banner 24 (3 km)")).toBeInTheDocument();
+  expect(screen.getByRole("button", { name: "Filters (1)" })).toBeInTheDocument();
+});
+
+test("Shortest first stops paging once banners pass the Distance maximum", async () => {
+  saveBrowseState(getBrowseStateScope({ placeId: "distance-place" }), {
+    sortOption: "Distance",
+    sortOrder: "ASC",
+  });
+  mockDistancePlace((offset, url) => {
+    expect(url).toContain("orderBy=lengthMeters");
+    expect(url).toContain("orderDirection=ASC");
+    return distanceBanners(offset, Array.from({ length: 24 }, (_, index) => 1 + offset + index));
+  });
+
+  renderWithProviders(
+    <BrowsingPage
+      placeId="distance-place"
+      bannerFilters={{ ...DEFAULT_BANNER_FILTERS, maximumKilometers: "5" }}
+    />,
+    { route: "/browse/distance-place" }
+  );
+
+  expect(await screen.findByText("Distance Banner 3 (4 km)")).toBeInTheDocument();
+  expect(screen.queryByText("Distance Banner 4 (5 km)")).not.toBeInTheDocument();
+  await new Promise((resolve) => setTimeout(resolve, 50));
+  expect(getBannerFetchCalls()).toHaveLength(1);
+  expect(screen.queryByText("No banners matched this selection.")).not.toBeInTheDocument();
+});

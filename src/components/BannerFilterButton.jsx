@@ -18,6 +18,7 @@ import {
   countActiveBannerFilters,
   getKilometerBounds,
   getMissionCountBounds,
+  PRESET_MAXIMUM_KILOMETER_FILTERS,
   PRESET_MISSION_COUNT_FILTERS,
 } from "../bannerFilters";
 import { t, tk } from "../i18n";
@@ -125,7 +126,21 @@ export default function BannerFilterButton({
   const missionToggleValue = isCustomMissionFilter
     ? "custom"
     : String(minimumMissions);
-  const { hasKilometerFilter } = getKilometerBounds(filters);
+  const { maximumKilometers } = getKilometerBounds(filters);
+  const hasMinimumKilometerInput =
+    String(filters?.minimumKilometers ?? "") !== "";
+  const hasMaximumKilometerInput =
+    String(filters?.maximumKilometers ?? "") !== "";
+  const isCustomKilometerFilter =
+    filters?.kilometerFilterMode === "custom" ||
+    hasMinimumKilometerInput ||
+    (hasMaximumKilometerInput &&
+      !PRESET_MAXIMUM_KILOMETER_FILTERS.includes(maximumKilometers));
+  const kilometerToggleValue = isCustomKilometerFilter
+    ? "custom"
+    : hasMaximumKilometerInput
+      ? String(maximumKilometers)
+      : "any";
   const buttonLabel =
     activeFilterCount > 0
       ? t("Filters ({count})", { count: activeFilterCount })
@@ -244,13 +259,106 @@ export default function BannerFilterButton({
             })}
           </FormGroup>
 
+          {showKilometerFilter ? (
+            <Box sx={{ mt: 1.5 }}>
+              <Typography
+                variant="overline"
+                sx={{ color: "text.secondary", letterSpacing: "0.12em" }}
+              >
+                {t("Distance")}
+              </Typography>
+              <ToggleButtonGroup
+                size="small"
+                exclusive
+                aria-label={t("Distance")}
+                value={kilometerToggleValue}
+                onChange={(_, nextValue) => {
+                  if (nextValue === null) {
+                    return;
+                  }
+
+                  if (nextValue === "custom") {
+                    onChange?.({
+                      ...filters,
+                      kilometerFilterMode: "custom",
+                    });
+                    return;
+                  }
+
+                  onChange?.({
+                    ...filters,
+                    kilometerFilterMode: "preset",
+                    minimumKilometers: "",
+                    maximumKilometers: nextValue === "any" ? "" : nextValue,
+                  });
+                }}
+                sx={{ mt: 0.75, display: "flex", flexWrap: "wrap" }}
+              >
+                <ToggleButton value="any">{t("Any")}</ToggleButton>
+                {PRESET_MAXIMUM_KILOMETER_FILTERS.map((maximum) => (
+                  <ToggleButton key={maximum} value={String(maximum)}>
+                    {`< ${maximum} km`}
+                  </ToggleButton>
+                ))}
+                <ToggleButton value="custom">{t("Custom")}</ToggleButton>
+              </ToggleButtonGroup>
+
+              {isCustomKilometerFilter ? (
+                <>
+                  <Stack direction="row" spacing={1} sx={{ mt: 1.25 }}>
+                    <TextField
+                      label={t("Minimum km")}
+                      size="small"
+                      type="number"
+                      value={filters?.minimumKilometers ?? ""}
+                      onChange={(event) => {
+                        onChange?.({
+                          ...filters,
+                          kilometerFilterMode: "custom",
+                          minimumKilometers: sanitizeKilometerInput(
+                            event.target.value
+                          ),
+                        });
+                      }}
+                      inputProps={{ min: 0, step: 0.1, inputMode: "decimal" }}
+                      sx={{ width: 120 }}
+                    />
+                    <TextField
+                      label={t("Maximum km")}
+                      size="small"
+                      type="number"
+                      value={filters?.maximumKilometers ?? ""}
+                      onChange={(event) => {
+                        onChange?.({
+                          ...filters,
+                          kilometerFilterMode: "custom",
+                          maximumKilometers: sanitizeKilometerInput(
+                            event.target.value
+                          ),
+                        });
+                      }}
+                      inputProps={{ min: 0, step: 0.1, inputMode: "decimal" }}
+                      sx={{ width: 120 }}
+                    />
+                  </Stack>
+                  <Typography
+                    variant="caption"
+                    sx={{ display: "block", mt: 0.75, color: "text.secondary" }}
+                  >
+                    {t("Leave a field empty to remove that limit.")}
+                  </Typography>
+                </>
+              ) : null}
+            </Box>
+          ) : null}
+
           {showMinimumMissionsFilter ? (
             <Box sx={{ mt: 1.5 }}>
               <Typography
                 variant="overline"
                 sx={{ color: "text.secondary", letterSpacing: "0.12em" }}
               >
-                {t("Banner length")}
+                {t("Number of missions")}
               </Typography>
               <ToggleButtonGroup
                 size="small"
@@ -333,58 +441,6 @@ export default function BannerFilterButton({
             </Box>
           ) : null}
 
-          {showKilometerFilter ? (
-            <Box sx={{ mt: 1.75 }}>
-              <Typography
-                variant="overline"
-                sx={{ color: "text.secondary", letterSpacing: 0 }}
-              >
-                {t("Route length")}
-              </Typography>
-              <Stack direction="row" spacing={1} sx={{ mt: 0.75 }}>
-                <TextField
-                  label={t("Minimum km")}
-                  size="small"
-                  type="number"
-                  value={filters?.minimumKilometers ?? ""}
-                  onChange={(event) => {
-                    onChange?.({
-                      ...filters,
-                      minimumKilometers: sanitizeKilometerInput(
-                        event.target.value
-                      ),
-                    });
-                  }}
-                  inputProps={{ min: 0, step: 0.1, inputMode: "decimal" }}
-                  sx={{ width: 120 }}
-                />
-                <TextField
-                  label={t("Maximum km")}
-                  size="small"
-                  type="number"
-                  value={filters?.maximumKilometers ?? ""}
-                  onChange={(event) => {
-                    onChange?.({
-                      ...filters,
-                      maximumKilometers: sanitizeKilometerInput(
-                        event.target.value
-                      ),
-                    });
-                  }}
-                  inputProps={{ min: 0, step: 0.1, inputMode: "decimal" }}
-                  sx={{ width: 120 }}
-                />
-              </Stack>
-              <Typography
-                variant="caption"
-                sx={{ display: "block", mt: 0.75, color: "text.secondary" }}
-              >
-                {hasKilometerFilter
-                  ? t("Filtering by banner route length.")
-                  : t("Leave a field empty to remove that limit.")}
-              </Typography>
-            </Box>
-          ) : null}
         </Box>
       </Menu>
     </>

@@ -14,6 +14,7 @@ import {
 import {
   DEFAULT_BANNER_FILTERS,
   applyBannerFilters,
+  bannerMatchesKilometerFilter,
   getMissionCountBounds,
 } from "../bannerFilters";
 import { getBrowseStateScope, resetBrowseState } from "../browseState";
@@ -118,6 +119,10 @@ export default function BannersNearMe({
     const { minimumMissions, maximumMissions } = getMissionCountBounds(bannerFilters);
 
     return applyBannerFilters(bannerData, syncState, bannerFilters).filter((banner) => {
+      if (!bannerMatchesKilometerFilter(banner, bannerFilters)) {
+        return false;
+      }
+
       const missions = Number(banner?.numberOfMissions);
 
       if (!Number.isFinite(missions)) {
@@ -429,6 +434,7 @@ export default function BannersNearMe({
             filters={bannerFilters}
             onChange={onBannerFiltersChange}
             showMinimumMissionsFilter
+            showKilometerFilter
           />
           <span className="grow" />
           <ViewModeToggle viewMode={viewMode} onChange={setViewMode} />
@@ -490,7 +496,7 @@ export default function BannersNearMe({
           <div className="ob-alert">{t("No nearby banners match.")}</div>
         ) : null}
 
-        {!loading && visibleBanners.length > 0 ? (
+        {!loading && (visibleBanners.length > 0 || loadingMore) ? (
           viewMode === "compact" ? (
             <BannerRows
               banners={visibleBanners}

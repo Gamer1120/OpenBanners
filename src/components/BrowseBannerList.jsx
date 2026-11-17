@@ -28,8 +28,11 @@ import {
 } from "../efficiencyCache";
 import {
   applyBannerFilters,
+  bannerMatchesKilometerFilter,
   DEFAULT_BANNER_FILTERS,
+  getKilometerBounds,
   getMissionCountBounds,
+  isPastKilometerFilter,
 } from "../bannerFilters";
 import { getLanguage, t, tn } from "../i18n";
 import {
@@ -527,6 +530,10 @@ export default function BrowseBannerList({
   const displayedBanners = useMemo(
     () =>
       applyBannerFilters(banners, syncState, bannerFilters).filter((banner) => {
+        if (!bannerMatchesKilometerFilter(banner, bannerFilters)) {
+          return false;
+        }
+
         const missionCount = Number(banner?.numberOfMissions);
 
         if (!Number.isFinite(missionCount)) {
@@ -675,8 +682,16 @@ export default function BrowseBannerList({
     onStatusChange?.({ ready: listReady, error: Boolean(error), count: listCount });
   }, [error, listCount, listReady, onStatusChange]);
 
+  const { hasKilometerFilter } = getKilometerBounds(bannerFilters);
+  // Sorted by length, pages beyond the Distance filter's bound can't match:
+  // stop paging there instead of fetching the rest of the place.
+  const pastKilometerFilter =
+    sortOption === "Distance" &&
+    isPastKilometerFilter(banners[banners.length - 1], bannerFilters, sortOrder);
+  const canLoadMore = hasMore && !pastKilometerFilter;
   const filteredPrefetchTarget =
     hasMissionCountFilter ||
+    hasKilometerFilter ||
     bannerFilters.showHiddenBanners ||
     bannerFilters.hideDoneBanners ||
     bannerFilters.showOfflineBanners ||
@@ -691,7 +706,7 @@ export default function BrowseBannerList({
   useEffect(() => {
     if (
       sortOption === "Efficiency" ||
-      !hasMore ||
+      !canLoadMore ||
       loading ||
       loadingMore ||
       banners.length === 0 ||
@@ -706,7 +721,7 @@ export default function BrowseBannerList({
     );
   }, [
     banners.length,
-    hasMore,
+    canLoadMore,
     loading,
     loadingMore,
     needsFilteredBackfill,
@@ -722,7 +737,7 @@ export default function BrowseBannerList({
   }, [nextOffset]);
 
   useInfiniteScroll(loadMoreRef, {
-    enabled: sortOption !== "Efficiency" && hasMore && !loading && !loadingMore,
+    enabled: sortOption !== "Efficiency" && canLoadMore && !loading && !loadingMore,
     onLoadMore: requestNextPage,
     itemCount: displayedBanners.length,
   });
@@ -800,18 +815,26 @@ export default function BrowseBannerList({
         ) : (
           <BannerWall banners={[]} skeletonCount={8} label={t("Loading banners")} />
         )
-      ) : displayedBanners.length === 0 && !error ? (
+      ) : displayedBanners.length === 0 && !error && !canLoadMore ? (
         <div className="ob-alert">
           {query && banners.length === 0 && !hasMore
             ? t("No matching banners found.")
             : t("No banners matched this selection.")}
         </div>
       ) : viewMode === "compact" ? (
-        <BannerRows banners={displayedBanners} loadingMore={loadingMore} label={label} />
+        <BannerRows
+          banners={displayedBanners}
+          loadingMore={loadingMore || (displayedBanners.length === 0 && canLoadMore && !error)}
+          label={label}
+        />
       ) : (
-        <BannerWall banners={displayedBanners} loadingMore={loadingMore} label={label} />
+        <BannerWall
+          banners={displayedBanners}
+          loadingMore={loadingMore || (displayedBanners.length === 0 && canLoadMore && !error)}
+          label={label}
+        />
       )}
-      {hasMore && !loading ? <div ref={loadMoreRef} style={{ height: 1 }} /> : null}
+      {canLoadMore && !loading ? <div ref={loadMoreRef} style={{ height: 1 }} /> : null}
     </section>
   );
 }

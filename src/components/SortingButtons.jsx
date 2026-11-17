@@ -96,6 +96,7 @@ export default function SortingButtons({
         filters={bannerFilters}
         onChange={onBannerFiltersChange}
         showMinimumMissionsFilter
+        showKilometerFilter
       />
     </Box>
   );

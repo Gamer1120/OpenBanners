@@ -30,12 +30,17 @@
   "Agent: {agent}": "Agent: {agent}",
   "All": "Alle",
   "All countries": "Alle Länder",
+  "All {count} answers known": {
+    "one": "Alle {count} Antworten bekannt",
+    "other": "Alle {count} Antworten bekannt"
+  },
   "Allow": "Erlauben",
   "Allow answers again": "Antworten wieder erlauben",
   "Already have another overlay app, like Bannergress Overlay? Share this banner’s Bannergress link with it.": "Du hast schon eine andere Overlay-App, etwa Bannergress Overlay? Teile den Bannergress-Link dieses Banners damit.",
   "Alternative {number}": "Alternative {number}",
   "An open-source front-end for banners": "Ein Open-Source-Frontend für Banner",
   "Answer for mission {mission}, waypoint {waypoint}": "Antwort für Mission {mission}, Wegpunkt {waypoint}",
+  "Answer known": "Antwort bekannt",
   "Answer suggested": "Antwort vorgeschlagen",
   "Any": "Beliebig",
   "Any distance": "Beliebige Entfernung",
@@ -492,6 +497,8 @@
   "No": "Nein",
   "No Mission Day is on right now. Search for its banner instead.": "Gerade läuft kein Mission Day. Such stattdessen nach seinem Banner.",
   "No active reroute": "Kein aktiver Reroute",
+  "No answer known yet": "Antwort noch unbekannt",
+  "No answers known yet": "Noch keine Antworten bekannt",
   "No backup yet. In the Overlay app: Settings → Back up to OpenBanners.": "Noch kein Backup. In der Overlay-App: Settings → Back up to OpenBanners.",
   "No banner description is available.": "Keine Bannerbeschreibung verfügbar.",
   "No banners found near you.": "Keine Banner in deiner Nähe gefunden.",
@@ -995,6 +1002,7 @@
   "Zoom out": "Herauszoomen",
   "Z–A": "Z–A",
   "about {length} including the walks between missions": "etwa {length} inklusive der Wege zwischen den Missionen",
+  "all are the mission number": "alle sind die Missionsnummer",
   "any": "beliebig",
   "by {authors}": "von {authors}",
   "connected": "verbunden",
@@ -1004,6 +1012,7 @@
   "has offline missions": "hat Offline-Missionen",
   "in review, visible from {date} at the earliest": "in Prüfung, frühestens sichtbar ab {date}",
   "in the plan": "im Plan",
+  "it’s the mission number": "es ist die Missionsnummer",
   "left": "verlassen",
   "less than a minute old": "weniger als eine Minute alt",
   "mission number, in review": "Missionsnummer, in Prüfung",
@@ -1043,6 +1052,10 @@
   "{count} answers, from {date}": {
     "one": "{count} Antwort, vom {date}",
     "other": "{count} Antworten, vom {date}"
+  },
+  "{count} are the mission number": {
+    "one": "{count} ist die Missionsnummer",
+    "other": "{count} sind die Missionsnummer"
   },
   "{count} banners": {
     "one": "{count} Banner",

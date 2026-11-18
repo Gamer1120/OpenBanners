@@ -2188,7 +2188,9 @@ test("warns about passphrases and opens those missions", async () => {
   );
 
   const alert = (await screen.findByText("Mission 2 asks for a passphrase")).closest('[role="note"]');
-  expect(alert).toHaveTextContent(/^Mission 2 asks for a passphrase$/);
+  // Under the title, once the answers are loaded: known, and the mission number.
+  expect(await within(alert).findByText("Answer known · it’s the mission number")).toBeInTheDocument();
+  expect(alert).toHaveTextContent(/^Mission 2 asks for a passphraseAnswer known · it’s the mission number$/);
   expect(screen.queryByRole("button", { name: /show mission/i })).toBeNull();
 
   await userEvent.setup().click(screen.getByRole("tab", { name: "Missions" }));

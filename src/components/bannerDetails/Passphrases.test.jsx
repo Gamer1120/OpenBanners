@@ -17,7 +17,15 @@ vi.mock("../../passphraseApi", async (importOriginal) => ({
 }));
 
 import { stepKey } from "../../passphraseApi";
-import { PassphraseDonePrompt, PassphrasePanel, WaypointAnswer } from "./Passphrases";
+import {
+  isMissionNumberAnswer,
+  passphraseAnswerSummary,
+  passphraseSlots,
+  PassphraseDonePrompt,
+  PassphrasePanel,
+  WaypointAnswer,
+} from "./Passphrases";
+import { PassphraseAlert } from "./shared";
 
 const step = (objective, title) => ({ objective, poi: { title } });
 const d = (passphrases = {}) => {
@@ -59,6 +67,79 @@ beforeEach(() => {
   submit.mockClear();
   saveSettings.mockClear();
   askAfterDone = true;
+});
+
+describe("the notice's answer counts", () => {
+  // n passphrase waypoints; "n" = live mission-number answer, "t" = live typed
+  // answer, "p" = only a pending one, "-" = none.
+  const slots = (pattern) =>
+    [...pattern].map((c) => ({ live: c === "n" || c === "t", pending: c === "p", missionNumber: c === "n" }));
+
+  it("says how many are known and how many are the mission number", () => {
+    expect(passphraseAnswerSummary(slots("nnntp-"))).toBe("4 of 6 answers known · 3 are the mission number");
+    expect(passphraseAnswerSummary(slots("nt--"))).toBe("2 of 4 answers known · 1 is the mission number");
+    expect(passphraseAnswerSummary(slots("n---"))).toBe("1 of 4 answers known · it’s the mission number");
+    expect(passphraseAnswerSummary(slots("nn--"))).toBe("2 of 4 answers known · all are the mission number");
+    expect(passphraseAnswerSummary(slots("tt-"))).toBe("2 of 3 answers known");
+  });
+
+  it("covers all known, none known and a single waypoint", () => {
+    expect(passphraseAnswerSummary(slots("nnn"))).toBe("All 3 answers known · all are the mission number");
+    expect(passphraseAnswerSummary(slots("ntt"))).toBe("All 3 answers known · 1 is the mission number");
+    expect(passphraseAnswerSummary(slots("tt"))).toBe("All 2 answers known");
+    expect(passphraseAnswerSummary(slots("p-"))).toBe("No answers known yet");
+    expect(passphraseAnswerSummary(slots("-"))).toBe("No answer known yet");
+    expect(passphraseAnswerSummary(slots("n"))).toBe("Answer known · it’s the mission number");
+    expect(passphraseAnswerSummary(slots("t"))).toBe("Answer known");
+    expect(passphraseAnswerSummary([])).toBe("");
+  });
+
+  it("counts a typed answer that is exactly the mission number, not other numbers", () => {
+    expect(isMissionNumberAnswer({ kind: "number", answer: "3" }, 2)).toBe(true);
+    expect(isMissionNumberAnswer({ kind: "text", answer: " 3 " }, 2)).toBe(true);
+    expect(isMissionNumberAnswer({ kind: "text", answer: "03" }, 2)).toBe(false);
+    expect(isMissionNumberAnswer({ kind: "text", answer: "2" }, 2)).toBe(false);
+    expect(isMissionNumberAnswer({ kind: "text", answer: null }, 2)).toBe(false);
+  });
+
+  it("uses the best live answer per waypoint and ignores pending ones", () => {
+    const typed = { id: 2, missionId: "m2", missionIndex: 1, stepIndex: 0, kind: "text", status: "live", answer: "Owl", confirms: 4 };
+    const number2 = { ...typed, id: 3, kind: "number", answer: "2", confirms: 1 };
+    const pending = { ...live, id: 4, status: "pending", missionId: "m2", stepIndex: 0, answer: null };
+    // Server order: most confirmed first, so "Owl" is the answer people see first.
+    expect(passphraseSlots(d({ data: { answers: [live, typed, number2] } })).map((s) => [s.live, s.missionNumber])).toEqual([
+      [true, true],
+      [true, false],
+    ]);
+    expect(passphraseAnswerSummary(passphraseSlots(d({ data: { answers: [live, pending] } })))).toBe(
+      "1 of 2 answers known · it’s the mission number"
+    );
+  });
+});
+
+describe("passphrase notice on the overview", () => {
+  const notice = (passphrases) => {
+    render(<PassphraseAlert d={d(passphrases)} />);
+    return screen.getByRole("note");
+  };
+
+  it("adds the counts under the title once the answers are loaded", () => {
+    expect(notice({ data: { answers: [live] } })).toHaveTextContent(
+      /^Every mission asks for a passphrase1 of 2 answers known · it’s the mission number$/
+    );
+  });
+
+  it("shows only the title while the answers load", () => {
+    expect(notice({ status: "loading", data: null })).toHaveTextContent(/^Every mission asks for a passphrase$/);
+  });
+
+  it("shows only the title when the answers couldn't be loaded", () => {
+    expect(notice({ status: "error", data: null })).toHaveTextContent(/^Every mission asks for a passphrase$/);
+  });
+
+  it("says when the author asked not to publish answers", () => {
+    expect(notice({ blocked: "banner" })).toHaveTextContent("The author asked not to publish passphrases for this banner.");
+  });
 });
 
 describe("passphrase card", () => {

@@ -30,12 +30,19 @@
   "Agent: {agent}": "Агент: {agent}",
   "All": "Усі",
   "All countries": "Усі країни",
+  "All {count} answers known": {
+    "one": "Відомі всі відповіді ({count})",
+    "few": "Відомі всі відповіді ({count})",
+    "many": "Відомі всі відповіді ({count})",
+    "other": "Відомі всі відповіді ({count})"
+  },
   "Allow": "Дозволити",
   "Allow answers again": "Знову дозволити відповіді",
   "Already have another overlay app, like Bannergress Overlay? Share this banner’s Bannergress link with it.": "Уже маєте інший оверлей-застосунок, наприклад Bannergress Overlay? Поділіться з ним посиланням на цей банер у Bannergress.",
   "Alternative {number}": "Варіант {number}",
   "An open-source front-end for banners": "Фронтенд з відкритим кодом для банерів",
   "Answer for mission {mission}, waypoint {waypoint}": "Відповідь для місії {mission}, точка {waypoint}",
+  "Answer known": "Відповідь відома",
   "Answer suggested": "Відповідь запропоновано",
   "Any": "Усі",
   "Any distance": "Будь-яка відстань",
@@ -518,6 +525,8 @@
   "No": "Ні",
   "No Mission Day is on right now. Search for its banner instead.": "Зараз немає жодного Mission Day. Пошукай його банер.",
   "No active reroute": "Немає активного маршруту",
+  "No answer known yet": "Відповідь поки невідома",
+  "No answers known yet": "Відповіді поки невідомі",
   "No backup yet. In the Overlay app: Settings → Back up to OpenBanners.": "Резервної копії ще немає. У застосунку Overlay: Settings → Back up to OpenBanners.",
   "No banner description is available.": "Опис банера відсутній.",
   "No banners found near you.": "Поруч з тобою банерів не знайдено.",
@@ -1051,6 +1060,7 @@
   "Zoom out": "Віддалити",
   "Z–A": "Я–А",
   "about {length} including the walks between missions": "близько {length} разом із переходами між місіями",
+  "all are the mission number": "усі — номери місій",
   "any": "будь-яка",
   "by {authors}": "від {authors}",
   "connected": "підключено",
@@ -1060,6 +1070,7 @@
   "has offline missions": "має вимкнені місії",
   "in review, visible from {date} at the earliest": "на перевірці, буде видно не раніше {date}",
   "in the plan": "у плані",
+  "it’s the mission number": "це номер місії",
   "left": "поза кімнатою",
   "less than a minute old": "менше хвилини тому",
   "mission number, in review": "номер місії, на перевірці",
@@ -1109,6 +1120,12 @@
     "few": "{count} відповіді, від {date}",
     "many": "{count} відповідей, від {date}",
     "other": "{count} відповіді, від {date}"
+  },
+  "{count} are the mission number": {
+    "one": "номер місії: {count}",
+    "few": "номер місії: {count}",
+    "many": "номер місії: {count}",
+    "other": "номер місії: {count}"
   },
   "{count} banners": {
     "one": "{count} банер",

@@ -22,7 +22,14 @@ const longDate = (iso) =>
 
 const requestLogin = () => window.dispatchEvent(new Event(BANNERGRESS_AUTH_REQUEST_EVENT));
 
-// Every passphrase waypoint of the banner, with whether an answer is live or waiting.
+// A "mission number" answer: sent as one (kind "number", the server stores
+// mission index + 1), or typed text that is exactly that number.
+export const isMissionNumberAnswer = (answer, missionIndex) =>
+  answer?.kind === "number" || (typeof answer?.answer === "string" && answer.answer.trim() === String(missionIndex + 1));
+
+// Every passphrase waypoint of the banner, with whether an answer is live or
+// waiting, and whether the best live answer (the server lists the most
+// confirmed first) is just the mission number.
 export function passphraseSlots(d) {
   const byStep = d.passphrases?.byStep ?? new Map();
   return (d.passphraseMissions ?? []).flatMap((entry) => {
@@ -32,15 +39,48 @@ export function passphraseSlots(d) {
     }
     return entry.steps.map((stepIndex) => {
       const answers = byStep.get(stepKey(mission.id, stepIndex)) ?? [];
+      const best = answers.find((answer) => answer.status === "live");
       return {
         missionId: mission.id,
         missionIndex: entry.index,
         stepIndex,
-        live: answers.some((answer) => answer.status === "live"),
+        live: Boolean(best),
         pending: answers.some((answer) => answer.status === "pending"),
+        missionNumber: Boolean(best) && isMissionNumberAnswer(best, entry.index),
       };
     });
   });
+}
+
+// The banner page's passphrase notice: how many answers are known and how
+// many of those are just the mission number. One count per passphrase
+// waypoint, like the Missions tab card. "" while nothing can be said.
+export function passphraseAnswerSummary(slots) {
+  const count = slots.length;
+  if (!count) {
+    return "";
+  }
+  const known = slots.filter((slot) => slot.live).length;
+  const numbers = slots.filter((slot) => slot.live && slot.missionNumber).length;
+  if (!known) {
+    return count === 1 ? t("No answer known yet") : t("No answers known yet");
+  }
+  const knownText =
+    known < count
+      ? tn("{known} of {count} answer known", "{known} of {count} answers known", count, { known: String(known) })
+      : count === 1
+        ? t("Answer known")
+        : tn("All {count} answer known", "All {count} answers known", count);
+  if (!numbers) {
+    return knownText;
+  }
+  const numberText =
+    numbers < known
+      ? tn("{count} is the mission number", "{count} are the mission number", numbers)
+      : known === 1
+        ? t("it’s the mission number")
+        : t("all are the mission number");
+  return `${knownText} · ${numberText}`;
 }
 
 function fillMissionNumbers(d, slots) {

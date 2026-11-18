@@ -30,12 +30,16 @@
   "Agent: {agent}": "エージェント: {agent}",
   "All": "すべて",
   "All countries": "すべての国",
+  "All {count} answers known": {
+    "other": "{count} 件すべての答えが判明"
+  },
   "Allow": "許可",
   "Allow answers again": "答えを再び許可",
   "Already have another overlay app, like Bannergress Overlay? Share this banner’s Bannergress link with it.": "Bannergress Overlay など別のオーバーレイアプリをお持ちですか？このバナーの Bannergress リンクをそのアプリに共有してください。",
   "Alternative {number}": "候補 {number}",
   "An open-source front-end for banners": "バナーのためのオープンソースのフロントエンド",
   "Answer for mission {mission}, waypoint {waypoint}": "ミッション {mission}、ウェイポイント {waypoint} の答え",
+  "Answer known": "答えが判明",
   "Answer suggested": "答えを提案済み",
   "Any": "すべて",
   "Any distance": "距離指定なし",
@@ -479,6 +483,8 @@
   "No": "いいえ",
   "No Mission Day is on right now. Search for its banner instead.": "現在開催中のミッションデイはありません。代わりにバナーを検索してください。",
   "No active reroute": "有効なリルートはありません",
+  "No answer known yet": "答えはまだ不明",
+  "No answers known yet": "判明した答えはまだありません",
   "No backup yet. In the Overlay app: Settings → Back up to OpenBanners.": "まだバックアップはありません。Overlay アプリで：Settings → Back up to OpenBanners。",
   "No banner description is available.": "バナーの説明はありません。",
   "No banners found near you.": "近くにバナーは見つかりませんでした。",
@@ -967,6 +973,7 @@
   "Zoom out": "縮小",
   "Z–A": "Z–A",
   "about {length} including the walks between missions": "ミッション間の移動を含めて約 {length}",
+  "all are the mission number": "すべてミッション番号",
   "any": "指定なし",
   "by {authors}": "作者: {authors}",
   "connected": "接続済み",
@@ -976,6 +983,7 @@
   "has offline missions": "オフラインのミッションあり",
   "in review, visible from {date} at the earliest": "審査中、早ければ {date} から表示",
   "in the plan": "プランに追加済み",
+  "it’s the mission number": "ミッション番号です",
   "left": "退出済み",
   "less than a minute old": "1分未満前",
   "mission number, in review": "ミッション番号、審査中",
@@ -1010,6 +1018,9 @@
   },
   "{count} answers, from {date}": {
     "other": "{count} 件の答え ({date} から)"
+  },
+  "{count} are the mission number": {
+    "other": "{count} 件はミッション番号"
   },
   "{count} banners": {
     "other": "{count} バナー"

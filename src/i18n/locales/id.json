@@ -30,12 +30,16 @@
   "Agent: {agent}": "Agen: {agent}",
   "All": "Semua",
   "All countries": "Semua negara",
+  "All {count} answers known": {
+    "other": "Semua {count} jawaban diketahui"
+  },
   "Allow": "Izinkan",
   "Allow answers again": "Izinkan jawaban lagi",
   "Already have another overlay app, like Bannergress Overlay? Share this banner’s Bannergress link with it.": "Sudah punya aplikasi overlay lain, seperti Bannergress Overlay? Bagikan tautan Bannergress banner ini ke aplikasi itu.",
   "Alternative {number}": "Alternatif {number}",
   "An open-source front-end for banners": "Front-end open-source untuk banner",
   "Answer for mission {mission}, waypoint {waypoint}": "Jawaban untuk misi {mission}, waypoint {waypoint}",
+  "Answer known": "Jawaban diketahui",
   "Answer suggested": "Jawaban diusulkan",
   "Any": "Apa saja",
   "Any distance": "Jarak berapa saja",
@@ -479,6 +483,8 @@
   "No": "Tidak",
   "No Mission Day is on right now. Search for its banner instead.": "Sedang tidak ada Mission Day. Cari banner-nya saja.",
   "No active reroute": "Tidak ada rute ulang aktif",
+  "No answer known yet": "Jawaban belum diketahui",
+  "No answers known yet": "Belum ada jawaban yang diketahui",
   "No backup yet. In the Overlay app: Settings → Back up to OpenBanners.": "Belum ada cadangan. Di aplikasi Overlay: Settings → Back up to OpenBanners.",
   "No banner description is available.": "Tidak ada deskripsi banner.",
   "No banners found near you.": "Tidak ada banner di dekatmu.",
@@ -967,6 +973,7 @@
   "Zoom out": "Perkecil",
   "Z–A": "Z–A",
   "about {length} including the walks between missions": "sekitar {length} termasuk jalan kaki antar-misi",
+  "all are the mission number": "semuanya nomor misi",
   "any": "apa saja",
   "by {authors}": "oleh {authors}",
   "connected": "terhubung",
@@ -976,6 +983,7 @@
   "has offline missions": "punya misi offline",
   "in review, visible from {date} at the earliest": "sedang ditinjau, terlihat paling cepat mulai {date}",
   "in the plan": "di rencana",
+  "it’s the mission number": "jawabannya adalah nomor misi",
   "left": "keluar",
   "less than a minute old": "kurang dari semenit yang lalu",
   "mission number, in review": "nomor misi, sedang ditinjau",
@@ -1010,6 +1018,9 @@
   },
   "{count} answers, from {date}": {
     "other": "{count} jawaban, dari {date}"
+  },
+  "{count} are the mission number": {
+    "other": "{count} adalah nomor misi"
   },
   "{count} banners": {
     "other": "{count} banner"

@@ -37,6 +37,7 @@
   "Alternative {number}",
   "An open-source front-end for banners",
   "Answer for mission {mission}, waypoint {waypoint}",
+  "Answer known",
   "Answer suggested",
   "Any",
   "Any distance",
@@ -441,6 +442,8 @@
   "No",
   "No Mission Day is on right now. Search for its banner instead.",
   "No active reroute",
+  "No answer known yet",
+  "No answers known yet",
   "No backup yet. In the Overlay app: Settings → Back up to OpenBanners.",
   "No banner description is available.",
   "No banners found near you.",
@@ -884,6 +887,7 @@
   "Zoom out",
   "Z–A",
   "about {length} including the walks between missions",
+  "all are the mission number",
   "any",
   "by {authors}",
   "connected",
@@ -893,6 +897,7 @@
   "has offline missions",
   "in review, visible from {date} at the earliest",
   "in the plan",
+  "it’s the mission number",
   "left",
   "less than a minute old",
   "mission number, in review",
@@ -958,6 +963,10 @@
   {
    "one": "{count} answer, from {date}",
    "other": "{count} answers, from {date}"
+  },
+  {
+   "one": "{count} is the mission number",
+   "other": "{count} are the mission number"
   },
   {
    "one": "{count} banner",
@@ -1062,6 +1071,10 @@
   {
    "one": "{known} of {count} answer known",
    "other": "{known} of {count} answers known"
+  },
+  {
+   "one": "All {count} answer known",
+   "other": "All {count} answers known"
   },
   {
    "one": "Anyone with this link can see your complete to-do list for this place ({count} banner ID). A copied snapshot cannot be revoked.",

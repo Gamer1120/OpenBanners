@@ -30,12 +30,16 @@
   "Agent: {agent}": "에이전트: {agent}",
   "All": "전체",
   "All countries": "모든 국가",
+  "All {count} answers known": {
+    "other": "답 {count}개 모두 확인됨"
+  },
   "Allow": "허용",
   "Allow answers again": "답 다시 허용",
   "Already have another overlay app, like Bannergress Overlay? Share this banner’s Bannergress link with it.": "Bannergress Overlay 같은 다른 오버레이 앱이 있나요? 이 배너의 Bannergress 링크를 그 앱으로 공유하세요.",
   "Alternative {number}": "대안 {number}",
   "An open-source front-end for banners": "배너를 위한 오픈 소스 프런트엔드",
   "Answer for mission {mission}, waypoint {waypoint}": "미션 {mission}, 웨이포인트 {waypoint}의 답",
+  "Answer known": "답 확인됨",
   "Answer suggested": "답이 제안됨",
   "Any": "모두",
   "Any distance": "모든 거리",
@@ -479,6 +483,8 @@
   "No": "아니요",
   "No Mission Day is on right now. Search for its banner instead.": "현재 진행 중인 Mission Day가 없습니다. 대신 해당 배너를 검색하세요.",
   "No active reroute": "활성 리라우트 없음",
+  "No answer known yet": "답이 아직 확인되지 않음",
+  "No answers known yet": "확인된 답이 아직 없음",
   "No backup yet. In the Overlay app: Settings → Back up to OpenBanners.": "아직 백업이 없습니다. Overlay 앱에서: Settings → Back up to OpenBanners.",
   "No banner description is available.": "배너 설명이 없습니다.",
   "No banners found near you.": "주변에서 배너를 찾을 수 없습니다.",
@@ -967,6 +973,7 @@
   "Zoom out": "축소",
   "Z–A": "Z–A",
   "about {length} including the walks between missions": "미션 사이 이동을 포함해 약 {length}",
+  "all are the mission number": "모두 미션 번호",
   "any": "제한 없음",
   "by {authors}": "작성자: {authors}",
   "connected": "연결됨",
@@ -976,6 +983,7 @@
   "has offline missions": "오프라인 미션 있음",
   "in review, visible from {date} at the earliest": "검토 중, 빠르면 {date}부터 표시",
   "in the plan": "계획에 포함",
+  "it’s the mission number": "미션 번호임",
   "left": "나감",
   "less than a minute old": "1분 미만 전",
   "mission number, in review": "미션 번호, 검토 중",
@@ -1010,6 +1018,9 @@
   },
   "{count} answers, from {date}": {
     "other": "답 {count}개, {date}부터"
+  },
+  "{count} are the mission number": {
+    "other": "{count}개는 미션 번호"
   },
   "{count} banners": {
     "other": "배너 {count}개"

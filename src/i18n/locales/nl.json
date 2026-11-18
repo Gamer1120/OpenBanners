@@ -30,12 +30,17 @@
   "Agent: {agent}": "Agent: {agent}",
   "All": "Alles",
   "All countries": "Alle landen",
+  "All {count} answers known": {
+    "one": "Alle {count} antwoorden bekend",
+    "other": "Alle {count} antwoorden bekend"
+  },
   "Allow": "Toestaan",
   "Allow answers again": "Antwoorden weer toestaan",
   "Already have another overlay app, like Bannergress Overlay? Share this banner’s Bannergress link with it.": "Heb je een andere overlay-app, zoals Bannergress Overlay? Deel de Bannergress-link van deze banner ermee.",
   "Alternative {number}": "Alternatief {number}",
   "An open-source front-end for banners": "Een open-source front-end voor banners",
   "Answer for mission {mission}, waypoint {waypoint}": "Antwoord voor missie {mission}, waypoint {waypoint}",
+  "Answer known": "Antwoord bekend",
   "Answer suggested": "Antwoord voorgesteld",
   "Any": "Alle",
   "Any distance": "Elke afstand",
@@ -492,6 +497,8 @@
   "No": "Nee",
   "No Mission Day is on right now. Search for its banner instead.": "Er is nu geen Mission Day bezig. Zoek in plaats daarvan naar de banner.",
   "No active reroute": "Geen actieve route",
+  "No answer known yet": "Antwoord nog onbekend",
+  "No answers known yet": "Nog geen antwoorden bekend",
   "No backup yet. In the Overlay app: Settings → Back up to OpenBanners.": "Nog geen back-up. In de Overlay-app: Settings → Back up to OpenBanners.",
   "No banner description is available.": "Er is geen bannerbeschrijving beschikbaar.",
   "No banners found near you.": "Geen banners gevonden bij jou in de buurt.",
@@ -995,6 +1002,7 @@
   "Zoom out": "Uitzoomen",
   "Z–A": "Z–A",
   "about {length} including the walks between missions": "ongeveer {length} inclusief het lopen tussen missies",
+  "all are the mission number": "allemaal het missienummer",
   "any": "alle",
   "by {authors}": "door {authors}",
   "connected": "verbonden",
@@ -1004,6 +1012,7 @@
   "has offline missions": "heeft offline missies",
   "in review, visible from {date} at the earliest": "wordt beoordeeld, op zijn vroegst zichtbaar vanaf {date}",
   "in the plan": "in het plan",
+  "it’s the mission number": "het is het missienummer",
   "left": "weg",
   "less than a minute old": "minder dan een minuut oud",
   "mission number, in review": "missienummer, wordt beoordeeld",
@@ -1043,6 +1052,10 @@
   "{count} answers, from {date}": {
     "one": "{count} antwoord, van {date}",
     "other": "{count} antwoorden, van {date}"
+  },
+  "{count} are the mission number": {
+    "one": "{count} is het missienummer",
+    "other": "{count} zijn het missienummer"
   },
   "{count} banners": {
     "one": "{count} banner",

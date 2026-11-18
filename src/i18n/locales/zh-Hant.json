@@ -30,12 +30,16 @@
   "Agent: {agent}": "特務：{agent}",
   "All": "全部",
   "All countries": "所有國家",
+  "All {count} answers known": {
+    "other": "全部 {count} 個答案已知"
+  },
   "Allow": "允許",
   "Allow answers again": "重新允許答案",
   "Already have another overlay app, like Bannergress Overlay? Share this banner’s Bannergress link with it.": "已經有其他浮動視窗應用程式，例如 Bannergress Overlay？把這個橫幅的 Bannergress 連結分享給它。",
   "Alternative {number}": "替代條件 {number}",
   "An open-source front-end for banners": "開源的拼圖前端",
   "Answer for mission {mission}, waypoint {waypoint}": "任務 {mission}、任務點 {waypoint} 的答案",
+  "Answer known": "答案已知",
   "Answer suggested": "已建議答案",
   "Any": "任意",
   "Any distance": "任意距離",
@@ -479,6 +483,8 @@
   "No": "否",
   "No Mission Day is on right now. Search for its banner instead.": "目前沒有進行中的 Mission Day。請改為搜尋它的拼圖。",
   "No active reroute": "沒有作用中的重排路線",
+  "No answer known yet": "答案尚未得知",
+  "No answers known yet": "尚無已知答案",
   "No backup yet. In the Overlay app: Settings → Back up to OpenBanners.": "還沒有備份。在 Overlay 應用程式中：Settings → Back up to OpenBanners。",
   "No banner description is available.": "沒有拼圖說明。",
   "No banners found near you.": "你附近找不到拼圖。",
@@ -967,6 +973,7 @@
   "Zoom out": "縮小",
   "Z–A": "Z–A",
   "about {length} including the walks between missions": "約 {length}，包含任務之間的步行距離",
+  "all are the mission number": "全部都是任務編號",
   "any": "任意",
   "by {authors}": "作者：{authors}",
   "connected": "已連線",
@@ -976,6 +983,7 @@
   "has offline missions": "有離線任務",
   "in review, visible from {date} at the earliest": "審核中，最早於 {date} 顯示",
   "in the plan": "在計畫中",
+  "it’s the mission number": "就是任務編號",
   "left": "已離開",
   "less than a minute old": "不到一分鐘前",
   "mission number, in review": "任務編號，審核中",
@@ -1010,6 +1018,9 @@
   },
   "{count} answers, from {date}": {
     "other": "{count} 個答案，來自 {date}"
+  },
+  "{count} are the mission number": {
+    "other": "{count} 個就是任務編號"
   },
   "{count} banners": {
     "other": "{count} 個拼圖"

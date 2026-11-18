@@ -30,12 +30,19 @@
   "Agent: {agent}": "Agent: {agent}",
   "All": "Vše",
   "All countries": "Všechny země",
+  "All {count} answers known": {
+    "one": "Známy všechny odpovědi ({count})",
+    "few": "Známy všechny odpovědi ({count})",
+    "many": "Známy všechny odpovědi ({count})",
+    "other": "Známy všechny odpovědi ({count})"
+  },
   "Allow": "Povolit",
   "Allow answers again": "Znovu povolit odpovědi",
   "Already have another overlay app, like Bannergress Overlay? Share this banner’s Bannergress link with it.": "Máte už jinou overlay aplikaci, třeba Bannergress Overlay? Sdílejte s ní odkaz na tento banner na Bannergressu.",
   "Alternative {number}": "Alternativa {number}",
   "An open-source front-end for banners": "Open-source front-end pro bannery",
   "Answer for mission {mission}, waypoint {waypoint}": "Odpověď pro misi {mission}, waypoint {waypoint}",
+  "Answer known": "Odpověď je známa",
   "Answer suggested": "Odpověď navržena",
   "Any": "Libovolné",
   "Any distance": "Libovolná vzdálenost",
@@ -518,6 +525,8 @@
   "No": "Ne",
   "No Mission Day is on right now. Search for its banner instead.": "Právě neprobíhá žádný Mission Day. Vyhledej místo toho jeho banner.",
   "No active reroute": "Žádná aktivní nová trasa",
+  "No answer known yet": "Odpověď zatím není známa",
+  "No answers known yet": "Zatím není známa žádná odpověď",
   "No backup yet. In the Overlay app: Settings → Back up to OpenBanners.": "Zatím žádná záloha. V aplikaci Overlay: Settings → Back up to OpenBanners.",
   "No banner description is available.": "Popis banneru není k dispozici.",
   "No banners found near you.": "Poblíž tebe nebyly nalezeny žádné bannery.",
@@ -1051,6 +1060,7 @@
   "Zoom out": "Oddálit",
   "Z–A": "Z–A",
   "about {length} including the walks between missions": "asi {length} včetně přesunů mezi misemi",
+  "all are the mission number": "všechny jsou čísla misí",
   "any": "libovolně",
   "by {authors}": "od {authors}",
   "connected": "připojeno",
@@ -1060,6 +1070,7 @@
   "has offline missions": "má offline mise",
   "in review, visible from {date} at the earliest": "v kontrole, viditelné nejdřív od {date}",
   "in the plan": "v plánu",
+  "it’s the mission number": "je to číslo mise",
   "left": "odešel",
   "less than a minute old": "méně než minutu staré",
   "mission number, in review": "číslo mise, v kontrole",
@@ -1109,6 +1120,12 @@
     "few": "{count} odpovědi, od {date}",
     "many": "{count} odpovědi, od {date}",
     "other": "{count} odpovědí, od {date}"
+  },
+  "{count} are the mission number": {
+    "one": "číslo mise: {count}",
+    "few": "číslo mise: {count}",
+    "many": "číslo mise: {count}",
+    "other": "číslo mise: {count}"
   },
   "{count} banners": {
     "one": "{count} banner",

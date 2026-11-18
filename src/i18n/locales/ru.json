@@ -30,12 +30,19 @@
   "Agent: {agent}": "Агент: {agent}",
   "All": "Все",
   "All countries": "Все страны",
+  "All {count} answers known": {
+    "one": "Известны все ответы ({count})",
+    "few": "Известны все ответы ({count})",
+    "many": "Известны все ответы ({count})",
+    "other": "Известны все ответы ({count})"
+  },
   "Allow": "Разрешить",
   "Allow answers again": "Снова разрешить ответы",
   "Already have another overlay app, like Bannergress Overlay? Share this banner’s Bannergress link with it.": "Уже есть другое оверлей-приложение, например Bannergress Overlay? Поделитесь с ним ссылкой на этот баннер в Bannergress.",
   "Alternative {number}": "Вариант {number}",
   "An open-source front-end for banners": "Фронтенд для баннеров с открытым исходным кодом",
   "Answer for mission {mission}, waypoint {waypoint}": "Ответ для миссии {mission}, точки {waypoint}",
+  "Answer known": "Ответ известен",
   "Answer suggested": "Ответ предложен",
   "Any": "Любой",
   "Any distance": "Любое расстояние",
@@ -518,6 +525,8 @@
   "No": "Нет",
   "No Mission Day is on right now. Search for its banner instead.": "Сейчас нет текущих Mission Day. Найди лучше его баннер.",
   "No active reroute": "Нет активного маршрута",
+  "No answer known yet": "Ответ пока неизвестен",
+  "No answers known yet": "Ответы пока неизвестны",
   "No backup yet. In the Overlay app: Settings → Back up to OpenBanners.": "Резервной копии пока нет. В приложении Overlay: Settings → Back up to OpenBanners.",
   "No banner description is available.": "Описание баннера отсутствует.",
   "No banners found near you.": "Рядом с тобой баннеров не найдено.",
@@ -1051,6 +1060,7 @@
   "Zoom out": "Отдалить",
   "Z–A": "Я–А",
   "about {length} including the walks between missions": "около {length} с учётом переходов между миссиями",
+  "all are the mission number": "все — номера миссий",
   "any": "любое",
   "by {authors}": "автор: {authors}",
   "connected": "подключён",
@@ -1060,6 +1070,7 @@
   "has offline missions": "есть офлайн-миссии",
   "in review, visible from {date} at the earliest": "на проверке, появится не раньше {date}",
   "in the plan": "в плане",
+  "it’s the mission number": "это номер миссии",
   "left": "вышел",
   "less than a minute old": "меньше минуты назад",
   "mission number, in review": "номер миссии, на проверке",
@@ -1109,6 +1120,12 @@
     "few": "{count} ответа, с {date}",
     "many": "{count} ответов, с {date}",
     "other": "{count} ответа, с {date}"
+  },
+  "{count} are the mission number": {
+    "one": "номер миссии: {count}",
+    "few": "номер миссии: {count}",
+    "many": "номер миссии: {count}",
+    "other": "номер миссии: {count}"
   },
   "{count} banners": {
     "one": "{count} баннер",

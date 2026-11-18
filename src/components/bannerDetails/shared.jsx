@@ -35,7 +35,7 @@ import {
 } from "../../bannerDisplay";
 import BannerImage from "../BannerImage";
 import SimpleMarkdown from "./SimpleMarkdown";
-import { WaypointAnswer } from "./Passphrases";
+import { passphraseAnswerSummary, passphraseSlots, WaypointAnswer } from "./Passphrases";
 import MissionOverlayButton from "./MissionOverlayButton";
 import { useBannerPassphrases } from "../../passphraseApi";
 import {
@@ -1054,7 +1054,8 @@ export function StatusAlerts({ d }) {
   );
 }
 
-// One line naming the missions with a passphrase step.
+// One line naming the missions with a passphrase step, and under it how many
+// answers are known and how many are just the mission number (once loaded).
 export function PassphraseAlert({ d }) {
   const entries = d.passphraseMissions ?? [];
   if (d.isLoading || !entries.length) {
@@ -1070,11 +1071,22 @@ export function PassphraseAlert({ d }) {
           indexes.length,
           { numbers: formatMissionNumbers(indexes, false) }
         );
+  const pass = d.passphrases;
+  const detail = pass?.blocked
+    ? pass.blocked === "author"
+      ? t("The author asked not to publish passphrases for their banners.")
+      : t("The author asked not to publish passphrases for this banner.")
+    : pass?.status === "ready"
+      ? passphraseAnswerSummary(passphraseSlots(d))
+      : "";
 
   return (
     <div className="ob-alert warn" role="note">
       <Key />
-      <b className="grow">{title}</b>
+      <div className="grow">
+        <b>{title}</b>
+        {detail ? <span className="small">{detail}</span> : null}
+      </div>
     </div>
   );
 }

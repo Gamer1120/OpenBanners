@@ -30,12 +30,16 @@
   "Agent: {agent}": "特工：{agent}",
   "All": "全部",
   "All countries": "所有国家",
+  "All {count} answers known": {
+    "other": "全部 {count} 个答案已知"
+  },
   "Allow": "允许",
   "Allow answers again": "重新允许答案",
   "Already have another overlay app, like Bannergress Overlay? Share this banner’s Bannergress link with it.": "已经有其他悬浮窗应用，比如 Bannergress Overlay？把这个横幅的 Bannergress 链接分享给它。",
   "Alternative {number}": "备选 {number}",
   "An open-source front-end for banners": "开源的横幅前端",
   "Answer for mission {mission}, waypoint {waypoint}": "任务 {mission} 航点 {waypoint} 的答案",
+  "Answer known": "答案已知",
   "Answer suggested": "已提交答案建议",
   "Any": "任意",
   "Any distance": "任意距离",
@@ -479,6 +483,8 @@
   "No": "否",
   "No Mission Day is on right now. Search for its banner instead.": "目前没有正在进行的任务日。请改为搜索其横幅。",
   "No active reroute": "没有当前改线",
+  "No answer known yet": "答案尚未知晓",
+  "No answers known yet": "尚无已知答案",
   "No backup yet. In the Overlay app: Settings → Back up to OpenBanners.": "还没有备份。在 Overlay 应用中：Settings → Back up to OpenBanners。",
   "No banner description is available.": "暂无横幅说明。",
   "No banners found near you.": "你附近没有找到横幅。",
@@ -967,6 +973,7 @@
   "Zoom out": "缩小",
   "Z–A": "Z–A",
   "about {length} including the walks between missions": "约 {length}，含任务之间的步行",
+  "all are the mission number": "全部都是任务编号",
   "any": "任意",
   "by {authors}": "作者：{authors}",
   "connected": "已连接",
@@ -976,6 +983,7 @@
   "has offline missions": "含已下线任务",
   "in review, visible from {date} at the earliest": "审核中，最早于 {date} 可见",
   "in the plan": "已在计划中",
+  "it’s the mission number": "就是任务编号",
   "left": "已离开",
   "less than a minute old": "不到一分钟前",
   "mission number, in review": "任务编号，审核中",
@@ -1010,6 +1018,9 @@
   },
   "{count} answers, from {date}": {
     "other": "{count} 个答案，来自 {date}"
+  },
+  "{count} are the mission number": {
+    "other": "{count} 个就是任务编号"
   },
   "{count} banners": {
     "other": "{count} 个横幅"

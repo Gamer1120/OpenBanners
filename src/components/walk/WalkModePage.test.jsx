@@ -149,6 +149,57 @@ describe("walk mode page", () => {
     ]);
   });
 
+  it("− / + above the big button choose the mission it opens, and the big button then opens that one", async () => {
+    const button = await renderWalk();
+    const minus = screen.getByRole("button", { name: "Previous mission" });
+    const plus = screen.getByRole("button", { name: "Next mission" });
+    // The row sits directly above the big button.
+    expect(minus.parentElement.nextElementSibling).toBe(button);
+    expect(minus.compareDocumentPosition(plus) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(minus).toBeDisabled();
+    expect(plus).not.toBeDisabled();
+
+    fireEvent.click(plus);
+    let big = screen.getByRole("link", { name: /^open mission/i });
+    expect(big).toHaveTextContent("Open mission 2");
+    expect(big).toHaveTextContent("Two");
+    expect(big).toHaveAttribute("href", buildIngressMissionUrl("m2"));
+    expect(screen.getByText("0 of 3 done")).toBeInTheDocument();
+    expect(minus).not.toBeDisabled();
+
+    fireEvent.click(plus);
+    big = screen.getByRole("link", { name: /^open mission/i });
+    expect(big).toHaveTextContent("Open mission 3");
+    expect(plus).toBeDisabled();
+    fireEvent.click(plus);
+    expect(screen.getByRole("link", { name: /^open mission/i })).toHaveTextContent("Open mission 3");
+
+    fireEvent.click(minus);
+    expect(screen.getByRole("link", { name: /^open mission/i })).toHaveTextContent("Open mission 2");
+    // Nothing copied or opened, nothing marked done.
+    expect(events).toEqual([]);
+    expect(screen.getByText("0 of 3 done")).toBeInTheDocument();
+
+    // The big button now opens mission 2 (copying its passphrase), and points at 3 on return.
+    await openAndReturn();
+    expect(events).toEqual([
+      ["copy", "lion"],
+      ["navigate", buildIngressMissionUrl("m2")],
+    ]);
+    expect(screen.getByRole("link", { name: /^open mission/i })).toHaveTextContent("Open mission 3");
+  });
+
+  it("has no Pick mission in the ⋯ menu any more; Undo, Reset and Banner page stay", async () => {
+    await renderWalk();
+    fireEvent.click(screen.getByRole("button", { name: "Menu" }));
+    const menu = screen.getByRole("dialog", { name: "Menu" });
+    expect(within(menu).queryByText(/pick mission/i)).not.toBeInTheDocument();
+    expect(within(menu).queryByRole("combobox")).not.toBeInTheDocument();
+    expect(within(menu).getByRole("button", { name: /undo/i })).toBeInTheDocument();
+    expect(within(menu).getByRole("button", { name: "Reset" })).toBeInTheDocument();
+    expect(within(menu).getByRole("link", { name: "Banner page" })).toBeInTheDocument();
+  });
+
   it("says the banner is complete after the last mission", async () => {
     await renderWalk();
     await openAndReturn();

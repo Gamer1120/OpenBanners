@@ -168,10 +168,23 @@ export function openMission(missions, state, index) {
   return withHistory(state, { current: mission.id, done, pick: null });
 }
 
-// Menu → Pick mission: the big button opens that one next.
+// The − / + buttons above the big button: the big button opens the previous /
+// next mission instead. Only the target changes (no done marks, no Undo
+// entry); opening a mission clears the pick again.
 export function pickMission(missions, state, index) {
   const mission = missions[index];
-  return mission ? withHistory(state, { current: state.current, done: new Set(state.done), pick: mission.id }) : state;
+  return mission ? { ...state, done: new Set(state.done), pick: mission.id } : state;
+}
+
+// − (step -1) / + (step 1) from the mission the big button opens now; stays
+// put at the first / last mission.
+export function stepTarget(missions, state, step) {
+  const from = targetMissionIndex(missions, state);
+  const index = from + step;
+  if (from < 0 || index < 0 || index >= missions.length) {
+    return state;
+  }
+  return pickMission(missions, state, index);
 }
 
 export function undoWalk(state) {

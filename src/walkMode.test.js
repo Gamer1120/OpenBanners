@@ -13,6 +13,7 @@ import {
   passphraseAnswer,
   passphraseToCopy,
   pickMission,
+  stepTarget,
   saveWalkState,
   targetMissionIndex,
   undoWalk,
@@ -110,6 +111,28 @@ describe("which mission the big button opens", () => {
     expect([...state.done].sort()).toEqual(["m1", "m2"]);
     expect(targetMissionIndex(missions, state)).toBe(3);
     expect(doneCount(missions, state)).toBe(2);
+  });
+
+  it("− / + move the big button's mission within the banner, without marking anything", () => {
+    let state = openMission(missions, emptyWalkState(), 0);
+    const done = [...state.done];
+    const history = state.history.length;
+    expect(targetMissionIndex(missions, state)).toBe(1);
+    state = stepTarget(missions, state, 1);
+    expect(targetMissionIndex(missions, state)).toBe(2);
+    state = stepTarget(missions, state, 1);
+    expect(targetMissionIndex(missions, state)).toBe(3);
+    // Last mission: + stays put.
+    expect(stepTarget(missions, state, 1)).toBe(state);
+    state = stepTarget(missions, state, -1);
+    state = stepTarget(missions, state, -1);
+    state = stepTarget(missions, state, -1);
+    expect(targetMissionIndex(missions, state)).toBe(0);
+    // First mission: − stays put.
+    expect(stepTarget(missions, state, -1)).toBe(state);
+    expect([...state.done]).toEqual(done);
+    expect(state.current).toBe("m1");
+    expect(state.history.length).toBe(history);
   });
 
   it("opens the mission picked in the menu, and goes on after it", () => {

@@ -181,6 +181,39 @@
   grid-area: action;
 }
 
+/* − / + above the big button: which mission it opens */
+.wk-step {
+  flex: none;
+  display: flex;
+  gap: 10px;
+}
+.wk-step-btn {
+  flex: 1 1 0;
+  display: grid;
+  place-items: center;
+  height: 60px;
+  padding: 0;
+  border: 1px solid var(--wk-line);
+  border-radius: 18px;
+  background: var(--wk-card);
+  color: var(--wk-text);
+  font: inherit;
+  font-size: 36px;
+  font-weight: 500;
+  line-height: 1;
+  cursor: pointer;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: manipulation;
+}
+.wk-step-btn:active:not(:disabled) {
+  background: var(--wk-card2);
+}
+.wk-step-btn:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
 /* The big button: most of the screen */
 .wk-open {
   flex: 1 1 auto;
@@ -319,21 +352,6 @@
   padding: 16px 16px calc(16px + env(safe-area-inset-bottom, 0px));
   background: var(--wk-card);
   border-radius: 20px 20px 0 0;
-}
-.wk-sheet-label {
-  font-size: 13px;
-  color: var(--wk-dim);
-}
-.wk-select {
-  width: 100%;
-  min-height: 48px;
-  padding: 0 12px;
-  border-radius: 12px;
-  border: 1px solid var(--wk-line);
-  background: var(--wk-card2);
-  color: var(--wk-text);
-  font: inherit;
-  font-size: 16px;
 }
 .wk-sheet-row {
   display: flex;

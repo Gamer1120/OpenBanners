@@ -15,8 +15,8 @@ import {
   navigateTarget,
   openMissionTap,
   passphraseToCopy,
-  pickMission,
   saveWalkState,
+  stepTarget,
   targetMissionIndex,
   undoWalk,
   writeClipboard,
@@ -225,6 +225,26 @@ function WalkScreen({ bannerId, banner }) {
           </section>
         ) : target ? (
           <>
+            <div className="wk-step">
+              <button
+                type="button"
+                className="wk-step-btn"
+                onClick={() => setState((now) => stepTarget(missions, now, -1))}
+                disabled={targetIndex <= 0 || Boolean(opening)}
+                aria-label={t("Previous mission")}
+              >
+                <span aria-hidden="true">−</span>
+              </button>
+              <button
+                type="button"
+                className="wk-step-btn"
+                onClick={() => setState((now) => stepTarget(missions, now, 1))}
+                disabled={targetIndex >= total - 1 || Boolean(opening)}
+                aria-label={t("Next mission")}
+              >
+                <span aria-hidden="true">+</span>
+              </button>
+            </div>
             <a
               className={"wk-open" + (opening ? " opening" : "")}
               href={target.url ?? undefined}
@@ -265,14 +285,8 @@ function WalkScreen({ bannerId, banner }) {
       </main>
       {menuOpen ? (
         <WalkMenu
-          missions={missions}
           state={state}
-          targetIndex={targetIndex}
           onClose={() => setMenuOpen(false)}
-          onPick={(index) => {
-            setState((now) => pickMission(missions, now, index));
-            setMenuOpen(false);
-          }}
           onUndo={() => {
             setState((now) => undoWalk(now));
             setMenuOpen(false);
@@ -328,7 +342,7 @@ function GuessButton({ passphrases, copied, onCopy, missionId }) {
   );
 }
 
-function WalkMenu({ missions, state, targetIndex, onClose, onPick, onUndo, onReset, bannerId }) {
+function WalkMenu({ state, onClose, onUndo, onReset, bannerId }) {
   useEffect(() => {
     const onKey = (event) => event.key === "Escape" && onClose();
     document.addEventListener("keydown", onKey);
@@ -337,22 +351,6 @@ function WalkMenu({ missions, state, targetIndex, onClose, onPick, onUndo, onRes
   return (
     <div className="wk-sheet-backdrop" onClick={onClose}>
       <div className="wk-sheet" role="dialog" aria-modal="true" aria-label={t("Menu")} onClick={(event) => event.stopPropagation()}>
-        <label className="wk-sheet-label" htmlFor="wk-pick">
-          {t("Pick mission")}
-        </label>
-        <select
-          id="wk-pick"
-          className="wk-select"
-          value={targetIndex >= 0 ? String(targetIndex) : ""}
-          onChange={(event) => onPick(Number(event.target.value))}
-        >
-          {targetIndex < 0 ? <option value="">–</option> : null}
-          {missions.map((mission) => (
-            <option key={mission.id} value={String(mission.index)}>
-              {(state.done.has(mission.id) ? "✓ " : "") + t("Mission {number}", { number: String(mission.number) }) + " · " + mission.title}
-            </option>
-          ))}
-        </select>
         <div className="wk-sheet-row">
           <button type="button" className="wk-sheet-btn" onClick={onUndo} disabled={!state.history.length}>
             ↶ {t("Undo")}

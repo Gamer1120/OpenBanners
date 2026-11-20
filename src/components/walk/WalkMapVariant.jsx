@@ -11,8 +11,8 @@ import {
   Arrow,
   CompassNote,
   DistanceText,
-  IngressLink,
   MissionLine,
+  NoOpenWaypoints,
   NavigateButtons,
   objectiveLabel,
   PassphraseButton,
@@ -188,14 +188,15 @@ export default function WalkMapVariant({ w }) {
                     );
                   })}
                 </ol>
-                <IngressLink w={w} />
               </>
             ) : null}
           </>
-        ) : (
+        ) : w.complete ? (
           <div className="wk-finished small">
-            <h2>{t("Banner done!")}</h2>
+            <h2>{t("Banner complete")}</h2>
           </div>
+        ) : (
+          <NoOpenWaypoints w={w} />
         )}
         <ProgressBar w={w} />
       </section>

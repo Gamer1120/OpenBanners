@@ -17,7 +17,21 @@ import {
   simulateStep,
   tickInRange,
   WALK_PROGRESS_PREFIX,
+  addDone,
+  completeMission,
+  doneAndOpenNext,
+  emptyWalkState,
+  isBannerComplete,
+  loadWalkState,
+  missionComplete,
+  missionKey,
+  nextOpenMission,
+  saveWalkState,
+  selectMission,
+  targetMissionIndex,
+  undoWalk,
 } from "./walkMode";
+import { buildIngressMissionUrl } from "./bannerDisplay";
 import { parseBannerInput } from "./components/walk/WalkMockups";
 
 // ~0.0003° latitude ≈ 33 m.
@@ -153,5 +167,91 @@ describe("walk mode progress and links", () => {
     expect(parseBannerInput("a b")).toBe("");
     expect(isWalkPreviewHost("test.openbanners.org")).toBe(true);
     expect(isWalkPreviewHost("openbanners.org")).toBe(false);
+  });
+});
+
+describe("walk mode Ingress button", () => {
+  // Four missions; mission 3 has no waypoint with a position.
+  const four = {
+    0: { id: "a1", title: "Dragon 01/04", steps: [{ objective: "hack", poi: poi(52, 4, "A") }, { objective: "hack", poi: poi(52.001, 4, "B") }] },
+    1: { id: "a2", title: "Dragon 02/04", steps: [{ objective: "hack", poi: poi(52.002, 4, "C") }] },
+    2: { id: "a3", title: "Dragon 03/04", steps: [{ objective: "hack", poi: { type: "unavailable" } }] },
+    3: { id: "a4", title: "Dragon 04/04", steps: [{ objective: "hack", poi: poi(52.004, 4, "D") }] },
+  };
+  const route = buildWalkRoute(four);
+  const open = (state) => targetMissionIndex(route, state.done, state.selected);
+
+  it("opens mission 1 before starting and the mission in progress after that", () => {
+    const start = emptyWalkState();
+    expect(open(start)).toBe(0);
+    const halfway = addDone(route, start, ["a1:0"]);
+    expect(open(halfway)).toBe(0);
+    const firstDone = addDone(route, halfway, ["a1:1"]);
+    expect(missionComplete(route, firstDone.done, 0)).toBe(true);
+    expect(open(firstDone)).toBe(1);
+  });
+
+  it("goes on to the next mission that isn't done, skipping done ones and coming back for skipped ones", () => {
+    const done = new Set(["a2:0", missionKey("a3", 2)]);
+    expect(nextOpenMission(route, done, 0)).toBe(3);
+    expect(nextOpenMission(route, new Set(["a4:0"]), 3)).toBe(0);
+    const all = new Set(["a1:0", "a1:1", "a2:0", missionKey("a3", 2), "a4:0"]);
+    expect(nextOpenMission(route, all, 0)).toBe(-1);
+    expect(isBannerComplete(route, all)).toBe(true);
+    expect(targetMissionIndex(route, all, null)).toBe(-1);
+  });
+
+  it("opens a picked mission, and moves on once the picked mission is ticked off", () => {
+    const picked = selectMission(route, emptyWalkState(), 3);
+    expect(open(picked)).toBe(3);
+    expect(selectMission(route, picked, 99).selected).toBe(3);
+    expect(selectMission(route, picked, -5).selected).toBe(0);
+    const ticked = addDone(route, picked, ["a4:0"]);
+    // Mission 4 done by walking: back to the first mission that isn't done.
+    expect(open(ticked)).toBe(0);
+  });
+
+  it("done, open next: marks the mission done, advances and links the next mission", () => {
+    const result = doneAndOpenNext(route, emptyWalkState());
+    expect(result.done).toBe(0);
+    expect(missionComplete(route, result.state.done, 0)).toBe(true);
+    expect(result.state.done.has("a1:0") && result.state.done.has("a1:1")).toBe(true);
+    expect(open(result.state)).toBe(1);
+    expect(result.next).toMatchObject({ missionIndex: 1, number: 2, title: "Dragon 02/04" });
+    expect(result.next.url).toBe(buildIngressMissionUrl("a2"));
+    expect(result.next.url).toMatch(/^https:\/\/link\.ingress\.com\/\?link=https%3A%2F%2Fintel\.ingress\.com%2Fmission%2Fa2&/);
+    expect(result.next.intelUrl).toBe("https://intel.ingress.com/mission/a2");
+
+    // A mission without walkable waypoints can be done too.
+    const second = doneAndOpenNext(route, result.state);
+    const third = doneAndOpenNext(route, second.state);
+    expect(third.done).toBe(2);
+    expect(third.next.number).toBe(4);
+    const last = doneAndOpenNext(route, third.state);
+    expect(last.next).toBeNull();
+    expect(isBannerComplete(route, last.state.done)).toBe(true);
+    expect(open(last.state)).toBe(-1);
+  });
+
+  it("undo takes back done, open next as one step", () => {
+    const after = doneAndOpenNext(route, selectMission(route, emptyWalkState(), 1)).state;
+    expect(open(after)).toBe(2);
+    const back = undoWalk(route, after);
+    expect(back.done.size).toBe(0);
+    expect(open(back)).toBe(1);
+    // Old saved progress without history: the last done waypoint.
+    expect([...undoWalk(route, { done: new Set(["a1:0", "a1:1"]), selected: null, history: [] }).done]).toEqual(["a1:0"]);
+  });
+
+  it("saves the state for when the page comes back from Ingress", () => {
+    window.localStorage.clear();
+    const state = completeMission(route, emptyWalkState(), 0);
+    saveWalkState("b9", state);
+    const loaded = loadWalkState("b9");
+    expect(loaded.selected).toBe(1);
+    expect([...loaded.done].sort()).toEqual([...state.done].sort());
+    expect(loaded.history).toEqual(state.history);
+    saveWalkState("b9", emptyWalkState());
+    expect(window.localStorage.getItem(WALK_PROGRESS_PREFIX + "b9")).toBeNull();
   });
 });

@@ -1,26 +1,35 @@
 import React, { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useParams, useSearchParams } from "react-router-dom";
 import { useBannerPassphrases } from "../../passphraseApi";
-import { buildIngressMissionUrl, formatLength } from "../../bannerDisplay";
+import { formatLength } from "../../bannerDisplay";
 import { copyText } from "../../inAppBrowser";
 import { isIos, isRunningStandalone } from "../../pwaInstall";
 import {
+  addDone,
   appleDirectionsUrl,
   arrowRotation,
   bearingDegrees,
   buildWalkRoute,
-  currentMissionIndex,
   distanceMeters,
+  doneAndOpenNext,
+  emptyWalkState,
   googleDirectionsUrl,
   HACK_RANGE_METERS,
-  loadWalkProgress,
+  ingressMissionLink,
+  isBannerComplete,
+  loadWalkState,
+  missionComplete,
   nextWaypointIndex,
   normalizeVariant,
   passphraseFor,
   progressCounts,
-  saveWalkProgress,
-  simulateStep,
+  saveWalkState,
+  selectMission,
+  moveToward,
+  simulationStart,
+  targetMissionIndex,
   tickInRange,
+  undoWalk,
   WALK_VARIANTS,
 } from "../../walkMode";
 import { useCompass, useContinuousAngle, useGpsPosition, useViewportCover, useWakeLock, useWalkBanner } from "./useWalk";
@@ -54,7 +63,23 @@ const VARIANT_NAMES = { a: tk("Big arrow"), b: tk("Map"), c: tk("Steps list") };
 // All state of a walk; the three variants only lay it out.
 function useWalkSession(bannerId, banner) {
   const route = useMemo(() => buildWalkRoute(banner?.missions), [banner]);
-  const [done, setDone] = useState(() => loadWalkProgress(bannerId));
+  const [state, setStateRaw] = useState(() => loadWalkState(bannerId));
+  const stateRef = useRef(state);
+  // Every change is written to localStorage at once, before the next render,
+  // so a tap that goes on to Ingress never loses it.
+  const setState = useCallback(
+    (update) => {
+      const next = typeof update === "function" ? update(stateRef.current) : update;
+      if (next !== stateRef.current) {
+        stateRef.current = next;
+        saveWalkState(bannerId, next);
+        setStateRaw(next);
+      }
+      return next;
+    },
+    [bannerId]
+  );
+  const done = state.done;
   const [mode, setMode] = useState("off"); // off | gps | sim
   const [simPosition, setSimPosition] = useState(null);
   const [toast, setToast] = useState(null);
@@ -66,13 +91,29 @@ function useWalkSession(bannerId, banner) {
   doneRef.current = done;
   const pauseUntil = useRef(0);
 
+  // Back from Ingress: the page may come from the back/forward cache or be
+  // loaded again, so read the saved state again (pageshow), and whenever it
+  // becomes visible.
   useEffect(() => {
-    setDone(loadWalkProgress(bannerId));
+    const reload = () => {
+      const saved = loadWalkState(bannerId);
+      stateRef.current = saved;
+      setStateRaw(saved);
+    };
+    reload();
+    const onVisible = () => document.visibilityState === "visible" && reload();
+    window.addEventListener("pageshow", reload);
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      window.removeEventListener("pageshow", reload);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
   }, [bannerId]);
 
-  useEffect(() => {
-    saveWalkProgress(bannerId, done);
-  }, [bannerId, done]);
+  // The mission the big button opens; the page guides you through its waypoints.
+  const targetIndex = targetMissionIndex(route, done, state.selected);
+  const targetRef = useRef(targetIndex);
+  targetRef.current = targetIndex;
 
   const showToast = useCallback((text) => {
     setToast({ text, id: Date.now() });
@@ -91,15 +132,15 @@ function useWalkSession(bannerId, banner) {
     if (!position || !route.waypoints.length) {
       return;
     }
-    const result = tickInRange(route, doneRef.current, position);
+    const result = tickInRange(route, doneRef.current, position, HACK_RANGE_METERS, targetRef.current);
     if (result.ticked.length) {
       const last = route.waypoints.find((waypoint) => waypoint.key === result.ticked[result.ticked.length - 1]);
-      setDone(result.done);
+      setState((current) => addDone(route, current, result.ticked));
       pauseUntil.current = Date.now() + SIM_PAUSE_MS;
       showToast("✓ " + t("Waypoint done: {title}", { title: last?.title || "" }));
       navigator.vibrate?.(60);
     }
-  }, [position, route, showToast]);
+  }, [position, route, showToast, setState]);
 
   // The simulated walk.
   useEffect(() => {
@@ -110,15 +151,20 @@ function useWalkSession(bannerId, banner) {
       if (Date.now() < pauseUntil.current) {
         return;
       }
-      setSimPosition((current) => simulateStep(route, doneRef.current, current, SIM_STEP_METERS));
+      setSimPosition((current) => {
+        const from = current ?? simulationStart(route, doneRef.current, targetRef.current);
+        const index = nextWaypointIndex(route, doneRef.current, from, targetRef.current);
+        return index >= 0 && from ? moveToward(from, route.waypoints[index], SIM_STEP_METERS) : from;
+      });
     }, SIM_TICK_MS);
     return () => window.clearInterval(timer);
   }, [mode, route]);
 
-  const nextIndex = nextWaypointIndex(route, done, position);
+  const nextIndex = targetIndex >= 0 ? nextWaypointIndex(route, done, position, targetIndex) : -1;
   const next = nextIndex >= 0 ? route.waypoints[nextIndex] : null;
-  const missionIndex = currentMissionIndex(route, done);
+  const missionIndex = targetIndex;
   const mission = missionIndex >= 0 ? route.missions[missionIndex] : null;
+  const complete = targetIndex < 0 && isBannerComplete(route, done);
   const missionData = banner && mission ? Object.values(banner.missions ?? {}).find((m) => m?.id === mission.id) : null;
   const distance = next ? distanceMeters(position, next) : null;
   const bearing = next ? bearingDegrees(position, next) : null;
@@ -151,24 +197,58 @@ function useWalkSession(bannerId, banner) {
     if (!next) {
       return;
     }
-    setDone((current) => new Set([...current, next.key]));
+    setState((current) => addDone(route, current, [next.key]));
     showToast("✓ " + t("Waypoint done: {title}", { title: next.title }));
   };
 
-  const undo = () => {
-    const last = [...route.waypoints].reverse().find((waypoint) => done.has(waypoint.key));
-    if (last) {
-      setDone((current) => {
-        const copy = new Set(current);
-        copy.delete(last.key);
-        return copy;
-      });
+  // The Ingress button and "done, open next".
+  const ingress = targetIndex >= 0 ? ingressMissionLink(route, targetIndex) : null;
+  const targetDone = targetIndex >= 0 && missionComplete(route, done, targetIndex);
+  const preview = targetIndex >= 0 ? doneAndOpenNext(route, state) : null;
+  const nextIngress = preview?.next ?? null;
+
+  // Same-tab navigation to link.ingress.com from the tap itself (no new tab),
+  // so iOS universal links / Android app links can open the Ingress app.
+  const openIngress = () => {
+    saveWalkState(bannerId, stateRef.current);
+  };
+
+  // One tap: mark the button's mission done and open the next one. The link's
+  // href already is the next mission, so the tap navigates on its own; the
+  // state is saved before it leaves.
+  const doneOpenNext = (event) => {
+    const result = doneAndOpenNext(route, stateRef.current);
+    if (result.done < 0) {
+      event?.preventDefault?.();
+      return;
+    }
+    const href = event?.currentTarget?.getAttribute?.("href");
+    // Saved now; the page only re-renders after the tap has started the
+    // navigation (a re-render first would change this link's href to the
+    // mission after next before the browser follows it).
+    stateRef.current = result.state;
+    saveWalkState(bannerId, result.state);
+    window.setTimeout(() => {
+      setStateRaw(result.state);
+      showToast("✓ " + t("Mission {number} done", { number: String(result.done + 1) }));
+    }, 0);
+    navigator.vibrate?.(40);
+    if (!result.next) {
+      event?.preventDefault?.();
+    } else if (href && href !== result.next.url) {
+      // The page changed under the tap (e.g. a waypoint ticked): go to the right one.
+      event.preventDefault();
+      window.location.assign(result.next.url);
     }
   };
 
+  const pickMission = (index) => setState((current) => selectMission(route, current, index));
+
+  const undo = () => setState((current) => undoWalk(route, current));
+
   const reset = () => {
     if (window.confirm(t("Reset your walk progress for this banner?"))) {
-      setDone(new Set());
+      setState(emptyWalkState());
       setSimPosition(null);
     }
   };
@@ -183,6 +263,15 @@ function useWalkSession(bannerId, banner) {
   return {
     route,
     done,
+    state,
+    complete,
+    ingress,
+    targetDone,
+    nextIngress,
+    openIngress,
+    doneOpenNext,
+    pickMission,
+    canUndo: state.history.length > 0 || done.size > 0,
     mode,
     setMode: changeMode,
     gps,
@@ -301,14 +390,128 @@ export function PassphraseHint({ w }) {
   );
 }
 
-export function IngressLink({ w, className = "wk-btn small ghost" }) {
-  if (!w.mission?.id) {
+// The main action of walk mode, at the bottom of every variant: open the
+// mission in Ingress, and "done, open next" for when you come back.
+// Plain links in the same tab (no target, no window.open): a normal tap on a
+// link.ingress.com link is what lets iOS (universal link) and Android (app
+// link) open the Ingress app instead of a web page.
+function IngressDock({ w }) {
+  const count = w.route.missions.length;
+  if (w.complete) {
+    return (
+      <section className="wk-dock done" aria-label={t("Ingress")}>
+        <div className="wk-dock-complete" role="status">
+          <span className="wk-dock-flag" aria-hidden="true">🏁</span>
+          <span>
+            <strong>{t("Banner complete")}</strong>
+            <br />
+            {t("All {count} missions done.", { count: String(count) })}
+          </span>
+        </div>
+        <div className="wk-dock-row">
+          <MissionPicker w={w} />
+          <button type="button" className="wk-btn small ghost" onClick={w.undo} disabled={!w.canUndo}>
+            ↶ {t("Undo")}
+          </button>
+        </div>
+      </section>
+    );
+  }
+  const link = w.ingress;
+  if (!link) {
+    return null;
+  }
+  const label = t("Open mission {number} in Ingress", { number: String(link.number) });
+  const next = w.nextIngress;
+  return (
+    <section className="wk-dock" aria-label={t("Ingress")}>
+      <div className="wk-dock-row">
+        <MissionPicker w={w} />
+        <button type="button" className="wk-btn small ghost" onClick={w.undo} disabled={!w.canUndo}>
+          ↶ {t("Undo")}
+        </button>
+      </div>
+      {next ? (
+        <a className="wk-btn wk-done-next" href={next.url} onClick={w.doneOpenNext} data-testid="walk-done-next">
+          <span aria-hidden="true">✓</span>{" "}
+          {t("Mission {done} done, open mission {next}", { done: String(link.number), next: String(next.number) })}
+        </a>
+      ) : (
+        <button type="button" className="wk-btn wk-done-next" onClick={w.doneOpenNext} data-testid="walk-done-next">
+          <span aria-hidden="true">✓</span> {t("Mission {number} done, banner complete", { number: String(link.number) })}
+        </button>
+      )}
+      <a
+        className={"wk-btn wk-ingress" + (w.targetDone ? " again" : "")}
+        href={link.url}
+        onClick={w.openIngress}
+        aria-label={label + (link.title ? " · " + link.title : "")}
+        data-testid="walk-open-ingress"
+      >
+        <span className="wk-ingress-main">
+          {label}
+          {w.targetDone ? <span className="wk-ingress-badge">✓ {t("done")}</span> : null}
+        </span>
+        {link.title ? <span className="wk-ingress-sub">{link.title}</span> : null}
+      </a>
+      <p className="wk-dock-fallback">
+        {t("Ingress didn't open?")}{" "}
+        <a href={link.intelUrl} target="_blank" rel="noreferrer">
+          {t("Open on Intel")}
+        </a>
+      </p>
+    </section>
+  );
+}
+
+// Which mission the button opens: − / + and the number in between.
+function MissionPicker({ w }) {
+  const count = w.route.missions.length;
+  const current = w.mission ? w.mission.index : -1;
+  return (
+    <div className="wk-picker" role="group" aria-label={t("Pick a mission")}>
+      <button type="button" onClick={() => w.pickMission(current - 1)} disabled={current <= 0} aria-label={t("Previous mission")}>
+        −
+      </button>
+      <span className="wk-picker-label">
+        {current >= 0
+          ? t("Mission {number} of {count}", { number: String(current + 1), count: String(count) })
+          : t("{done}/{total} missions", { done: String(w.counts.missionsDone), total: String(count) })}
+      </span>
+      <button
+        type="button"
+        onClick={() => w.pickMission(current < 0 ? 0 : current + 1)}
+        disabled={current >= count - 1}
+        aria-label={t("Next mission")}
+      >
+        +
+      </button>
+    </div>
+  );
+}
+
+// The picked mission has nothing left to walk to (all ticked, or no
+// waypoints with a position): say so instead of a next waypoint.
+export function NoOpenWaypoints({ w, noteOnly = false }) {
+  if (!w.mission || w.next) {
     return null;
   }
   return (
-    <a className={className} href={buildIngressMissionUrl(w.mission.id)} target="_blank" rel="noreferrer">
-      {t("Open mission in Ingress")}
-    </a>
+    <div className={"wk-noopen" + (noteOnly ? " note-only" : "")}>
+      {noteOnly ? null : (
+        <>
+          <p className="wk-mission">
+            {t("Mission {number} of {count}", { number: String(w.mission.index + 1), count: String(w.route.missions.length) })}
+          </p>
+          <h2>{w.mission.title}</h2>
+        </>
+      )}
+      <p className="wk-note">
+        {w.targetDone
+          ? t("This mission is done. Open it again in Ingress, or pick another mission below.")
+          : t("No waypoints left to walk to here. Finish it in Ingress, then tap “done, open next” below.")}
+      </p>
+    </div>
   );
 }
 
@@ -345,7 +548,7 @@ export function MissionLine({ w }) {
 
 // "Simulate walking" (demo), real GPS, or nothing; plus compass and wake lock state.
 function DemoBar({ w }) {
-  const { mode, setMode, gps, wake } = w;
+  const { mode, setMode, gps } = w;
   let status = "";
   if (mode === "sim") {
     status = t("Demo: a fake position walks the route at about 10× walking speed.");
@@ -373,17 +576,6 @@ function DemoBar({ w }) {
         </button>
       </div>
       {status ? <p className="wk-note">{status}</p> : null}
-      <div className="wk-demo-row">
-        <span className={"wk-chip" + (wake === "on" ? " ok" : "")}>
-          {wake === "on" ? t("Screen stays on") : wake === "unsupported" ? t("Screen may turn off (not supported here)") : t("Screen may turn off")}
-        </span>
-        <button type="button" className="wk-btn small ghost" onClick={w.undo} disabled={!w.done.size}>
-          {t("Undo")}
-        </button>
-        <button type="button" className="wk-btn small ghost danger" onClick={w.reset} disabled={!w.done.size}>
-          {t("Reset progress")}
-        </button>
-      </div>
     </section>
   );
 }
@@ -439,8 +631,23 @@ function TopBar({ w, bannerId, banner, variant }) {
       </Link>
       <div className="wk-top-title">
         <span className="wk-top-name">{banner?.title || t("Walk mode")}</span>
-        <span className="wk-top-sub">{t("Walk mode")} · {t("preview")}</span>
+        <span className="wk-top-sub">
+          {t("Walk mode")} · {t("preview")} ·{" "}
+          <span className={w.wake === "on" ? "ok" : ""}>
+            {w.wake === "on" ? t("Screen stays on") : w.wake === "unsupported" ? t("Screen may turn off (not supported here)") : t("Screen may turn off")}
+          </span>
+        </span>
       </div>
+      <button
+        type="button"
+        className="wk-reset"
+        onClick={w.reset}
+        disabled={!w.canUndo && w.state.selected === null}
+        aria-label={t("Reset progress")}
+        title={t("Reset progress")}
+      >
+        ⟲
+      </button>
       <div className="wk-variants" role="group" aria-label={t("Design")}>
         {WALK_VARIANTS.map((value) => (
           <button key={value} type="button" aria-pressed={variant === value} title={t(VARIANT_NAMES[value])} onClick={() => pick(value)}>
@@ -456,7 +663,7 @@ function Finished({ w }) {
   return (
     <div className="wk-finished">
       <div className="wk-finished-badge" aria-hidden="true">✓</div>
-      <h2>{t("Banner done!")}</h2>
+      <h2>{t("Banner complete")}</h2>
       <p>{t("All {count} missions walked.", { count: String(w.route.missions.length) })}</p>
       <button type="button" className="wk-btn tonal" onClick={w.reset}>
         {t("Reset progress")}
@@ -470,7 +677,11 @@ function VariantA({ w }) {
   return (
     <main className="wk-a">
       <ProgressBar w={w} />
-      {w.next ? (
+      {w.complete ? (
+        <Finished w={w} />
+      ) : !w.next ? (
+        <NoOpenWaypoints w={w} />
+      ) : (
         <>
           <MissionLine w={w} />
           <div className="wk-a-card">
@@ -488,10 +699,7 @@ function VariantA({ w }) {
             </button>
           </div>
           <PassphraseHint w={w} />
-          <IngressLink w={w} />
         </>
-      ) : (
-        <Finished w={w} />
       )}
     </main>
   );
@@ -507,7 +715,7 @@ function VariantC({ w }) {
     return (
       <main className="wk-c">
         <ProgressBar w={w} />
-        <Finished w={w} />
+        {w.complete ? <Finished w={w} /> : null}
       </main>
     );
   }
@@ -525,11 +733,18 @@ function VariantC({ w }) {
       </div>
       <div className="wk-c-missions" aria-label={t("Missions")}>
         {w.route.missions.map((mission) => {
-          const complete = mission.waypoints.every((index) => w.done.has(w.route.waypoints[index].key));
+          const complete = missionComplete(w.route, w.done, mission.index);
           return (
-            <span key={mission.index} className={"wk-c-dot" + (complete ? " done" : "") + (mission.index === w.mission.index ? " cur" : "")}>
+            <button
+              type="button"
+              key={mission.index}
+              className={"wk-c-dot" + (complete ? " done" : "") + (mission.index === w.mission.index ? " cur" : "")}
+              aria-pressed={mission.index === w.mission.index}
+              aria-label={t("Mission {number}", { number: String(mission.index + 1) })}
+              onClick={() => w.pickMission(mission.index)}
+            >
               {mission.index + 1}
-            </span>
+            </button>
           );
         })}
       </div>
@@ -574,8 +789,8 @@ function VariantC({ w }) {
           );
         })}
       </ol>
+      {!w.next ? <NoOpenWaypoints w={w} noteOnly /> : null}
       <ProgressBar w={w} />
-      <IngressLink w={w} />
     </main>
   );
 }
@@ -630,6 +845,7 @@ export default function WalkModePage() {
       <IosHint force={search.get("hint") === "ios"} />
       <div className="wk-body">{body}</div>
       {data.status === "ready" && w.route.waypoints.length ? <DemoBar w={w} /> : null}
+      {data.status === "ready" && w.route.missions.length ? <IngressDock w={w} /> : null}
       <div className="wk-toast" role="status" aria-live="polite">
         {w.toast ? <span key={w.toast.id}>{w.toast.text}</span> : null}
       </div>

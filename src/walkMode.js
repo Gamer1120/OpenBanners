@@ -6,6 +6,7 @@
 // the pages are in src/components/walk/.
 import { getMissionList } from "./bannerMissions";
 import { isPassphraseStep } from "./bannerFacts";
+import { buildIngressMissionUrl } from "./bannerDisplay";
 
 // Same as the OpenBanners Overlay (DistanceCalculation.isInRange): a waypoint
 // counts as done once you are within hack range of it.
@@ -124,9 +125,13 @@ export function currentMissionIndex(route, done) {
 // The waypoint to walk to next (an index into route.waypoints), or -1 when the
 // banner is done. Missions go in banner order; inside a mission steps go in
 // order, except "any order" missions, where it's the nearest open waypoint.
-export function nextWaypointIndex(route, done, position = null) {
-  const missionIndex = currentMissionIndex(route, done);
-  if (missionIndex < 0) {
+// With "missionIndex" (the mission picked for the Ingress button) only that
+// mission's waypoints count: -1 when it has none open.
+export function nextWaypointIndex(route, done, position = null, missionIndex = null) {
+  if (missionIndex === null || missionIndex === undefined) {
+    missionIndex = currentMissionIndex(route, done);
+  }
+  if (missionIndex < 0 || !route.missions[missionIndex]) {
     return -1;
   }
   const mission = route.missions[missionIndex];
@@ -143,20 +148,20 @@ export function nextWaypointIndex(route, done, position = null) {
     }
     return best;
   }
-  return open[0];
+  return open.length ? open[0] : -1;
 }
 
 // Ticks off what you're standing at: the next waypoint while it is within
 // range (repeated, so several steps at one portal go at once). Returns the new
 // set and the keys it added (nothing added: the same set).
-export function tickInRange(route, done, position, range = HACK_RANGE_METERS) {
+export function tickInRange(route, done, position, range = HACK_RANGE_METERS, missionIndex = null) {
   if (!position) {
     return { done, ticked: [] };
   }
   const next = new Set(done);
   const ticked = [];
   for (let guard = 0; guard < route.waypoints.length; guard += 1) {
-    const index = nextWaypointIndex(route, next, position);
+    const index = nextWaypointIndex(route, next, position, missionIndex);
     if (index < 0) {
       break;
     }
@@ -174,10 +179,160 @@ export function tickInRange(route, done, position, range = HACK_RANGE_METERS) {
 export function progressCounts(route, done) {
   const total = route.waypoints.length;
   const completed = route.waypoints.filter((waypoint) => done.has(waypoint.key)).length;
-  const missionsDone = route.missions.filter(
-    (mission) => mission.waypoints.length && mission.waypoints.every((index) => done.has(route.waypoints[index].key))
-  ).length;
+  const missionsDone = route.missions.filter((mission) => missionComplete(route, done, mission.index)).length;
   return { total, completed, missionsDone, missions: route.missions.length };
+}
+
+// ---------------------------------------------------------------------------
+// The Ingress button (2026-11-20 Michael: opening the next mission in Ingress
+// is the most important thing walk mode can offer). On iPhone the page can't
+// see anything while Ingress is in front, so the flow is: do the mission in
+// Ingress, switch back, one tap "Mission 4 done, open mission 5 in Ingress".
+//
+// Walk state: { done: Set of keys, selected: mission index or null, history }.
+// "done" holds waypoint keys and, for missions marked done as a whole,
+// missionKey(id) (so a mission without walkable waypoints can be done too).
+// "selected" is the mission the button opens when the player picked one (or
+// "done, open next" moved on); null = the first mission that isn't done.
+// "history" is what Undo takes back: [{ added: [keys], selected }].
+
+export const missionKey = (missionId, missionIndex) => "mission:" + (missionId ?? "m" + missionIndex);
+const HISTORY_LIMIT = 30;
+
+export function missionComplete(route, done, missionIndex) {
+  const mission = route.missions[missionIndex];
+  if (!mission) {
+    return false;
+  }
+  if (done.has(missionKey(mission.id, mission.index))) {
+    return true;
+  }
+  return mission.waypoints.length > 0 && mission.waypoints.every((index) => done.has(route.waypoints[index].key));
+}
+
+export function isBannerComplete(route, done) {
+  return route.missions.length > 0 && route.missions.every((mission) => missionComplete(route, done, mission.index));
+}
+
+// The first mission after "after" that isn't done, else the first one before
+// it that isn't done (a skipped mission), else -1.
+export function nextOpenMission(route, done, after = -1) {
+  const count = route.missions.length;
+  for (let offset = 1; offset <= count; offset += 1) {
+    const index = after + offset;
+    const wrapped = index >= count ? index - count : index;
+    if (wrapped >= 0 && wrapped < count && !missionComplete(route, done, wrapped)) {
+      return wrapped;
+    }
+  }
+  return -1;
+}
+
+// Which mission the big button opens: the picked one, else mission 1 before
+// starting / the mission in progress / the first one that isn't done. -1 when
+// the whole banner is done (and nothing is picked).
+export function targetMissionIndex(route, done, selected = null) {
+  if (Number.isInteger(selected) && selected >= 0 && selected < route.missions.length) {
+    return selected;
+  }
+  return nextOpenMission(route, done, -1);
+}
+
+export function ingressMissionLink(route, missionIndex) {
+  const mission = route.missions[missionIndex];
+  if (!mission?.id) {
+    return null;
+  }
+  return {
+    missionIndex,
+    number: missionIndex + 1,
+    title: mission.title,
+    url: buildIngressMissionUrl(mission.id),
+    intelUrl: "https://intel.ingress.com/mission/" + mission.id,
+  };
+}
+
+export function emptyWalkState() {
+  return { done: new Set(), selected: null, history: [] };
+}
+
+// Adds keys to "done" (an Undo step). When that finishes the picked mission,
+// the button moves on to the next mission that isn't done.
+export function addDone(route, state, keys) {
+  const added = keys.filter((key) => !state.done.has(key));
+  if (!added.length) {
+    return state;
+  }
+  const done = new Set(state.done);
+  added.forEach((key) => done.add(key));
+  let selected = state.selected;
+  if (Number.isInteger(selected) && !missionComplete(route, state.done, selected) && missionComplete(route, done, selected)) {
+    const next = nextOpenMission(route, done, selected);
+    selected = next >= 0 ? next : null;
+  }
+  const history = [...state.history, { added, selected: state.selected }].slice(-HISTORY_LIMIT);
+  return { done, selected, history };
+}
+
+// Marks a whole mission done (all its waypoints too) and points the button at
+// the next mission that isn't done (null when the banner is done).
+export function completeMission(route, state, missionIndex) {
+  const mission = route.missions[missionIndex];
+  if (!mission) {
+    return state;
+  }
+  const keys = [missionKey(mission.id, mission.index), ...mission.waypoints.map((index) => route.waypoints[index].key)];
+  const done = new Set(state.done);
+  keys.forEach((key) => done.add(key));
+  const next = nextOpenMission(route, done, missionIndex);
+  const added = keys.filter((key) => !state.done.has(key));
+  const selected = next >= 0 ? next : null;
+  if (!added.length && selected === state.selected) {
+    return state;
+  }
+  return {
+    done,
+    selected,
+    history: [...state.history, { added, selected: state.selected }].slice(-HISTORY_LIMIT),
+  };
+}
+
+// "Mission 4 done, open mission 5 in Ingress": marks the button's mission
+// done and returns the new state plus the link of the mission to open now
+// (null when that was the last one).
+export function doneAndOpenNext(route, state) {
+  const current = targetMissionIndex(route, state.done, state.selected);
+  if (current < 0) {
+    return { state, done: -1, next: null };
+  }
+  const nextState = completeMission(route, state, current);
+  const nextIndex = targetMissionIndex(route, nextState.done, nextState.selected);
+  return { state: nextState, done: current, next: nextIndex >= 0 ? ingressMissionLink(route, nextIndex) : null };
+}
+
+// Picks the mission the button opens (the number row or − / +).
+export function selectMission(route, state, missionIndex) {
+  const index = Math.max(0, Math.min(route.missions.length - 1, Math.round(missionIndex)));
+  return Number.isFinite(index) && route.missions[index] ? { ...state, selected: index } : state;
+}
+
+// Takes back the last step (a ticked waypoint or a mission marked done). With
+// no history (older saved progress) the last done waypoint in route order.
+export function undoWalk(route, state) {
+  if (state.history.length) {
+    const last = state.history[state.history.length - 1];
+    const done = new Set(state.done);
+    last.added.forEach((key) => done.delete(key));
+    return { done, selected: last.selected ?? null, history: state.history.slice(0, -1) };
+  }
+  const last = [...route.waypoints].reverse().find((waypoint) => state.done.has(waypoint.key));
+  if (!last) {
+    return state;
+  }
+  const done = new Set(state.done);
+  done.delete(last.key);
+  done.delete(missionKey(last.missionId, last.missionIndex));
+  return { ...state, done };
 }
 
 // A point "meters" from "from" towards "to" (or "to" itself when it is closer).
@@ -196,8 +351,8 @@ export function moveToward(from, to, meters) {
 
 // Where a simulated walk starts: about 125 m south-west of the next waypoint,
 // so the distance visibly goes down.
-export function simulationStart(route, done) {
-  const index = nextWaypointIndex(route, done);
+export function simulationStart(route, done, missionIndex = null) {
+  const index = nextWaypointIndex(route, done, null, missionIndex);
   const target = route.waypoints[index] ?? route.waypoints[0];
   if (!target) {
     return null;
@@ -224,26 +379,50 @@ function storage() {
   }
 }
 
-export function loadWalkProgress(bannerId) {
+const strings = (value) => (Array.isArray(value) ? value.filter((key) => typeof key === "string") : []);
+
+export function loadWalkState(bannerId) {
   try {
     const raw = storage()?.getItem(WALK_PROGRESS_PREFIX + bannerId);
     const parsed = raw ? JSON.parse(raw) : null;
-    return new Set(Array.isArray(parsed?.done) ? parsed.done.filter((key) => typeof key === "string") : []);
+    return {
+      done: new Set(strings(parsed?.done)),
+      selected: Number.isInteger(parsed?.selected) && parsed.selected >= 0 ? parsed.selected : null,
+      history: Array.isArray(parsed?.history)
+        ? parsed.history
+            .filter((entry) => entry && Array.isArray(entry.added))
+            .map((entry) => ({ added: strings(entry.added), selected: Number.isInteger(entry.selected) ? entry.selected : null }))
+            .slice(-HISTORY_LIMIT)
+        : [],
+    };
   } catch {
-    return new Set();
+    return emptyWalkState();
   }
 }
 
-export function saveWalkProgress(bannerId, done) {
+// Written straight away (not after a render), so it is saved before a tap
+// navigates to Ingress.
+export function saveWalkState(bannerId, state) {
   try {
-    if (!done.size) {
+    if (!state.done.size && state.selected === null && !state.history.length) {
       storage()?.removeItem(WALK_PROGRESS_PREFIX + bannerId);
       return;
     }
-    storage()?.setItem(WALK_PROGRESS_PREFIX + bannerId, JSON.stringify({ done: [...done], updatedAt: Date.now() }));
+    storage()?.setItem(
+      WALK_PROGRESS_PREFIX + bannerId,
+      JSON.stringify({ done: [...state.done], selected: state.selected, history: state.history, updatedAt: Date.now() })
+    );
   } catch {
     // Private mode or full storage: progress just isn't kept.
   }
+}
+
+export function loadWalkProgress(bannerId) {
+  return loadWalkState(bannerId).done;
+}
+
+export function saveWalkProgress(bannerId, done) {
+  saveWalkState(bannerId, { done, selected: null, history: [] });
 }
 
 // The banner page's Google Maps directions link (walking); Apple Maps on iPhone.

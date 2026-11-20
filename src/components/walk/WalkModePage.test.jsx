@@ -353,4 +353,22 @@ describe("walk mode page", () => {
     fireEvent.click(link);
     expect(getCurrentPosition).toHaveBeenCalledTimes(1);
   });
+
+  it("keeps the space for Show distance from the start, so the big button doesn't change size", async () => {
+    let answer;
+    Object.defineProperty(navigator, "permissions", {
+      value: { query: () => new Promise((resolve) => (answer = resolve)) },
+      configurable: true,
+    });
+    Object.defineProperty(navigator, "geolocation", { value: { getCurrentPosition: vi.fn() }, configurable: true });
+    await renderWalk();
+    // Permission not known yet: the slot is there, empty.
+    const slot = screen.getByTestId("wk-nav-slot");
+    expect(slot).toBeEmptyDOMElement();
+    expect(screen.queryByRole("button", { name: "Show distance" })).toBeNull();
+    await act(async () => answer({ state: "prompt" }));
+    // The link appears inside the same slot.
+    expect(within(slot).getByRole("button", { name: "Show distance" })).toBeInTheDocument();
+    expect(screen.getByTestId("wk-nav-slot")).toBe(slot);
+  });
 });

@@ -306,15 +306,19 @@ function WalkScreen({ bannerId, banner }) {
                 <GuessButton passphrases={targetPassphrases} copied={copied} onCopy={copyRow} missionId={target.id} />
               )}
             </div>
-            {navigate ? (
-              <a className="wk-nav" href={isIos() ? appleDirectionsUrl(navigate.start) : googleDirectionsUrl(navigate.start)}>
-                <span aria-hidden="true">➤</span> {t("Navigate · {distance}", { distance: formatLength(navigate.distance) })}
-              </a>
-            ) : location.status === "ask" ? (
-              <button type="button" className="wk-link" onClick={location.ask}>
-                {t("Show distance")}
-              </button>
-            ) : null}
+            {/* Always there (fixed height, as tall as Navigate), so the big button keeps its size when
+                "Show distance" or Navigate turns up a moment after load (permission check, position). */}
+            <div className="wk-nav-slot" data-testid="wk-nav-slot">
+              {navigate ? (
+                <a className="wk-nav" href={isIos() ? appleDirectionsUrl(navigate.start) : googleDirectionsUrl(navigate.start)}>
+                  <span aria-hidden="true">➤</span> {t("Navigate · {distance}", { distance: formatLength(navigate.distance) })}
+                </a>
+              ) : location.status === "ask" ? (
+                <button type="button" className="wk-link" onClick={location.ask}>
+                  {t("Show distance")}
+                </button>
+              ) : null}
+            </div>
           </>
         ) : null}
       </main>

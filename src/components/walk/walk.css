@@ -327,6 +327,17 @@
   justify-content: center;
   min-height: 36px;
 }
+/* Under the guess slot: Navigate, "Show distance" or empty; always as high as Navigate. */
+.wk-nav-slot {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  height: 52px;
+}
+.wk-nav-slot > .wk-nav {
+  flex: 1 1 auto;
+}
 .wk-link.small {
   font-size: 14px;
   padding: 4px 0;

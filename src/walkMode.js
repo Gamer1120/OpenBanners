@@ -1,5 +1,6 @@
-// Walk mode (preview, test only). 2026-11-20 Michael: a player is in Ingress
-// the whole time and only switches to the browser for a few seconds; Ingress
+// Walk mode (/banner/:id/walk; live since 2026-11-20, offered on iPhone/iPad
+// instead of "Start with Overlay", see src/walkDevice.js). Michael: a player
+// is in Ingress the whole time and only switches to the browser for a few seconds; Ingress
 // already shows the map, portals, steps and progress. So walk mode is one
 // screen with one huge button, "Open mission N", which copies the mission's
 // passphrase and opens the mission in Ingress in the same tap. Coming back,
@@ -11,7 +12,7 @@ import { isPassphraseStep } from "./bannerFacts";
 import { buildIngressMissionUrl } from "./bannerDisplay";
 
 export const WALK_STATE_PREFIX = "openbanners-walk:";
-// A real banner with live passphrase answers on the test site; mission 18 has two.
+// A real banner with live passphrase answers on the test site; mission 18 has two (/walk-mockups default, test only).
 export const DEFAULT_WALK_BANNER = "riddle-me-this-7592";
 // The Navigate button only shows when the mission starts further away than this.
 export const NAVIGATE_MIN_METERS = 1000;
@@ -23,7 +24,7 @@ const HISTORY_LIMIT = 30;
 
 export const stepKey = (missionId, stepIndex) => missionId + ":" + stepIndex;
 
-// The walk page shows its preview entry point only off the production site.
+// The banner page's "Walk mode (preview)" button shows only off the production site (test only).
 export function isWalkPreviewHost(hostname = typeof window === "undefined" ? "" : window.location.hostname) {
   return hostname !== "openbanners.org" && hostname !== "www.openbanners.org";
 }

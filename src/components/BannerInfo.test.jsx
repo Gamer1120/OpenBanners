@@ -84,6 +84,90 @@ test("start row: Navigate, BannerGuider, Start with Overlay, Share", () => {
   expect(labels).toEqual(["Navigate", "BannerGuider", "Start with Overlay", "Share"]);
 });
 
+const IPHONE_UA =
+  "Mozilla/5.0 (iPhone; CPU iPhone OS 18_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.1 Mobile/15E148 Safari/604.1";
+const MAC_UA =
+  "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.1 Safari/605.1.15";
+
+// jsdom has no navigator.maxTouchPoints.
+function stubTouchPoints(count) {
+  Object.defineProperty(window.navigator, "maxTouchPoints", { value: count, configurable: true });
+}
+
+function renderRowWithWalk() {
+  return render(
+    <MemoryRouter initialEntries={["/banner/my-banner"]}>
+      <Routes>
+        <Route path="/banner/:bannerId" element={<BannerInfo banner={banner} variant="row" />} />
+        <Route path="/banner/:bannerId/walk" element={<ShowLocation />} />
+      </Routes>
+    </MemoryRouter>
+  );
+}
+
+const rowLabels = () =>
+  within(screen.getByRole("list", { name: "Start this banner" }))
+    .getAllByRole("button")
+    .map((button) => button.textContent);
+
+describe("Start walk mode instead of Start with Overlay on iPhone/iPad", () => {
+  afterEach(() => {
+    delete window.navigator.maxTouchPoints;
+  });
+
+  test("iPhone: Start walk mode in the Overlay's place, from the first render", () => {
+    stubUserAgent(IPHONE_UA);
+    stubTouchPoints(5);
+    // While the banner loads (the page's placeholder) it is already the walk button: no swap later.
+    const { unmount } = render(
+      <MemoryRouter>
+        <BannerInfo banner={{}} loading variant="row" />
+      </MemoryRouter>
+    );
+    expect(rowLabels()).toEqual(["Navigate", "BannerGuider", "Start walk mode", "Share"]);
+    expect(screen.queryByRole("button", { name: "Start with OpenBanners Overlay" })).toBeNull();
+    unmount();
+
+    renderRow();
+    expect(rowLabels()).toEqual(["Navigate", "BannerGuider", "Start walk mode", "Share"]);
+    expect(screen.queryByRole("button", { name: "Start with OpenBanners Overlay" })).toBeNull();
+  });
+
+  test("iPhone: the button opens /banner/:id/walk", async () => {
+    const user = userEvent.setup();
+    stubUserAgent(IPHONE_UA);
+    stubTouchPoints(5);
+    renderRowWithWalk();
+    const walk = screen.getByRole("button", { name: "Start walk mode" });
+    expect(walk).toHaveClass("bi-row-btn");
+    await user.click(walk);
+    expect(screen.getByTestId("location")).toHaveTextContent(/^\/banner\/my-banner\/walk$/);
+  });
+
+  test("iPad that reports itself as a Mac (touch): Start walk mode", () => {
+    stubUserAgent(MAC_UA);
+    stubTouchPoints(5);
+    renderRow();
+    expect(rowLabels()).toEqual(["Navigate", "BannerGuider", "Start walk mode", "Share"]);
+  });
+
+  test("Android, desktop and a real Mac keep Start with Overlay and get no walk button", () => {
+    for (const [userAgent, touch] of [
+      [ANDROID_UA, 5],
+      [DESKTOP_UA, 0],
+      [MAC_UA, 0],
+    ]) {
+      vi.restoreAllMocks();
+      stubUserAgent(userAgent);
+      stubTouchPoints(touch);
+      const { unmount } = renderRow();
+      expect(rowLabels()).toEqual(["Navigate", "BannerGuider", "Start with Overlay", "Share"]);
+      expect(screen.queryByRole("button", { name: "Start walk mode" })).toBeNull();
+      unmount();
+    }
+  });
+});
+
 test("Start with Overlay on Android opens the app at mission 1", async () => {
   const user = userEvent.setup();
   stubUserAgent(ANDROID_UA);

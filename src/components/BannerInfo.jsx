@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { Alert, Snackbar } from "@mui/material";
-import { Directions, Explore, Layers, OpenInNew, Share } from "@mui/icons-material";
+import { Directions, DirectionsWalk, Explore, Layers, OpenInNew, Share } from "@mui/icons-material";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { t } from "../i18n";
 import {
@@ -11,6 +11,7 @@ import {
 } from "../overlayLink";
 import { OverlayMissingDialog } from "./OverlayDownloadDialog";
 import useOverlayLaunch from "./useOverlayLaunch";
+import { isWalkModeDevice, walkModePath } from "../walkDevice";
 
 function RowAction({ icon: Icon, label, title, onClick, disabled, primary = false }) {
   return (
@@ -218,15 +219,27 @@ const BannerInfo = ({ banner, loading = false, variant = "list", heading = t("St
       disabled: loading,
       primary: true,
     },
-    {
-      key: "overlay",
-      icon: Layers,
-      label: t("Start with Overlay"),
-      title: t("Start with OpenBanners Overlay"),
-      subtitle: t("Opens mission 1 in Ingress with the overlay on top (Android app)"),
-      onClick: handleStartWithOverlay,
-      disabled: loading,
-    },
+    // iPhone/iPad: walk mode in the Overlay's place (the Overlay is Android
+    // only). Same slot and style; decided while rendering, so no swap.
+    isWalkModeDevice()
+      ? {
+          key: "walk",
+          icon: DirectionsWalk,
+          label: t("Start walk mode"),
+          title: t("Start walk mode"),
+          subtitle: t("One big button opens each mission in Ingress and copies its passphrase"),
+          onClick: () => navigate(walkModePath(bannerId)),
+          disabled: loading || !bannerId,
+        }
+      : {
+          key: "overlay",
+          icon: Layers,
+          label: t("Start with Overlay"),
+          title: t("Start with OpenBanners Overlay"),
+          subtitle: t("Opens mission 1 in Ingress with the overlay on top (Android app)"),
+          onClick: handleStartWithOverlay,
+          disabled: loading,
+        },
     {
       key: "share",
       icon: Share,

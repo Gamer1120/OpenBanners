@@ -23,6 +23,7 @@ export const PAGES = [
   { path: "/browse/", title: "Browse banners", description: "Ingress mission banners by country, region and city." },
   { path: "/browse/:placeId", kind: "place", title: "Browse banners", description: "Ingress mission banners in this place." },
   { path: "/banner/:bannerId", kind: "banner", title: "Banner", description: DEFAULT_DESCRIPTION },
+  { path: "/banner/:bannerId/walk", kind: "banner", prefix: "Walk mode", title: "Walk mode", description: DEFAULT_DESCRIPTION },
   { path: "/together/:placeId/live/:roomId", title: "Banner Together", description: "Compare banner lists with friends, live and end-to-end encrypted." },
   { path: "/together/:placeId", kind: "place", prefix: "Banner Together", title: "Banner Together", description: "Compare banner lists with friends: which banners you can still do together." },
   { path: "/agent/:agentName", title: ({ agentName }) => `Banners by ${agentName}`, description: ({ agentName }) => `Ingress mission banners made by agent ${agentName}.` },

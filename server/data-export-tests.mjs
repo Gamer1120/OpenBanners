@@ -43,6 +43,10 @@ async function seed(db, svc, clock) {
   db.prepare("INSERT INTO votes (answer_id, user_id, vote, at) VALUES (?, 'alice', 'confirm', ?)").run(bobAnswer, t);
   db.prepare(`INSERT INTO translation_suggestions (language, key, form, text, status, submitted_by, submitter_agent, submitted_at)
     VALUES ('nl', 'Settings', '', 'Instellingen', 'pending', 'alice', 'AliceAgent', ?)`).run(t);
+  db.prepare("INSERT INTO banner_reviews (user_id, banner_id, stars, tags, created_at, updated_at) VALUES ('alice', 'banner-1', 4, '[\"scenic-route\"]', ?, ?)").run(t, t);
+  db.prepare("INSERT INTO banner_reviews (user_id, banner_id, stars, tags, created_at, updated_at) VALUES ('bob', 'banner-1', 1, '[]', ?, ?)").run(t, t);
+  db.prepare("INSERT INTO review_tag_suggestions (user_id, agent, banner_id, banner_title, name, kind, submitted_at) VALUES ('alice', 'AliceAgent', 'banner-1', 'Church walk', 'Muddy paths', 'negative', ?)").run(t);
+  db.prepare("INSERT INTO review_tag_suggestions (user_id, agent, banner_id, name, kind, submitted_at) VALUES ('bob', NULL, 'banner-1', 'Bob tag', 'positive', ?)").run(t);
   db.prepare("INSERT INTO banner_authors (banner_id, agent) VALUES ('banner-1', 'aliceagent')").run();
   db.prepare("INSERT INTO blocks (scope, key, via, at) VALUES ('author', 'aliceagent', 'settings', ?)").run(t);
   db.prepare("INSERT INTO contact_attempts (agent, banner_id, channel, note, at) VALUES ('aliceagent', 'banner-1', 'openbanners', 'saw the notice', ?)").run(t);
@@ -58,7 +62,7 @@ test("the export has every kind of data, only the account's own, with a README",
   assert.equal(data.format, "openbanners-data-export");
   assert.equal(data.account.agent, "AliceAgent");
   assert.equal(data.account.bannergressAccountId, "alice");
-  for (const section of ["account", "syncedSettings", "overlayBackup", "passphraseSettings", "notes", "plans", "passphraseAnswers", "passphraseVotes", "translationSuggestions", "author", "dataExports"]) {
+  for (const section of ["account", "syncedSettings", "overlayBackup", "passphraseSettings", "notes", "plans", "passphraseAnswers", "passphraseVotes", "translationSuggestions", "bannerReviews", "reviewTagSuggestions", "author", "dataExports"]) {
     assert.ok(data.readme[section], `README explains ${section}`);
     assert.ok(data[section] !== undefined, `section ${section}`);
   }
@@ -73,6 +77,9 @@ test("the export has every kind of data, only the account's own, with a README",
   assert.equal(data.passphraseVotes.length, 1);
   assert.equal(data.passphraseVotes[0].vote, "confirm");
   assert.deepEqual(data.translationSuggestions.map((s) => [s.language, s.english, s.text]), [["nl", "Settings", "Instellingen"]]);
+  assert.deepEqual(data.bannerReviews.map((r) => [r.bannerId, r.stars, r.tags]), [["banner-1", 4, ["scenic-route"]]]);
+  assert.deepEqual(data.reviewTagSuggestions.map((s) => [s.name, s.kind, s.bannerTitle]), [["Muddy paths", "negative", "Church walk"]]);
+  assert.ok(!JSON.stringify(data).includes("Bob tag"));
   assert.deepEqual(data.author.bannersAsAuthor.map((b) => b.bannerId), ["banner-1"]);
   assert.equal(data.author.neverAllowPassphrases.via, "settings");
   assert.equal(data.author.noticesSeen.length, 1);
@@ -133,6 +140,8 @@ test("every table that holds per-account data is covered", () => {
     answers: "passphraseAnswers",
     votes: "passphraseVotes",
     translation_suggestions: "translationSuggestions",
+    banner_reviews: "bannerReviews",
+    review_tag_suggestions: "reviewTagSuggestions",
     banner_authors: "author.bannersAsAuthor",
     blocks: "author.neverAllowPassphrases",
     contact_attempts: "author.noticesSeen",

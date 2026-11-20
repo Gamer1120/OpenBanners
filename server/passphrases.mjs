@@ -24,6 +24,7 @@ import { createDataExport, DataExportError } from "./data-export.mjs";
 import { createOverlayBackups, OverlayBackupError } from "./overlay-backup.mjs";
 import { createSyncedSettings, SyncedSettingsError } from "./synced-settings.mjs";
 import { createTranslationService, loadI18nSource, TranslationError } from "./translations.mjs";
+import { createReviewService, ReviewError } from "./reviews.mjs";
 
 export const BASE_PATH = "/_openbanners/passphrases/v1";
 export const PENDING_DAYS = 30;
@@ -199,8 +200,10 @@ export function createPassphraseService({
   now = () => Date.now(),
   onSubmitted = () => {},
   onTranslationSubmitted = () => {},
+  onTagSuggested = () => {},
   unlimitedAgents = [],
   i18nSource = null,
+  reviewTags = undefined,
 } = {}) {
   const unlimited = new Set(unlimitedAgents.map(agentKey).filter(Boolean));
   const translations = createTranslationService({
@@ -209,6 +212,14 @@ export function createPassphraseService({
     now,
     unlimitedAgents,
     onSubmitted: onTranslationSubmitted,
+  });
+  // Banner reviews (server/reviews.mjs): stars + tags, same login and DB; tag suggestions go to the bot.
+  const reviews = createReviewService({
+    db,
+    now,
+    ...(reviewTags ? { tags: reviewTags } : {}),
+    lookupBanner: (bannerId) => loadBanner(bannerId),
+    onSuggested: onTagSuggested,
   });
   const syncedSettings = createSyncedSettings({ db, now });
   const overlayBackups = createOverlayBackups({ db, now });
@@ -806,6 +817,20 @@ export function createPassphraseService({
         throw error instanceof TranslationError ? new ApiError(error.status, error.code, error.message) : error;
       }
     }
+    if (path.startsWith("/reviews/")) {
+      try {
+        const result = await reviews.handle(method, path, headers, body, identify, (bannerId) => {
+          if (!BANNER_ID_PATTERN.test(bannerId)) {
+            throw new ApiError(400, "invalid_banner", "Invalid banner id.");
+          }
+        });
+        if (result !== undefined) {
+          return result;
+        }
+      } catch (error) {
+        throw error instanceof ReviewError ? new ApiError(error.status, error.code, error.message) : error;
+      }
+    }
     // Settings that follow the account between devices (server/synced-settings.mjs).
     if (path === "/preferences" && ["GET", "PUT", "DELETE"].includes(method)) {
       const identity = await identify(headers.authorization);
@@ -1044,7 +1069,7 @@ export function createPassphraseService({
     setValue: (key, value) => db.prepare("INSERT INTO kv (key, value) VALUES (?, ?) ON CONFLICT (key) DO UPDATE SET value = excluded.value").run(key, String(value)),
   };
 
-  return { handle, listAnswers, promote, moderation, translations };
+  return { handle, listAnswers, promote, moderation, translations, reviews };
 }
 
 function readBody(request) {
@@ -1111,6 +1136,7 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
     db,
     onSubmitted: () => bot?.notifyPending(),
     onTranslationSubmitted: () => bot?.notifyPending(),
+    onTagSuggested: () => bot?.notifyPending(),
     // Comma-separated verified agent names that skip the daily answer limit.
     unlimitedAgents: String(process.env.OPENBANNERS_UNLIMITED_AGENTS ?? "").split(",").map((name) => name.trim()).filter(Boolean),
   });
@@ -1127,6 +1153,7 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
       quietMs: (Number(process.env.OPENBANNERS_TELEGRAM_QUIET_MINUTES) || 15) * 60 * 1000,
       moderation: service.moderation,
       translations: service.translations.moderation,
+      tagSuggestions: service.reviews.notifications,
     });
   }
 }

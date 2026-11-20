@@ -16,17 +16,20 @@ COPY server/telegram-join.mjs server/telegram-join-tests.mjs /usr/share/nginx/se
 # The translation editor checks suggestions against the English keys and the bundled locales.
 COPY src/i18n/keys.json /usr/share/nginx/server/i18n/keys.json
 COPY src/i18n/locales /usr/share/nginx/server/i18n/locales
+# Banner reviews (server/reviews.mjs imports the one tag list from ../src/reviewTags.mjs).
+COPY server/reviews.mjs server/reviews-telegram.mjs server/reviews-tests.mjs /usr/share/nginx/server/
+COPY src/reviewTags.mjs /usr/share/nginx/src/reviewTags.mjs
 
 RUN mkdir -p /run/nginx \
   && chmod +x /usr/local/bin/openbanners-entrypoint \
   && node --test /usr/share/nginx/server/banner-together-signal-tests.mjs /usr/share/nginx/server/banner-meta-tests.mts \
     /usr/share/nginx/server/passphrases-tests.mjs /usr/share/nginx/server/passphrases-telegram-tests.mjs \
     /usr/share/nginx/server/synced-settings-tests.mjs /usr/share/nginx/server/overlay-backup-tests.mjs /usr/share/nginx/server/data-export-tests.mjs \
-    /usr/share/nginx/server/translations-tests.mjs /usr/share/nginx/server/telegram-join-tests.mjs \
+    /usr/share/nginx/server/translations-tests.mjs /usr/share/nginx/server/telegram-join-tests.mjs /usr/share/nginx/server/reviews-tests.mjs \
   && rm /usr/share/nginx/server/banner-together-signal-tests.mjs /usr/share/nginx/server/banner-meta-tests.mts \
     /usr/share/nginx/server/passphrases-tests.mjs /usr/share/nginx/server/passphrases-telegram-tests.mjs \
     /usr/share/nginx/server/synced-settings-tests.mjs /usr/share/nginx/server/overlay-backup-tests.mjs /usr/share/nginx/server/data-export-tests.mjs \
-    /usr/share/nginx/server/translations-tests.mjs /usr/share/nginx/server/telegram-join-tests.mjs \
+    /usr/share/nginx/server/translations-tests.mjs /usr/share/nginx/server/telegram-join-tests.mjs /usr/share/nginx/server/reviews-tests.mjs \
   && mkdir -p /data && chown node:node /data \
   && if find /bin /sbin /usr/bin /usr/sbin /usr/local/bin /usr/local/sbin -name 'php*' | grep -q .; then echo "PHP must not be present in this image" >&2; exit 1; fi \
   && nginx -t

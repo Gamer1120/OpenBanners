@@ -6,6 +6,7 @@ import BannerImage from "../BannerImage";
 import MarkDoneNotice from "../MarkDoneNotice";
 import { PassphraseDonePrompt, PassphrasePanel } from "./Passphrases";
 import BannerNotes, { AddNoteButton, useBannerNotes } from "./BannerNotes";
+import BannerReviews from "./BannerReviews";
 import {
   AddressLink,
   BannerDetailsList,
@@ -101,6 +102,7 @@ export default function DesignA() {
                 className="stats a-stats"
               />
               <BannerDetailsList d={d} />
+              {!d.isLoading ? <BannerReviews bannerId={d.items?.id ?? d.bannerId} /> : null}
               <div className="bn-links">
                 <BannergressLink d={d} button />
                 <AddNoteButton notes={notes} />

@@ -3,7 +3,7 @@
 // per EXPORT_INTERVAL_MS; the time of the last one is kept in the database, so
 // the limit survives restarts. Keep SECTIONS in step with every table that
 // holds per-account data (server/passphrases.mjs, synced-settings.mjs,
-// overlay-backup.mjs, translations.mjs); data-export-tests.mjs checks it.
+// overlay-backup.mjs, translations.mjs, reviews.mjs); data-export-tests.mjs checks it.
 export const EXPORT_INTERVAL_MS = 60 * 60 * 1000;
 export const EXPORT_FORMAT = "openbanners-data-export";
 
@@ -51,6 +51,10 @@ export const README = {
     "Passphrase answers you sent, with their review status. Live answers are visible to everyone; typed answers were shown to the moderators in a Telegram chat for review.",
   passphraseVotes: "Your confirm/wrong votes on passphrase answers.",
   translationSuggestions: "Translation suggestions you sent in the translation editor, with their review status.",
+  bannerReviews:
+    "Your banner reviews: the stars (1-5) and tags you gave each banner. Others only see each banner's average, number of reviews and tag counts, never who reviewed.",
+  reviewTagSuggestions:
+    "Review tags you suggested. They were sent with your agent name and the banner to the moderators in a Telegram chat and are never shown on the site.",
   author:
     "Only if your agent name is verified on Bannergress: the banners OpenBanners knows you as an author of, your \"never allow passphrases\" choice, and when you saw the notice about answers waiting for your banners.",
   dataExports: "When you last downloaded your data (before this download). Used for the once-an-hour limit.",
@@ -154,6 +158,22 @@ export function createDataExport({ db, now = () => Date.now(), overlayBackups })
           agent: row.submitter_agent ?? null,
           submittedAt: iso(row.submitted_at),
           decidedAt: iso(row.decided_at),
+        })),
+      bannerReviews: db
+        .prepare("SELECT banner_id, stars, tags, created_at, updated_at FROM banner_reviews WHERE user_id = ? ORDER BY created_at")
+        .all(userId)
+        .map((row) => ({ bannerId: row.banner_id, stars: row.stars, tags: json(row.tags, []), createdAt: iso(row.created_at), updatedAt: iso(row.updated_at) })),
+      reviewTagSuggestions: db
+        .prepare("SELECT id, banner_id, banner_title, name, kind, agent, submitted_at FROM review_tag_suggestions WHERE user_id = ? ORDER BY submitted_at")
+        .all(userId)
+        .map((row) => ({
+          id: row.id,
+          name: row.name,
+          kind: row.kind,
+          bannerId: row.banner_id ?? null,
+          bannerTitle: row.banner_title ?? null,
+          agent: row.agent ?? null,
+          submittedAt: iso(row.submitted_at),
         })),
       author: agent
         ? {

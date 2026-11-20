@@ -17,6 +17,8 @@
 // Translation suggestions ride along: one message per language
 // (server/translations-telegram.mjs), callback data "tr:…".
 import { createTranslationReviewer } from "./translations-telegram.mjs";
+// Review tag suggestions (server/reviews-telegram.mjs): sent at once, with a prompt to copy.
+import { createTagSuggestionNotifier } from "./reviews-telegram.mjs";
 
 const API = "https://api.telegram.org";
 const MAX_TEXT = 3800;
@@ -292,6 +294,7 @@ const HELP = [
   "/block banner &lt;banner-id&gt; or /block author &lt;agent&gt;: delete their answers and block new ones",
   "/unblock banner|author &lt;key&gt;",
   "/contact &lt;agent&gt; &lt;channel&gt; [note]: log an attempt to reach an author",
+  "/tags: the last 10 review tag suggestions again, each with its prompt to copy",
 ].join("\n");
 
 const OBJECT_HELP = [
@@ -306,6 +309,7 @@ export function createModerationBot({
   siteUrl,
   moderation,
   translations = null,
+  tagSuggestions = null,
   quietMs = 15 * 60 * 1000,
   now = () => Date.now(),
   fetchImpl = fetch,
@@ -334,6 +338,7 @@ export function createModerationBot({
   const translationReviews = translations
     ? createTranslationReviewer({ api, send, moderators, translations, quietMs, now, log })
     : null;
+  const tagNotifier = tagSuggestions ? createTagSuggestionNotifier({ send, moderators, suggestions: tagSuggestions, siteUrl, log }) : null;
 
   async function redraw(reviewId, chatId, messageId) {
     const review = moderation.reviews.get(reviewId);
@@ -418,6 +423,11 @@ export function createModerationBot({
       await translationReviews?.notify({ force });
     } catch (error) {
       log(`notify translations: ${error.message}`);
+    }
+    try {
+      await tagNotifier?.notify();
+    } catch (error) {
+      log(`notify tag suggestions: ${error.message}`);
     } finally {
       notifying = false;
     }
@@ -524,6 +534,9 @@ export function createModerationBot({
         await translationReviews.postLanguage(language);
       }
       return banners.length > 20 ? send(chatId, `…and ${banners.length - 20} more banners. Handle these first, then /pending again.`) : null;
+    }
+    if (name === "/tags") {
+      return tagNotifier ? tagNotifier.resend(chatId) : send(chatId, "Review tags aren't enabled.");
     }
     if (name === "/approved") {
       const { text: body, reply_markup } = renderApproved(moderation.approvedBanners(), siteUrl);

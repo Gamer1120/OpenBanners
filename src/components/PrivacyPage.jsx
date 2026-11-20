@@ -49,6 +49,11 @@ export default function PrivacyPage() {
         </li>
         <li>
           {t(
+            "Banner reviews: the stars and tags you give a banner are saved under your Bannergress account. Others only see each banner's average, number of reviews and how often each tag was picked, never who reviewed. You can delete your review on the banner page. A tag you suggest is sent with your agent name and the banner to the moderators in a Telegram chat; it never shows on the site."
+          )}
+        </li>
+        <li>
+          {t(
             "Synced settings: while you're signed in, your language, map filters, Wall/List view, chosen city, closed welcome note and recent plans are saved under your Bannergress account, so they follow you to other devices where you sign in. Your location isn't part of them."
           )}
         </li>

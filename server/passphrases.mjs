@@ -1143,6 +1143,9 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
   server.listen(port, "127.0.0.1", () => {
     process.stdout.write(`OpenBanners passphrases listening on 127.0.0.1:${port}\n`);
   });
+  // Tags added from suggestions (fromSuggestions in src/reviewTags.mjs), applied on start.
+  const { linked, added, skipped } = service.reviews.applied;
+  process.stdout.write(`Review tag suggestions applied this start: ${linked} (in reviews: ${added}, review gone: ${skipped})\n`);
   if (process.env.OPENBANNERS_TELEGRAM_BOT_TOKEN) {
     const { startModerationBot } = await import("./passphrases-telegram.mjs");
     bot = startModerationBot({

@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from "react";
-import { RateReviewOutlined, Star, StarBorder, StarHalf, ThumbDownOutlined, ThumbUpOutlined } from "@mui/icons-material";
+import React, { useEffect, useRef, useState } from "react";
+import { AddOutlined, HourglassEmptyOutlined, RateReviewOutlined, Star, StarBorder, StarHalf, ThumbDownOutlined, ThumbUpOutlined } from "@mui/icons-material";
 import { BANNERGRESS_AUTH_REQUEST_EVENT } from "../../bannergressSync";
 import { TAG_NAME_MAX, tagById, useBannerReviews } from "../../bannerReviews";
 import { REVIEW_TAGS } from "../../reviewTags.mjs";
@@ -7,8 +7,10 @@ import { getLanguage, t, tn } from "../../i18n";
 
 // Banner reviews on the banner page (Overview tab): average stars, number of
 // reviews and the most picked tags for everyone; signed in, your own review
-// (1-5 stars + tags from src/reviewTags.mjs, never text) with Edit / Delete,
-// and "Suggest a tag", which only reaches the moderators.
+// (1-5 stars + tags from src/reviewTags.mjs, never text) with Edit / Delete.
+// The last chip of each tag group is "+ Suggest a tag": the suggestion goes to
+// the moderators and sits in your own review as a pending tag (only you see
+// it) until they add the tag, which then lands in your review for real.
 const TOP_TAGS = 8;
 
 const formatRating = (value) => {
@@ -44,16 +46,149 @@ function TagChip({ id, count }) {
   );
 }
 
-function ReviewEditor({ initial, onSave, onCancel }) {
+const PENDING_NOTE = () => t("Suggested, waiting for approval");
+
+// One of your suggested tags, pending until the team adds it: only you see it.
+function PendingChip({ item }) {
+  const Icon = item.kind === "positive" ? ThumbUpOutlined : ThumbDownOutlined;
+  return (
+    <li className={`chip mini rv-tag rv-pending ${item.kind === "positive" ? "ok" : "bad"}`} title={PENDING_NOTE()} aria-label={`${item.name} (${PENDING_NOTE()})`}>
+      <Icon className="ic" aria-hidden="true" />
+      {item.name}
+      <HourglassEmptyOutlined className="ic" aria-hidden="true" />
+    </li>
+  );
+}
+
+const PendingLegend = () => (
+  <span className="small muted rv-pending-legend">
+    <HourglassEmptyOutlined fontSize="inherit" aria-hidden="true" /> {PENDING_NOTE()}
+  </span>
+);
+
+// "+ Suggest a tag": the last chip of a tag group. Opens a one-line field in the group;
+// the new tag gets the group's kind and goes into your review as pending.
+function SuggestChip({ kind, onSuggest, onSuggested }) {
+  const [open, setOpen] = useState(false);
+  const [name, setName] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const [sent, setSent] = useState(false);
+  const chipRef = useRef(null);
+  const refocus = useRef(false);
+  useEffect(() => {
+    if (!open && refocus.current) {
+      refocus.current = false;
+      chipRef.current?.focus();
+    }
+  }, [open]);
+  const close = () => {
+    refocus.current = true;
+    setOpen(false);
+    setName("");
+    setError("");
+  };
+  if (!open) {
+    return (
+      <>
+        <button
+          ref={chipRef}
+          type="button"
+          className={`chip rv-choice rv-suggest-chip ${kind}`}
+          onClick={() => {
+            setOpen(true);
+            setSent(false);
+          }}
+        >
+          <AddOutlined fontSize="inherit" aria-hidden="true" />
+          {t("Suggest a tag")}
+        </button>
+        {sent ? (
+          <p className="small muted rv-suggest-sent" role="status">
+            {t("Thanks! Your tag suggestion was sent.")}
+          </p>
+        ) : null}
+      </>
+    );
+  }
+  const send = (event) => {
+    event.preventDefault();
+    if (busy || name.trim().length < 2) {
+      return;
+    }
+    setBusy(true);
+    setError("");
+    onSuggest(name.trim(), kind).then(
+      (result) => {
+        setBusy(false);
+        setSent(true);
+        onSuggested?.(result?.suggestion);
+        close();
+      },
+      (e) => {
+        setBusy(false);
+        setError(e.message);
+      }
+    );
+  };
+  return (
+    <form
+      className="rv-suggest"
+      onSubmit={send}
+      onKeyDown={(event) => {
+        if (event.key === "Escape" && !busy) {
+          event.preventDefault();
+          event.stopPropagation();
+          close();
+        }
+      }}
+    >
+      <input
+        className="pp-input"
+        aria-label={t("Tag name")}
+        placeholder={t("Tag name")}
+        value={name}
+        maxLength={TAG_NAME_MAX}
+        autoFocus
+        enterKeyHint="send"
+        onChange={(event) => setName(event.target.value)}
+      />
+      <span className="small muted">{t("Your suggestion goes to the OpenBanners team and doesn't show to others until they add it.")}</span>
+      <div className="pp-actions">
+        <button type="submit" className="btn filled sl" disabled={busy || name.trim().length < 2}>
+          {busy ? t("Sending…") : t("Send")}
+        </button>
+        <button type="button" className="btn text sl" disabled={busy} onClick={close}>
+          {t("Cancel")}
+        </button>
+      </div>
+      {error ? <p className="small pp-error" role="alert">{error}</p> : null}
+    </form>
+  );
+}
+
+function ReviewEditor({ initial, initialPending, onSave, onCancel, onSuggest }) {
   const [stars, setStars] = useState(initial?.stars ?? 0);
   const [tags, setTags] = useState(initial?.tags ?? []);
+  // Your pending suggestions on this banner; "keep" = the ones still picked.
+  const [pending, setPending] = useState(initialPending ?? []);
+  const [keep, setKeep] = useState(() => (initialPending ?? []).map((item) => item.suggestionId));
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const toggle = (id) => setTags((current) => (current.includes(id) ? current.filter((tag) => tag !== id) : [...current, id]));
+  const toggleKeep = (id) => setKeep((current) => (current.includes(id) ? current.filter((item) => item !== id) : [...current, id]));
+  const added = (suggestion) => {
+    if (!suggestion?.id || !suggestion.pending) {
+      return;
+    }
+    const item = { suggestionId: suggestion.id, name: suggestion.name, kind: suggestion.kind };
+    setPending((current) => (current.some((p) => p.suggestionId === item.suggestionId) ? current : [...current, item]));
+    setKeep((current) => (current.includes(item.suggestionId) ? current : [...current, item.suggestionId]));
+  };
   const save = () => {
     setBusy(true);
     setError("");
-    onSave(stars, tags).then(
+    onSave(stars, tags, keep.filter((id) => pending.some((p) => p.suggestionId === id))).then(
       () => setBusy(false),
       (e) => {
         setError(e.message);
@@ -61,28 +196,52 @@ function ReviewEditor({ initial, onSave, onCancel }) {
       }
     );
   };
-  const group = (kind, title) => (
-    <div className="rv-group" role="group" aria-label={title}>
-      <span className="small muted">{title}</span>
-      <div className="rv-choices">
-        {REVIEW_TAGS.filter((tag) => tag.kind === kind).map((tag) => {
-          const on = tags.includes(tag.id);
-          return (
-            <button
-              key={tag.id}
-              type="button"
-              className={`chip rv-choice ${kind}${on ? " sel" : ""}`}
-              aria-pressed={on}
-              onClick={() => toggle(tag.id)}
-            >
-              {kind === "positive" ? <ThumbUpOutlined fontSize="inherit" /> : <ThumbDownOutlined fontSize="inherit" />}
-              {t(tag.label)}
-            </button>
-          );
-        })}
+  const group = (kind, title) => {
+    const mineHere = pending.filter((item) => item.kind === kind);
+    const Icon = kind === "positive" ? ThumbUpOutlined : ThumbDownOutlined;
+    return (
+      <div className="rv-group" role="group" aria-label={title}>
+        <span className="small muted">{title}</span>
+        <div className="rv-choices">
+          {REVIEW_TAGS.filter((tag) => tag.kind === kind).map((tag) => {
+            const on = tags.includes(tag.id);
+            return (
+              <button
+                key={tag.id}
+                type="button"
+                className={`chip rv-choice ${kind}${on ? " sel" : ""}`}
+                aria-pressed={on}
+                onClick={() => toggle(tag.id)}
+              >
+                <Icon fontSize="inherit" />
+                {t(tag.label)}
+              </button>
+            );
+          })}
+          {mineHere.map((item) => {
+            const on = keep.includes(item.suggestionId);
+            return (
+              <button
+                key={`s${item.suggestionId}`}
+                type="button"
+                className={`chip rv-choice rv-pending ${kind}${on ? " sel" : ""}`}
+                aria-pressed={on}
+                aria-label={`${item.name} (${PENDING_NOTE()})`}
+                title={PENDING_NOTE()}
+                onClick={() => toggleKeep(item.suggestionId)}
+              >
+                <Icon fontSize="inherit" />
+                {item.name}
+                <HourglassEmptyOutlined fontSize="inherit" aria-hidden="true" />
+              </button>
+            );
+          })}
+          {onSuggest ? <SuggestChip kind={kind} onSuggest={onSuggest} onSuggested={added} /> : null}
+        </div>
+        {mineHere.length ? <PendingLegend /> : null}
       </div>
-    </div>
-  );
+    );
+  };
   return (
     <div className="rv-editor">
       <div className="rv-pick" role="radiogroup" aria-label={t("Your rating")}>
@@ -112,74 +271,6 @@ function ReviewEditor({ initial, onSave, onCancel }) {
       </div>
       {error ? <p className="small pp-error" role="alert">{error}</p> : null}
     </div>
-  );
-}
-
-function SuggestTag({ onSuggest }) {
-  const [open, setOpen] = useState(false);
-  const [name, setName] = useState("");
-  const [kind, setKind] = useState("positive");
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState("");
-  const [sent, setSent] = useState(false);
-  if (!open) {
-    return (
-      <div>
-        <button type="button" className="btn text sl rv-suggest-open" onClick={() => { setOpen(true); setSent(false); }}>
-          {t("Suggest a tag")}
-        </button>
-        {sent ? <p className="small muted" role="status">{t("Thanks! Your tag suggestion was sent.")}</p> : null}
-      </div>
-    );
-  }
-  const send = (event) => {
-    event.preventDefault();
-    setBusy(true);
-    setError("");
-    onSuggest(name.trim(), kind).then(
-      () => {
-        setBusy(false);
-        setName("");
-        setSent(true);
-        setOpen(false);
-      },
-      (e) => {
-        setBusy(false);
-        setError(e.message);
-      }
-    );
-  };
-  return (
-    <form className="rv-suggest" onSubmit={send}>
-      <b>{t("Suggest a tag")}</b>
-      <input
-        className="pp-input"
-        aria-label={t("Tag name")}
-        placeholder={t("Tag name")}
-        value={name}
-        maxLength={TAG_NAME_MAX}
-        autoFocus
-        onChange={(event) => setName(event.target.value)}
-      />
-      <div className="rv-kinds" role="radiogroup" aria-label={t("Positive or negative")}>
-        {["positive", "negative"].map((value) => (
-          <label key={value} className="rv-kind">
-            <input type="radio" name="rv-kind" value={value} checked={kind === value} onChange={() => setKind(value)} />
-            {value === "positive" ? t("Positive") : t("Negative")}
-          </label>
-        ))}
-      </div>
-      <span className="small muted">{t("Your suggestion goes to the OpenBanners team. It doesn't show on the site.")}</span>
-      <div className="pp-actions">
-        <button type="submit" className="btn filled sl" disabled={busy || name.trim().length < 2}>
-          {busy ? t("Sending…") : t("Send")}
-        </button>
-        <button type="button" className="btn text sl" disabled={busy} onClick={() => setOpen(false)}>
-          {t("Cancel")}
-        </button>
-      </div>
-      {error ? <p className="small pp-error" role="alert">{error}</p> : null}
-    </form>
   );
 }
 
@@ -253,8 +344,10 @@ export default function BannerReviews({ bannerId }) {
           editing ? (
             <ReviewEditor
               initial={mine}
+              initialPending={data.minePending ?? mine?.pending ?? []}
               onCancel={() => setEditing(false)}
-              onSave={(stars, tags) => reviews.save(stars, tags).then(() => setEditing(false))}
+              onSave={(stars, tags, suggestions) => reviews.save(stars, tags, suggestions).then(() => setEditing(false))}
+              onSuggest={reviews.suggest}
             />
           ) : mine ? (
             <div className="rv-mine">
@@ -262,13 +355,17 @@ export default function BannerReviews({ bannerId }) {
               <p className="rv-line">
                 <StarRow value={mine.stars} label={tn("{count} star", "{count} stars", mine.stars)} />
               </p>
-              {mine.tags.length ? (
+              {mine.tags.length || mine.pending?.length ? (
                 <ul className="rv-tags">
                   {mine.tags.map((id) => (
                     <TagChip key={id} id={id} />
                   ))}
+                  {(mine.pending ?? []).map((item) => (
+                    <PendingChip key={`s${item.suggestionId}`} item={item} />
+                  ))}
                 </ul>
               ) : null}
+              {mine.pending?.length ? <PendingLegend /> : null}
               <div className="pp-actions">
                 <button type="button" className="btn text sl" disabled={busy} onClick={() => setEditing(true)}>
                   {t("Edit")}
@@ -286,7 +383,6 @@ export default function BannerReviews({ bannerId }) {
             </div>
           )
         ) : null}
-        {data && reviews.loggedIn && !editing ? <SuggestTag onSuggest={reviews.suggest} /> : null}
         {error ? <p className="small pp-error" role="alert">{error}</p> : null}
       </div>
     </section>

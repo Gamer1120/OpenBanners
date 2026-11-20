@@ -16,7 +16,7 @@ describe("useBannerReviews", () => {
       ok: true,
       json: async () =>
         url.endsWith("/tag-suggestions")
-          ? { suggestion: { id: 1 } }
+          ? { suggestion: { id: 1, name: "Muddy paths", kind: "negative", pending: true } }
           : { bannerId: "b 1", count: options.method === "PUT" ? 1 : 0, average: null, tags: [], mine: options.method === "PUT" ? JSON.parse(options.body) : null },
     }));
     vi.stubGlobal("fetch", fetchMock);
@@ -34,5 +34,9 @@ describe("useBannerReviews", () => {
     await act(() => result.current.suggest("Muddy paths", "negative"));
     expect(fetchMock.mock.calls[3][0]).toBe("/_openbanners/passphrases/v1/reviews/tag-suggestions");
     expect(JSON.parse(fetchMock.mock.calls[3][1].body)).toEqual({ name: "Muddy paths", kind: "negative", bannerId: "b 1" });
+    // Shown right away as your pending tag; saving can keep it.
+    expect(result.current.data.minePending).toEqual([{ suggestionId: 1, name: "Muddy paths", kind: "negative" }]);
+    await act(() => result.current.save(5, [], [1]));
+    expect(JSON.parse(fetchMock.mock.calls[4][1].body)).toEqual({ stars: 5, tags: [], suggestions: [1] });
   });
 });

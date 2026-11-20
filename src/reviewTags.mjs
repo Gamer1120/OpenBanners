@@ -6,6 +6,10 @@
 //   rename or reuse one; to retire a tag, delete its line (old reviews keep
 //   the id, but it isn't counted or shown any more).
 // - kind: "positive" or "negative" (shown green / red, in their own group).
+// - fromSuggestions (optional): ids of the visitor suggestions this tag was
+//   added for (the "Suggestion #123" in the bot's prompt). On start the
+//   server adds the tag to those suggesters' reviews, once (server/reviews.mjs).
+//   Keep it in place afterwards.
 // - label: the English text in tk(), so scripts/i18n-extract.mjs lists it in
 //   src/i18n/keys.json; every src/i18n/locales/<lang>.json translates it under
 //   the same English key.

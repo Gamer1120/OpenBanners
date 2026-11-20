@@ -54,7 +54,7 @@ export const README = {
   bannerReviews:
     "Your banner reviews: the stars (1-5) and tags you gave each banner. Others only see each banner's average, number of reviews and tag counts, never who reviewed.",
   reviewTagSuggestions:
-    "Review tags you suggested. They were sent with your agent name and the banner to the moderators in a Telegram chat and are never shown on the site.",
+    "Review tags you suggested. They were sent with your agent name and the banner to the moderators in a Telegram chat. Until a moderator adds the tag, only you see it, in your own review of that banner; once added, it counts in that review like any other tag.",
   author:
     "Only if your agent name is verified on Bannergress: the banners OpenBanners knows you as an author of, your \"never allow passphrases\" choice, and when you saw the notice about answers waiting for your banners.",
   dataExports: "When you last downloaded your data (before this download). Used for the once-an-hour limit.",
@@ -164,7 +164,7 @@ export function createDataExport({ db, now = () => Date.now(), overlayBackups })
         .all(userId)
         .map((row) => ({ bannerId: row.banner_id, stars: row.stars, tags: json(row.tags, []), createdAt: iso(row.created_at), updatedAt: iso(row.updated_at) })),
       reviewTagSuggestions: db
-        .prepare("SELECT id, banner_id, banner_title, name, kind, agent, submitted_at FROM review_tag_suggestions WHERE user_id = ? ORDER BY submitted_at")
+        .prepare("SELECT * FROM review_tag_suggestions WHERE user_id = ? ORDER BY submitted_at")
         .all(userId)
         .map((row) => ({
           id: row.id,
@@ -174,6 +174,10 @@ export function createDataExport({ db, now = () => Date.now(), overlayBackups })
           bannerTitle: row.banner_title ?? null,
           agent: row.agent ?? null,
           submittedAt: iso(row.submitted_at),
+          // Pending in your review of that banner (only you see it there).
+          inYourReview: row.in_review === 1,
+          addedAsTag: row.tag_id ?? null,
+          addedAt: iso(row.applied_at),
         })),
       author: agent
         ? {

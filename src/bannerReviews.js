@@ -5,13 +5,16 @@ import { REVIEW_TAGS } from "./reviewTags.mjs";
 
 // Banner reviews (stars + tags, no text), kept by the passphrase service
 // (server/reviews.mjs). The summary is public; your own review comes along
-// when you're signed in.
+// when you're signed in, with your pending suggested tags (minePending, only
+// ever sent to you).
 export const TAG_NAME_MAX = 40;
 
 export const reviewPath = (bannerId) => `/reviews/banners/${encodeURIComponent(bannerId)}`;
 export const tagById = new Map(REVIEW_TAGS.map((tag) => [tag.id, tag]));
 
-export const saveReview = (bannerId, stars, tags) => call(reviewPath(bannerId), { method: "PUT", body: { stars, tags } });
+// suggestions: ids of your pending suggested tags to keep in the review (left out = dropped).
+export const saveReview = (bannerId, stars, tags, suggestions) =>
+  call(reviewPath(bannerId), { method: "PUT", body: { stars, tags, ...(suggestions ? { suggestions } : {}) } });
 export const deleteReview = (bannerId) => call(reviewPath(bannerId), { method: "DELETE" });
 export const suggestReviewTag = (bannerId, name, kind) =>
   call("/reviews/tag-suggestions", { method: "POST", body: { name, kind, bannerId } });
@@ -39,8 +42,8 @@ export function useBannerReviews(bannerId) {
   }, [bannerId, loggedIn]);
 
   const save = useCallback(
-    async (stars, tags) => {
-      const data = await saveReview(bannerId, stars, tags);
+    async (stars, tags, suggestions) => {
+      const data = await saveReview(bannerId, stars, tags, suggestions);
       setState({ status: "ready", data, error: "" });
     },
     [bannerId]
@@ -51,7 +54,29 @@ export function useBannerReviews(bannerId) {
     setState({ status: "ready", data, error: "" });
   }, [bannerId]);
 
-  const suggest = useCallback((name, kind) => suggestReviewTag(bannerId, name, kind), [bannerId]);
+  // A suggestion made on the banner is a pending tag in your review: show it right away.
+  const suggest = useCallback(
+    async (name, kind) => {
+      const result = await suggestReviewTag(bannerId, name, kind);
+      const suggestion = result?.suggestion;
+      if (suggestion?.pending) {
+        const item = { suggestionId: suggestion.id, name: suggestion.name, kind: suggestion.kind };
+        setState((current) => {
+          if (!current.data) {
+            return current;
+          }
+          const add = (list) => [...(list ?? []).filter((p) => p.suggestionId !== item.suggestionId), item];
+          const data = { ...current.data, minePending: add(current.data.minePending) };
+          if (data.mine) {
+            data.mine = { ...data.mine, pending: add(data.mine.pending) };
+          }
+          return { ...current, data };
+        });
+      }
+      return result;
+    },
+    [bannerId]
+  );
 
   return { ...state, loggedIn, save, remove, suggest };
 }

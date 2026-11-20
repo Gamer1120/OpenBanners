@@ -813,22 +813,46 @@
   color: var(--on-error-container);
 }
 
-.rv-kinds {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 16px;
-  margin: 4px 0;
+/* "+ Suggest a tag": a chip, but dashed so it reads as an action */
+.chip.rv-choice.rv-suggest-chip {
+  background: transparent;
+  box-shadow: none;
+  border: 1px dashed var(--outline);
+  color: var(--primary);
+  cursor: pointer;
 }
 
-.rv-kind {
+.chip.rv-choice.rv-suggest-chip:hover {
+  background: color-mix(in srgb, var(--primary) 8%, transparent);
+}
+
+/* The field it opens takes the whole row under the chips */
+.rv-choices .rv-suggest {
+  flex: 1 0 100%;
+  margin-top: 4px;
+  padding: 8px 12px;
+  border: 1px dashed var(--outline);
+  border-radius: var(--r-s);
+}
+
+.rv-choices .rv-suggest-sent {
+  flex: 1 0 100%;
+  margin: 0;
+}
+
+/* Your own suggested tag, waiting for approval (only you see it) */
+.chip.rv-pending {
+  border: 1px dashed currentColor;
+}
+
+.chip.rv-choice.rv-pending:not(.sel) {
+  opacity: 0.75;
+}
+
+.rv-pending-legend {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  min-height: 32px;
-}
-
-.rv-suggest-open {
+  gap: 4px;
   margin-top: 4px;
-  margin-left: -12px;
 }
 

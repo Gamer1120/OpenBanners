@@ -10,24 +10,36 @@ const escapeHtml = (value) =>
   String(value ?? "").replace(/[&<>"]/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[char]);
 
 // The prompt Michael pastes to Ember. Keep its start ("Add the OpenBanners
-// review tag") as is: the openbanners-review-tag skill triggers on it.
-export function tagPrompt(name, kind, siteUrl) {
+// review tag") as is: the openbanners-review-tag skill triggers on it. The
+// suggestion ids at the end go into the tag's fromSuggestions in
+// src/reviewTags.mjs, so the tag lands in those suggesters' reviews.
+export function tagPrompt(name, kind, siteUrl, ids = []) {
   const test = /\/\/test\./.test(siteUrl ?? "");
-  return `Add the OpenBanners review tag "${name}" (${kind}) to the ${test ? "test website" : "website"} in all languages.`;
+  const list = [...new Set(ids)].map((id) => `#${id}`);
+  const refs = list.length ? ` Suggestion${list.length > 1 ? "s" : ""} ${list.join(", ")}.` : "";
+  return `Add the OpenBanners review tag "${name}" (${kind}) to the ${test ? "test website" : "website"} in all languages.${refs}`;
 }
 
-export function renderTagSuggestion(row, siteUrl) {
+// ids: every not-yet-added suggestion of this tag (same name and kind), this one included.
+export function renderTagSuggestion(row, siteUrl, ids = [row.id]) {
   const link = row.banner_id ? `${siteUrl}/banner/${encodeURIComponent(row.banner_id)}` : null;
+  if (row.tag_id) {
+    return [
+      `🏷 <b>Review tag suggestion #${row.id}</b>`,
+      `Tag: <b>${escapeHtml(row.name)}</b> (${row.kind === "positive" ? "👍 positive" : "👎 negative"})`,
+      `✅ Added as <code>${escapeHtml(row.tag_id)}</code>${row.applied_to_review ? ", and in the suggester's review" : ""}.`,
+    ].join("\n");
+  }
   return [
-    "🏷 <b>Review tag suggestion</b>",
+    `🏷 <b>Review tag suggestion #${row.id}</b>`,
     `Tag: <b>${escapeHtml(row.name)}</b> (${row.kind === "positive" ? "👍 positive" : "👎 negative"})`,
     `From: ${escapeHtml(row.agent || "unverified agent")}`,
     `Banner: ${link ? `<a href="${escapeHtml(link)}">${escapeHtml(row.banner_title || row.banner_id)}</a>` : "none"}`,
     "",
     "To add it, tap the prompt to copy it and paste it in your chat with Ember:",
-    `<code>${escapeHtml(tagPrompt(row.name, row.kind, siteUrl))}</code>`,
+    `<code>${escapeHtml(tagPrompt(row.name, row.kind, siteUrl, ids.length ? ids : [row.id]))}</code>`,
     "",
-    "<i>Suggestions never show on the site. To skip one, do nothing.</i>",
+    "<i>Until it's added, only the suggester sees it (in their own review). To skip one, do nothing.</i>",
   ].join("\n");
 }
 
@@ -38,8 +50,9 @@ export function createTagSuggestionNotifier({ send, moderators, suggestions, sit
       return 0;
     }
     let sent = 0;
+    const idsOf = (row) => suggestions.sameTag?.(row.name, row.kind) ?? [row.id];
     for (const row of suggestions.unnotified()) {
-      const text = renderTagSuggestion(row, siteUrl);
+      const text = renderTagSuggestion(row, siteUrl, idsOf(row));
       let delivered = 0;
       for (const chatId of moderators) {
         try {
@@ -66,7 +79,7 @@ export function createTagSuggestionNotifier({ send, moderators, suggestions, sit
       return 0;
     }
     for (const row of rows) {
-      await send(chatId, renderTagSuggestion(row, siteUrl));
+      await send(chatId, renderTagSuggestion(row, siteUrl, suggestions.sameTag?.(row.name, row.kind) ?? [row.id]));
     }
     return rows.length;
   }

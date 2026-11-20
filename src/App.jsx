@@ -14,6 +14,9 @@ import ErrorBoundary from "./components/ErrorBoundary";
 // Full-screen map pages: their own chunks (Leaflet), see Home.jsx.
 const BannerGuider = lazy(() => import("./components/BannerGuider"));
 const BannerGuiderWithoutLocation = lazy(() => import("./components/BannerGuiderWithoutLocation"));
+// Walk mode mockups (test only, 2026-11-20): full screen, their own chunks.
+const WalkModePage = lazy(() => import("./components/walk/WalkModePage"));
+const WalkMockups = lazy(() => import("./components/walk/WalkMockups"));
 
 // Banner Together lives under Lists now; old (and shared invite) links keep
 // working, including the invite secret in the hash.
@@ -44,6 +47,8 @@ function App() {
           <Route exact path="/browse/" element={<Home />} />
           <Route exact path="/browse/:placeId" element={<Home />} />
           <Route path="/banner/:bannerId" element={<Home />} />
+          <Route path="/banner/:bannerId/walk" element={<WalkModePage />} />
+          <Route path="/walk-mockups" element={<WalkMockups />} />
           <Route path="/together/:placeId/live/:roomId" element={<TogetherRedirect />} />
           <Route path="/together/:placeId" element={<TogetherRedirect />} />
           <Route path="/agent/:agentName" element={<Home />} />

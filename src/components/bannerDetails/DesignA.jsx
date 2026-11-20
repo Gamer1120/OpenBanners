@@ -1,5 +1,7 @@
 import React, { useState } from "react";
-import { Place } from "@mui/icons-material";
+import { DirectionsWalk, Place } from "@mui/icons-material";
+import { Link } from "react-router-dom";
+import { isWalkPreviewHost } from "../../walkMode";
 import AboutNotice from "../AboutNotice";
 import BannerInfo from "../BannerInfo";
 import BannerImage from "../BannerImage";
@@ -94,6 +96,17 @@ export default function DesignA() {
               </section>
               <StatusAlerts d={d} />
               <ListActions d={d} />
+              {/* Walk mode mockups: test site only (not on openbanners.org). */}
+              {!d.isLoading && isWalkPreviewHost() ? (
+                <Link
+                  className="btn outlined sl"
+                  to={`/banner/${encodeURIComponent(d.items?.id ?? d.bannerId)}/walk?variant=a`}
+                  style={{ margin: "8px 0", alignSelf: "flex-start" }}
+                >
+                  <DirectionsWalk fontSize="small" />
+                  {t("Walk mode (preview)")}
+                </Link>
+              ) : null}
               <BannerNotes notes={notes} />
               <BannerInfo banner={d.items} loading={d.isLoading} variant="row" />
               <KeyNumbers

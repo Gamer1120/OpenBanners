@@ -121,7 +121,8 @@ describe("walk mode page", () => {
     expect(second).toHaveAttribute("href", buildIngressMissionUrl("m2"));
     // Mission 1 has one passphrase: no rows.
     expect(screen.queryByText("Mission 1 passphrases")).not.toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Reopen mission 1" })).toHaveAttribute("href", buildIngressMissionUrl("m1"));
+    expect(screen.queryByText(/reopen mission/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/open on intel/i)).not.toBeInTheDocument();
 
     await openAndReturn();
     expect(events.filter((event) => event[0] === "copy").map((event) => event[1])).toEqual(["fish", "lion"]);
@@ -208,7 +209,8 @@ describe("walk mode page", () => {
     expect(screen.queryByRole("link", { name: /^open mission/i })).not.toBeInTheDocument();
     expect(screen.getByText("Banner complete")).toBeInTheDocument();
     expect(screen.getByText("3 of 3 done")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Reopen mission 3" })).toBeInTheDocument();
+    expect(screen.queryByText(/reopen mission/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/open on intel/i)).not.toBeInTheDocument();
   });
 
   it("shows Navigate only when the mission starts more than 1 km away", async () => {

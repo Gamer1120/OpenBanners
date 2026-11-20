@@ -58,7 +58,6 @@ export function buildWalkMissions(missionsByPosition) {
       start,
       passphrases,
       url: mission?.id ? buildIngressMissionUrl(mission.id) : null,
-      intelUrl: mission?.id ? "https://intel.ingress.com/mission/" + mission.id : null,
     };
   });
 }

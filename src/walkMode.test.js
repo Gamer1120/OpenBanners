@@ -62,7 +62,7 @@ describe("walk missions", () => {
     ]);
     expect(missions[2].passphrases).toEqual([]);
     expect(missions[0].url).toBe(buildIngressMissionUrl("m1"));
-    expect(missions[0].intelUrl).toBe("https://intel.ingress.com/mission/m1");
+    expect(missions[0]).not.toHaveProperty("intelUrl");
   });
 
   it("answers like the Overlay: best live answer, the mission number for a number answer, a guess when unknown", () => {

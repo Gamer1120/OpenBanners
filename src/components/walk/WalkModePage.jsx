@@ -166,7 +166,6 @@ function WalkScreen({ bannerId, banner }) {
 
   const total = missions.length;
   const sub = t("{done} of {total} done", { done: String(doneCount(missions, state)), total: String(total) });
-  const intelUrl = (current ?? target)?.intelUrl ?? null;
 
   return (
     <div className="wk">
@@ -269,19 +268,6 @@ function WalkScreen({ bannerId, banner }) {
             ) : null}
           </>
         ) : null}
-
-        <footer className="wk-foot">
-          {current?.url ? (
-            <a className="wk-link" href={current.url}>
-              {t("Reopen mission {number}", { number: String(current.number) })}
-            </a>
-          ) : null}
-          {intelUrl ? (
-            <a className="wk-link dim" href={intelUrl}>
-              {t("Ingress didn't open? Open on Intel")}
-            </a>
-          ) : null}
-        </footer>
       </main>
       {menuOpen ? (
         <WalkMenu

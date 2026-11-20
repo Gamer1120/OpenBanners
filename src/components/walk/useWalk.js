@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { fetchBannergress } from "../../bannergressSync";
-import { headingFromOrientation } from "../../walkMode";
-import { isIos } from "../../pwaInstall";
+import { loadWalkState, saveWalkState } from "../../walkMode";
 
 // The banner from Bannergress, like the banner page (signed in when possible).
 export function useWalkBanner(bannerId) {
@@ -31,148 +30,149 @@ export function useWalkBanner(bannerId) {
   return { ...state, retry: () => setReload((value) => value + 1) };
 }
 
-// Real GPS: watchPosition with high accuracy (a 40 m range needs GPS, not Wi-Fi).
-export function useGpsPosition(enabled) {
-  const [state, setState] = useState({ position: null, accuracy: null, error: "" });
+// The walk state of a banner. Every change is written to localStorage at once
+// (before the next render), and the saved state is read again whenever the
+// page comes back (pageshow: back/forward cache or reload; visibilitychange:
+// back from the Ingress app).
+export function useWalkState(bannerId, onReturn) {
+  const [state, setStateRaw] = useState(() => loadWalkState(bannerId));
+  const stateRef = useRef(state);
+  const onReturnRef = useRef(onReturn);
+  onReturnRef.current = onReturn;
+
+  const setState = useCallback(
+    (update) => {
+      const next = typeof update === "function" ? update(stateRef.current) : update;
+      if (next !== stateRef.current) {
+        stateRef.current = next;
+        saveWalkState(bannerId, next);
+        setStateRaw(next);
+      }
+      return next;
+    },
+    [bannerId]
+  );
+
+  useEffect(() => {
+    const reload = () => {
+      const saved = loadWalkState(bannerId);
+      stateRef.current = saved;
+      setStateRaw(saved);
+      onReturnRef.current?.();
+    };
+    reload();
+    const onVisible = () => document.visibilityState === "visible" && reload();
+    window.addEventListener("pageshow", reload);
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      window.removeEventListener("pageshow", reload);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
+  }, [bannerId]);
+
+  return [state, setState, stateRef];
+}
+
+// Remembered after the first allowed position, for browsers without the
+// Permissions API (so they aren't asked on every visit before the tap).
+const LOCATION_ALLOWED_KEY = "openbanners-walk-location";
+
+function rememberAllowed(allowed) {
+  try {
+    if (allowed) {
+      window.localStorage.setItem(LOCATION_ALLOWED_KEY, "1");
+    } else {
+      window.localStorage.removeItem(LOCATION_ALLOWED_KEY);
+    }
+  } catch {
+    // Not kept: the "Show distance" link asks again next time.
+  }
+}
+
+function wasAllowed() {
+  try {
+    return window.localStorage.getItem(LOCATION_ALLOWED_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+
+// Where you are, read ONCE each time the page becomes visible
+// (getCurrentPosition, no watch), and only when location is already allowed.
+// Otherwise status "ask": the page offers a small "Show distance" link,
+// which calls ask() (the browser's prompt, once). status: idle | ask |
+// locating | ok | denied | unavailable | unsupported.
+export function useOncePosition(enabled) {
+  const [state, setState] = useState({ position: null, status: "idle" });
+  const busy = useRef(false);
+
+  const locate = useCallback(() => {
+    if (typeof navigator === "undefined" || !navigator.geolocation || busy.current) {
+      return;
+    }
+    busy.current = true;
+    setState((current) => (current.position ? current : { ...current, status: "locating" }));
+    navigator.geolocation.getCurrentPosition(
+      (result) => {
+        busy.current = false;
+        rememberAllowed(true);
+        setState({ position: { latitude: result.coords.latitude, longitude: result.coords.longitude }, status: "ok" });
+      },
+      (error) => {
+        busy.current = false;
+        if (error?.code === 1) {
+          rememberAllowed(false);
+        }
+        setState((current) => ({
+          ...current,
+          status: error?.code === 1 ? "denied" : current.position ? "ok" : "unavailable",
+        }));
+      },
+      { enableHighAccuracy: false, maximumAge: 60000, timeout: 15000 }
+    );
+  }, []);
 
   useEffect(() => {
     if (!enabled) {
       return undefined;
     }
     if (!navigator.geolocation) {
-      setState({ position: null, accuracy: null, error: "unsupported" });
+      setState({ position: null, status: "unsupported" });
       return undefined;
     }
-    const id = navigator.geolocation.watchPosition(
-      (result) =>
-        setState({
-          position: { latitude: result.coords.latitude, longitude: result.coords.longitude },
-          accuracy: result.coords.accuracy,
-          error: "",
-        }),
-      (error) => setState((current) => ({ ...current, error: error.code === 1 ? "denied" : "unavailable" })),
-      { enableHighAccuracy: true, maximumAge: 2000, timeout: 20000 }
-    );
-    return () => navigator.geolocation.clearWatch(id);
-  }, [enabled]);
-
-  return state;
-}
-
-// The phone's compass. iOS 13+ needs a tap to ask permission
-// (DeviceOrientationEvent.requestPermission); Chrome on Android sends
-// deviceorientationabsolute without asking. No heading after a few seconds:
-// "unavailable" (desktop, or no magnetometer), and the arrow points north-up.
-export function useCompass() {
-  // Only Safari asks; Chrome (which also has requestPermission now) sends
-  // the events without it.
-  const needsPermission =
-    typeof window !== "undefined" &&
-    isIos() &&
-    typeof window.DeviceOrientationEvent !== "undefined" &&
-    typeof window.DeviceOrientationEvent.requestPermission === "function";
-  const [status, setStatus] = useState(needsPermission ? "needsPermission" : "starting");
-  const [heading, setHeading] = useState(null);
-  const listening = useRef(false);
-
-  const listen = useCallback(() => {
-    if (listening.current || typeof window === "undefined") {
-      return () => {};
-    }
-    listening.current = true;
-    const eventName = "ondeviceorientationabsolute" in window ? "deviceorientationabsolute" : "deviceorientation";
-    let got = false;
-    const onOrientation = (event) => {
-      const angle = window.screen?.orientation?.angle ?? Number(window.orientation) ?? 0;
-      const value = headingFromOrientation(event, Number.isFinite(angle) ? angle : 0);
-      if (value !== null) {
-        got = true;
-        setHeading(value);
-        setStatus("active");
+    let cancelled = false;
+    const check = async () => {
+      if (document.visibilityState === "hidden") {
+        return;
       }
-    };
-    window.addEventListener(eventName, onOrientation);
-    const timer = window.setTimeout(() => {
-      if (!got) {
-        setStatus("unavailable");
+      let permission = null;
+      try {
+        permission = (await navigator.permissions?.query?.({ name: "geolocation" }))?.state ?? null;
+      } catch {
+        permission = null;
       }
-    }, 3000);
-    return () => {
-      window.clearTimeout(timer);
-      window.removeEventListener(eventName, onOrientation);
-      listening.current = false;
-    };
-  }, []);
-
-  useEffect(() => {
-    if (needsPermission) {
-      return undefined;
-    }
-    return listen();
-  }, [needsPermission, listen]);
-
-  const stopRef = useRef(null);
-  useEffect(() => () => stopRef.current?.(), []);
-
-  // From a tap (iOS only allows the prompt from a user gesture).
-  const requestPermission = useCallback(async () => {
-    try {
-      const answer = await window.DeviceOrientationEvent.requestPermission();
-      if (answer === "granted") {
-        setStatus("starting");
-        stopRef.current = listen();
+      if (cancelled) {
+        return;
+      }
+      if (permission === "granted" || (permission === null && wasAllowed())) {
+        locate();
+      } else if (permission === "denied") {
+        setState((current) => ({ ...current, status: "denied" }));
       } else {
-        setStatus("denied");
+        setState((current) => (current.position ? current : { ...current, status: "ask" }));
       }
-    } catch {
-      setStatus("unavailable");
-    }
-  }, [listen]);
-
-  return { heading: status === "active" ? heading : null, status, requestPermission };
-}
-
-// Keeps the screen on while walking (Screen Wake Lock API: Chrome 84+,
-// Safari 16.4+). The lock is dropped whenever the page is hidden, so it's
-// asked again when the page comes back.
-export function useWakeLock(enabled = true) {
-  const [status, setStatus] = useState(
-    typeof navigator !== "undefined" && navigator.wakeLock ? "off" : "unsupported"
-  );
-  const lock = useRef(null);
-
-  const request = useCallback(async () => {
-    if (!navigator.wakeLock || document.visibilityState !== "visible") {
-      return;
-    }
-    try {
-      lock.current = await navigator.wakeLock.request("screen");
-      setStatus("on");
-      lock.current.addEventListener?.("release", () => setStatus((current) => (current === "on" ? "off" : current)));
-    } catch {
-      setStatus("off");
-    }
-  }, []);
-
-  useEffect(() => {
-    if (!enabled || !navigator.wakeLock) {
-      return undefined;
-    }
-    request();
-    const onVisible = () => document.visibilityState === "visible" && request();
-    // Safari may want a user gesture: try again on the first tap.
-    const onTap = () => lock.current?.released !== false && request();
-    document.addEventListener("visibilitychange", onVisible);
-    document.addEventListener("pointerup", onTap);
-    return () => {
-      document.removeEventListener("visibilitychange", onVisible);
-      document.removeEventListener("pointerup", onTap);
-      lock.current?.release?.().catch?.(() => {});
-      lock.current = null;
     };
-  }, [enabled, request]);
+    check();
+    document.addEventListener("visibilitychange", check);
+    window.addEventListener("pageshow", check);
+    return () => {
+      cancelled = true;
+      document.removeEventListener("visibilitychange", check);
+      window.removeEventListener("pageshow", check);
+    };
+  }, [enabled, locate]);
 
-  return status;
+  return { ...state, ask: locate };
 }
 
 // Lets the walk page draw under the iPhone notch / home indicator (it pads
@@ -190,19 +190,4 @@ export function useViewportCover() {
     }
     return () => meta.setAttribute("content", before);
   }, []);
-}
-
-// An angle that turns the short way: 350° → 10° goes +20°, not -340°.
-export function useContinuousAngle(angle) {
-  const last = useRef(null);
-  if (!Number.isFinite(angle)) {
-    return last.current ?? 0;
-  }
-  if (last.current === null) {
-    last.current = angle;
-  } else {
-    const delta = ((angle - last.current + 540) % 360) - 180;
-    last.current += delta;
-  }
-  return last.current;
 }

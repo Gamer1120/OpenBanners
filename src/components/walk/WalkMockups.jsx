@@ -3,9 +3,9 @@ import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { fetchBannergress } from "../../bannergressSync";
 import { formatLength } from "../../bannerDisplay";
 import BannerImage from "../BannerImage";
-import { DEFAULT_WALK_BANNER, WALK_PROGRESS_PREFIX } from "../../walkMode";
+import { DEFAULT_WALK_BANNER } from "../../walkMode";
 import { useViewportCover } from "./useWalk";
-import { t, tk, tn } from "../../i18n";
+import { t, tn } from "../../i18n";
 import "./walk.css";
 
 // A banner id from what was typed: an id, or an OpenBanners/Bannergress link.
@@ -16,23 +16,7 @@ export function parseBannerInput(value) {
   return /^[\w%.~-]{1,200}$/u.test(id) ? id : "";
 }
 
-const VARIANTS = [
-  {
-    id: "a",
-    name: tk("Big arrow"),
-    text: tk("One big card: a large compass arrow and distance to the next waypoint, its name and what to do there, with big Copy passphrase / Navigate / Mark done buttons."),
-  },
-  {
-    id: "b",
-    name: tk("Map"),
-    text: tk("Map first: the route on a full-screen map with you on it, and a bottom sheet with the next waypoint (tap the handle to see the mission's steps)."),
-  },
-  {
-    id: "c",
-    name: tk("Steps list"),
-    text: tk("The current mission as a list of steps: done ones ticked off, the next one opened with its arrow and buttons, the others with their distance."),
-  },
-];
+export const walkLink = (bannerId) => "/banner/" + encodeURIComponent(bannerId) + "/walk";
 
 export default function WalkMockups() {
   useViewportCover();
@@ -76,15 +60,6 @@ export default function WalkMockups() {
     }
   };
 
-  let saved = 0;
-  try {
-    saved = JSON.parse(window.localStorage.getItem(WALK_PROGRESS_PREFIX + bannerId) || "null")?.done?.length ?? 0;
-  } catch {
-    saved = 0;
-  }
-
-  const walkLink = (variant) => "/banner/" + encodeURIComponent(bannerId) + "/walk?variant=" + variant;
-
   return (
     <div className="wk wk-index">
       <header className="wk-top">
@@ -96,16 +71,16 @@ export default function WalkMockups() {
           <span className="wk-top-sub">{t("Preview on test.openbanners.org only")}</span>
         </div>
       </header>
-      <div className="wk-body wk-index-body">
+      <div className="wk-index-body">
         <p className="wk-lead">
-          {t("Walk mode is meant for iPhone players: iOS can't show the Overlay over Ingress, so you walk the banner with this page open (best added to the Home Screen) and switch to Ingress for each mission. It works the same in Chrome on Android.")}
+          {t("For walking a banner with Ingress open: one big button opens the next mission in Ingress and copies its passphrase in the same tap. Switch back here after each mission.")}
         </p>
 
         <form className="wk-pick" onSubmit={submit}>
           <label htmlFor="wk-banner">{t("Banner (id or link)")}</label>
           <div className="wk-pick-row">
             <input id="wk-banner" value={input} onChange={(event) => setInput(event.target.value)} autoComplete="off" autoCapitalize="off" spellCheck="false" />
-            <button type="submit" className="wk-btn small primary">
+            <button type="submit" className="wk-small-btn">
               {t("Use")}
             </button>
           </div>
@@ -122,7 +97,6 @@ export default function WalkMockups() {
                 <span>
                   {banner.data.formattedAddress} · {formatLength(banner.data.lengthMeters)} · {tn("{count} mission", "{count} missions", banner.data.numberOfMissions)}
                 </span>
-                {saved ? <span>{t("Saved progress on this device: {count} waypoints", { count: String(saved) })}</span> : null}
               </div>
             </>
           ) : banner.status === "loading" ? (
@@ -132,30 +106,15 @@ export default function WalkMockups() {
           )}
         </div>
 
-        <ul className="wk-index-list">
-          {VARIANTS.map((variant) => (
-            <li key={variant.id}>
-              <Link className="wk-index-card" to={walkLink(variant.id)}>
-                <span className="wk-index-letter">{variant.id.toUpperCase()}</span>
-                <span>
-                  <strong>{variant.id.toUpperCase()} · {t(variant.name)}</strong>
-                  <span>{t(variant.text)}</span>
-                </span>
-              </Link>
-            </li>
-          ))}
-        </ul>
+        <Link className="wk-index-open" to={walkLink(bannerId)}>
+          {t("Open walk mode")}
+        </Link>
 
         <h2 className="wk-h2">{t("What to try")}</h2>
         <ul className="wk-tips">
-          <li>{t("“Simulate walking (demo)” at the bottom moves a fake position along the route; waypoints tick off within 40 m, like the Overlay.")}</li>
-          <li>{t("“Use real GPS” uses your real position (the arrow follows your phone's compass when it has one).")}</li>
-          <li>{t("Progress is kept on this device per banner; Undo and Reset progress are at the bottom.")}</li>
-          <li>{t("The A / B / C buttons at the top switch between the designs and keep your progress.")}</li>
-          <li>
-            {t("To see the iPhone “Add to Home Screen” hint on Android, open a design with &hint=ios:")}{" "}
-            <Link to={walkLink("a") + "&hint=ios"}>{t("design A with the hint")}</Link>
-          </li>
+          <li>{t("Tap “Open mission 1”: the passphrase is copied and Ingress opens the mission.")}</li>
+          <li>{t("Switch back: the button now opens the next mission. A mission with more than one passphrase shows its answers to copy.")}</li>
+          <li>{t("The ⋯ menu picks another mission, undoes the last step or resets the banner.")}</li>
         </ul>
         <p className="wk-note">
           <Link to={"/banner/" + encodeURIComponent(bannerId)}>{t("Open the banner page")}</Link>

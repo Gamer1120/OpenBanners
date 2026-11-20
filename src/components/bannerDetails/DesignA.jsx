@@ -100,7 +100,7 @@ export default function DesignA() {
               {!d.isLoading && isWalkPreviewHost() ? (
                 <Link
                   className="btn outlined sl"
-                  to={`/banner/${encodeURIComponent(d.items?.id ?? d.bannerId)}/walk?variant=a`}
+                  to={`/banner/${encodeURIComponent(d.items?.id ?? d.bannerId)}/walk`}
                   style={{ margin: "8px 0", alignSelf: "flex-start" }}
                 >
                   <DirectionsWalk fontSize="small" />

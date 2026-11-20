@@ -180,6 +180,9 @@
 .wk-row.unknown .wk-link {
   grid-area: action;
 }
+.wk-row.pending {
+  cursor: default;
+}
 
 /* − / + above the big button: which mission it opens */
 .wk-step {
@@ -316,6 +319,13 @@
   font-size: 15px;
   text-decoration: none;
   cursor: pointer;
+}
+/* Under the big button: the guess (answer unknown) or empty; always this high. */
+.wk-guess-slot {
+  flex: none;
+  display: flex;
+  justify-content: center;
+  min-height: 36px;
 }
 .wk-link.small {
   font-size: 14px;

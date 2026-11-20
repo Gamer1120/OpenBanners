@@ -14,12 +14,14 @@ import {
   missionPassphrases,
   navigateTarget,
   openMissionTap,
+  PASSPHRASE_WAIT_MS,
   passphraseToCopy,
   saveWalkState,
   stepTarget,
   targetMissionIndex,
   undoWalk,
   writeClipboard,
+  writeClipboardLater,
 } from "../../walkMode";
 import { useOncePosition, useViewportCover, useWalkBanner, useWalkState } from "./useWalk";
 import { t } from "../../i18n";
@@ -107,6 +109,27 @@ function WalkScreen({ bannerId, banner }) {
 
   const hasPassphrases = missions.some((mission) => mission.passphrases.length > 0);
   const answers = useBannerPassphrases(bannerId, hasPassphrases);
+  // Answers not here yet (also the first render, before the request starts):
+  // nothing passphrase-related is shown, so no "unknown" or guess flashes up
+  // on a reload. A failed request counts as loaded (unknown).
+  const answersPending = hasPassphrases && answers.status !== "error" && !answers.data;
+  const answersRef = useRef(answers);
+  answersRef.current = answers;
+  const answerWaiters = useRef([]);
+  useEffect(() => {
+    if (answersPending) {
+      return;
+    }
+    const waiters = answerWaiters.current;
+    answerWaiters.current = [];
+    waiters.forEach((resolve) => resolve(answersRef.current));
+  }, [answersPending, answers.status, answers.data]);
+  // The answers once loaded, or null after timeoutMs.
+  const waitForAnswers = (timeoutMs) =>
+    new Promise((resolve) => {
+      answerWaiters.current.push(resolve);
+      window.setTimeout(() => resolve(null), timeoutMs);
+    });
 
   const targetIndex = targetMissionIndex(missions, state);
   const target = missions[targetIndex] ?? null;
@@ -137,18 +160,28 @@ function WalkScreen({ bannerId, banner }) {
       return;
     }
     openingRef.current = true;
+    // Tapped before the answers are here: wait for them (at most
+    // PASSPHRASE_WAIT_MS), copy the real answer, never the guess.
+    const tapTarget = target;
+    const waitForPassphrases = answersPending
+      ? waitForAnswers(PASSPHRASE_WAIT_MS).then((loaded) =>
+          loaded ? missionPassphrases(tapTarget, loaded.byStep, loaded.blocked) : null
+        )
+      : null;
     const passphrase = passphraseToCopy(targetPassphrases);
-    setOpening({ number: target.number, copied: null, copying: Boolean(passphrase) });
+    setOpening({ number: target.number, copied: null, copying: Boolean(passphrase), waiting: Boolean(waitForPassphrases) });
     const result = await openMissionTap({
       missions,
       state: stateRef.current,
       index: targetIndex,
       passphrases: targetPassphrases,
+      waitForPassphrases,
       writeClipboard: (text) => writeClipboard(text),
+      writeClipboardLater: (text) => writeClipboardLater(text),
       save: (next) => saveWalkState(bannerId, next),
       navigate: (url) => walkNavigation.go(url),
     });
-    setOpening({ number: target.number, copied: result.copied, copying: false });
+    setOpening({ number: target.number, copied: result.copied, copying: false, waiting: false });
     // Still here a while later (the browser didn't leave): show the new state.
     window.setTimeout(() => {
       if (openingRef.current) {
@@ -179,6 +212,17 @@ function WalkScreen({ bannerId, banner }) {
                 const key = current.id + ":" + row.stepIndex;
                 const name = row.title || t("Passphrase {number}", { number: String(row.order + 1) });
                 const rowCopied = copied?.key === key ? copied : null;
+                if (answersPending) {
+                  // Same size as a loaded row, nothing in it yet.
+                  return (
+                    <li key={key} className="wk-row pending">
+                      <span className="wk-row-name">{name}</span>
+                      <span className="wk-row-answer" aria-hidden="true">
+                        {"\u00a0"}
+                      </span>
+                    </li>
+                  );
+                }
                 if (!row.known) {
                   const guessKey = key + ":guess";
                   const guessCopied = copied?.key === guessKey ? copied : null;
@@ -253,10 +297,15 @@ function WalkScreen({ bannerId, banner }) {
               <span className="wk-open-label">{t("Open mission {number}", { number: String(target.number) })}</span>
               <span className="wk-open-title">{target.title}</span>
               <span className="wk-open-hint" id="wk-open-hint" aria-live="polite">
-                <OpenHint passphrases={targetPassphrases} opening={opening} loading={answers.status === "loading"} />
+                <OpenHint passphrases={targetPassphrases} opening={opening} pending={answersPending} />
               </span>
             </a>
-            <GuessButton passphrases={targetPassphrases} copied={copied} onCopy={copyRow} missionId={target.id} />
+            {/* Always there (fixed height), so the big button doesn't change size when the guess appears. */}
+            <div className="wk-guess-slot">
+              {answersPending ? null : (
+                <GuessButton passphrases={targetPassphrases} copied={copied} onCopy={copyRow} missionId={target.id} />
+              )}
+            </div>
             {navigate ? (
               <a className="wk-nav" href={isIos() ? appleDirectionsUrl(navigate.start) : googleDirectionsUrl(navigate.start)}>
                 <span aria-hidden="true">➤</span> {t("Navigate · {distance}", { distance: formatLength(navigate.distance) })}
@@ -291,8 +340,11 @@ function WalkScreen({ bannerId, banner }) {
 }
 
 // The line under "Open mission N": what the tap copies.
-function OpenHint({ passphrases, opening, loading }) {
+function OpenHint({ passphrases, opening, pending }) {
   if (opening) {
+    if (opening.waiting) {
+      return t("Loading passphrases…");
+    }
     if (opening.copying) {
       return t("Copying passphrase…");
     }
@@ -301,8 +353,9 @@ function OpenHint({ passphrases, opening, loading }) {
   if (!passphrases.length) {
     return null;
   }
-  if (loading) {
-    return t("Loading passphrases…");
+  if (pending) {
+    // Keeps the line's height; the real hint (or "unknown") replaces it once loaded.
+    return "\u00a0";
   }
   if (!passphrases[0].known) {
     return t("Passphrase answer unknown");

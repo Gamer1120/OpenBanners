@@ -18,6 +18,7 @@ import {
   targetMissionIndex,
   undoWalk,
   writeClipboard,
+  writeClipboardLater,
   WALK_STATE_PREFIX,
 } from "./walkMode";
 import { buildIngressMissionUrl } from "./bannerDisplay";
@@ -243,6 +244,67 @@ describe("writeClipboard", () => {
   it("resolves true once written", async () => {
     Object.defineProperty(navigator, "clipboard", { value: { writeText: vi.fn(() => Promise.resolve()) }, configurable: true });
     await expect(writeClipboard("fish")).resolves.toBe(true);
+  });
+});
+
+describe("writeClipboardLater (tap before the answers loaded)", () => {
+  const original = navigator.clipboard;
+  const hadItem = "ClipboardItem" in globalThis;
+  const originalItem = globalThis.ClipboardItem;
+  afterEach(() => {
+    Object.defineProperty(navigator, "clipboard", { value: original, configurable: true });
+    if (hadItem) {
+      globalThis.ClipboardItem = originalItem;
+    } else {
+      delete globalThis.ClipboardItem;
+    }
+  });
+
+  function fakeClipboardItem() {
+    globalThis.ClipboardItem = class {
+      constructor(items) {
+        this.items = items;
+      }
+    };
+    const written = [];
+    const write = vi.fn(async ([item]) => {
+      const blob = await item.items["text/plain"];
+      // jsdom's Blob has no text(): read it the old way.
+      const text = await new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.readAsText(blob);
+      });
+      written.push(text);
+    });
+    const writeText = vi.fn(() => Promise.reject(new Error("not allowed")));
+    Object.defineProperty(navigator, "clipboard", { value: { write, writeText }, configurable: true });
+    return { write, writeText, written };
+  }
+
+  it("starts the write inside the tap with a promised blob, and writes the text when it arrives", async () => {
+    const { write, written } = fakeClipboardItem();
+    let resolveText;
+    const result = writeClipboardLater(new Promise((resolve) => (resolveText = resolve)));
+    expect(write).toHaveBeenCalledTimes(1);
+    resolveText("fish");
+    await expect(result).resolves.toBe(true);
+    expect(written).toEqual(["fish"]);
+  });
+
+  it("copies nothing when the answer is unknown (null)", async () => {
+    const { written, writeText } = fakeClipboardItem();
+    await expect(writeClipboardLater(Promise.resolve(null))).resolves.toBe(false);
+    expect(written).toEqual([]);
+    expect(writeText).not.toHaveBeenCalled();
+  });
+
+  it("without ClipboardItem: writeText once the text is there", async () => {
+    delete globalThis.ClipboardItem;
+    const writeText = vi.fn(() => Promise.resolve());
+    Object.defineProperty(navigator, "clipboard", { value: { writeText }, configurable: true });
+    await expect(writeClipboardLater(Promise.resolve("lion"))).resolves.toBe(true);
+    expect(writeText).toHaveBeenCalledWith("lion");
   });
 });
 

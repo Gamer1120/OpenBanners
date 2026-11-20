@@ -1,5 +1,5 @@
 import React from "react";
-import { act, fireEvent, render, screen, within } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { buildIngressMissionUrl } from "../../bannerDisplay";
@@ -31,16 +31,34 @@ vi.mock("../../bannergressSync", () => ({
   fetchBannergress: vi.fn(() => Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve(BANNER) })),
 }));
 
-vi.mock("../../passphraseApi", () => ({
-  useBannerPassphrases: () => {
-    const byStep = new Map();
-    for (const answer of ANSWERS) {
-      const key = answer.missionId + ":" + answer.stepIndex;
-      byStep.set(key, [...(byStep.get(key) ?? []), answer]);
-    }
-    return { status: "ready", byStep, blocked: null };
-  },
-}));
+// What useBannerPassphrases returns; setAnswers() changes it for every mounted page.
+const answerStore = vi.hoisted(() => ({ state: null, listeners: new Set() }));
+const READY = () => ({ status: "ready", answers: ANSWERS });
+function setAnswers(next) {
+  answerStore.state = next;
+  answerStore.listeners.forEach((listener) => listener());
+}
+
+vi.mock("../../passphraseApi", async () => {
+  const { useEffect, useReducer } = await import("react");
+  return {
+    useBannerPassphrases: () => {
+      const [, rerender] = useReducer((count) => count + 1, 0);
+      useEffect(() => {
+        answerStore.listeners.add(rerender);
+        return () => answerStore.listeners.delete(rerender);
+      }, []);
+      const { status, answers } = answerStore.state;
+      const data = status === "ready" ? { answers } : null;
+      const byStep = new Map();
+      for (const answer of data?.answers ?? []) {
+        const key = answer.missionId + ":" + answer.stepIndex;
+        byStep.set(key, [...(byStep.get(key) ?? []), answer]);
+      }
+      return { status, data, byStep, blocked: null };
+    },
+  };
+});
 
 const { default: WalkModePage, walkNavigation } = await import("./WalkModePage");
 
@@ -91,6 +109,7 @@ async function openAndReturn() {
 describe("walk mode page", () => {
   beforeEach(() => {
     window.localStorage.clear();
+    answerStore.state = READY();
     events = [];
     setClipboard();
     setPosition(52, 4);
@@ -224,6 +243,104 @@ describe("walk mode page", () => {
     await renderWalk();
     const navigate = await screen.findByRole("link", { name: /navigate · 2\.3 km/i });
     expect(navigate.getAttribute("href")).toContain("google.com/maps/dir/?api=1&destination=52,4&travelmode=walking");
+  });
+
+  describe("while the passphrase answers are still loading", () => {
+    const passphraseText = /\(guess\)|unknown|copies (the )?passphrase|loading passphrases/i;
+
+    it("shows nothing about the passphrase, then the hint once the answer is there (no guess)", async () => {
+      answerStore.state = { status: "loading" };
+      const button = await renderWalk();
+      expect(button).toHaveTextContent("Open mission 1");
+      expect(document.body.textContent).not.toMatch(passphraseText);
+      // The hint line and the slot under the button keep their place.
+      expect(button.querySelector(".wk-open-hint").textContent).toBe("\u00a0");
+      expect(document.querySelector(".wk-guess-slot")).toBeInTheDocument();
+
+      act(() => setAnswers(READY()));
+      expect(button).toHaveTextContent("Copies the passphrase");
+      expect(document.body.textContent).not.toMatch(/\(guess\)|unknown/i);
+    });
+
+    it("shows unknown + the guess only once loading has finished without an answer", async () => {
+      answerStore.state = { status: "loading" };
+      await renderWalk();
+      expect(document.body.textContent).not.toMatch(passphraseText);
+      act(() => setAnswers({ status: "ready", answers: [] }));
+      expect(screen.getByText("Passphrase answer unknown")).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Copy 1 (guess)" })).toBeInTheDocument();
+    });
+
+    it("treats a failed request as unknown, after it failed", async () => {
+      answerStore.state = { status: "loading" };
+      await renderWalk();
+      expect(screen.queryByRole("button", { name: /guess/ })).not.toBeInTheDocument();
+      act(() => setAnswers({ status: "error" }));
+      expect(screen.getByText("Passphrase answer unknown")).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Copy 1 (guess)" })).toBeInTheDocument();
+    });
+
+    it("a tap waits for the answers and copies the real one", async () => {
+      answerStore.state = { status: "loading" };
+      const button = await renderWalk();
+      await act(async () => {
+        fireEvent.click(button);
+        await new Promise((resolve) => setTimeout(resolve, 50));
+      });
+      expect(events).toEqual([]);
+      await act(async () => {
+        setAnswers(READY());
+        await new Promise((resolve) => setTimeout(resolve, 20));
+      });
+      expect(events).toEqual([
+        ["copy", "fish"],
+        ["navigate", buildIngressMissionUrl("m1")],
+      ]);
+    });
+
+    it("a tap copies nothing (no guess) when the answer turns out unknown or doesn't come", async () => {
+      answerStore.state = { status: "loading" };
+      const button = await renderWalk();
+      await act(async () => {
+        fireEvent.click(button);
+        await new Promise((resolve) => setTimeout(resolve, 20));
+        setAnswers({ status: "ready", answers: [] });
+        await new Promise((resolve) => setTimeout(resolve, 20));
+      });
+      expect(events).toEqual([["navigate", buildIngressMissionUrl("m1")]]);
+    });
+
+    it("a tap gives up waiting after a second and opens the mission without copying", async () => {
+      answerStore.state = { status: "loading" };
+      const button = await renderWalk();
+      await act(async () => {
+        fireEvent.click(button);
+        await new Promise((resolve) => setTimeout(resolve, 900));
+      });
+      expect(events).toEqual([]);
+      await act(async () => {
+        await new Promise((resolve) => setTimeout(resolve, 200));
+      });
+      expect(events).toEqual([["navigate", buildIngressMissionUrl("m1")]]);
+    });
+
+    it("the rows of a mission with 2+ passphrases show no unknown or guess until loaded", async () => {
+      await renderWalk();
+      await openAndReturn();
+      await openAndReturn();
+      cleanup();
+      answerStore.state = { status: "loading" };
+      await renderWalk();
+      const rows = screen.getByRole("region", { name: "Mission 2 passphrases" });
+      expect(within(rows).getByText("Statue")).toBeInTheDocument();
+      expect(within(rows).getByText("Plaque")).toBeInTheDocument();
+      expect(rows.textContent).not.toMatch(/unknown|guess|lion/i);
+      expect(within(rows).queryByRole("button")).not.toBeInTheDocument();
+      act(() => setAnswers(READY()));
+      expect(within(rows).getByText("lion")).toBeInTheDocument();
+      expect(within(rows).getByText("Answer unknown")).toBeInTheDocument();
+      expect(within(rows).getByRole("button", { name: "Copy 2 (guess)" })).toBeInTheDocument();
+    });
   });
 
   it("asks for the location only from the Show distance link", async () => {

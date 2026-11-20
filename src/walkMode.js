@@ -17,6 +17,8 @@ export const DEFAULT_WALK_BANNER = "riddle-me-this-7592";
 export const NAVIGATE_MIN_METERS = 1000;
 // How long a tap waits for the clipboard before it opens Ingress anyway.
 export const CLIPBOARD_TIMEOUT_MS = 600;
+// A tap before the passphrase answers have loaded waits this long for them.
+export const PASSPHRASE_WAIT_MS = 1000;
 const HISTORY_LIMIT = 30;
 
 export const stepKey = (missionId, stepIndex) => missionId + ":" + stepIndex;
@@ -250,16 +252,44 @@ export function saveWalkState(bannerId, state) {
 // state, (3) wait for the clipboard (writeClipboard gives up after
 // CLIPBOARD_TIMEOUT_MS), (4) go to the Ingress link in the same tab.
 // Returns { state, copied } (copied = the text, or null).
-export async function openMissionTap({ missions, state, index, passphrases, writeClipboard: write, save, navigate }) {
+//
+// Tapped before the passphrase answers have loaded: pass `waitForPassphrases`
+// (a promise of the mission's passphrases once loaded, or null when they
+// didn't arrive in time) instead of `passphrases`, plus `writeClipboardLater`.
+// The clipboard write is still started inside the tap (Safari only allows
+// it there) with the text to follow; nothing is copied when the answer turns
+// out unknown or doesn't arrive (never the guess).
+export async function openMissionTap({
+  missions,
+  state,
+  index,
+  passphrases,
+  waitForPassphrases = null,
+  writeClipboard: write,
+  writeClipboardLater: writeLater = writeClipboardLater,
+  save,
+  navigate,
+}) {
   const mission = missions[index];
   if (!mission?.url) {
     return { state, copied: null };
   }
-  const text = passphraseToCopy(passphrases);
-  const copying = text ? write(text) : null;
+  let copying = null;
+  let pendingText = null;
+  if (waitForPassphrases) {
+    pendingText = Promise.resolve(waitForPassphrases).then(
+      (loaded) => passphraseToCopy(loaded),
+      () => null
+    );
+    copying = writeLater(pendingText);
+  } else {
+    const text = passphraseToCopy(passphrases);
+    pendingText = Promise.resolve(text);
+    copying = text ? write(text) : null;
+  }
   const next = openMission(missions, state, index);
   save(next);
-  const copied = copying && (await copying) ? text : null;
+  const copied = copying && (await copying) ? await pendingText : null;
   navigate(mission.url);
   return { state: next, copied };
 }
@@ -301,6 +331,43 @@ export function writeClipboard(text, timeoutMs = CLIPBOARD_TIMEOUT_MS) {
     ),
     new Promise((resolve) => setTimeout(() => resolve(false), timeoutMs)),
   ]);
+}
+
+// The same, for a text that is still on its way (a promise of the text, or of
+// null = copy nothing). Where the browser has ClipboardItem, the write starts
+// now, inside the tap, with a promised blob (Safari's way to keep the user
+// activation across a wait); otherwise (or when that write is refused) the
+// text is written once it is there. Resolves true/false after at most
+// waitMs + timeoutMs.
+export function writeClipboardLater(textPromise, waitMs = PASSPHRASE_WAIT_MS, timeoutMs = CLIPBOARD_TIMEOUT_MS) {
+  const text = Promise.resolve(textPromise).then(
+    (value) => (typeof value === "string" && value ? value : null),
+    () => null
+  );
+  const plainWrite = () => text.then((value) => (value ? writeClipboard(value, timeoutMs) : false));
+  let writing = null;
+  try {
+    if (typeof ClipboardItem === "function" && navigator.clipboard?.write) {
+      const blob = text.then((value) => {
+        if (!value) {
+          throw new Error("No passphrase to copy");
+        }
+        return new Blob([value], { type: "text/plain" });
+      });
+      blob.catch(() => {});
+      writing = navigator.clipboard.write([new ClipboardItem({ "text/plain": blob })]);
+    }
+  } catch {
+    writing = null;
+  }
+  const done = writing
+    ? Promise.resolve(writing).then(
+        () => text.then((value) => Boolean(value)),
+        // Refused (or nothing to copy): try the plain way once the text is there.
+        () => plainWrite()
+      )
+    : plainWrite();
+  return Promise.race([done, new Promise((resolve) => setTimeout(() => resolve(false), waitMs + timeoutMs))]);
 }
 
 // ---------------------------------------------------------------------------

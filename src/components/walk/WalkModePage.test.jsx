@@ -232,6 +232,53 @@ describe("walk mode page", () => {
     expect(screen.queryByText(/open on intel/i)).not.toBeInTheDocument();
   });
 
+  it("keeps − / + on the complete screen: − brings back Open mission N, + returns to complete", async () => {
+    await renderWalk();
+    await openAndReturn();
+    await openAndReturn();
+    await openAndReturn();
+    events.length = 0;
+    const minus = screen.getByRole("button", { name: "Previous mission" });
+    const plus = screen.getByRole("button", { name: "Next mission" });
+    // Same place as on the normal screen: directly above the card that replaces the big button.
+    expect(minus.parentElement.nextElementSibling).toBe(screen.getByRole("status"));
+    expect(screen.getByRole("status")).toHaveTextContent("Banner complete");
+    expect(minus).not.toBeDisabled();
+    expect(plus).toBeDisabled();
+
+    fireEvent.click(minus);
+    let big = screen.getByRole("link", { name: /^open mission/i });
+    expect(big).toHaveTextContent("Open mission 3");
+    expect(minus.parentElement.nextElementSibling).toBe(big);
+    expect(screen.queryByText("Banner complete")).not.toBeInTheDocument();
+    expect(screen.getByText("3 of 3 done")).toBeInTheDocument();
+    expect(plus).not.toBeDisabled();
+
+    fireEvent.click(minus);
+    big = screen.getByRole("link", { name: /^open mission/i });
+    expect(big).toHaveTextContent("Open mission 2");
+    expect(big).toHaveAttribute("href", buildIngressMissionUrl("m2"));
+
+    fireEvent.click(plus);
+    fireEvent.click(plus);
+    expect(screen.getByText("Banner complete")).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /^open mission/i })).not.toBeInTheDocument();
+    expect(screen.getByText("3 of 3 done")).toBeInTheDocument();
+    // Nothing copied, opened or marked.
+    expect(events).toEqual([]);
+
+    // − then the big button: opens that mission, and comes back complete.
+    fireEvent.click(minus);
+    fireEvent.click(minus);
+    await openAndReturn();
+    expect(events).toEqual([
+      ["copy", "lion"],
+      ["navigate", buildIngressMissionUrl("m2")],
+    ]);
+    expect(screen.getByText("Banner complete")).toBeInTheDocument();
+    expect(screen.getByText("3 of 3 done")).toBeInTheDocument();
+  });
+
   it("shows Navigate only when the mission starts more than 1 km away", async () => {
     await renderWalk();
     expect(screen.queryByRole("link", { name: /navigate/i })).not.toBeInTheDocument();

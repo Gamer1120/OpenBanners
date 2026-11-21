@@ -6,6 +6,7 @@ import { isIos } from "../../pwaInstall";
 import {
   appleDirectionsUrl,
   buildWalkMissions,
+  canStepTarget,
   currentMissionIndex,
   doneCount,
   emptyWalkState,
@@ -258,36 +259,45 @@ function WalkScreen({ bannerId, banner }) {
           </section>
         ) : null}
 
+        {complete || target ? (
+          // Also on the complete screen (2026-11-21, Michael): − picks the last mission again,
+          // + from the last mission comes back here.
+          <div className="wk-step">
+            <button
+              type="button"
+              className="wk-step-btn"
+              onClick={() => setState((now) => stepTarget(missions, now, -1))}
+              disabled={!canStepTarget(missions, state, -1) || Boolean(opening)}
+              aria-label={t("Previous mission")}
+            >
+              <span aria-hidden="true">−</span>
+            </button>
+            <button
+              type="button"
+              className="wk-step-btn"
+              onClick={() => setState((now) => stepTarget(missions, now, 1))}
+              disabled={!canStepTarget(missions, state, 1) || Boolean(opening)}
+              aria-label={t("Next mission")}
+            >
+              <span aria-hidden="true">+</span>
+            </button>
+          </div>
+        ) : null}
         {complete ? (
-          <section className="wk-complete" role="status">
-            <span className="wk-flag" aria-hidden="true">
-              🏁
-            </span>
-            <strong>{t("Banner complete")}</strong>
-            <span>{t("All {count} missions done.", { count: String(total) })}</span>
-          </section>
+          <>
+            <section className="wk-complete" role="status">
+              <span className="wk-flag" aria-hidden="true">
+                🏁
+              </span>
+              <strong>{t("Banner complete")}</strong>
+              <span>{t("All {count} missions done.", { count: String(total) })}</span>
+            </section>
+            {/* The same empty slots as under the big button, so the card is exactly its size. */}
+            <div className="wk-guess-slot" />
+            <div className="wk-nav-slot" />
+          </>
         ) : target ? (
           <>
-            <div className="wk-step">
-              <button
-                type="button"
-                className="wk-step-btn"
-                onClick={() => setState((now) => stepTarget(missions, now, -1))}
-                disabled={targetIndex <= 0 || Boolean(opening)}
-                aria-label={t("Previous mission")}
-              >
-                <span aria-hidden="true">−</span>
-              </button>
-              <button
-                type="button"
-                className="wk-step-btn"
-                onClick={() => setState((now) => stepTarget(missions, now, 1))}
-                disabled={targetIndex >= total - 1 || Boolean(opening)}
-                aria-label={t("Next mission")}
-              >
-                <span aria-hidden="true">+</span>
-              </button>
-            </div>
             <a
               className={"wk-open" + (opening ? " opening" : "")}
               href={target.url ?? undefined}

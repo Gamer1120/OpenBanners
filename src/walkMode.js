@@ -144,10 +144,16 @@ export function isBannerComplete(missions, state) {
   return missions.length > 0 && targetMissionIndex(missions, state) < 0;
 }
 
+// Every mission done (or the last one opened), whatever − / + picked: the
+// complete screen shows when nothing is picked.
+export function isWalkFinished(missions, state) {
+  return isBannerComplete(missions, { ...state, pick: null });
+}
+
 // "4 of 18 done": the done missions; once the banner is complete the one
-// opened last counts too.
+// opened last counts too (also while − / + picked a mission to redo).
 export function doneCount(missions, state) {
-  const complete = isBannerComplete(missions, state);
+  const complete = isWalkFinished(missions, state);
   return missions.filter((mission) => state.done.has(mission.id) || (complete && mission.id === state.current)).length;
 }
 
@@ -179,15 +185,26 @@ export function pickMission(missions, state, index) {
 }
 
 // − (step -1) / + (step 1) from the mission the big button opens now; stays
-// put at the first / last mission.
+// put at the first / last mission. Once the banner is complete, the complete
+// screen counts as the place after the last mission: − there picks the last
+// mission, + from the last mission goes back to the complete screen.
 export function stepTarget(missions, state, step) {
   const from = targetMissionIndex(missions, state);
+  if (from < 0) {
+    return step < 0 && missions.length > 0 ? pickMission(missions, state, missions.length - 1) : state;
+  }
   const index = from + step;
-  if (from < 0 || index < 0 || index >= missions.length) {
+  if (index >= missions.length && isWalkFinished(missions, state)) {
+    return { ...state, done: new Set(state.done), pick: null };
+  }
+  if (index < 0 || index >= missions.length) {
     return state;
   }
   return pickMission(missions, state, index);
 }
+
+// Whether − / + would move anything (else the button is disabled).
+export const canStepTarget = (missions, state, step) => stepTarget(missions, state, step) !== state;
 
 export function undoWalk(state) {
   const last = state.history[state.history.length - 1];

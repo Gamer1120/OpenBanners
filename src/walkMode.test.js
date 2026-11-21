@@ -3,7 +3,9 @@ import {
   buildWalkMissions,
   doneCount,
   emptyWalkState,
+  canStepTarget,
   isBannerComplete,
+  isWalkFinished,
   isWalkPreviewHost,
   loadWalkState,
   missionPassphrases,
@@ -155,6 +157,55 @@ describe("which mission the big button opens", () => {
     expect(targetMissionIndex(missions, state)).toBe(-1);
     expect(isBannerComplete(missions, state)).toBe(true);
     expect(doneCount(missions, state)).toBe(4);
+  });
+
+  it("− / + also work once the banner is complete: − picks the last mission, + from it comes back", () => {
+    let state = emptyWalkState();
+    missions.forEach((mission, index) => {
+      state = openMission(missions, state, index);
+    });
+    const history = state.history.length;
+    expect(isBannerComplete(missions, state)).toBe(true);
+    expect(canStepTarget(missions, state, 1)).toBe(false);
+    expect(stepTarget(missions, state, 1)).toBe(state);
+    expect(canStepTarget(missions, state, -1)).toBe(true);
+
+    state = stepTarget(missions, state, -1);
+    expect(targetMissionIndex(missions, state)).toBe(3);
+    expect(isBannerComplete(missions, state)).toBe(false);
+    expect(isWalkFinished(missions, state)).toBe(true);
+    // Still all done: picking a mission marks nothing.
+    expect(doneCount(missions, state)).toBe(4);
+    state = stepTarget(missions, state, -1);
+    expect(targetMissionIndex(missions, state)).toBe(2);
+    state = stepTarget(missions, state, 1);
+    expect(targetMissionIndex(missions, state)).toBe(3);
+    expect(canStepTarget(missions, state, 1)).toBe(true);
+    state = stepTarget(missions, state, 1);
+    expect(state.pick).toBe(null);
+    expect(isBannerComplete(missions, state)).toBe(true);
+    expect(state.history.length).toBe(history);
+    expect(state.current).toBe("m4");
+  });
+
+  it("opening a mission picked on the complete screen ends complete again", () => {
+    let state = emptyWalkState();
+    missions.forEach((mission, index) => {
+      state = openMission(missions, state, index);
+    });
+    state = stepTarget(missions, state, -1);
+    state = stepTarget(missions, state, -1);
+    state = openMission(missions, state, targetMissionIndex(missions, state));
+    expect(state.current).toBe("m3");
+    expect(isBannerComplete(missions, state)).toBe(true);
+    expect(doneCount(missions, state)).toBe(4);
+  });
+
+  it("+ at the last mission stays put while the banner isn't complete", () => {
+    let state = openMission(missions, emptyWalkState(), 0);
+    state = pickMission(missions, state, 3);
+    expect(canStepTarget(missions, state, 1)).toBe(false);
+    expect(stepTarget(missions, state, 1)).toBe(state);
   });
 
   it("undoes step by step", () => {

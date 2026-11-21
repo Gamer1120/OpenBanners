@@ -25,7 +25,8 @@ import {
   PassphrasePanel,
   WaypointAnswer,
 } from "./Passphrases";
-import { PassphraseAlert } from "./shared";
+import { MissionItem, PassphraseAlert } from "./shared";
+import { getPassphraseMissions } from "../../bannerFacts";
 
 const step = (objective, title) => ({ objective, poi: { title } });
 const d = (passphrases = {}) => {
@@ -242,6 +243,74 @@ describe("answer at the waypoint", () => {
     await userEvent.setup().click(screen.getByRole("button", { name: "Add answer" }));
     expect(login).toHaveBeenCalled();
     expect(screen.queryByRole("textbox")).toBeNull();
+  });
+});
+
+describe("passphrase on a deleted portal", () => {
+  // Like mission 23 of Malaysia Mission Hunt - KLCC: its only passphrase is on
+  // a portal Bannergress marks "unavailable" (struck through), which Ingress skips.
+  const gone = (title) => ({ objective: "enterPassphrase", poi: { type: "unavailable", title } });
+  const banner = (passphrases = {}) => {
+    const base = d(passphrases);
+    const missions = [
+      { id: "m1", title: "One", steps: [step("hack", "A"), step("enterPassphrase", "Sign")] },
+      { id: "m2", title: "Two", steps: [gone("Big Chilis"), step("hack", "B")] },
+      { id: "m3", title: "Three", steps: [step("enterPassphrase", "Plaque"), gone("Mural")] },
+    ];
+    return { ...base, missions, passphraseMissions: getPassphraseMissions(missions) };
+  };
+
+  it("counts only the passphrases still asked for", () => {
+    const view = banner();
+    expect(view.passphraseMissions).toEqual([
+      { index: 0, steps: [1] },
+      { index: 2, steps: [0] },
+    ]);
+    expect(passphraseSlots(view).map((slot) => [slot.missionIndex, slot.stepIndex])).toEqual([
+      [0, 1],
+      [2, 0],
+    ]);
+    render(<PassphraseAlert d={view} />);
+    expect(screen.getByRole("note")).toHaveTextContent(/^Missions 1 and 3 ask for a passphraseNo answers known yet$/);
+  });
+
+  it("all answers known when only the deleted one is missing", () => {
+    const answers = [
+      { ...live, id: 11, missionId: "m1", stepIndex: 1 },
+      { ...live, id: 12, missionId: "m3", missionIndex: 2, stepIndex: 0, kind: "text", answer: "Owl" },
+    ];
+    render(<PassphrasePanel d={banner({ data: { answers } })} />);
+    expect(screen.getByText(/2 of 2 answers known/)).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /without an answer/ })).toBeNull();
+  });
+
+  it("keeps an answer given before the portal went away, but asks for no new one", async () => {
+    const user = userEvent.setup();
+    const old = { id: 13, missionId: "m2", missionIndex: 1, stepIndex: 0, kind: "text", status: "live", answer: "Chili", confirms: 1 };
+    const { unmount } = render(<WaypointAnswer d={banner({ data: { answers: [old] } })} missionId="m2" missionIndex={1} stepIndex={0} deleted />);
+    await user.click(screen.getByRole("button", { name: "Show answer" }));
+    expect(screen.getByText("Chili")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Suggest a different answer|Add answer/ })).toBeNull();
+    unmount();
+    const empty = render(<WaypointAnswer d={banner()} missionId="m2" missionIndex={1} stepIndex={0} deleted />);
+    expect(empty.container).toBeEmptyDOMElement();
+  });
+
+  it("shows no Passphrase badge on a mission whose only passphrase is on a deleted portal", () => {
+    const item = (mission) =>
+      render(
+        <ol>
+          <MissionItem mission={mission} index={0} color="#888" selected={false} expanded={false} onToggle={() => {}} itemRef={() => {}} />
+        </ol>
+      );
+    const onlyGone = item({ id: "m2", title: "Two", steps: [gone("Big Chilis"), step("hack", "B")] });
+    expect(onlyGone.container.querySelector(".chip.warn")).toBeNull();
+    onlyGone.unmount();
+    const mixed = item({ id: "m3", title: "Three", steps: [step("enterPassphrase", "Plaque"), gone("Mural"), step("enterPassphrase", "Gate")] });
+    expect(mixed.container.querySelector(".chip.warn")).toHaveTextContent("2 passphrases");
+    mixed.unmount();
+    const none = item({ id: "m4", title: "Four", steps: [step("enterPassphrase", "Plaque")] });
+    expect(none.container.querySelector(".chip.warn")).toHaveTextContent("Passphrase");
   });
 });
 

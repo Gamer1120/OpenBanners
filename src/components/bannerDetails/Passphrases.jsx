@@ -99,7 +99,7 @@ const takeBackable = (pass) =>
 
 const takeBack = (d, ids) => withdrawPassphrases(d.items.id ?? d.bannerId, ids).then(d.passphrases.apply);
 
-function LiveAnswers({ d, answers, missionId, missionIndex, stepIndex }) {
+function LiveAnswers({ d, answers, missionId, missionIndex, stepIndex, deleted = false }) {
   const pass = d.passphrases;
   const [shown, setShown] = useState(false);
   const [suggesting, setSuggesting] = useState(false);
@@ -161,15 +161,17 @@ function LiveAnswers({ d, answers, missionId, missionIndex, stepIndex }) {
         </div>
       ))}
       {error ? <div className="wp-ans-note" role="alert">{error}</div> : null}
-      <AddAnswer
-        d={d}
-        missionId={missionId}
-        missionIndex={missionIndex}
-        stepIndex={stepIndex}
-        suggest
-        open={suggesting}
-        setOpen={setSuggesting}
-      />
+      {deleted ? null : (
+        <AddAnswer
+          d={d}
+          missionId={missionId}
+          missionIndex={missionIndex}
+          stepIndex={stepIndex}
+          suggest
+          open={suggesting}
+          setOpen={setSuggesting}
+        />
+      )}
     </>
   );
 }
@@ -339,8 +341,10 @@ function AddAnswer({ d, missionId, missionIndex, stepIndex, suggest = false, ope
   );
 }
 
-// Under each passphrase waypoint.
-export function WaypointAnswer({ d, missionId, missionIndex, stepIndex }) {
+// Under each passphrase waypoint. `deleted`: the waypoint's portal is gone
+// from Ingress, which skips it, so answers given before still show but no new
+// ones are asked for (and it isn't counted in passphraseSlots).
+export function WaypointAnswer({ d, missionId, missionIndex, stepIndex, deleted = false }) {
   const pass = d.passphrases;
   if (!pass || pass.status !== "ready" || pass.blocked) {
     return null;
@@ -348,11 +352,21 @@ export function WaypointAnswer({ d, missionId, missionIndex, stepIndex }) {
   const answers = pass.byStep.get(stepKey(missionId, stepIndex)) ?? [];
   const live = answers.filter((answer) => answer.status === "live" && answer.answer !== null);
   const pending = answers.filter((answer) => answer.status === "pending");
+  if (deleted && !live.length && !pending.length) {
+    return null;
+  }
 
   return (
     <div className="wp-answer">
       {live.length ? (
-        <LiveAnswers d={d} answers={live} missionId={missionId} missionIndex={missionIndex} stepIndex={stepIndex} />
+        <LiveAnswers
+          d={d}
+          answers={live}
+          missionId={missionId}
+          missionIndex={missionIndex}
+          stepIndex={stepIndex}
+          deleted={deleted}
+        />
       ) : null}
       {pending.map((answer) => (
         <div className="wp-ans-note" key={answer.id}>
@@ -375,10 +389,10 @@ export function WaypointAnswer({ d, missionId, missionIndex, stepIndex }) {
           ) : null}
         </div>
       ))}
-      {!live.length && !pending.length ? (
+      {!deleted && !live.length && !pending.length ? (
         <AddAnswer d={d} missionId={missionId} missionIndex={missionIndex} stepIndex={stepIndex} />
       ) : null}
-      {!live.length && pending.length ? (
+      {!deleted && !live.length && pending.length ? (
         <AddAnswer d={d} missionId={missionId} missionIndex={missionIndex} stepIndex={stepIndex} suggest />
       ) : null}
     </div>

@@ -11,7 +11,7 @@ import { useState, useEffect, useMemo, useRef } from "react";
 import L from "leaflet";
 import { fetchBannergress } from "../bannergressSync";
 import { t } from "../i18n";
-import { isPassphraseStep } from "../bannerFacts";
+import { isRequiredPassphraseStep } from "../bannerFacts";
 import { getPassphrases } from "../passphraseApi";
 import {
   applyPageMetadata,
@@ -90,7 +90,7 @@ export default function Map() {
   }, [bannerId]);
 
   // Known answers for the passphrase notes; the guide works the same without them.
-  const hasPassphrases = missions.some((mission) => Object.values(mission?.steps ?? {}).some(isPassphraseStep));
+  const hasPassphrases = missions.some((mission) => Object.values(mission?.steps ?? {}).some(isRequiredPassphraseStep));
   useEffect(() => {
     if (!hasPassphrases) {
       return undefined;

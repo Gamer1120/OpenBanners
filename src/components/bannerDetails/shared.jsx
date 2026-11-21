@@ -49,7 +49,10 @@ import {
   getStartToFinishMeters,
   getTotalDurationMs,
   getUniquePortals,
+  hasAnyPassphraseStep,
+  isDeletedPassphraseStep,
   isPassphraseStep,
+  isRequiredPassphraseStep,
   MISSION_TYPE_LABELS,
   plannedOfflineTone,
 } from "../../bannerFacts";
@@ -324,7 +327,8 @@ export function MissionItem({ mission, index, color, selected, expanded, onToggl
   const duration = formatDuration(mission.averageDurationMilliseconds);
   const firstPosition = getStepPosition(steps[0]);
   const length = Number(mission.lengthMeters);
-  const passphrases = steps.filter(isPassphraseStep).length;
+  // Passphrases on deleted portals aren't asked any more, so no badge for them.
+  const passphrases = steps.filter(isRequiredPassphraseStep).length;
 
   return (
     <li
@@ -449,7 +453,7 @@ export function MissionItem({ mission, index, color, selected, expanded, onToggl
                   ) : (
                     <a aria-disabled="true">{content}</a>
                   )}
-                  {renderAnswer && isPassphraseStep(step) ? renderAnswer(stepIndex) : null}
+                  {renderAnswer && isPassphraseStep(step) ? renderAnswer(stepIndex, isDeletedPassphraseStep(step)) : null}
                 </li>
               );
             })}
@@ -782,7 +786,9 @@ export function useBannerDetails({ tabs = true } = {}) {
   const startToFinish = getStartToFinishMeters(missions);
   const perKm = getMissionsPerKm(items);
   const passphraseMissions = getPassphraseMissions(missions);
-  const passphrases = useBannerPassphrases(items.id ?? bannerId, !isLoading && passphraseMissions.length > 0);
+  // Also loads when the only passphrases are on deleted portals, so answers
+  // given before the portal went away still show at their waypoint.
+  const passphrases = useBannerPassphrases(items.id ?? bannerId, !isLoading && hasAnyPassphraseStep(missions));
 
   return {
     bannerId,
@@ -1215,8 +1221,8 @@ export function MissionList({ d }) {
           bannerId={d.items?.id ?? d.bannerId}
           renderAnswer={
             mission.id
-              ? (stepIndex) => (
-                  <WaypointAnswer d={d} missionId={mission.id} missionIndex={index} stepIndex={stepIndex} />
+              ? (stepIndex, deleted) => (
+                  <WaypointAnswer d={d} missionId={mission.id} missionIndex={index} stepIndex={stepIndex} deleted={deleted} />
                 )
               : null
           }

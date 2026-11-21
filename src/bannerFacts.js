@@ -166,14 +166,35 @@ export function isPassphraseStep(step) {
   return step?.objective === "enterPassphrase";
 }
 
-// Missions with a passphrase step, as [{ index, steps: [stepIndex, …] }] in
-// banner order. Hidden steps can't be known, so hidden missions never count.
+// A passphrase step on a portal that's gone from Ingress (Bannergress poi type
+// "unavailable", struck through on the banner page). Ingress skips such a
+// waypoint, so nobody can (or needs to) answer it.
+export function isDeletedPassphraseStep(step) {
+  return isPassphraseStep(step) && step?.poi?.type === "unavailable";
+}
+
+// A passphrase step a player still has to answer: not on a deleted portal.
+export function isRequiredPassphraseStep(step) {
+  return isPassphraseStep(step) && !isDeletedPassphraseStep(step);
+}
+
+// True when any mission has a passphrase step, deleted portals included (so
+// answers given before the portal went away still load and show).
+export function hasAnyPassphraseStep(missions) {
+  return missions.some((mission) => stepsOf(mission).some(isPassphraseStep));
+}
+
+// Missions with a passphrase step to answer, as [{ index, steps: [stepIndex, …] }]
+// in banner order. Hidden steps can't be known, so hidden missions never count;
+// steps on deleted portals don't count either (2026-11-21, Felix Yan: otherwise
+// a banner never has all its answers), so a mission whose only passphrase is on
+// a deleted portal isn't a passphrase mission.
 export function getPassphraseMissions(missions) {
   return missions
     .map((mission, index) => ({
       index,
       steps: stepsOf(mission)
-        .map((step, stepIndex) => (isPassphraseStep(step) ? stepIndex : -1))
+        .map((step, stepIndex) => (isRequiredPassphraseStep(step) ? stepIndex : -1))
         .filter((stepIndex) => stepIndex >= 0),
     }))
     .filter((entry) => entry.steps.length);

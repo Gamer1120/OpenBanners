@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { getBannerGuiderLocationDebugInfo } from "../bannerGuiderLocationGeometry";
-import { isPassphraseStep } from "../bannerFacts";
+import { isRequiredPassphraseStep } from "../bannerFacts";
 import { t, tn } from "../i18n";
 
 function copyTextToClipboard(text) {
@@ -40,8 +40,9 @@ export default function MapOverlay({
   const [debugCopyStatus, setDebugCopyStatus] = useState("");
   // NEXT opens missions[currentMission]: warn before it's opened, not after.
   const nextMission = missions[currentMission];
+  // Passphrases on deleted portals: Ingress skips them, so no warning for them.
   const passphraseSteps = Object.values(nextMission?.steps ?? {})
-    .map((step, index) => (isPassphraseStep(step) ? index : -1))
+    .map((step, index) => (isRequiredPassphraseStep(step) ? index : -1))
     .filter((index) => index >= 0);
   const nextHasPassphrase = passphraseSteps.length > 0;
   // Best live answer per passphrase waypoint (the server sends the best first).

@@ -9,6 +9,8 @@ import {
   getStartToFinishMeters,
   getTotalDurationMs,
   getUniquePortals,
+  hasAnyPassphraseStep,
+  isRequiredPassphraseStep,
   plannedOfflineTone,
 } from "./bannerFacts";
 
@@ -96,6 +98,37 @@ describe("passphrases", () => {
     const missions = [mission("hack"), mission("hack", "enterPassphrase"), { type: "hidden", steps: [{}] }];
     expect(getPassphraseMissions(missions)).toEqual([{ index: 1, steps: [1] }]);
     expect(getPassphraseMissions([mission("hack")])).toEqual([]);
+  });
+
+  describe("on deleted portals (Bannergress poi type unavailable)", () => {
+    const gone = { objective: "enterPassphrase", poi: { type: "unavailable", id: "gone", title: "Big Chilis" } };
+    const withSteps = (...steps) => ({ steps });
+    const hackStep = { objective: "hack", poi: { type: "portal", id: "h" } };
+    const passStep = { objective: "enterPassphrase", poi: { type: "portal", id: "p" } };
+
+    it("doesn't count a mission whose only passphrase is on a deleted portal", () => {
+      const missions = [withSteps(gone, hackStep), withSteps(hackStep, passStep)];
+      expect(getPassphraseMissions(missions)).toEqual([{ index: 1, steps: [1] }]);
+      expect(getPassphraseMissions([withSteps(gone), withSteps(gone, hackStep)])).toEqual([]);
+      // Its answers still load: the banner does have passphrase steps.
+      expect(hasAnyPassphraseStep([withSteps(gone)])).toBe(true);
+      expect(hasAnyPassphraseStep([withSteps(hackStep)])).toBe(false);
+    });
+
+    it("counts only the live passphrases of a mission with both", () => {
+      expect(getPassphraseMissions([withSteps(passStep, gone, hackStep, passStep)])).toEqual([{ index: 0, steps: [0, 3] }]);
+    });
+
+    it("counts every passphrase when no portal is deleted", () => {
+      expect(getPassphraseMissions([withSteps(passStep, hackStep, passStep), withSteps(passStep)])).toEqual([
+        { index: 0, steps: [0, 2] },
+        { index: 1, steps: [0] },
+      ]);
+      expect(isRequiredPassphraseStep(passStep)).toBe(true);
+      expect(isRequiredPassphraseStep({ objective: "enterPassphrase" })).toBe(true);
+      expect(isRequiredPassphraseStep(gone)).toBe(false);
+      expect(isRequiredPassphraseStep(hackStep)).toBe(false);
+    });
   });
 
   it("names the missions", () => {

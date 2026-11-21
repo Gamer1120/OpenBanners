@@ -8,7 +8,7 @@
 // shows its answers to copy (you come back mid-mission for the second one).
 // This file is the pure logic; the page is src/components/walk/.
 import { getMissionList } from "./bannerMissions";
-import { isPassphraseStep } from "./bannerFacts";
+import { isRequiredPassphraseStep } from "./bannerFacts";
 import { buildIngressMissionUrl } from "./bannerDisplay";
 
 export const WALK_STATE_PREFIX = "openbanners-walk:";
@@ -42,7 +42,9 @@ export function buildWalkMissions(missionsByPosition) {
     const passphrases = [];
     steps.forEach((step, stepIndex) => {
       start = start ?? positionOf(step);
-      if (isPassphraseStep(step)) {
+      // Not passphrases on deleted portals: Ingress skips those waypoints, so
+      // the button copies the first passphrase still asked for.
+      if (isRequiredPassphraseStep(step)) {
         passphrases.push({ stepIndex, title: step?.poi?.title || "" });
       }
     });

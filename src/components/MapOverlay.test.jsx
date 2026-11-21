@@ -14,6 +14,12 @@ describe("BannerGuider overlay", () => {
     expect(screen.getByRole("note")).toHaveTextContent("Mission 2 has a passphrase");
   });
 
+  it("says nothing when the only passphrase is on a deleted portal", () => {
+    const gone = [{ id: "c", steps: { 0: { objective: "enterPassphrase", poi: { type: "unavailable" } }, 1: { objective: "hack" } } }];
+    render(<MapOverlay missions={gone} currentMission={0} setCurrentMission={() => {}} bannerId="x" />);
+    expect(screen.queryByRole("note")).toBeNull();
+  });
+
   it("says nothing for other missions", () => {
     render(<MapOverlay missions={missions} currentMission={0} setCurrentMission={() => {}} bannerId="x" />);
     expect(screen.queryByRole("note")).toBeNull();

@@ -66,6 +66,19 @@ describe("walk missions", () => {
     expect(missions[0]).not.toHaveProperty("intelUrl");
   });
 
+  it("leaves out passphrases on deleted portals (Ingress skips them)", () => {
+    const gone = { objective: "enterPassphrase", poi: { latitude: 52.01, longitude: 4, title: "Big Chilis", type: "unavailable" } };
+    const walk = buildWalkMissions({
+      0: { id: "g1", title: "Only gone", steps: [gone, hack(52.011, "D")] },
+      1: { id: "g2", title: "Mixed", steps: [gone, pass(52.012, "Gate")] },
+    });
+    expect(walk[0].passphrases).toEqual([]);
+    expect(walk[1].passphrases).toEqual([{ stepIndex: 1, title: "Gate" }]);
+    // The button copies the passphrase still asked for, not the deleted one's answer.
+    const byStep = byStepOf([live("g2", 0, "old"), live("g2", 1, "gate")]);
+    expect(passphraseToCopy(missionPassphrases(walk[1], byStep))).toBe("gate");
+  });
+
   it("answers like the Overlay: best live answer, the mission number for a number answer, a guess when unknown", () => {
     const byStep = byStepOf([
       { ...live("m2", 0, "older"), status: "pending" },

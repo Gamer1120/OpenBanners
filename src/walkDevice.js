@@ -15,4 +15,10 @@ export function isWalkModeDevice(nav = typeof navigator === "undefined" ? null :
   return /Macintosh/.test(userAgent) && Number(nav.maxTouchPoints) > 1;
 }
 
-export const walkModePath = (bannerId) => "/banner/" + encodeURIComponent(bannerId) + "/walk";
+// fromMission (1-based, as listed on the banner page): walk mode starts with
+// the big button on that mission (?from=N; see startAtMission in walkMode.js).
+export const walkModePath = (bannerId, fromMission = null) =>
+  "/banner/" +
+  encodeURIComponent(bannerId) +
+  "/walk" +
+  (Number.isInteger(fromMission) && fromMission > 0 ? "?from=" + fromMission : "");

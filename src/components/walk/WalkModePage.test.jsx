@@ -1,6 +1,6 @@
 import React from "react";
 import { act, cleanup, fireEvent, render, screen, within } from "@testing-library/react";
-import { MemoryRouter, Route, Routes } from "react-router-dom";
+import { MemoryRouter, Route, Routes, useLocation } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { buildIngressMissionUrl } from "../../bannerDisplay";
 
@@ -83,9 +83,17 @@ function setPosition(latitude, longitude) {
   });
 }
 
-async function renderWalk() {
+let currentUrl;
+function LocationProbe() {
+  const location = useLocation();
+  currentUrl = location.pathname + location.search;
+  return null;
+}
+
+async function renderWalk(url = "/banner/demo-1/walk") {
   render(
-    <MemoryRouter initialEntries={["/banner/demo-1/walk"]}>
+    <MemoryRouter initialEntries={[url]}>
+      <LocationProbe />
       <Routes>
         <Route path="/banner/:bannerId/walk" element={<WalkModePage />} />
       </Routes>
@@ -207,6 +215,53 @@ describe("walk mode page", () => {
       ["navigate", buildIngressMissionUrl("m2")],
     ]);
     expect(screen.getByRole("link", { name: /^open mission/i })).toHaveTextContent("Open mission 3");
+  });
+
+  it("?from=N starts with the big button on mission N, nothing done, and drops ?from from the address", async () => {
+    const button = await renderWalk("/banner/demo-1/walk?from=3");
+    expect(button).toHaveTextContent("Open mission 3");
+    expect(button).toHaveAttribute("href", buildIngressMissionUrl("m3"));
+    expect(screen.getByText("0 of 3 done")).toBeInTheDocument();
+    expect(currentUrl).toBe("/banner/demo-1/walk");
+    // − / + still work from there.
+    const minus = screen.getByRole("button", { name: "Previous mission" });
+    const plus = screen.getByRole("button", { name: "Next mission" });
+    expect(plus).toBeDisabled();
+    fireEvent.click(minus);
+    expect(screen.getByRole("link", { name: /^open mission/i })).toHaveTextContent("Open mission 2");
+    expect(screen.getByText("0 of 3 done")).toBeInTheDocument();
+    expect(events).toEqual([]);
+
+    // A reload (no ?from any more) keeps the mission − chose instead of jumping back to 3.
+    cleanup();
+    expect(await renderWalk()).toHaveTextContent("Open mission 2");
+  });
+
+  it("?from=N that isn't a mission of the banner starts as usual and is dropped too", async () => {
+    for (const from of ["9", "0", "abc"]) {
+      const button = await renderWalk("/banner/demo-1/walk?from=" + from);
+      expect(button).toHaveTextContent("Open mission 1");
+      expect(screen.getByText("0 of 3 done")).toBeInTheDocument();
+      expect(currentUrl).toBe("/banner/demo-1/walk");
+      cleanup();
+    }
+    expect(window.localStorage.getItem("openbanners-walk:demo-1")).toBeNull();
+  });
+
+  it("?from=N with saved progress: jumps to mission N and keeps the done marks", async () => {
+    await renderWalk();
+    await openAndReturn();
+    await openAndReturn();
+    expect(screen.getByRole("link", { name: /^open mission/i })).toHaveTextContent("Open mission 3");
+    expect(screen.getByText("1 of 3 done")).toBeInTheDocument();
+    cleanup();
+
+    const button = await renderWalk("/banner/demo-1/walk?from=1");
+    expect(button).toHaveTextContent("Open mission 1");
+    expect(screen.getByText("1 of 3 done")).toBeInTheDocument();
+    expect(currentUrl).toBe("/banner/demo-1/walk");
+    // Mission 2 is still the one in progress (its passphrase rows stay).
+    expect(screen.getByRole("region", { name: "Mission 2 passphrases" })).toBeInTheDocument();
   });
 
   it("has no Pick mission in the ⋯ menu any more; Undo, Reset and Banner page stay", async () => {

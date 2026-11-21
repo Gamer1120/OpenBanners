@@ -11,11 +11,13 @@ import {
   navigateTarget,
   openMission,
   openMissionTap,
+  parseFromMission,
   passphraseAnswer,
   passphraseToCopy,
   pickMission,
   stepTarget,
   saveWalkState,
+  startAtMission,
   targetMissionIndex,
   undoWalk,
   writeClipboard,
@@ -228,6 +230,63 @@ describe("which mission the big button opens", () => {
     state = undoWalk(state);
     expect(state.current).toBe(null);
     expect(undoWalk(state)).toBe(state);
+  });
+});
+
+describe("starting walk mode at mission N (?from=N)", () => {
+  const missions = buildWalkMissions(banner);
+
+  it("reads only plain mission numbers from the address", () => {
+    expect(parseFromMission("5")).toBe(5);
+    expect(parseFromMission(" 12 ")).toBe(12);
+    for (const bad of [null, undefined, "", "0", "-1", "1.5", "abc", "5x", "1e2", "999999"]) {
+      expect(parseFromMission(bad)).toBeNull();
+    }
+  });
+
+  it("points the big button at mission N without marking anything done (like + N−1 times)", () => {
+    const fresh = emptyWalkState();
+    const state = startAtMission(missions, fresh, 3);
+    expect(targetMissionIndex(missions, state)).toBe(2);
+    expect([...state.done]).toEqual([]);
+    expect(state.current).toBeNull();
+    expect(state.history).toEqual([]);
+    expect(doneCount(missions, state)).toBe(0);
+    let pressed = fresh;
+    pressed = stepTarget(missions, pressed, 1);
+    pressed = stepTarget(missions, pressed, 1);
+    expect(state).toEqual(pressed);
+    // − / + go on from there.
+    expect(targetMissionIndex(missions, stepTarget(missions, state, -1))).toBe(1);
+    expect(targetMissionIndex(missions, stepTarget(missions, state, 1))).toBe(3);
+  });
+
+  it("leaves the state alone for mission 1 of a new walk, and for numbers that aren't a mission", () => {
+    const fresh = emptyWalkState();
+    expect(startAtMission(missions, fresh, 1)).toBe(fresh);
+    for (const bad of [0, -2, 5, 99, null, undefined, NaN, 1.5]) {
+      expect(startAtMission(missions, fresh, bad)).toBe(fresh);
+    }
+  });
+
+  it("keeps saved progress: done marks, the mission in progress and Undo stay, only the target moves", () => {
+    let saved = openMission(missions, emptyWalkState(), 0);
+    saved = openMission(missions, saved, 1);
+    // Mission 1 done, mission 2 in progress, the big button on mission 3.
+    expect(targetMissionIndex(missions, saved)).toBe(2);
+    const back = startAtMission(missions, saved, 1);
+    expect(targetMissionIndex(missions, back)).toBe(0);
+    expect([...back.done]).toEqual(["m1"]);
+    expect(back.current).toBe("m2");
+    expect(back.history).toEqual(saved.history);
+    expect(doneCount(missions, back)).toBe(1);
+    const ahead = startAtMission(missions, saved, 4);
+    expect(targetMissionIndex(missions, ahead)).toBe(3);
+    expect([...ahead.done]).toEqual(["m1"]);
+    // Already the target: nothing changes.
+    expect(startAtMission(missions, saved, 3)).toBe(saved);
+    // Out of range: nothing changes either.
+    expect(startAtMission(missions, saved, 9)).toBe(saved);
   });
 });
 

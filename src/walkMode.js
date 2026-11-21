@@ -186,6 +186,24 @@ export function pickMission(missions, state, index) {
   return mission ? { ...state, done: new Set(state.done), pick: mission.id } : state;
 }
 
+// "Start walk mode from here" on the banner page (/banner/:id/walk?from=N,
+// N 1-based as listed): the big button opens mission N, like pressing + N−1
+// times. Only the pick changes: no mission is marked done, and saved progress
+// (done marks, the mission in progress, Undo) is kept. Anything that isn't a
+// mission number of this banner leaves the state as it is.
+export function parseFromMission(value) {
+  const text = String(value ?? "").trim();
+  return /^[1-9][0-9]{0,4}$/.test(text) ? Number(text) : null;
+}
+
+export function startAtMission(missions, state, number) {
+  const index = Number.isInteger(number) ? number - 1 : -1;
+  if (index < 0 || index >= missions.length || targetMissionIndex(missions, state) === index) {
+    return state;
+  }
+  return pickMission(missions, state, index);
+}
+
 // − (step -1) / + (step 1) from the mission the big button opens now; stays
 // put at the first / last mission. Once the banner is complete, the complete
 // screen counts as the place after the last mission: − there picks the last

@@ -1,5 +1,5 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { Link, useParams, useSearchParams } from "react-router-dom";
 import { useBannerPassphrases } from "../../passphraseApi";
 import { formatLength } from "../../bannerDisplay";
 import { isIos } from "../../pwaInstall";
@@ -15,9 +15,11 @@ import {
   missionPassphrases,
   navigateTarget,
   openMissionTap,
+  parseFromMission,
   PASSPHRASE_WAIT_MS,
   passphraseToCopy,
   saveWalkState,
+  startAtMission,
   stepTarget,
   targetMissionIndex,
   undoWalk,
@@ -107,6 +109,28 @@ function WalkScreen({ bannerId, banner }) {
   });
   const [menuOpen, setMenuOpen] = useState(false);
   const [copied, setCopied] = useState(null); // { key, ok }
+
+  // ?from=N ("Start walk mode from here" on the banner page): the big button
+  // starts on mission N, keeping any saved progress (startAtMission). Applied
+  // once before the first paint (saved straight away, so the reload in
+  // useWalkState reads it back), then taken out of the address so a reload or
+  // coming back from Ingress doesn't jump there again.
+  const [searchParams, setSearchParams] = useSearchParams();
+  const fromParam = searchParams.get("from");
+  useLayoutEffect(() => {
+    if (fromParam === null) {
+      return;
+    }
+    setState((now) => startAtMission(missions, now, parseFromMission(fromParam)));
+    setSearchParams(
+      (params) => {
+        const next = new URLSearchParams(params);
+        next.delete("from");
+        return next;
+      },
+      { replace: true }
+    );
+  }, [fromParam, missions, setState, setSearchParams]);
 
   const hasPassphrases = missions.some((mission) => mission.passphrases.length > 0);
   const answers = useBannerPassphrases(bannerId, hasPassphrases);

@@ -40,4 +40,12 @@ describe("isWalkModeDevice", () => {
   it("links to the walk page of the banner", () => {
     expect(walkModePath("my banner")).toBe("/banner/my%20banner/walk");
   });
+
+  it("starts walk mode at a mission with ?from=N (only for a mission number)", () => {
+    expect(walkModePath("my banner", 5)).toBe("/banner/my%20banner/walk?from=5");
+    expect(walkModePath("b", 1)).toBe("/banner/b/walk?from=1");
+    for (const bad of [0, -1, 1.5, "2", NaN, null, undefined]) {
+      expect(walkModePath("b", bad)).toBe("/banner/b/walk");
+    }
+  });
 });
